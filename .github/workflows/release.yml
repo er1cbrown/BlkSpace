@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: create-release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: true
           generate_release_notes: true
@@ -67,7 +67,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm tauri build --target ${{ matrix.target }}
       - name: Upload artifact
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: src-tauri/target/release/bundle/${{ matrix.ext }}/*
           tag_name: ${{ github.ref_name }}
