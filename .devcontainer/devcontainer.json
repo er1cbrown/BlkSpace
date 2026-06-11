@@ -1,41 +1,26 @@
 {
   "name": "BlkSpace",
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
   "features": {
     "ghcr.io/devcontainers/features/rust:1": {
-      "version": "stable",
-      "targets": "aarch64-apple-darwin,x86_64-apple-darwin,x86_64-unknown-linux-gnu"
+      "version": "stable"
     },
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "22"
-    },
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/git:1": {}
   },
   "customizations": {
     "vscode": {
       "extensions": [
         "rust-lang.rust-analyzer",
-        "tauri-apps.tauri-vscode",
         "bradlc.vscode-tailwindcss",
-        "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",
-        "github.vscode-github-actions",
-        "tomoki1207.pdf"
+        "github.vscode-github-actions"
       ],
       "settings": {
         "editor.formatOnSave": true,
-        "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "typescript.updateImportsOnFileMove.enabled": "always",
-        "terminal.integrated.defaultProfile.linux": "zsh"
+        "typescript.updateImportsOnFileMove.enabled": "always"
       }
     }
   },
-  "mounts": [
-    "source=${env:HOME}${env:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
-  ],
-  "containerEnv": {
-    "SHELL": "/bin/zsh"
-  },
-  "postCreateCommand": "npm install -g pnpm@latest && .devcontainer/post-create.sh",
-  "remoteUser": "vscode"
+  "postCreateCommand": ".devcontainer/post-create.sh",
+  "remoteUser": "node"
 }
