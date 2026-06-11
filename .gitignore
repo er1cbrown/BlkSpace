@@ -1,0 +1,30 @@
+node_modules/
+dist/
+build/
+.vite/
+
+# Rust / Tauri
+src-tauri/target/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Package
+pnpm-lock.yaml
