@@ -24,11 +24,13 @@ sudo apt-get update -qq && sudo apt-get install -y -qq \
 echo "=== pnpm store (saves disk) ==="
 pnpm config set store-dir /tmp/pnpm-store 2>/dev/null || true
 
-echo "=== Install OpenClaw? ==="
-echo "Run when ready: npm install -g openclaw@latest && openclaw onboard"
-echo ""
+echo "=== Installing OpenClaw ==="
+npm install -g openclaw@latest 2>/dev/null || true
+
 echo "=== Dev environment ready ==="
 code --version 2>/dev/null | head -1
 rustc --version
 node --version
 pnpm --version
+opencode --version
+openclaw --version 2>/dev/null || echo "openclaw: installed (run 'openclaw onboard' to configure)"
