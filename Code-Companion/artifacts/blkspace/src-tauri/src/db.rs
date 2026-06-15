@@ -364,6 +364,43 @@ impl Database {
       CREATE INDEX IF NOT EXISTS idx_relay_events_kind ON relay_events(kind);
       CREATE INDEX IF NOT EXISTS idx_relay_events_pubkey ON relay_events(pubkey);
       CREATE INDEX IF NOT EXISTS idx_relay_events_relay ON relay_events(relay_url);
+
+      CREATE TABLE IF NOT EXISTS blob_pins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hash TEXT NOT NULL,
+        pinned_by TEXT NOT NULL,
+        access_count INTEGER DEFAULT 0,
+        last_accessed TEXT DEFAULT (datetime('now')),
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(hash, pinned_by)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_blob_pins_hash ON blob_pins(hash);
+      CREATE INDEX IF NOT EXISTS idx_blob_pins_pinned_by ON blob_pins(pinned_by);
+
+      CREATE TABLE IF NOT EXISTS pin_serves (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hash TEXT NOT NULL,
+        served_by TEXT NOT NULL,
+        served_to TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_pin_serves_hash ON pin_serves(hash);
+      CREATE INDEX IF NOT EXISTS idx_pin_serves_served_by ON pin_serves(served_by);
+
+      CREATE TABLE IF NOT EXISTS offline_cache (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hash TEXT NOT NULL,
+        cached_by TEXT NOT NULL,
+        content_type TEXT DEFAULT 'blob',
+        source TEXT DEFAULT 'followed',
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(hash, cached_by)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_offline_cache_hash ON offline_cache(hash);
+      CREATE INDEX IF NOT EXISTS idx_offline_cache_cached_by ON offline_cache(cached_by);
       "
     )?;
 
@@ -377,6 +414,8 @@ impl Database {
     let _ = conn.execute("ALTER TABLE posts ADD COLUMN nostr_event_id TEXT DEFAULT ''", []);
     let _ = conn.execute("ALTER TABLE posts ADD COLUMN relay_url TEXT DEFAULT ''", []);
     let _ = conn.execute("ALTER TABLE blobs ADD COLUMN cid TEXT", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN node_role TEXT DEFAULT ''", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN relay_uptime_hours INTEGER DEFAULT 0", []);
 
     Ok(())
   }
@@ -1364,5 +1403,198 @@ impl Database {
 
   pub fn get_trending_feed(&self, current_user: Option<&str>) -> Result<Vec<Post>> {
     self.list_posts(None, current_user)
+  }
+
+  // ─── Blob Pinning ─────────────────────────────────────
+
+  pub fn increment_blob_access(&self, hash: &str) -> Result<i64> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "INSERT INTO blob_pins (hash, pinned_by, access_count) VALUES (?1, 'system', 1)
+       ON CONFLICT(hash, pinned_by) DO UPDATE SET
+       access_count = access_count + 1,
+       last_accessed = datetime('now')",
+      params![hash],
+    )?;
+    let count: i64 = conn.query_row(
+      "SELECT access_count FROM blob_pins WHERE hash = ?1 AND pinned_by = 'system'",
+      params![hash],
+      |r| r.get(0),
+    )?;
+    Ok(count)
+  }
+
+  pub fn should_pin(&self, hash: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let count: i64 = conn.query_row(
+      "SELECT COALESCE(access_count, 0) FROM blob_pins WHERE hash = ?1 AND pinned_by = 'system'",
+      params![hash],
+      |r| r.get(0),
+    ).unwrap_or(0);
+    Ok(count > 10)
+  }
+
+  pub fn pin_blob(&self, hash: &str, pinned_by: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let changed = conn.execute(
+      "INSERT INTO blob_pins (hash, pinned_by, access_count) VALUES (?1, ?2, 0)
+       ON CONFLICT(hash, pinned_by) DO NOTHING",
+      params![hash, pinned_by],
+    )?;
+    Ok(changed > 0)
+  }
+
+  pub fn is_pinned(&self, hash: &str, pinned_by: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let count: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM blob_pins WHERE hash = ?1 AND pinned_by = ?2",
+      params![hash, pinned_by],
+      |r| r.get(0),
+    )?;
+    Ok(count > 0)
+  }
+
+  pub fn list_pinned_blobs(&self, pinned_by: &str) -> Result<Vec<String>> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT hash FROM blob_pins WHERE pinned_by = ?1 ORDER BY last_accessed DESC"
+    )?;
+    let rows = stmt.query_map(params![pinned_by], |row| {
+      row.get::<_, String>(0)
+    })?;
+    let mut hashes = Vec::new();
+    for row in rows {
+      hashes.push(row?);
+    }
+    Ok(hashes)
+  }
+
+  // ─── Pin Serve Rewards ──────────────────────────────────
+
+  pub fn record_pin_serve(&self, hash: &str, served_by: &str, served_to: &str) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "INSERT INTO pin_serves (hash, served_by, served_to) VALUES (?1, ?2, ?3)",
+      params![hash, served_by, served_to],
+    )?;
+    Ok(())
+  }
+
+  pub fn count_serves_today(&self, served_by: &str) -> Result<i64> {
+    let conn = self.conn.lock().unwrap();
+    let count: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM pin_serves WHERE served_by = ?1 AND date(created_at) = date('now')",
+      params![served_by],
+      |r| r.get(0),
+    )?;
+    Ok(count)
+  }
+
+  pub fn count_serves_for_blob(&self, hash: &str) -> Result<i64> {
+    let conn = self.conn.lock().unwrap();
+    let count: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM pin_serves WHERE hash = ?1",
+      params![hash],
+      |r| r.get(0),
+    )?;
+    Ok(count)
+  }
+
+  // ─── Offline Cache ──────────────────────────────────────
+
+  pub fn add_to_offline_cache(&self, hash: &str, cached_by: &str, content_type: &str, source: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let changed = conn.execute(
+      "INSERT INTO offline_cache (hash, cached_by, content_type, source) VALUES (?1, ?2, ?3, ?4)
+       ON CONFLICT(hash, cached_by) DO NOTHING",
+      params![hash, cached_by, content_type, source],
+    )?;
+    Ok(changed > 0)
+  }
+
+  pub fn remove_from_offline_cache(&self, hash: &str, cached_by: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let affected = conn.execute(
+      "DELETE FROM offline_cache WHERE hash = ?1 AND cached_by = ?2",
+      params![hash, cached_by],
+    )?;
+    Ok(affected > 0)
+  }
+
+  pub fn list_offline_cache(&self, cached_by: &str) -> Result<Vec<String>> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT hash FROM offline_cache WHERE cached_by = ?1 ORDER BY created_at DESC"
+    )?;
+    let rows = stmt.query_map(params![cached_by], |row| {
+      row.get::<_, String>(0)
+    })?;
+    let mut hashes = Vec::new();
+    for row in rows {
+      hashes.push(row?);
+    }
+    Ok(hashes)
+  }
+
+  pub fn is_cached_offline(&self, hash: &str, cached_by: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let count: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM offline_cache WHERE hash = ?1 AND cached_by = ?2",
+      params![hash, cached_by],
+      |r| r.get(0),
+    )?;
+    Ok(count > 0)
+  }
+
+  // ─── Cross-Device Sync ──────────────────────────────────
+
+  pub fn get_user_media_hashes(&self, handle: &str) -> Result<Vec<String>> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT DISTINCT b.hash FROM blobs b
+       JOIN posts p ON p.author_handle = ?1
+       WHERE b.uploader_handle = ?1
+       UNION
+       SELECT DISTINCT json_each.value FROM posts p, json_each(p.media_blobs)
+       WHERE p.author_handle = ?1 AND json_each.value IS NOT NULL"
+    )?;
+    let rows = stmt.query_map(params![handle], |row| {
+      row.get::<_, String>(0)
+    })?;
+    let mut hashes = Vec::new();
+    for row in rows {
+      hashes.push(row?);
+    }
+    Ok(hashes)
+  }
+
+  // ─── Node Role Management ───────────────────────────────
+
+  pub fn set_node_role(&self, handle: &str, role: &str) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "UPDATE users SET node_role = ?1 WHERE handle = ?2",
+      params![role, handle],
+    )?;
+    Ok(())
+  }
+
+  pub fn get_node_role(&self, handle: &str) -> Result<String> {
+    let conn = self.conn.lock().unwrap();
+    let role: String = conn.query_row(
+      "SELECT COALESCE(node_role, '') FROM users WHERE handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    Ok(role)
+  }
+
+  pub fn increment_relay_uptime(&self, handle: &str, hours: i64) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "UPDATE users SET relay_uptime_hours = relay_uptime_hours + ?1 WHERE handle = ?2",
+      params![hours, handle],
+    )?;
+    Ok(())
   }
 }

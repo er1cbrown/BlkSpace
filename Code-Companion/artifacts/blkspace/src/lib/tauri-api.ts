@@ -384,3 +384,51 @@ export function tauriPublishTrendingSummary(sessionToken: string): Promise<strin
 export function tauriFetchTrendingSummaries(sessionToken: string, town: string): Promise<string[]> {
   return invoke("fetch_trending_summaries", { sessionToken, town });
 }
+
+// ─── Pinning & Content Persistence ─────────────────────
+
+export function tauriPinContent(sessionToken: string, hash: string): Promise<boolean> {
+  return invoke("pin_content", { sessionToken, hash });
+}
+
+export function tauriShouldPinContent(hash: string): Promise<boolean> {
+  return invoke("should_pin_content", { hash });
+}
+
+export function tauriListPinnedContent(sessionToken: string): Promise<string[]> {
+  return invoke("list_pinned_content", { sessionToken });
+}
+
+// ─── Node Rewards ─────────────────────────────────────
+
+export function tauriReportPinServe(sessionToken: string, hash: string): Promise<boolean> {
+  return invoke("report_pin_serve", { sessionToken, hash });
+}
+
+export function tauriClaimNodeRewards(sessionToken: string): Promise<number> {
+  return invoke("claim_node_rewards", { sessionToken });
+}
+
+// ─── Cross-Device Sync ────────────────────────────────
+
+export function tauriSyncAccountContent(sessionToken: string): Promise<string[]> {
+  return invoke("sync_account_content", { sessionToken });
+}
+
+// ─── Offline Cache ───────────────────────────────────
+
+export function tauriAddToOfflineCache(sessionToken: string, hash: string, contentType: string, source: string): Promise<boolean> {
+  return invoke("add_to_offline_cache", { sessionToken, hash, contentType, source });
+}
+
+export function tauriRemoveFromOfflineCache(sessionToken: string, hash: string): Promise<boolean> {
+  return invoke("remove_from_offline_cache", { sessionToken, hash });
+}
+
+export function tauriListOfflineCache(sessionToken: string): Promise<string[]> {
+  return invoke("list_offline_cache", { sessionToken });
+}
+
+export function tauriPrefetchContent(sessionToken: string, hashes: string[]): Promise<string[]> {
+  return invoke("prefetch_content", { sessionToken, hashes });
+}

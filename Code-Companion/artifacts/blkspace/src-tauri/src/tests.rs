@@ -650,4 +650,155 @@ mod tests {
     let retrieved = db.get_blob_record("def456").unwrap().unwrap();
     assert_eq!(retrieved.cid, None);
   }
+
+  // ─── Pinning Tests ───────────────────────────────────
+
+  #[test]
+  fn test_pin_blob() {
+    let db = setup_test_db();
+    
+    // Pin a blob
+    let pinned = db.pin_blob("abc123", "demo_user").unwrap();
+    assert!(pinned);
+    
+    // Try to pin again (should return false since already pinned)
+    let pinned_again = db.pin_blob("abc123", "demo_user").unwrap();
+    assert!(!pinned_again);
+    
+    // Check if pinned
+    assert!(db.is_pinned("abc123", "demo_user").unwrap());
+    assert!(!db.is_pinned("abc123", "other_user").unwrap());
+    
+    // List pinned blobs
+    let pinned = db.list_pinned_blobs("demo_user").unwrap();
+    assert_eq!(pinned.len(), 1);
+    assert_eq!(pinned[0], "abc123");
+  }
+
+  #[test]
+  fn test_should_pin() {
+    let db = setup_test_db();
+    
+    // Initially should not pin
+    assert!(!db.should_pin("abc123").unwrap());
+    
+    // Increment access count 11 times
+    for _ in 0..11 {
+      db.increment_blob_access("abc123").unwrap();
+    }
+    
+    // Now should pin
+    assert!(db.should_pin("abc123").unwrap());
+  }
+
+  #[test]
+  fn test_increment_blob_access() {
+    let db = setup_test_db();
+    
+    // First access
+    let count = db.increment_blob_access("abc123").unwrap();
+    assert_eq!(count, 1);
+    
+    // Second access
+    let count = db.increment_blob_access("abc123").unwrap();
+    assert_eq!(count, 2);
+    
+    // Third access
+    let count = db.increment_blob_access("abc123").unwrap();
+    assert_eq!(count, 3);
+  }
+
+  // ─── Pin Serve Rewards Tests ────────────────────────
+
+  #[test]
+  fn test_record_pin_serve() {
+    let db = setup_test_db();
+    
+    // Record serves
+    db.record_pin_serve("abc123", "demo_user", "user_a").unwrap();
+    db.record_pin_serve("abc123", "demo_user", "user_b").unwrap();
+    db.record_pin_serve("def456", "demo_user", "user_c").unwrap();
+    
+    // Count serves today
+    let count = db.count_serves_today("demo_user").unwrap();
+    assert_eq!(count, 3);
+    
+    // Count serves for specific blob
+    let blob_count = db.count_serves_for_blob("abc123").unwrap();
+    assert_eq!(blob_count, 2);
+  }
+
+  // ─── Offline Cache Tests ───────────────────────────
+
+  #[test]
+  fn test_offline_cache() {
+    let db = setup_test_db();
+    
+    // Add to cache
+    let added = db.add_to_offline_cache("abc123", "demo_user", "blob", "followed").unwrap();
+    assert!(added);
+    
+    // Try to add again (should return false)
+    let added_again = db.add_to_offline_cache("abc123", "demo_user", "blob", "followed").unwrap();
+    assert!(!added_again);
+    
+    // Check if cached
+    assert!(db.is_cached_offline("abc123", "demo_user").unwrap());
+    assert!(!db.is_cached_offline("abc123", "other_user").unwrap());
+    
+    // List cache
+    let cache = db.list_offline_cache("demo_user").unwrap();
+    assert_eq!(cache.len(), 1);
+    assert_eq!(cache[0], "abc123");
+    
+    // Remove from cache
+    let removed = db.remove_from_offline_cache("abc123", "demo_user").unwrap();
+    assert!(removed);
+    assert!(!db.is_cached_offline("abc123", "demo_user").unwrap());
+  }
+
+  // ─── Cross-Device Sync Tests ───────────────────────
+
+  #[test]
+  fn test_get_user_media_hashes() {
+    let db = setup_test_db();
+    
+    // Create a post with media blobs
+    db.insert_post("demo_user", "Test post", "tsu", None).unwrap();
+    
+    // Add blobs
+    db.insert_blob("hash1", Some("cid1"), "test1.jpg", "image/jpeg", 1024, "demo_user").unwrap();
+    db.insert_blob("hash2", Some("cid2"), "test2.jpg", "image/jpeg", 2048, "demo_user").unwrap();
+    
+    // Get user media hashes
+    let hashes = db.get_user_media_hashes("demo_user").unwrap();
+    assert!(hashes.contains(&"hash1".to_string()));
+    assert!(hashes.contains(&"hash2".to_string()));
+  }
+
+  // ─── Node Role Tests ───────────────────────────────
+
+  #[test]
+  fn test_node_role() {
+    let db = setup_test_db();
+    
+    // Set node role
+    db.set_node_role("demo_user", "relay").unwrap();
+    
+    // Get node role
+    let role = db.get_node_role("demo_user").unwrap();
+    assert_eq!(role, "relay");
+    
+    // Increment relay uptime
+    db.increment_relay_uptime("demo_user", 5).unwrap();
+    
+    // Verify uptime (need to query it)
+    let conn = db.conn.lock().unwrap();
+    let hours: i64 = conn.query_row(
+      "SELECT relay_uptime_hours FROM users WHERE handle = ?1",
+      rusqlite::params!["demo_user"],
+      |r| r.get(0),
+    ).unwrap();
+    assert_eq!(hours, 5);
+  }
 }

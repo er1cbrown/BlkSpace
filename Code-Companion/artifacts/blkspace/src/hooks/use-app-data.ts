@@ -407,3 +407,97 @@ export function useTauriFetchTrendingSummaries(town: string) {
     enabled: IS_TAURI && !!town,
   });
 }
+
+// ─── Pinning & Content Persistence Hooks ──────────────
+
+export function useTauriPinContent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ hash }: { hash: string }) =>
+      tauri.tauriPinContent(getSessionToken() || "", hash),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "pinnedContent"] });
+    },
+  });
+}
+
+export function useTauriListPinnedContent() {
+  return useQuery({
+    queryKey: ["tauri", "pinnedContent"],
+    queryFn: () => tauri.tauriListPinnedContent(getSessionToken() || ""),
+    enabled: IS_TAURI,
+  });
+}
+
+// ─── Node Rewards Hooks ─────────────────────────────────
+
+export function useTauriReportPinServe() {
+  return useMutation({
+    mutationFn: ({ hash }: { hash: string }) =>
+      tauri.tauriReportPinServe(getSessionToken() || "", hash),
+  });
+}
+
+export function useTauriClaimNodeRewards() {
+  return useQuery({
+    queryKey: ["tauri", "nodeRewards"],
+    queryFn: () => tauri.tauriClaimNodeRewards(getSessionToken() || ""),
+    enabled: IS_TAURI,
+  });
+}
+
+// ─── Cross-Device Sync Hooks ──────────────────────────
+
+export function useTauriSyncAccountContent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => tauri.tauriSyncAccountContent(getSessionToken() || ""),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "blobs"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
+    },
+  });
+}
+
+// ─── Offline Cache Hooks ───────────────────────────────
+
+export function useTauriAddToOfflineCache() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ hash, contentType, source }: { hash: string; contentType: string; source: string }) =>
+      tauri.tauriAddToOfflineCache(getSessionToken() || "", hash, contentType, source),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "offlineCache"] });
+    },
+  });
+}
+
+export function useTauriRemoveFromOfflineCache() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ hash }: { hash: string }) =>
+      tauri.tauriRemoveFromOfflineCache(getSessionToken() || "", hash),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "offlineCache"] });
+    },
+  });
+}
+
+export function useTauriListOfflineCache() {
+  return useQuery({
+    queryKey: ["tauri", "offlineCache"],
+    queryFn: () => tauri.tauriListOfflineCache(getSessionToken() || ""),
+    enabled: IS_TAURI,
+  });
+}
+
+export function useTauriPrefetchContent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ hashes }: { hashes: string[] }) =>
+      tauri.tauriPrefetchContent(getSessionToken() || "", hashes),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "offlineCache"] });
+    },
+  });
+}

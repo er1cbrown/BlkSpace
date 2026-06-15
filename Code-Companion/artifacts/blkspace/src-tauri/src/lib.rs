@@ -914,6 +914,175 @@ fn fetch_trending_summaries(state: State<AppState>, session_token: String, town:
   Ok(summaries)
 }
 
+// ─── Pinning & Content Persistence ─────────────────────
+
+#[tauri::command]
+fn pin_content(state: State<AppState>, session_token: String, hash: String) -> Result<bool, String> {
+  let pinned_by = get_handle_from_session(&state, &session_token)?;
+  validate_blob_hash(&hash)?;
+  
+  // Check if already pinned
+  if state.db.is_pinned(&hash, &pinned_by).map_err(|e| e.to_string())? {
+    return Ok(false);
+  }
+  
+  // Pin in database
+  let pinned = state.db.pin_blob(&hash, &pinned_by).map_err(|e| e.to_string())?;
+  
+  // If Iroh is available, ensure blob is in local store
+  if let Some(iroh) = &state.iroh {
+    let iroh = iroh.lock().unwrap();
+    let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
+    if let Ok(Some(_)) = rt.block_on(iroh.get_blob(&hash)) {
+      log::info!("Blob {} pinned by {} (already in Iroh)", hash, pinned_by);
+    } else {
+      log::warn!("Blob {} not in Iroh, but pinned locally", hash);
+    }
+  }
+  
+  Ok(pinned)
+}
+
+#[tauri::command]
+fn should_pin_content(state: State<AppState>, hash: String) -> Result<bool, String> {
+  validate_blob_hash(&hash)?;
+  state.db.should_pin(&hash).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_pinned_content(state: State<AppState>, session_token: String) -> Result<Vec<String>, String> {
+  let pinned_by = get_handle_from_session(&state, &session_token)?;
+  state.db.list_pinned_blobs(&pinned_by).map_err(|e| e.to_string())
+}
+
+// ─── Node Rewards (Pinning & Serving) ───────────────────
+
+#[tauri::command]
+fn report_pin_serve(state: State<AppState>, session_token: String, hash: String) -> Result<bool, String> {
+  let served_by = get_handle_from_session(&state, &session_token)?;
+  validate_blob_hash(&hash)?;
+  
+  // Record the serve
+  state.db.record_pin_serve(&hash, &served_by, &served_by).map_err(|e| e.to_string())?;
+  
+  // Check daily cap (100 serves/day = 10 WB max)
+  let serves_today = state.db.count_serves_today(&served_by).map_err(|e| e.to_string())?;
+  if serves_today > 100 {
+    return Ok(false); // Daily cap reached
+  }
+  
+  // Credit node operator: 0.1 WB per serve
+  let conn = state.db.conn.lock().unwrap();
+  conn.execute(
+    "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
+    rusqlite::params![0.1, served_by],
+  ).ok();
+  conn.execute(
+    "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
+     SELECT ?1, 'earn', ?2, 'Pin serve reward', weix_bucks FROM users WHERE handle = ?1",
+    rusqlite::params![served_by, 0.1],
+  ).ok();
+  drop(conn);
+  
+  Ok(true)
+}
+
+#[tauri::command]
+fn claim_node_rewards(state: State<AppState>, session_token: String) -> Result<f64, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  let serves_today = state.db.count_serves_today(&handle).map_err(|e| e.to_string())?;
+  let rewards = (serves_today as f64) * 0.1;
+  Ok(rewards)
+}
+
+// ─── Cross-Device Content Sync ──────────────────────────
+
+#[tauri::command]
+fn sync_account_content(state: State<AppState>, session_token: String) -> Result<Vec<String>, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  
+  // Get all media hashes from user's posts
+  let hashes = state.db.get_user_media_hashes(&handle).map_err(|e| e.to_string())?;
+  
+  // Fetch from Iroh if available
+  if let Some(iroh) = &state.iroh {
+    let iroh = iroh.lock().unwrap();
+    let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
+    
+    let mut synced = Vec::new();
+    for hash in &hashes {
+      match rt.block_on(iroh.get_blob(hash)) {
+        Ok(Some(bytes)) => {
+          // Store locally as fallback
+          let _ = state.blob_store.store_blob(&bytes);
+          synced.push(hash.clone());
+          log::info!("Synced blob {} from Iroh", hash);
+        }
+        Ok(None) => {
+          log::warn!("Blob {} not found in Iroh", hash);
+        }
+        Err(e) => {
+          log::warn!("Failed to sync blob {}: {}", hash, e);
+        }
+      }
+    }
+    return Ok(synced);
+  }
+  
+  Ok(Vec::new())
+}
+
+// ─── Offline Cache ────────────────────────────────────
+
+#[tauri::command]
+fn add_to_offline_cache(state: State<AppState>, session_token: String, hash: String, content_type: String, source: String) -> Result<bool, String> {
+  let cached_by = get_handle_from_session(&state, &session_token)?;
+  validate_blob_hash(&hash)?;
+  state.db.add_to_offline_cache(&hash, &cached_by, &content_type, &source).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn remove_from_offline_cache(state: State<AppState>, session_token: String, hash: String) -> Result<bool, String> {
+  let cached_by = get_handle_from_session(&state, &session_token)?;
+  validate_blob_hash(&hash)?;
+  state.db.remove_from_offline_cache(&hash, &cached_by).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_offline_cache(state: State<AppState>, session_token: String) -> Result<Vec<String>, String> {
+  let cached_by = get_handle_from_session(&state, &session_token)?;
+  state.db.list_offline_cache(&cached_by).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn prefetch_content(state: State<AppState>, session_token: String, hashes: Vec<String>) -> Result<Vec<String>, String> {
+  let cached_by = get_handle_from_session(&state, &session_token)?;
+  
+  if let Some(iroh) = &state.iroh {
+    let iroh = iroh.lock().unwrap();
+    let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
+    
+    let mut fetched = Vec::new();
+    for hash in &hashes {
+      match rt.block_on(iroh.get_blob(hash)) {
+        Ok(Some(bytes)) => {
+          // Store locally as fallback
+          let _ = state.blob_store.store_blob(&bytes);
+          // Add to offline cache
+          let _ = state.db.add_to_offline_cache(hash, &cached_by, "blob", "prefetched");
+          fetched.push(hash.clone());
+        }
+        _ => {
+          log::warn!("Failed to prefetch blob {}", hash);
+        }
+      }
+    }
+    return Ok(fetched);
+  }
+  
+  Ok(Vec::new())
+}
+
 // ─── Blob (Media) Commands ───────────────────────────────
 
 const MAX_UPLOAD_SIZE: usize = 20 * 1024 * 1024;
@@ -1306,6 +1475,16 @@ pub fn run() {
       announce_blob,
       publish_trending_summary,
       fetch_trending_summaries,
+      pin_content,
+      should_pin_content,
+      list_pinned_content,
+      report_pin_serve,
+      claim_node_rewards,
+      sync_account_content,
+      add_to_offline_cache,
+      remove_from_offline_cache,
+      list_offline_cache,
+      prefetch_content,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
