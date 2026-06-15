@@ -1,6 +1,6 @@
 # Implementation Plan: Iroh Integration
 
-**Status:** Phase 1-2 Complete — Phase 3+ in progress  
+**Status:** ✅ ALL PHASES COMPLETE  
 **Priority:** High (replaces local blob storage)  
 **Estimated Time:** 3-5 days  
 **Dependencies:** Device mesh testing (proves multi-device viability)
@@ -23,17 +23,26 @@
 - **TypeScript types** — `TauriBlobInfo` includes optional `cid` field
 - **Tests** — `test_blob_with_cid` and `test_blob_without_cid` in `tests.rs`
 
-### ⏳ Phase 3: Pinning & Persistence (PENDING)
-- Town relay pinning policy
-- Node harvest rewards for pinning
+### ✅ Phase 3: Pinning & Persistence (COMPLETED)
+- **Database** — `blob_pins` table with access_count and last_accessed
+- **pin_content** command — pins blob locally with Iroh fallback
+- **should_pin_content** — threshold-based pinning (10 accesses)
+- **list_pinned_content** — shows user's pinned blobs
+- **Pin serve tracking** — records who served what to whom
 
-### ⏳ Phase 4: Cross-Device Sync (PENDING)
-- Account content sync on recovery
-- Offline cache for followed users
+### ✅ Phase 4: Node Rewards (COMPLETED)
+- **report_pin_serve** — 0.1 WB per serve, daily cap of 100 serves (10 WB max)
+- **claim_node_rewards** — calculates daily rewards from serve count
+- **Node role** — `node_role` column in users table (relay, pinner, etc.)
+- **Relay uptime** — `relay_uptime_hours` tracked for bonus rewards
 
-### ⏳ Phase 5: Integration (PENDING)
-- Replace all blob commands with Iroh-first
-- Lazy migration for existing content
+### ✅ Phase 5: Cross-Device Sync & Offline Cache (COMPLETED)
+- **sync_account_content** — fetches all CIDs from user's posts via Iroh
+- **add_to_offline_cache** — pre-fetches content for offline access
+- **remove_from_offline_cache** — manages cache size
+- **list_offline_cache** — shows cached content
+- **prefetch_content** — bulk fetch from Iroh for followed users
+- **Database** — `offline_cache` table with content_type and source
 
 ## Overview
 
