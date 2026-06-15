@@ -8,7 +8,7 @@ import {
   useGetRecentActivity, getGetRecentActivityQueryKey,
 } from "@workspace/api-client-react";
 import * as tauri from "@/lib/tauri-api";
-import { getSessionToken } from "@/lib/auth";
+import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 
 const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
