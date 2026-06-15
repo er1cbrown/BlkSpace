@@ -2,6 +2,9 @@ mod db;
 mod blob_store;
 mod relay_manager;
 
+#[cfg(test)]
+mod tests;
+
 use blob_store::{BlobInfo, BlobStore};
 use db::{
   AppError, BlobRecord, Community, CrossTownEvent, Database, NetworkStats, Notification, Post, Relay, Reply, User, WalletTx,
