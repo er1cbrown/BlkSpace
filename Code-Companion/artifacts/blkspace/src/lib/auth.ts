@@ -21,6 +21,17 @@ const HANDLE_KEY = "blkspace_handle";
 const DISPLAY_KEY = "blkspace_display_name";
 const SESSION_KEY = "blkspace_session";
 const PUBKEY_KEY = "blkspace_pubkey";
+const FIRST_RUN_KEY = "blkspace_first_run_complete";
+
+// ─── First Run Check ─────────────────────────────────────
+
+export function isFirstRun(): boolean {
+  return !localStorage.getItem(FIRST_RUN_KEY);
+}
+
+export function markFirstRunComplete() {
+  localStorage.setItem(FIRST_RUN_KEY, "true");
+}
 
 // ─── Key Generation ─────────────────────────────────────
 
