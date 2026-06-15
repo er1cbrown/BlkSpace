@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 
 import LandingPage from "@/pages/landing";
+import WelcomePage from "@/pages/welcome";
 import FeedPage from "@/pages/feed";
 import PostPage from "@/pages/post";
 import ProfilePage from "@/pages/profile";
@@ -21,13 +22,16 @@ import CommunityPage from "@/pages/community";
 import SearchPage from "@/pages/search";
 import WalletPage from "@/pages/wallet";
 import MediaPage from "@/pages/media";
+import { isFirstRun } from "@/lib/auth";
 
 const queryClient = new QueryClient();
 
 function Router() {
+  const firstRun = isFirstRun();
   return (
     <Switch>
-      <Route path="/" component={LandingPage} />
+      <Route path="/" component={firstRun ? WelcomePage : LandingPage} />
+      <Route path="/welcome" component={WelcomePage} />
       <Route path="/feed" component={FeedPage} />
       <Route path="/posts/:id" component={PostPage} />
       <Route path="/profile/:handle" component={ProfilePage} />
