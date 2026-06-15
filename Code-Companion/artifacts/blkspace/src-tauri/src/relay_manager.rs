@@ -3,6 +3,14 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
+pub const DEFAULT_RELAYS: &[&str] = &[
+    "wss://relay.damus.io",
+    "wss://relay.nostr.band",
+    "wss://nos.lol",
+    "wss://relay.snort.social",
+    "wss://nostr.wine",
+];
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RelayStatus {
@@ -10,6 +18,7 @@ pub struct RelayStatus {
   pub connected: bool,
   pub events_received: u64,
   pub since_connect: u64,
+  pub latency_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +43,7 @@ pub struct RelayManager {
 struct RelayConnectionState {
   url: String,
   connected_at: u64,
+  latency_ms: Option<u64>,
 }
 
 impl RelayManager {
@@ -50,6 +60,29 @@ impl RelayManager {
         .unwrap_or_default()
         .as_secs(),
     }
+  }
+
+  pub async fn connect_to_default_relays(&self) -> Result<Vec<String>, String> {
+    let mut connected = Vec::new();
+    for url in DEFAULT_RELAYS {
+      match self.add_relay(url).await {
+        Ok(_) => {
+          match self.connect_relay(url).await {
+            Ok(_) => connected.push(url.to_string()),
+            Err(e) => log::warn!("Failed to connect to {}: {}", url, e),
+          }
+        }
+        Err(e) => log::warn!("Failed to add {}: {}", url, e),
+      }
+    }
+    Ok(connected)
+  }
+
+  pub async fn check_health(&self, url: &str) -> Result<u64, String> {
+    let start = std::time::Instant::now();
+    self.connect_relay(url).await?;
+    let latency = start.elapsed().as_millis() as u64;
+    Ok(latency)
   }
 
   pub fn client(&self) -> &Client {
@@ -92,7 +125,7 @@ impl RelayManager {
       .map_err(|e| format!("Failed to disconnect {}: {}", url, e))
   }
 
-  pub fn register_connection(&mut self, url: String) {
+  pub fn register_connection(&mut self, url: String, latency_ms: Option<u64>) {
     let now = std::time::SystemTime::now()
       .duration_since(std::time::UNIX_EPOCH)
       .unwrap_or_default()
@@ -100,7 +133,7 @@ impl RelayManager {
     if !self.connected_relays.iter().any(|c| c.url == url) {
       self
         .connected_relays
-        .push(RelayConnectionState { url, connected_at: now });
+        .push(RelayConnectionState { url, connected_at: now, latency_ms });
     }
   }
 
@@ -118,6 +151,7 @@ impl RelayManager {
         connected: true,
         events_received: received,
         since_connect: c.connected_at,
+        latency_ms: c.latency_ms,
       })
       .collect()
   }

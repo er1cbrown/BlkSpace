@@ -10,7 +10,7 @@ import {
 import * as tauri from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 
-const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+export const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 // ─── Users ───────────────────────────────────────────────
 
@@ -299,6 +299,23 @@ export function useTauriSyncTownEvents() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "relayEvents"] });
     },
+  });
+}
+
+export function useTauriConnectToDefaultRelays() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => tauri.tauriConnectToDefaultRelays(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "relayStatuses"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "relayConnections"] });
+    },
+  });
+}
+
+export function useTauriCheckRelayHealth() {
+  return useMutation({
+    mutationFn: (url: string) => tauri.tauriCheckRelayHealth(url),
   });
 }
 

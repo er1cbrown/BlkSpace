@@ -256,6 +256,7 @@ export interface TauriRelayStatus {
   connected: boolean;
   eventsReceived: number;
   sinceConnect: number;
+  latencyMs?: number;
 }
 
 export interface TauriRelayConnectionRecord {
@@ -303,6 +304,17 @@ export function tauriGetRelayStatuses(): Promise<TauriRelayStatus[]> {
 
 export function tauriListRelayConnections(): Promise<TauriRelayConnectionRecord[]> {
   return invoke("list_relay_connections");
+}
+
+export function tauriCheckRelayHealth(url: string): Promise<{ connected: boolean; latencyMs?: number }> {
+  return invoke("check_relay_health", { url }).then((result: [boolean, number | null]) => {
+    const [connected, latency] = result;
+    return { connected, latencyMs: latency ?? undefined };
+  });
+}
+
+export function tauriConnectToDefaultRelays(): Promise<string[]> {
+  return invoke("connect_to_default_relays");
 }
 
 export function tauriSyncTownEvents(sessionToken: string, town: string): Promise<TauriNostrEventData[]> {

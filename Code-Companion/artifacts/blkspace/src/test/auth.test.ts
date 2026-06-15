@@ -64,7 +64,7 @@ describe("auth.ts", () => {
       const identity = createNostrIdentity();
       const mnemonic = nsecToMnemonic(identity.nsecHex);
       expect(mnemonic).toBeDefined();
-      expect(mnemonic.split(" ")).toHaveLength(12);
+      expect(mnemonic.split(" ")).toHaveLength(24);
 
       const recoveredNsec = mnemonicToNsec(mnemonic);
       expect(recoveredNsec.toLowerCase()).toBe(identity.nsecHex.toLowerCase());

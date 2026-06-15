@@ -17,11 +17,11 @@ function hexToBytes(hex: string): Uint8Array {
   return bytes;
 }
 
-const HANDLE_KEY = "blkspace_handle";
-const DISPLAY_KEY = "blkspace_display_name";
-const SESSION_KEY = "blkspace_session";
-const PUBKEY_KEY = "blkspace_pubkey";
-const FIRST_RUN_KEY = "blkspace_first_run_complete";
+export const HANDLE_KEY = "blkspace_handle";
+export const DISPLAY_KEY = "blkspace_display_name";
+export const SESSION_KEY = "blkspace_session";
+export const PUBKEY_KEY = "blkspace_pubkey";
+export const FIRST_RUN_KEY = "blkspace_first_run_complete";
 
 // ─── First Run Check ─────────────────────────────────────
 

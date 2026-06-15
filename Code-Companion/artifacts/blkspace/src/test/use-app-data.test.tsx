@@ -2,11 +2,71 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode } from "react";
-import { IS_TAURI } from "@/hooks/use-app-data";
+import { IS_TAURI, useAppListPosts, useAppGetUser, useAppGetNetworkStats } from "@/hooks/use-app-data";
 
 // Mock the Tauri API
 vi.mock("@/lib/tauri-api", () => ({
   isTauri: () => false,
+  tauriListPosts: () => Promise.resolve([]),
+  tauriGetUser: () => Promise.resolve(null),
+  tauriGetNetworkStats: () => Promise.resolve({
+    totalUsers: 100,
+    totalRelays: 5,
+    onlineRelays: 3,
+    activeTowns: 10,
+    weixBucksInCirculation: 50000,
+    eventsLast24h: 1200,
+  }),
+  tauriGetRecentActivity: () => Promise.resolve([]),
+  tauriListRelays: () => Promise.resolve([]),
+  tauriGetRelayStatuses: () => Promise.resolve([]),
+  tauriListRelayConnections: () => Promise.resolve([]),
+  tauriGetRelayNetworkStats: () => Promise.resolve({
+    totalUsers: 100,
+    totalRelays: 5,
+    onlineRelays: 3,
+    activeTowns: 10,
+    weixBucksInCirculation: 50000,
+    eventsLast24h: 1200,
+  }),
+  tauriGetCommunities: () => Promise.resolve([]),
+  tauriListUsers: () => Promise.resolve([]),
+  tauriGetNotifications: () => Promise.resolve([]),
+  tauriGetWalletTx: () => Promise.resolve([]),
+  tauriSendWeixBucks: () => Promise.resolve([0, 0]),
+  tauriCreatePost: () => Promise.resolve({}),
+  tauriToggleLike: () => Promise.resolve(true),
+  tauriCreateReply: () => Promise.resolve({}),
+  tauriListReplies: () => Promise.resolve([]),
+  tauriGetTrendingFeed: () => Promise.resolve([]),
+  tauriGetPost: () => Promise.resolve(null),
+  tauriGetUserPosts: () => Promise.resolve([]),
+  tauriStoreKey: () => Promise.resolve(),
+  tauriGetKey: () => Promise.resolve(null),
+  tauriHasKey: () => Promise.resolve(false),
+  tauriGetChallenge: () => Promise.resolve(""),
+  tauriLogin: () => Promise.resolve(""),
+  tauriLogout: () => Promise.resolve(),
+  tauriVerifySession: () => Promise.resolve(""),
+  tauriUploadBlob: () => Promise.resolve({}),
+  tauriGetBlobBytes: () => Promise.resolve(null),
+  tauriListUserBlobs: () => Promise.resolve([]),
+  tauriDeleteBlob: () => Promise.resolve(),
+  tauriGetBlobMetadata: () => Promise.resolve(null),
+  tauriLinkPubkey: () => Promise.resolve(""),
+  tauriConnectToRelay: () => Promise.resolve(""),
+  tauriDisconnectFromRelay: () => Promise.resolve(""),
+  tauriSyncTownEvents: () => Promise.resolve([]),
+  tauriListRelayEvents: () => Promise.resolve([]),
+  tauriSubscribeToTown: () => Promise.resolve(),
+  tauriUnsubscribeFromTown: () => Promise.resolve(),
+  tauriListSubscribedTowns: () => Promise.resolve([]),
+  tauriListCombinedFeed: () => Promise.resolve([]),
+  tauriPublishRelayList: () => Promise.resolve(""),
+  tauriFetchUserRelayList: () => Promise.resolve([]),
+  tauriAnnounceBlob: () => Promise.resolve(""),
+  tauriConnectToDefaultRelays: () => Promise.resolve([]),
+  tauriCheckRelayHealth: () => Promise.resolve({ connected: false }),
 }));
 
 // Mock the API client
@@ -118,7 +178,6 @@ describe("use-app-data hooks", () => {
 
   describe("Web mode hooks", () => {
     it("useAppListPosts returns posts in web mode", () => {
-      const { useAppListPosts } = require("@/hooks/use-app-data");
       const { result } = renderHook(() => useAppListPosts("tsu", "demo_user"), {
         wrapper,
       });
@@ -128,7 +187,6 @@ describe("use-app-data hooks", () => {
     });
 
     it("useAppGetUser returns user data in web mode", () => {
-      const { useAppGetUser } = require("@/hooks/use-app-data");
       const { result } = renderHook(() => useAppGetUser("demo_user"), {
         wrapper,
       });
@@ -138,7 +196,6 @@ describe("use-app-data hooks", () => {
     });
 
     it("useAppGetNetworkStats returns stats in web mode", () => {
-      const { useAppGetNetworkStats } = require("@/hooks/use-app-data");
       const { result } = renderHook(() => useAppGetNetworkStats(), {
         wrapper,
       });

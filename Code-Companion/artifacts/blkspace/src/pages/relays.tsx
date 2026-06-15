@@ -7,8 +7,8 @@ import { Network, Activity, Server, Zap, Users, Link2Off, RefreshCw, Plus, Wifi 
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAppGetNetworkStats, useAppListRelays, useAppGetRecentActivity } from "@/hooks/use-app-data";
-import { useTauriRelayStatuses, useTauriConnectToRelay, useTauriDisconnectFromRelay, useTauriSyncTownEvents, useTauriRelayNetworkStats } from "@/hooks/use-app-data";
-import { isTauri } from "@/lib/tauri-api";
+import { useTauriRelayStatuses, useTauriConnectToRelay, useTauriDisconnectFromRelay, useTauriSyncTownEvents, useTauriRelayNetworkStats, useTauriConnectToDefaultRelays, useTauriCheckRelayHealth } from "@/hooks/use-app-data";
+import { isTauri, TauriRelayStatus } from "@/lib/tauri-api";
 
 export default function RelaysPage() {
   const [connectUrl, setConnectUrl] = useState("");
@@ -25,6 +25,9 @@ export default function RelaysPage() {
   const connectMutation = useTauriConnectToRelay();
   const disconnectMutation = useTauriDisconnectFromRelay();
   const syncMutation = useTauriSyncTownEvents();
+  const defaultRelaysMutation = useTauriConnectToDefaultRelays();
+  const healthCheckMutation = useTauriCheckRelayHealth();
+  const [healthResults, setHealthResults] = useState<Record<string, { connected: boolean; latencyMs?: number }>>({});
 
   const displayStats = relayNetworkStats || stats;
   const isDesktop = isTauri();
@@ -44,6 +47,15 @@ export default function RelaysPage() {
 
   const handleSync = (town: string) => {
     syncMutation.mutate({ town });
+  };
+
+  const handleConnectDefaults = () => {
+    defaultRelaysMutation.mutate(undefined);
+  };
+
+  const handleHealthCheck = async (url: string) => {
+    const result = await healthCheckMutation.mutateAsync(url);
+    setHealthResults(prev => ({ ...prev, [url]: result }));
   };
 
   return (
@@ -120,12 +132,24 @@ export default function RelaysPage() {
               <h2 className="text-2xl font-bold flex items-center gap-2">
                 <Server className="w-5 h-5" /> Active Nodes
               </h2>
-              {isDesktop && (
-                <Button size="sm" onClick={() => setShowConnectForm(!showConnectForm)}>
-                  <Plus className="w-4 h-4 mr-1" /> Connect Relay
-                </Button>
-              )}
+              <div className="flex gap-2">
+                {isDesktop && (
+                  <Button size="sm" variant="outline" onClick={handleConnectDefaults} disabled={defaultRelaysMutation.isPending}>
+                    <Wifi className="w-4 h-4 mr-1" /> {defaultRelaysMutation.isPending ? "Connecting..." : "Connect Defaults"}
+                  </Button>
+                )}
+                {isDesktop && (
+                  <Button size="sm" onClick={() => setShowConnectForm(!showConnectForm)}>
+                    <Plus className="w-4 h-4 mr-1" /> Connect Relay
+                  </Button>
+                )}
+              </div>
             </div>
+            {defaultRelaysMutation.isSuccess && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+                Connected to {defaultRelaysMutation.data?.length} default relays: {defaultRelaysMutation.data?.join(", ")}
+              </div>
+            )}
 
             {isDesktop && showConnectForm && (
               <Card className="mb-6 border-primary/30 bg-primary/5">
@@ -177,17 +201,34 @@ export default function RelaysPage() {
                           <div className="font-medium text-sm">{rs.url}</div>
                           <div className="text-xs text-muted-foreground">
                             Events received: {rs.eventsReceived}
+                            {rs.latencyMs && (
+                              <span className="ml-2 text-green-600">{rs.latencyMs}ms</span>
+                            )}
+                            {healthResults[rs.url] && (
+                              <span className={`ml-2 ${healthResults[rs.url].connected ? "text-green-600" : "text-red-600"}`}>
+                                {healthResults[rs.url].connected ? "Healthy" : "Unreachable"}
+                                {healthResults[rs.url].latencyMs && ` (${healthResults[rs.url].latencyMs}ms)`}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="flex gap-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleSync(relayStatuses.length > 0 ? "tsu" : "")}
+                            onClick={() => handleSync("tsu")}
                             disabled={syncMutation.isPending}
                           >
                             <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`} />
                             Sync
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleHealthCheck(rs.url)}
+                            disabled={healthCheckMutation.isPending}
+                          >
+                            <Activity className="w-3 h-3" />
                           </Button>
                           <Button
                             size="sm"

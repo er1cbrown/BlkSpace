@@ -277,6 +277,51 @@ fn validate_blob_hash(hash: &str) -> Result<(), String> {
   Ok(())
 }
 
+fn validate_incoming_event(event_json: &str) -> Result<bool, String> {
+  let event: serde_json::Value = serde_json::from_str(event_json)
+    .map_err(|_| "Invalid event JSON".to_string())?;
+  
+  // Check required fields
+  let pubkey = event["pubkey"].as_str().ok_or("Missing pubkey")?;
+  let id = event["id"].as_str().ok_or("Missing event id")?;
+  let created_at = event["created_at"].as_i64().ok_or("Missing timestamp")?;
+  let kind = event["kind"].as_i64().ok_or("Missing kind")?;
+  let sig = event["sig"].as_str().ok_or("Missing signature")?;
+  
+  if pubkey.len() != 64 {
+    return Err("Invalid pubkey format".to_string());
+  }
+  if id.len() != 64 {
+    return Err("Invalid event id format".to_string());
+  }
+  
+  // Check timestamp (not older than 1 day, not in future)
+  let now = chrono::Utc::now().timestamp();
+  if (now - created_at).abs() > 86400 {
+    return Ok(false); // Too old or from future, skip silently
+  }
+  
+  // Verify Schnorr signature
+  let secp = Secp256k1::new();
+  let pubkey_obj = XOnlyPublicKey::from_slice(
+    &hex::decode(pubkey).map_err(|_| "Invalid pubkey hex")?
+  ).map_err(|_| "Invalid pubkey")?;
+  let sig_obj = schnorr::Signature::from_slice(
+    &hex::decode(sig).map_err(|_| "Invalid sig hex")?
+  ).map_err(|_| "Invalid signature")?;
+  
+  // Reconstruct event id
+  let tags = event["tags"].as_array().ok_or("Missing tags")?;
+  let serialized = serde_json::json!([0, pubkey, created_at, kind, tags, event["content"].as_str().unwrap_or("")]);
+  let canonical = serde_json::to_string(&serialized).map_err(|_| "Serialization error")?;
+  let event_id = Sha256::digest(canonical.as_bytes());
+  
+  secp.verify_schnorr(&sig_obj, &event_id, &pubkey_obj)
+    .map_err(|_| "Signature verification failed")?;
+  
+  Ok(true)
+}
+
 #[tauri::command]
 fn link_pubkey(
   state: State<AppState>,
@@ -556,15 +601,43 @@ fn connect_to_relay(state: State<AppState>, session_token: String, url: String, 
   let name_for_conn = name.clone();
   let mut manager = state.relay_manager.lock().unwrap();
   let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
-  rt.block_on(async {
+  let latency = rt.block_on(async {
     manager.add_relay(&url_for_conn).await?;
     manager.connect_relay(&url_for_conn).await?;
-    manager.register_connection(url_for_conn.clone());
-    Ok::<_, String>(())
+    let health = manager.check_health(&url_for_conn).await.ok();
+    manager.register_connection(url_for_conn.clone(), health);
+    Ok::<_, String>(health)
   })?;
   state.db.upsert_relay_connection(&url_trimmed, &name_for_conn, &town_for_conn, "connected")
     .map_err(|e| format!("DB error: {}", e))?;
-  Ok(format!("Connected to {}", url_trimmed))
+  match latency {
+    Some(ms) => Ok(format!("Connected to {} (latency: {}ms)", url_trimmed, ms)),
+    None => Ok(format!("Connected to {} (health check failed)", url_trimmed)),
+  }
+}
+
+#[tauri::command]
+fn check_relay_health(state: State<AppState>, url: String) -> Result<(bool, Option<u64>), String> {
+  let url_trimmed = url.trim().to_string();
+  let manager = state.relay_manager.lock().unwrap();
+  let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
+  let latency = rt.block_on(async {
+    manager.check_health(&url_trimmed).await.ok()
+  });
+  match latency {
+    Some(ms) => Ok((true, Some(ms))),
+    None => Ok((false, None)),
+  }
+}
+
+#[tauri::command]
+fn connect_to_default_relays(state: State<AppState>) -> Result<Vec<String>, String> {
+  let mut manager = state.relay_manager.lock().unwrap();
+  let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
+  let connected = rt.block_on(async {
+    manager.connect_to_default_relays().await
+  })?;
+  Ok(connected)
 }
 
 #[tauri::command]
@@ -930,6 +1003,16 @@ pub fn run() {
   let blob_store = BlobStore::new(&app_dir);
   let relay_manager = RelayManager::new();
 
+  // Connect to default public relays on startup (non-blocking)
+  let mut default_relays_connected: Vec<String> = Vec::new();
+  {
+    let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
+    if let Ok(connected) = rt.block_on(relay_manager.connect_to_default_relays()) {
+      default_relays_connected = connected;
+      log::info!("Connected to {} default relays: {:?}", connected.len(), connected);
+    }
+  }
+
   tauri::Builder::default()
     .manage(AppState {
       db: database,
@@ -1006,23 +1089,30 @@ pub fn run() {
                 notification = notifications.recv() => {
                   match notification {
                     Ok(RelayPoolNotification::Event { event, .. }) => {
-                      let st = handle.state::<AppState>();
-                      let tags_json = serde_json::to_string(
-                        &event.tags.iter().map(|t| t.clone().to_vec()).collect::<Vec<_>>()
-                      ).unwrap_or("[]".to_string());
-      let _ = st.db.insert_relay_event(
-        &event.id.to_hex(),
-        "bg-sync",
-        event.kind.as_u16() as i64,
-        &event.pubkey.to_string(),
-        &event.content,
-        &tags_json,
-        event.created_at.as_u64() as i64,
-      );
-                      if let Ok(count) = st.db.count_relay_events_since((now_secs - 86400) as i64) {
-                        let _ = st.relay_manager.lock().unwrap().increment_events(
-                          if count > 0 { 1 } else { 0 },
-                        );
+                      // Validate event before storage
+                      let event_json = serde_json::to_string(&event)
+                        .unwrap_or("{}".to_string());
+                      if validate_incoming_event(&event_json).unwrap_or(false) {
+                        let st = handle.state::<AppState>();
+                        let tags_json = serde_json::to_string(
+                          &event.tags.iter().map(|t| t.clone().to_vec()).collect::<Vec<_>>()
+                        ).unwrap_or("[]".to_string());
+        let _ = st.db.insert_relay_event(
+          &event.id.to_hex(),
+          "bg-sync",
+          event.kind.as_u16() as i64,
+          &event.pubkey.to_string(),
+          &event.content,
+          &tags_json,
+          event.created_at.as_u64() as i64,
+        );
+                        if let Ok(count) = st.db.count_relay_events_since((now_secs - 86400) as i64) {
+                          let _ = st.relay_manager.lock().unwrap().increment_events(
+                            if count > 0 { 1 } else { 0 },
+                          );
+                        }
+                      } else {
+                        log::warn!("Invalid event received: {}", event.id.to_hex());
                       }
                     }
                     Ok(_) => {}
@@ -1077,6 +1167,8 @@ pub fn run() {
       disconnect_from_relay,
       get_relay_statuses,
       list_relay_connections,
+      check_relay_health,
+      connect_to_default_relays,
       sync_town_events,
       list_relay_events,
       get_relay_network_stats,
