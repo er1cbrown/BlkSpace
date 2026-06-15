@@ -1,0 +1,636 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: BlkSpace federated social platform API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: users
+    description: User profiles
+  - name: posts
+    description: Posts and social feed
+  - name: relays
+    description: Relay node monitoring
+  - name: network
+    description: Network stats and activity
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{handle}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user by handle
+      parameters:
+        - name: handle
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user profile
+      parameters:
+        - name: handle
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{handle}/posts:
+    get:
+      operationId: getUserPosts
+      tags: [users]
+      summary: Get posts by a user
+      parameters:
+        - name: handle
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User's posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Post"
+
+  /posts:
+    get:
+      operationId: listPosts
+      tags: [posts]
+      summary: List posts (main feed)
+      parameters:
+        - name: town
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: trending
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Posts feed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Post"
+    post:
+      operationId: createPost
+      tags: [posts]
+      summary: Create a new post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+
+  /posts/{id}:
+    get:
+      operationId: getPost
+      tags: [posts]
+      summary: Get a single post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Post detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "404":
+          description: Not found
+    delete:
+      operationId: deletePost
+      tags: [posts]
+      summary: Delete a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /posts/{id}/like:
+    post:
+      operationId: likePost
+      tags: [posts]
+      summary: Like a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Liked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+    delete:
+      operationId: unlikePost
+      tags: [posts]
+      summary: Unlike a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unliked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+
+  /posts/{id}/replies:
+    get:
+      operationId: listReplies
+      tags: [posts]
+      summary: Get replies for a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Replies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reply"
+    post:
+      operationId: createReply
+      tags: [posts]
+      summary: Post a reply
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplyInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reply"
+
+  /feed/trending:
+    get:
+      operationId: getTrendingFeed
+      tags: [posts]
+      summary: Get trending posts across all towns
+      responses:
+        "200":
+          description: Trending posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Post"
+
+  /relays:
+    get:
+      operationId: listRelays
+      tags: [relays]
+      summary: List relay nodes
+      responses:
+        "200":
+          description: Relay nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Relay"
+
+  /relays/{id}:
+    get:
+      operationId: getRelay
+      tags: [relays]
+      summary: Get relay node detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Relay detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Relay"
+
+  /network/stats:
+    get:
+      operationId: getNetworkStats
+      tags: [network]
+      summary: Get overall network statistics
+      responses:
+        "200":
+          description: Network stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkStats"
+
+  /network/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [network]
+      summary: Get recent activity across the network
+      responses:
+        "200":
+          description: Recent activity events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityEvent"
+
+  /network/architecture:
+    get:
+      operationId: getArchitecture
+      tags: [network]
+      summary: Get architecture layer data for the explainer
+      responses:
+        "200":
+          description: Architecture data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArchitectureData"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    User:
+      type: object
+      required: [id, handle, displayName, town, university, createdAt]
+      properties:
+        id:
+          type: integer
+        handle:
+          type: string
+        displayName:
+          type: string
+        bio:
+          type: ["string", "null"]
+        town:
+          type: string
+        university:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        followersCount:
+          type: integer
+        followingCount:
+          type: integer
+        postsCount:
+          type: integer
+        weixBucks:
+          type: integer
+        createdAt:
+          type: string
+
+    UserInput:
+      type: object
+      required: [handle, displayName, town, university]
+      properties:
+        handle:
+          type: string
+          minLength: 1
+        displayName:
+          type: string
+          minLength: 1
+        bio:
+          type: string
+        town:
+          type: string
+        university:
+          type: string
+        avatarUrl:
+          type: string
+
+    UserUpdate:
+      type: object
+      properties:
+        displayName:
+          type: string
+        bio:
+          type: string
+        avatarUrl:
+          type: string
+
+    Post:
+      type: object
+      required: [id, authorHandle, authorDisplayName, content, townTag, createdAt, likesCount, repliesCount, repostsCount]
+      properties:
+        id:
+          type: integer
+        authorHandle:
+          type: string
+        authorDisplayName:
+          type: string
+        authorAvatarUrl:
+          type: ["string", "null"]
+        authorUniversity:
+          type: string
+        content:
+          type: string
+        townTag:
+          type: string
+        mediaUrl:
+          type: ["string", "null"]
+        likesCount:
+          type: integer
+        repliesCount:
+          type: integer
+        repostsCount:
+          type: integer
+        liked:
+          type: boolean
+        createdAt:
+          type: string
+
+    PostInput:
+      type: object
+      required: [authorHandle, content, townTag]
+      properties:
+        authorHandle:
+          type: string
+        content:
+          type: string
+          minLength: 1
+          maxLength: 500
+        townTag:
+          type: string
+        mediaUrl:
+          type: string
+
+    Reply:
+      type: object
+      required: [id, postId, authorHandle, authorDisplayName, content, createdAt]
+      properties:
+        id:
+          type: integer
+        postId:
+          type: integer
+        authorHandle:
+          type: string
+        authorDisplayName:
+          type: string
+        authorAvatarUrl:
+          type: ["string", "null"]
+        content:
+          type: string
+        createdAt:
+          type: string
+
+    ReplyInput:
+      type: object
+      required: [authorHandle, content]
+      properties:
+        authorHandle:
+          type: string
+        content:
+          type: string
+          minLength: 1
+
+    Relay:
+      type: object
+      required: [id, name, town, university, tier, status, eventsPerHour, connectedPeers, uptimePercent, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        town:
+          type: string
+        university:
+          type: string
+        tier:
+          type: integer
+        status:
+          type: string
+          enum: [online, degraded, offline]
+        eventsPerHour:
+          type: integer
+        connectedPeers:
+          type: integer
+        uptimePercent:
+          type: number
+        storageUsedMb:
+          type: integer
+        region:
+          type: string
+        createdAt:
+          type: string
+
+    NetworkStats:
+      type: object
+      required: [totalRelays, onlineRelays, totalUsers, totalPosts, activeTowns, weixBucksInCirculation, eventsLast24h]
+      properties:
+        totalRelays:
+          type: integer
+        onlineRelays:
+          type: integer
+        totalUsers:
+          type: integer
+        totalPosts:
+          type: integer
+        activeTowns:
+          type: integer
+        weixBucksInCirculation:
+          type: integer
+        eventsLast24h:
+          type: integer
+        meshConnections:
+          type: integer
+
+    ActivityEvent:
+      type: object
+      required: [id, type, description, town, createdAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [post, join, relay_up, relay_down, milestone, trending]
+        description:
+          type: string
+        town:
+          type: string
+        userHandle:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ArchitectureLayer:
+      type: object
+      required: [layer, standardRole, blkspaceImpl, rationale]
+      properties:
+        layer:
+          type: string
+        standardRole:
+          type: string
+        blkspaceImpl:
+          type: string
+        rationale:
+          type: string
+        color:
+          type: string
+
+    ArchitectureData:
+      type: object
+      required: [layers, principles, securityLayers]
+      properties:
+        layers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArchitectureLayer"
+        principles:
+          type: array
+          items:
+            type: object
+            required: [title, description]
+            properties:
+              title:
+                type: string
+              description:
+                type: string
+        securityLayers:
+          type: array
+          items:
+            type: object
+            required: [layer, mechanism, protection]
+            properties:
+              layer:
+                type: string
+              mechanism:
+                type: string
+              protection:
+                type: string

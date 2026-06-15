@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "BlkSpace"
+version = "1.0.0"
+id = "artifacts/blkspace"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24442
+
+[services.development]
+run = "pnpm --filter @workspace/blkspace run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/blkspace", "run", "build" ]
+publicDir = "artifacts/blkspace/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24442"
+BASE_PATH = "/"

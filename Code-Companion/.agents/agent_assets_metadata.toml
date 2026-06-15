@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "II38vgYt2m54BmIVvkzc8"
+uri = "file://artifacts/blkspace/public/images/hero-yard.png"
+type = "image"
+title = "Vibrant college campus yard"
+
+[[generated]]
+id = "xIRTUoM9IVlUzREFyClFE"
+uri = "file://artifacts/blkspace/public/images/mesh-network.png"
+type = "image"
+title = "Digital mesh network nodes"
+
+[[generated]]
+id = "XX3-F_qmNLax2zcBUmqLu"
+uri = "file://artifacts/blkspace/public/images/weixbucks-coin.png"
+type = "image"
+title = "Digital community coin coin"
