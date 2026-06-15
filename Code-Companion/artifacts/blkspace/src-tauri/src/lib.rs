@@ -847,6 +847,70 @@ fn get_relay_network_stats(state: State<AppState>) -> Result<NetworkStats, Strin
   Ok(stats)
 }
 
+// ─── Trending Gossip (Cross-Town Sync) ───────────────────
+
+#[tauri::command]
+fn publish_trending_summary(state: State<AppState>, session_token: String) -> Result<String, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  let stats = state.db.get_network_stats().map_err(|e| e.to_string())?;
+  let top_posts = state.db.get_trending_posts(5).map_err(|e| e.to_string())?;
+  
+  let summary = serde_json::json!({
+    "town": "tsu",
+    "week": chrono::Utc::now().format("%Y-%m-%d").to_string(),
+    "top_posts": top_posts.iter().map(|p| serde_json::json!({
+      "id": p.id,
+      "author": p.author_handle,
+      "content": p.content.chars().take(100).collect::<String>(),
+      "likes": p.likes_count,
+      "replies": p.replies_count,
+    })).collect::<Vec<_>>(),
+    "new_users": stats.total_users,
+    "total_events": stats.events_last_24h,
+    "weix_bucks_circulating": stats.weix_bucks_in_circulation,
+  });
+  
+  let (client, keys) = {
+    let m = state.relay_manager.lock().unwrap();
+    (m.client_clone(), m.keys_clone())
+  };
+  
+  if state.relay_manager.lock().unwrap().relay_count() == 0 {
+    return Err("No relays connected".to_string());
+  }
+  
+  let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
+  rt.block_on(async {
+    use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+    let tag = Tag::parse(vec!["t".to_string(), "hbcu-town:tsu".to_string()]).ok();
+    let event = EventBuilder::new(Kind::Custom(1030), summary.to_string())
+      .tags(tag.into_iter().collect::<Vec<_>>())
+      .sign(&keys)
+      .await
+      .map_err(|e| format!("Signing failed: {}", e))?;
+    let event_id = client.send_event(event)
+      .await
+      .map_err(|e| format!("Publish failed: {}", e))?;
+    Ok(event_id.to_hex())
+  })
+}
+
+#[tauri::command]
+fn fetch_trending_summaries(state: State<AppState>, session_token: String, town: String) -> Result<Vec<String>, String> {
+  let _handle = get_handle_from_session(&state, &session_token)?;
+  let events = state.db.list_relay_events(50, Some(1030)).map_err(|e| e.to_string())?;
+  
+  let summaries: Vec<String> = events.into_iter()
+    .filter(|e| {
+      let tags: Vec<Vec<String>> = serde_json::from_str(&e.tags).unwrap_or_default();
+      tags.iter().any(|t| t.len() >= 2 && t[0] == "t" && t[1].contains(&town))
+    })
+    .map(|e| e.content)
+    .collect();
+  
+  Ok(summaries)
+}
+
 // ─── Blob (Media) Commands ───────────────────────────────
 
 const MAX_UPLOAD_SIZE: usize = 20 * 1024 * 1024;
@@ -1179,6 +1243,8 @@ pub fn run() {
       publish_relay_list,
       fetch_user_relay_list,
       announce_blob,
+      publish_trending_summary,
+      fetch_trending_summaries,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

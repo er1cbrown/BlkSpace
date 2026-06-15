@@ -373,3 +373,13 @@ export function tauriFetchUserRelayList(sessionToken: string, pubkey: string): P
 export function tauriAnnounceBlob(sessionToken: string, hash: string, filename: string): Promise<string> {
   return invoke("announce_blob", { sessionToken, hash, filename });
 }
+
+// ─── Trending Gossip (Cross-Town Sync) ───────────────────
+
+export function tauriPublishTrendingSummary(sessionToken: string): Promise<string> {
+  return invoke("publish_trending_summary", { sessionToken });
+}
+
+export function tauriFetchTrendingSummaries(sessionToken: string, town: string): Promise<string[]> {
+  return invoke("fetch_trending_summaries", { sessionToken, town });
+}

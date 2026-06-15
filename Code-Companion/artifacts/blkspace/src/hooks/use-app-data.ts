@@ -387,3 +387,23 @@ export function useTauriAnnounceBlob() {
       tauri.tauriAnnounceBlob(getSessionToken() || "", hash, filename),
   });
 }
+
+// ─── Trending Gossip Hooks ─────────────────────────────────
+
+export function useTauriPublishTrendingSummary() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => tauri.tauriPublishTrendingSummary(getSessionToken() || ""),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "trendingSummaries"] });
+    },
+  });
+}
+
+export function useTauriFetchTrendingSummaries(town: string) {
+  return useQuery({
+    queryKey: ["tauri", "trendingSummaries", town],
+    queryFn: () => tauri.tauriFetchTrendingSummaries(getSessionToken() || "", town),
+    enabled: IS_TAURI && !!town,
+  });
+}

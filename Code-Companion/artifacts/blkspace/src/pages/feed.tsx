@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SafeContent } from "@/components/ui/safe-content";
 import { MediaDisplay } from "@/components/ui/media-display";
 import { getListPostsQueryKey } from "@workspace/api-client-react";
-import { useAppListPosts, useAppGetTrendingFeed, useAppCreatePost, useAppToggleLike, useTauriCombinedFeed } from "@/hooks/use-app-data";
+import { useAppListPosts, useAppGetTrendingFeed, useAppCreatePost, useAppToggleLike, useTauriCombinedFeed, useTauriPublishTrendingSummary, useTauriFetchTrendingSummaries } from "@/hooks/use-app-data";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { isTauri, tauriUploadBlob, type TauriCrossTownEvent } from "@/lib/tauri-api";
 import { toast } from "sonner";
@@ -29,8 +29,10 @@ export default function FeedPage() {
   const { data: localPosts, isLoading: localLoading } = useAppListPosts(selectedTown, getCurrentHandle());
   const { data: trendingFeed, isLoading: trendingLoading } = useAppGetTrendingFeed(getCurrentHandle());
   const { data: crossTownFeed, isLoading: crossTownLoading } = useTauriCombinedFeed(activeTab === "bridge" ? undefined : selectedTown);
+  const { data: trendingSummaries, isLoading: summariesLoading } = useTauriFetchTrendingSummaries(selectedTown);
   const createPost = useAppCreatePost();
   const toggleLike = useAppToggleLike();
+  const publishSummary = useTauriPublishTrendingSummary();
 
   const handleSubmit = () => {
     if (!content.trim()) return;
@@ -85,7 +87,7 @@ export default function FeedPage() {
   };
 
   const posts = activeTab === "local" ? localPosts : activeTab === "bridge" ? crossTownFeed : trendingFeed;
-  const isLoading = activeTab === "local" ? localLoading : activeTab === "bridge" ? crossTownLoading : trendingLoading;
+  const isLoading = activeTab === "local" ? localLoading : activeTab === "bridge" ? (crossTownLoading || summariesLoading) : trendingLoading;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -192,6 +194,45 @@ export default function FeedPage() {
                     <SelectItem value="morehouse">Morehouse</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => publishSummary.mutate()}
+                  disabled={publishSummary.isPending}
+                >
+                  {publishSummary.isPending ? "Publishing..." : "Publish Summary"}
+                </Button>
+              </div>
+            )}
+            {isTauri() && trendingSummaries && trendingSummaries.length > 0 && (
+              <div className="mb-6 space-y-3">
+                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Trending Summaries</h3>
+                {trendingSummaries.map((summary, idx) => {
+                  const parsed = JSON.parse(summary);
+                  return (
+                    <Card key={idx} className="bg-secondary/30 border-secondary/30">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <Badge variant="outline" className="text-xs">{parsed.town} Yard</Badge>
+                          <span className="text-xs text-muted-foreground">{parsed.week}</span>
+                        </div>
+                        <p className="text-sm font-medium mb-2">{parsed.new_users} users · {parsed.total_events} events · {parsed.weix_bucks_circulating} WB</p>
+                        {parsed.top_posts && parsed.top_posts.length > 0 && (
+                          <div className="space-y-1">
+                            {parsed.top_posts.map((post: any, pidx: number) => (
+                              <div key={pidx} className="text-xs text-muted-foreground flex justify-between">
+                                <span>@{post.author}: {post.content}</span>
+                                <span className="flex items-center gap-1">
+                                  <Heart className="w-3 h-3" /> {post.likes}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
