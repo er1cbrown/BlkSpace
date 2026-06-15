@@ -501,3 +501,71 @@ export function useTauriPrefetchContent() {
     },
   });
 }
+
+// ─── Offline Queue Hooks ─────────────────────────────────
+
+export function useTauriQueueOfflineAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ actionType, payload }: { actionType: string; payload: string }) =>
+      tauri.tauriQueueOfflineAction(getSessionToken() || "", actionType, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "offlineQueue"] });
+    },
+  });
+}
+
+export function useTauriGetPendingOfflineActions() {
+  return useQuery({
+    queryKey: ["tauri", "offlineQueue"],
+    queryFn: () => tauri.tauriGetPendingOfflineActions(getSessionToken() || ""),
+    enabled: IS_TAURI,
+  });
+}
+
+export function useTauriMarkOfflineActionSynced() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: number }) =>
+      tauri.tauriMarkOfflineActionSynced(getSessionToken() || "", id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "offlineQueue"] });
+    },
+  });
+}
+
+export function useTauriClearSyncedOfflineActions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => tauri.tauriClearSyncedOfflineActions(getSessionToken() || ""),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "offlineQueue"] });
+    },
+  });
+}
+
+// ─── Cross-Device Sync Hooks ────────────────────────────
+
+export function useTauriGetUserAccountData() {
+  return useQuery({
+    queryKey: ["tauri", "accountData"],
+    queryFn: () => tauri.tauriGetUserAccountData(getSessionToken() || ""),
+    enabled: IS_TAURI,
+  });
+}
+
+export function useTauriLogDeviceSync() {
+  return useMutation({
+    mutationFn: ({ deviceId, syncType, itemsCount, durationMs, success }: 
+      { deviceId: string; syncType: string; itemsCount: number; durationMs: number; success: boolean }) =>
+      tauri.tauriLogDeviceSync(deviceId, syncType, itemsCount, durationMs, success),
+  });
+}
+
+export function useTauriGetDeviceSyncHistory(deviceId: string) {
+  return useQuery({
+    queryKey: ["tauri", "syncHistory", deviceId],
+    queryFn: () => tauri.tauriGetDeviceSyncHistory(deviceId),
+    enabled: IS_TAURI && !!deviceId,
+  });
+}

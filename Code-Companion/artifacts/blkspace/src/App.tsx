@@ -22,6 +22,7 @@ import CommunityPage from "@/pages/community";
 import SearchPage from "@/pages/search";
 import WalletPage from "@/pages/wallet";
 import MediaPage from "@/pages/media";
+import MeshTestPage from "@/pages/mesh-test";
 import { isFirstRun } from "@/lib/auth";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/search" component={SearchPage} />
       <Route path="/wallet" component={WalletPage} />
       <Route path="/media" component={MediaPage} />
+      <Route path="/mesh-test" component={MeshTestPage} />
       <Route component={NotFound} />
     </Switch>
   );

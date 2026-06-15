@@ -1083,6 +1083,64 @@ fn prefetch_content(state: State<AppState>, session_token: String, hashes: Vec<S
   Ok(Vec::new())
 }
 
+// ─── Offline Queue ─────────────────────────────────────
+
+#[tauri::command]
+fn queue_offline_action(state: State<AppState>, session_token: String, action_type: String, payload: String) -> Result<i64, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state.db.queue_offline_action(&action_type, &payload, &handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_pending_offline_actions(state: State<AppState>, session_token: String) -> Result<Vec<(i64, String, String)>, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state.db.get_pending_offline_actions(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn mark_offline_action_synced(state: State<AppState>, session_token: String, id: i64) -> Result<(), String> {
+  let _handle = get_handle_from_session(&state, &session_token)?;
+  state.db.mark_offline_action_synced(id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn clear_synced_offline_actions(state: State<AppState>, session_token: String) -> Result<usize, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state.db.clear_synced_offline_actions(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn count_pending_offline_actions(state: State<AppState>, session_token: String) -> Result<i64, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state.db.count_pending_offline_actions(&handle)
+    .map_err(|e| e.to_string())
+}
+
+// ─── Cross-Device Sync ─────────────────────────────────
+
+#[tauri::command]
+fn get_user_account_data(state: State<AppState>, session_token: String) -> Result<serde_json::Value, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state.db.get_user_account_data(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn log_device_sync(state: State<AppState>, device_id: String, sync_type: String, items_count: i64, duration_ms: i64, success: bool) -> Result<(), String> {
+  state.db.log_device_sync(&device_id, &sync_type, items_count, duration_ms, success)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_device_sync_history(state: State<AppState>, device_id: String) -> Result<Vec<(String, i64, i64, bool)>, String> {
+  state.db.get_device_sync_history(&device_id)
+    .map_err(|e| e.to_string())
+}
+
 // ─── Blob (Media) Commands ───────────────────────────────
 
 const MAX_UPLOAD_SIZE: usize = 20 * 1024 * 1024;
@@ -1485,6 +1543,14 @@ pub fn run() {
       remove_from_offline_cache,
       list_offline_cache,
       prefetch_content,
+      queue_offline_action,
+      get_pending_offline_actions,
+      mark_offline_action_synced,
+      clear_synced_offline_actions,
+      count_pending_offline_actions,
+      get_user_account_data,
+      log_device_sync,
+      get_device_sync_history,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

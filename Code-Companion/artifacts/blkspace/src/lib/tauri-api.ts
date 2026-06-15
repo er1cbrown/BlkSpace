@@ -432,3 +432,39 @@ export function tauriListOfflineCache(sessionToken: string): Promise<string[]> {
 export function tauriPrefetchContent(sessionToken: string, hashes: string[]): Promise<string[]> {
   return invoke("prefetch_content", { sessionToken, hashes });
 }
+
+// ─── Offline Queue ─────────────────────────────────────
+
+export function tauriQueueOfflineAction(sessionToken: string, actionType: string, payload: string): Promise<number> {
+  return invoke("queue_offline_action", { sessionToken, actionType, payload });
+}
+
+export function tauriGetPendingOfflineActions(sessionToken: string): Promise<[number, string, string][]> {
+  return invoke("get_pending_offline_actions", { sessionToken });
+}
+
+export function tauriMarkOfflineActionSynced(sessionToken: string, id: number): Promise<void> {
+  return invoke("mark_offline_action_synced", { sessionToken, id });
+}
+
+export function tauriClearSyncedOfflineActions(sessionToken: string): Promise<number> {
+  return invoke("clear_synced_offline_actions", { sessionToken });
+}
+
+export function tauriCountPendingOfflineActions(sessionToken: string): Promise<number> {
+  return invoke("count_pending_offline_actions", { sessionToken });
+}
+
+// ─── Cross-Device Sync ────────────────────────────────
+
+export function tauriGetUserAccountData(sessionToken: string): Promise<Record<string, any>> {
+  return invoke("get_user_account_data", { sessionToken });
+}
+
+export function tauriLogDeviceSync(deviceId: string, syncType: string, itemsCount: number, durationMs: number, success: boolean): Promise<void> {
+  return invoke("log_device_sync", { deviceId, syncType, itemsCount, durationMs, success });
+}
+
+export function tauriGetDeviceSyncHistory(deviceId: string): Promise<[string, number, number, boolean][]> {
+  return invoke("get_device_sync_history", { deviceId });
+}

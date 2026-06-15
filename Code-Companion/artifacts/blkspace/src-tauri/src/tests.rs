@@ -801,4 +801,92 @@ mod tests {
     ).unwrap();
     assert_eq!(hours, 5);
   }
+
+  // ─── Offline Queue Tests ─────────────────────────────
+
+  #[test]
+  fn test_offline_queue() {
+    let db = setup_test_db();
+    
+    // Queue actions
+    let id1 = db.queue_offline_action("create_post", "{\"content\":\"Test\"}", "demo_user").unwrap();
+    let id2 = db.queue_offline_action("like_post", "{\"post_id\":1}", "demo_user").unwrap();
+    
+    // Get pending actions
+    let pending = db.get_pending_offline_actions("demo_user").unwrap();
+    assert_eq!(pending.len(), 2);
+    assert_eq!(pending[0].0, id1);
+    assert_eq!(pending[0].1, "create_post");
+    assert_eq!(pending[1].1, "like_post");
+    
+    // Count pending
+    let count = db.count_pending_offline_actions("demo_user").unwrap();
+    assert_eq!(count, 2);
+    
+    // Mark one as synced
+    db.mark_offline_action_synced(id1).unwrap();
+    
+    // Count again
+    let count = db.count_pending_offline_actions("demo_user").unwrap();
+    assert_eq!(count, 1);
+    
+    // Clear synced
+    let cleared = db.clear_synced_offline_actions("demo_user").unwrap();
+    assert_eq!(cleared, 1);
+    
+    // Count again
+    let count = db.count_pending_offline_actions("demo_user").unwrap();
+    assert_eq!(count, 1);
+  }
+
+  // ─── Device Sync Log Tests ──────────────────────────
+
+  #[test]
+  fn test_device_sync_log() {
+    let db = setup_test_db();
+    
+    // Log sync events
+    db.log_device_sync("device_1", "account_sync", 10, 1500, true).unwrap();
+    db.log_device_sync("device_1", "media_sync", 5, 800, true).unwrap();
+    db.log_device_sync("device_1", "account_sync", 0, 2000, false).unwrap();
+    
+    // Get history
+    let history = db.get_device_sync_history("device_1").unwrap();
+    assert_eq!(history.len(), 3);
+    assert_eq!(history[0].0, "account_sync");
+    assert_eq!(history[0].1, 0); // items_count
+    assert_eq!(history[0].2, 2000); // duration_ms
+    assert!(!history[0].3); // success
+    
+    assert_eq!(history[1].0, "media_sync");
+    assert_eq!(history[1].1, 5);
+    assert!(history[1].3);
+  }
+
+  // ─── Cross-Device Data Retrieval Tests ───────────────
+
+  #[test]
+  fn test_get_user_account_data() {
+    let db = setup_test_db();
+    
+    // Add user data
+    db.insert_post("demo_user", "Test post", "tsu", None).unwrap();
+    db.insert_post("demo_user", "Another post", "tsu", None).unwrap();
+    
+    // Get account data
+    let data = db.get_user_account_data("demo_user").unwrap();
+    
+    // Verify structure
+    assert!(data.get("user").is_some());
+    assert!(data.get("posts").is_some());
+    assert!(data.get("wallet_tx").is_some());
+    
+    // Verify posts
+    let posts = data.get("posts").unwrap().as_array().unwrap();
+    assert_eq!(posts.len(), 2);
+    
+    // Verify user
+    let user = data.get("user").unwrap();
+    assert_eq!(user.get("handle").unwrap().as_str().unwrap(), "demo_user");
+  }
 }

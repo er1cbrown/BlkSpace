@@ -401,6 +401,31 @@ impl Database {
 
       CREATE INDEX IF NOT EXISTS idx_offline_cache_hash ON offline_cache(hash);
       CREATE INDEX IF NOT EXISTS idx_offline_cache_cached_by ON offline_cache(cached_by);
+
+      CREATE TABLE IF NOT EXISTS offline_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        action_type TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        author_handle TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now')),
+        synced INTEGER DEFAULT 0
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_offline_queue_author ON offline_queue(author_handle);
+      CREATE INDEX IF NOT EXISTS idx_offline_queue_synced ON offline_queue(synced);
+
+      CREATE TABLE IF NOT EXISTS device_sync_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id TEXT NOT NULL,
+        sync_type TEXT NOT NULL,
+        items_count INTEGER DEFAULT 0,
+        duration_ms INTEGER DEFAULT 0,
+        success INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_device_sync_log_device ON device_sync_log(device_id);
+      CREATE INDEX IF NOT EXISTS idx_device_sync_log_type ON device_sync_log(sync_type);
       "
     )?;
 
@@ -1596,5 +1621,159 @@ impl Database {
       params![hours, handle],
     )?;
     Ok(())
+  }
+
+  // ─── Offline Queue ─────────────────────────────────────
+
+  pub fn queue_offline_action(&self, action_type: &str, payload: &str, author_handle: &str) -> Result<i64> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "INSERT INTO offline_queue (action_type, payload, author_handle) VALUES (?1, ?2, ?3)",
+      params![action_type, payload, author_handle],
+    )?;
+    Ok(conn.last_insert_rowid())
+  }
+
+  pub fn get_pending_offline_actions(&self, author_handle: &str) -> Result<Vec<(i64, String, String)>> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT id, action_type, payload FROM offline_queue WHERE author_handle = ?1 AND synced = 0 ORDER BY created_at ASC"
+    )?;
+    let rows = stmt.query_map(params![author_handle], |row| {
+      Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
+    })?;
+    let mut actions = Vec::new();
+    for row in rows {
+      actions.push(row?);
+    }
+    Ok(actions)
+  }
+
+  pub fn mark_offline_action_synced(&self, id: i64) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "UPDATE offline_queue SET synced = 1 WHERE id = ?1",
+      params![id],
+    )?;
+    Ok(())
+  }
+
+  pub fn clear_synced_offline_actions(&self, author_handle: &str) -> Result<usize> {
+    let conn = self.conn.lock().unwrap();
+    let affected = conn.execute(
+      "DELETE FROM offline_queue WHERE author_handle = ?1 AND synced = 1",
+      params![author_handle],
+    )?;
+    Ok(affected)
+  }
+
+  pub fn count_pending_offline_actions(&self, author_handle: &str) -> Result<i64> {
+    let conn = self.conn.lock().unwrap();
+    let count: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM offline_queue WHERE author_handle = ?1 AND synced = 0",
+      params![author_handle],
+      |r| r.get(0),
+    )?;
+    Ok(count)
+  }
+
+  // ─── Device Sync Log ──────────────────────────────────
+
+  pub fn log_device_sync(&self, device_id: &str, sync_type: &str, items_count: i64, duration_ms: i64, success: bool) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "INSERT INTO device_sync_log (device_id, sync_type, items_count, duration_ms, success) VALUES (?1, ?2, ?3, ?4, ?5)",
+      params![device_id, sync_type, items_count, duration_ms, if success { 1 } else { 0 }],
+    )?;
+    Ok(())
+  }
+
+  pub fn get_device_sync_history(&self, device_id: &str) -> Result<Vec<(String, i64, i64, bool)>> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT sync_type, items_count, duration_ms, success FROM device_sync_log WHERE device_id = ?1 ORDER BY created_at DESC LIMIT 50"
+    )?;
+    let rows = stmt.query_map(params![device_id], |row| {
+      Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?, row.get::<_, i64>(3)? != 0))
+    })?;
+    let mut history = Vec::new();
+    for row in rows {
+      history.push(row?);
+    }
+    Ok(history)
+  }
+
+  // ─── Cross-Device Data Retrieval ─────────────────────
+
+  pub fn get_user_account_data(&self, handle: &str) -> Result<serde_json::Value> {
+    let conn = self.conn.lock().unwrap();
+    
+    // Get user info
+    let user: User = conn.query_row(
+      "SELECT id, handle, display_name, bio, avatar_url, university, town, followers_count, following_count, weix_bucks, pubkey, engagement_quality, created_at FROM users WHERE handle = ?1",
+      params![handle],
+      |row| {
+        Ok(User {
+          id: row.get(0)?,
+          handle: row.get(1)?,
+          display_name: row.get(2)?,
+          bio: row.get(3)?,
+          avatar_url: row.get(4)?,
+          university: row.get(5)?,
+          town: row.get(6)?,
+          followers_count: row.get(7)?,
+          following_count: row.get(8)?,
+          weix_bucks: row.get(9)?,
+          pubkey: row.get(10)?,
+          engagement_quality: row.get(11)?,
+          created_at: row.get(12)?,
+        })
+      },
+    )?;
+    
+    // Get user's posts
+    let mut posts_stmt = conn.prepare(
+      "SELECT id, author_handle, content, town_tag, replies_count, reposts_count, likes_count, created_at FROM posts WHERE author_handle = ?1 ORDER BY created_at DESC"
+    )?;
+    let posts = posts_stmt.query_map(params![handle], |row| {
+      Ok(serde_json::json!({
+        "id": row.get::<_, i64>(0)?,
+        "author_handle": row.get::<_, String>(1)?,
+        "content": row.get::<_, String>(2)?,
+        "town_tag": row.get::<_, String>(3)?,
+        "replies_count": row.get::<_, i64>(4)?,
+        "reposts_count": row.get::<_, i64>(5)?,
+        "likes_count": row.get::<_, i64>(6)?,
+        "created_at": row.get::<_, String>(7)?,
+      }))
+    })?;
+    let mut posts_list = Vec::new();
+    for post in posts {
+      posts_list.push(post?);
+    }
+    
+    // Get wallet transactions
+    let mut tx_stmt = conn.prepare(
+      "SELECT tx_type, amount, description, balance_after, created_at FROM wallet_tx WHERE user_handle = ?1 ORDER BY created_at DESC"
+    )?;
+    let txs = tx_stmt.query_map(params![handle], |row| {
+      Ok(serde_json::json!({
+        "tx_type": row.get::<_, String>(0)?,
+        "amount": row.get::<_, i64>(1)?,
+        "description": row.get::<_, String>(2)?,
+        "balance_after": row.get::<_, i64>(3)?,
+        "created_at": row.get::<_, String>(4)?,
+      }))
+    })?;
+    let mut tx_list = Vec::new();
+    for tx in txs {
+      tx_list.push(tx?);
+    }
+    
+    Ok(serde_json::json!({
+      "user": user,
+      "posts": posts_list,
+      "wallet_tx": tx_list,
+    }))
   }
 }
