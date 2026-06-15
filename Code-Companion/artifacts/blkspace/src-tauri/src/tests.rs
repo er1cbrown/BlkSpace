@@ -599,4 +599,55 @@ mod tests {
     assert_eq!(combined.len(), 1);
     assert_eq!(combined[0].town_tag, "tsu");
   }
+
+  #[test]
+  fn test_blob_with_cid() {
+    let db = setup_test_db();
+    
+    // Test inserting blob with CID
+    let (record, is_new) = db.insert_blob(
+      "abc123",
+      Some("bafkreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+      "test.jpg",
+      "image/jpeg",
+      1024,
+      "demo_user"
+    ).unwrap();
+    
+    assert!(is_new);
+    assert_eq!(record.hash, "abc123");
+    assert_eq!(record.cid, Some("bafkreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()));
+    
+    // Test retrieving blob with CID
+    let retrieved = db.get_blob_record("abc123").unwrap().unwrap();
+    assert_eq!(retrieved.cid, Some("bafkreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()));
+    
+    // Test listing user blobs with CID
+    let blobs = db.list_user_blobs("demo_user").unwrap();
+    assert_eq!(blobs.len(), 1);
+    assert_eq!(blobs[0].cid, Some("bafkreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()));
+  }
+
+  #[test]
+  fn test_blob_without_cid() {
+    let db = setup_test_db();
+    
+    // Test inserting blob without CID (fallback mode)
+    let (record, is_new) = db.insert_blob(
+      "def456",
+      None,
+      "test.png",
+      "image/png",
+      2048,
+      "demo_user"
+    ).unwrap();
+    
+    assert!(is_new);
+    assert_eq!(record.hash, "def456");
+    assert_eq!(record.cid, None);
+    
+    // Test retrieving blob without CID
+    let retrieved = db.get_blob_record("def456").unwrap().unwrap();
+    assert_eq!(retrieved.cid, None);
+  }
 }

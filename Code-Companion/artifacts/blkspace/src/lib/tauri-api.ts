@@ -95,6 +95,7 @@ export interface TauriNetworkStats {
 
 export interface TauriBlobInfo {
   hash: string;
+  cid?: string;
   filename: string;
   mimeType: string;
   fileSize: number;

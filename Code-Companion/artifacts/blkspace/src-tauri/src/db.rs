@@ -91,6 +91,7 @@ pub struct User {
 pub struct BlobRecord {
   pub id: i64,
   pub hash: String,
+  pub cid: Option<String>,
   pub filename: String,
   pub mime_type: String,
   pub file_size: i64,
@@ -329,6 +330,7 @@ impl Database {
       CREATE TABLE IF NOT EXISTS blobs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         hash TEXT UNIQUE NOT NULL,
+        cid TEXT,
         filename TEXT NOT NULL,
         mime_type TEXT NOT NULL,
         file_size INTEGER NOT NULL,
@@ -374,6 +376,7 @@ impl Database {
     let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_blobs_uploader ON blobs(uploader_handle)", []);
     let _ = conn.execute("ALTER TABLE posts ADD COLUMN nostr_event_id TEXT DEFAULT ''", []);
     let _ = conn.execute("ALTER TABLE posts ADD COLUMN relay_url TEXT DEFAULT ''", []);
+    let _ = conn.execute("ALTER TABLE blobs ADD COLUMN cid TEXT", []);
 
     Ok(())
   }
@@ -982,11 +985,11 @@ impl Database {
     Ok((sender_new, receiver_new))
   }
 
-  pub fn insert_blob(&self, hash: &str, filename: &str, mime_type: &str, file_size: i64, uploader_handle: &str) -> Result<(BlobRecord, bool)> {
+  pub fn insert_blob(&self, hash: &str, cid: Option<&str>, filename: &str, mime_type: &str, file_size: i64, uploader_handle: &str) -> Result<(BlobRecord, bool)> {
     let conn = self.conn.lock().unwrap();
     let changed = conn.execute(
-      "INSERT OR IGNORE INTO blobs (hash, filename, mime_type, file_size, uploader_handle) VALUES (?1, ?2, ?3, ?4, ?5)",
-      params![hash, filename, mime_type, file_size, uploader_handle],
+      "INSERT OR IGNORE INTO blobs (hash, cid, filename, mime_type, file_size, uploader_handle) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+      params![hash, cid, filename, mime_type, file_size, uploader_handle],
     )?;
     let is_new = changed > 0;
     let id = if is_new { conn.last_insert_rowid() } else {
@@ -997,24 +1000,25 @@ impl Database {
       params![id],
       |r| r.get(0),
     ).unwrap_or_else(|_| chrono::Utc::now().to_rfc3339());
-    Ok((BlobRecord { id, hash: hash.to_string(), filename: filename.to_string(), mime_type: mime_type.to_string(), file_size, uploader_handle: uploader_handle.to_string(), created_at }, is_new))
+    Ok((BlobRecord { id, hash: hash.to_string(), cid: cid.map(|c| c.to_string()), filename: filename.to_string(), mime_type: mime_type.to_string(), file_size, uploader_handle: uploader_handle.to_string(), created_at }, is_new))
   }
 
   pub fn get_blob_record(&self, hash: &str) -> Result<Option<BlobRecord>> {
     let conn = self.conn.lock().unwrap();
     let mut stmt = conn.prepare(
-      "SELECT id, hash, filename, mime_type, file_size, uploader_handle, created_at FROM blobs WHERE hash = ?1"
+      "SELECT id, hash, cid, filename, mime_type, file_size, uploader_handle, created_at FROM blobs WHERE hash = ?1"
     )?;
     let mut rows = stmt.query(params![hash])?;
     match rows.next()? {
       Some(row) => Ok(Some(BlobRecord {
         id: row.get(0)?,
         hash: row.get(1)?,
-        filename: row.get(2)?,
-        mime_type: row.get(3)?,
-        file_size: row.get(4)?,
-        uploader_handle: row.get(5)?,
-        created_at: row.get(6)?,
+        cid: row.get(2)?,
+        filename: row.get(3)?,
+        mime_type: row.get(4)?,
+        file_size: row.get(5)?,
+        uploader_handle: row.get(6)?,
+        created_at: row.get(7)?,
       })),
       None => Ok(None),
     }
@@ -1023,17 +1027,18 @@ impl Database {
   pub fn list_user_blobs(&self, uploader_handle: &str) -> Result<Vec<BlobRecord>> {
     let conn = self.conn.lock().unwrap();
     let mut stmt = conn.prepare(
-      "SELECT id, hash, filename, mime_type, file_size, uploader_handle, created_at FROM blobs WHERE uploader_handle = ?1 ORDER BY created_at DESC"
+      "SELECT id, hash, cid, filename, mime_type, file_size, uploader_handle, created_at FROM blobs WHERE uploader_handle = ?1 ORDER BY created_at DESC"
     )?;
     let rows = stmt.query_map(params![uploader_handle], |row| {
       Ok(BlobRecord {
         id: row.get(0)?,
         hash: row.get(1)?,
-        filename: row.get(2)?,
-        mime_type: row.get(3)?,
-        file_size: row.get(4)?,
-        uploader_handle: row.get(5)?,
-        created_at: row.get(6)?,
+        cid: row.get(2)?,
+        filename: row.get(3)?,
+        mime_type: row.get(4)?,
+        file_size: row.get(5)?,
+        uploader_handle: row.get(6)?,
+        created_at: row.get(7)?,
       })
     })?;
     let mut blobs = Vec::new();

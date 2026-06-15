@@ -1,6 +1,7 @@
 mod db;
 mod blob_store;
 mod relay_manager;
+mod iroh_node;
 
 #[cfg(test)]
 mod tests;
@@ -12,6 +13,7 @@ use db::{
   validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
 };
 use relay_manager::{RelayManager, RelayStatus, NostrEventData};
+use iroh_node::IrohNode;
 use secp256k1::{Secp256k1, XOnlyPublicKey, schnorr};
 use sha2::{Sha256, Digest};
 use std::collections::HashMap;
@@ -37,6 +39,7 @@ struct PendingChallenge {
 struct AppState {
   db: Database,
   blob_store: BlobStore,
+  iroh: Option<Mutex<IrohNode>>,
   app_dir: PathBuf,
   sessions: Mutex<HashMap<String, SessionInfo>>,
   challenges: Mutex<HashMap<String, PendingChallenge>>,
@@ -967,10 +970,29 @@ fn upload_blob(
   let mime_type = mime_from_filename(&filename);
   let file_size = bytes.len() as i64;
 
-  // Write to disk first, then record in DB (fix 4)
+  // Write to disk first (local blob store as fallback)
   let hash = state.blob_store.store_blob(&bytes)?;
 
-  let (record, is_new) = state.db.insert_blob(&hash, &filename, &mime_type, file_size, &uploader_handle)
+  // Store in Iroh for decentralized content addressing (if available)
+  let iroh_hash = if let Some(iroh) = &state.iroh {
+    let iroh = iroh.lock().unwrap();
+    let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
+    match rt.block_on(iroh.add_blob(&bytes)) {
+      Ok(cid) => {
+        log::info!("Stored blob in Iroh: {} (local hash: {})", cid, hash);
+        Some(cid)
+      }
+      Err(e) => {
+        log::warn!("Failed to store blob in Iroh: {}. Using local storage only.", e);
+        None
+      }
+    }
+  } else {
+    None
+  };
+
+  let iroh_hash_ref = iroh_hash.as_deref();
+  let (record, is_new) = state.db.insert_blob(&hash, iroh_hash_ref, &filename, &mime_type, file_size, &uploader_handle)
     .map_err(|e| AppError::from(e).to_string())?;
 
   // Reward upload +10 WB only for brand-new blobs (fix 1)
@@ -992,7 +1014,7 @@ fn upload_blob(
   }
 
   Ok(BlobInfo {
-    hash,
+    hash: iroh_hash.unwrap_or(hash),
     filename: record.filename,
     mime_type: record.mime_type,
     file_size: record.file_size,
@@ -1008,8 +1030,31 @@ fn get_blob_bytes(state: State<AppState>, session_token: String, hash: String) -
   if !state.db.blob_hash_exists(&hash) {
     return Ok(None);
   }
+
+  // Try Iroh first (decentralized content fetching)
+  if let Some(iroh) = &state.iroh {
+    let iroh = iroh.lock().unwrap();
+    let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
+    match rt.block_on(iroh.get_blob(&hash)) {
+      Ok(Some(bytes)) => {
+        let b64 = base64::Engine::encode(
+          &base64::engine::general_purpose::STANDARD,
+          &bytes,
+        );
+        return Ok(Some(b64));
+      }
+      Ok(None) => {
+        log::warn!("Blob not found in Iroh: {}. Falling back to local storage.", hash);
+      }
+      Err(e) => {
+        log::warn!("Failed to fetch from Iroh: {}. Falling back to local storage.", e);
+      }
+    }
+  }
+
+  // Fallback to local blob store
   let bytes = state.blob_store.get_blob(&hash)
-    .ok_or("Blob not found on disk".to_string())?;
+    .ok_or("Blob not found on disk or Iroh".to_string())?;
   let b64 = base64::Engine::encode(
     &base64::engine::general_purpose::STANDARD,
     &bytes,
@@ -1067,6 +1112,21 @@ pub fn run() {
   let blob_store = BlobStore::new(&app_dir);
   let relay_manager = RelayManager::new();
 
+  // Initialize Iroh node for decentralized content storage
+  let iroh_node = {
+    let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
+    match rt.block_on(IrohNode::new(app_dir.clone())) {
+      Ok(node) => {
+        log::info!("Iroh node initialized successfully");
+        Some(Mutex::new(node))
+      }
+      Err(e) => {
+        log::warn!("Failed to initialize Iroh node: {}. Falling back to local blob storage.", e);
+        None
+      }
+    }
+  };
+
   // Connect to default public relays on startup (non-blocking)
   let mut default_relays_connected: Vec<String> = Vec::new();
   {
@@ -1081,6 +1141,7 @@ pub fn run() {
     .manage(AppState {
       db: database,
       blob_store,
+      iroh: iroh_node,
       app_dir,
       sessions: Mutex::new(HashMap::new()),
       challenges: Mutex::new(HashMap::new()),

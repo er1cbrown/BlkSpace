@@ -6,7 +6,7 @@ authors = ["Eric Brown"]
 license = ""
 repository = ""
 edition = "2021"
-rust-version = "1.77.2"
+rust-version = "1.81"
 
 [lib]
 name = "app_lib"
@@ -33,3 +33,4 @@ tokio = { version = "1", features = ["full"] }
 nostr-sdk = { version = "0.38", features = [] }
 url = "2"
 async-trait = "0.1"
+iroh-blobs = { version = "0.35", features = ["fs-store"] }
