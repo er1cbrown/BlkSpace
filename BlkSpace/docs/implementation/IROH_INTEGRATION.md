@@ -1,11 +1,39 @@
 # Implementation Plan: Iroh Integration
 
-**Status:** Draft — Phase 2 feature  
+**Status:** Phase 1-2 Complete — Phase 3+ in progress  
 **Priority:** High (replaces local blob storage)  
 **Estimated Time:** 3-5 days  
 **Dependencies:** Device mesh testing (proves multi-device viability)
 
 ---
+
+## Implementation Status
+
+### ✅ Phase 1: Iroh Setup (COMPLETED)
+- **iroh-blobs 0.35** added to `Cargo.toml` with `fs-store` feature
+- **IrohNode** wrapper created in `src-tauri/src/iroh_node.rs`
+- **AppState** updated to include optional `IrohNode` with graceful fallback
+- **Initialization** in `run()` function with proper error handling
+
+### ✅ Phase 2: Content Addressing (COMPLETED)
+- **Database migration** — `cid` column added to `blobs` table
+- **BlobRecord** updated with optional `cid` field
+- **upload_blob** — stores in both local blob store AND Iroh (returns CID when available)
+- **get_blob_bytes** — tries Iroh first, falls back to local storage
+- **TypeScript types** — `TauriBlobInfo` includes optional `cid` field
+- **Tests** — `test_blob_with_cid` and `test_blob_without_cid` in `tests.rs`
+
+### ⏳ Phase 3: Pinning & Persistence (PENDING)
+- Town relay pinning policy
+- Node harvest rewards for pinning
+
+### ⏳ Phase 4: Cross-Device Sync (PENDING)
+- Account content sync on recovery
+- Offline cache for followed users
+
+### ⏳ Phase 5: Integration (PENDING)
+- Replace all blob commands with Iroh-first
+- Lazy migration for existing content
 
 ## Overview
 
