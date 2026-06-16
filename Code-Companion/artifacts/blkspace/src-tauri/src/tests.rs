@@ -502,6 +502,23 @@ mod tests {
   }
 
   #[test]
+  fn test_demo_seed_pubkeys_and_jane_nip65() {
+    let temp_dir = std::env::temp_dir().join(format!("blkspace_seed_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let db = Database::new(temp_dir).unwrap();
+
+    let jane = db.get_user("jane_doe").unwrap().expect("jane_doe seeded");
+    assert_eq!(
+      jane.pubkey,
+      "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+    );
+
+    let relays = db.get_relay_list_from_tags(&jane.pubkey);
+    assert!(relays.iter().any(|u| u.contains("relay.damus.io")));
+    assert!(relays.iter().any(|u| u.contains("nos.lol")));
+  }
+
+  #[test]
   fn test_set_user_pubkey() {
     let db = setup_test_db();
     db.create_user("user", "User", "").unwrap();
@@ -688,7 +705,9 @@ mod tests {
         [],
       ).unwrap();
       conn.execute(
-        "UPDATE malicious_intent_scores SET overall_score = 0.75 WHERE handle = 'risky'",
+        "INSERT INTO malicious_intent_scores (handle, overall_score, follower_velocity, network_centrality, content_similarity, temporal_pattern, self_interaction, updated_at)
+         VALUES ('risky', 0.75, 0.0, 0.0, 0.0, 0.0, 0.0, datetime('now'))
+         ON CONFLICT(handle) DO UPDATE SET overall_score = 0.75",
         [],
       ).unwrap();
     }

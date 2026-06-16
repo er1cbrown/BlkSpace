@@ -450,6 +450,7 @@ impl Database {
     db.initialize()?;
     if seed {
       db.seed()?;
+      db.backfill_demo_pubkeys()?;
     }
     Ok(db)
   }
@@ -786,11 +787,11 @@ impl Database {
       "
       INSERT INTO users (handle, display_name, bio, university, town, followers_count, following_count, weix_bucks, pubkey)
       VALUES
-        ('demo_user', 'Demo User', 'Welcome to BlkSpace!', 'Tennessee State University', 'tsu', 245, 89, 1250, ''),
-        ('jane_doe', 'Jane Doe', 'HBCU grad | Tech | Culture', 'Howard University', 'howard', 342, 156, 890, ''),
-        ('campus_king', 'Campus King', 'Content creator & vibe curator', 'Florida A&M University', 'famu', 1287, 324, 2340, ''),
-        ('hbcustudent', 'HBCU Student', 'Future engineer. Building the future.', 'Spelman College', 'spelman', 891, 203, 1560, ''),
-        ('alumnus_01', 'Alumnus 01', 'Class of 2020. Still reppin the yard.', 'Morehouse College', 'morehouse', 563, 112, 980, '');
+        ('demo_user', 'Demo User', 'Welcome to BlkSpace!', 'Tennessee State University', 'tsu', 245, 89, 1250, '1111111111111111111111111111111111111111111111111111111111111111'),
+        ('jane_doe', 'Jane Doe', 'HBCU grad | Tech | Culture', 'Howard University', 'howard', 342, 156, 890, 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'),
+        ('campus_king', 'Campus King', 'Content creator & vibe curator', 'Florida A&M University', 'famu', 1287, 324, 2340, '2222222222222222222222222222222222222222222222222222222222222222'),
+        ('hbcustudent', 'HBCU Student', 'Future engineer. Building the future.', 'Spelman College', 'spelman', 891, 203, 1560, '3333333333333333333333333333333333333333333333333333333333333333'),
+        ('alumnus_01', 'Alumnus 01', 'Class of 2020. Still reppin the yard.', 'Morehouse College', 'morehouse', 563, 112, 980, '4444444444444444444444444444444444444444444444444444444444444444');
 
       INSERT INTO posts (author_handle, content, town_tag, channel_id, replies_count, reposts_count, likes_count, created_at)
       VALUES
@@ -819,6 +820,57 @@ impl Database {
         ('demo_user', 'spend', -25, 'Tip to @jane_doe', 1200),
         ('demo_user', 'earn', 100, 'Relay uptime bonus', 1225);
       "
+    )?;
+    Ok(())
+  }
+
+  /// Ensure demo handles have stable pubkeys + Jane's NIP-65 list for profile UI (idempotent).
+  fn backfill_demo_pubkeys(&self) -> Result<()> {
+    const DEMO_PUBKEYS: &[(&str, &str)] = &[
+      (
+        "demo_user",
+        "1111111111111111111111111111111111111111111111111111111111111111",
+      ),
+      (
+        "jane_doe",
+        "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+      ),
+      (
+        "campus_king",
+        "2222222222222222222222222222222222222222222222222222222222222222",
+      ),
+      (
+        "hbcustudent",
+        "3333333333333333333333333333333333333333333333333333333333333333",
+      ),
+      (
+        "alumnus_01",
+        "4444444444444444444444444444444444444444444444444444444444444444",
+      ),
+    ];
+
+    let conn = self.conn.lock().unwrap();
+    for (handle, pubkey) in DEMO_PUBKEYS {
+      conn.execute(
+        "UPDATE users SET pubkey = ?1 WHERE handle = ?2 AND (pubkey IS NULL OR pubkey = '')",
+        params![pubkey, handle],
+      )?;
+    }
+
+    let jane_pubkey = DEMO_PUBKEYS[1].1;
+    let tags = r#"[["r","wss://relay.damus.io"],["r","wss://nos.lol","read"]]"#;
+    let now = chrono::Utc::now().timestamp();
+    conn.execute(
+      "INSERT OR IGNORE INTO relay_events (event_id, relay_url, kind, pubkey, content, tags, created_at_unix) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+      params![
+        "seed_jane_nip65",
+        "seed",
+        10002,
+        jane_pubkey,
+        "",
+        tags,
+        now
+      ],
     )?;
     Ok(())
   }
@@ -1283,24 +1335,15 @@ impl Database {
   }
 
   pub fn rewards_throttled(&self, handle: &str) -> bool {
-    {
-      let conn = self.conn.lock().unwrap();
-      if let Ok(score) = conn.query_row(
+    let conn = self.conn.lock().unwrap();
+    conn
+      .query_row(
         "SELECT overall_score FROM malicious_intent_scores WHERE handle = ?1",
         params![handle],
         |r| r.get::<_, f64>(0),
-      ) {
-        if score > 0.7 {
-          return true;
-        }
-      }
-    }
-    if let Ok(scores) = self.calculate_malicious_intent_vector(handle) {
-      if let Some(overall) = scores.get("overallScore").and_then(|v| v.as_f64()) {
-        return overall > 0.7;
-      }
-    }
-    false
+      )
+      .map(|score| score > 0.7)
+      .unwrap_or(false)
   }
 
   pub fn throttle_rewards(&self, handle: &str, base: f64, quality: f64) -> i64 {
