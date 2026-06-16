@@ -1083,46 +1083,61 @@ fn list_replies(state: State<AppState>, post_id: i64) -> Result<Vec<Reply>, Stri
   state.db.list_replies(post_id).map_err(|e| AppError::from(e).to_string())
 }
 
+fn publish_reply_to_nostr(state: &AppState, author_handle: &str, post_id: i64, content: &str) {
+  let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
+  let user_keys = user_nostr_keys_for_publish(state, author_handle, "reply publish");
+  if !has_relays || user_keys.is_none() {
+    return;
+  }
+  let user_keys = user_keys.unwrap();
+  let Ok(Some(parent)) = state.db.get_post(post_id, None) else {
+    return;
+  };
+  let town = parent.town_tag.clone();
+  let ch = parent.channel_id.clone();
+  let nostr_client = state.relay_manager.lock().unwrap().client().clone();
+  let content = content.to_string();
+  if let Ok(rt) = tokio::runtime::Runtime::new() {
+    let result = rt.block_on(async {
+      use nostr_sdk::prelude::{Tag, EventBuilder};
+      let mut tags: Vec<Vec<String>> = vec![
+        vec!["t".to_string(), format!("hbcu-town:{}", town)],
+        vec!["t".to_string(), "blkspace".to_string()],
+        vec!["e".to_string(), post_id.to_string()],
+      ];
+      if !ch.is_empty() {
+        tags.push(vec![
+          "t".to_string(),
+          format!("blkspace:channel:{}", ch),
+        ]);
+      }
+      let nostr_tags: Vec<Tag> = tags
+        .iter()
+        .filter_map(|t| Tag::parse(t.clone()).ok())
+        .collect();
+      let event = EventBuilder::text_note(&content)
+        .tags(nostr_tags)
+        .sign(&user_keys)
+        .await
+        .map_err(|e| format!("Reply sign: {}", e))?;
+      nostr_client
+        .send_event(event)
+        .await
+        .map_err(|e| format!("Reply publish: {}", e))?;
+      Ok::<_, String>(())
+    });
+    if let Err(e) = result {
+      log::warn!("Nostr reply publish failed for {author_handle}: {e}");
+    }
+  }
+}
+
 #[tauri::command]
 fn create_reply(state: State<AppState>, session_token: String, post_id: i64, content: String) -> Result<CreateReplyResult, String> {
   let author_handle = check_session_rate_limit(&state, &session_token)?;
   validate_content(&content).map_err(map_err)?;
   let result = state.db.create_reply(post_id, &author_handle, &content).map_err(|e| AppError::from(e).to_string())?;
-
-  // Nostr hygiene for replies: kind 1 + e tag + channel/town tags if available from parent post.
-  // Signs with the *reply author's* real key.
-  let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
-  let user_keys = user_nostr_keys_for_publish(&state, &author_handle, "reply publish");
-  if has_relays && user_keys.is_some() {
-    let user_keys = user_keys.unwrap();
-    if let Ok(Some(parent)) = state.db.get_post(post_id, None) {
-      let town = parent.town_tag.clone();
-      let ch = parent.channel_id.clone();
-      let nostr_client = state.relay_manager.lock().unwrap().client().clone();
-      if let Ok(rt) = tokio::runtime::Runtime::new() {
-        let _ = rt.block_on(async {
-          use nostr_sdk::prelude::{Tag, EventBuilder};
-          let mut tags: Vec<Vec<String>> = vec![
-            vec!["t".to_string(), format!("hbcu-town:{}", town)],
-            vec!["t".to_string(), "blkspace".to_string()],
-            vec!["e".to_string(), post_id.to_string()],
-          ];
-          if !ch.is_empty() {
-            tags.push(vec!["t".to_string(), format!("blkspace:channel:{}", ch)]);
-          }
-          let nostr_tags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
-          let event = EventBuilder::text_note(&content)
-            .tags(nostr_tags)
-            .sign(&user_keys)
-            .await
-            .map_err(|e| format!("Reply sign: {}", e))?;
-          let _ = nostr_client.send_event(event).await;
-          Ok::<_, String>(())
-        });
-      }
-    }
-  }
-
+  publish_reply_to_nostr(&state, &author_handle, post_id, &content);
   Ok(result)
 }
 
@@ -1593,35 +1608,74 @@ fn e2e_prepare_profile_relay_fixture(state: State<AppState>) -> Result<serde_jso
   }
 }
 
-#[tauri::command]
-fn announce_blob(state: State<AppState>, session_token: String, hash: String, filename: String) -> Result<String, String> {
-  let handle = get_handle_from_session(&state, &session_token)?;
-  let keys = user_nostr_keys_for_publish(&state, &handle, "blob announce publish")
-    .ok_or("No Nostr signing key stored — cannot announce blob")?;
-  let client = state.relay_manager.lock().unwrap().client_clone();
+/// Kind 1063 blob metadata on relays. Returns `Ok(None)` when relays or keys are unavailable.
+fn publish_blob_announce(
+  state: &AppState,
+  author_handle: &str,
+  hash: &str,
+  cid: Option<&str>,
+  filename: &str,
+) -> Result<Option<String>, String> {
   if state.relay_manager.lock().unwrap().relay_count() == 0 {
-    return Err("No relays connected".to_string());
+    return Ok(None);
   }
-  validate_blob_hash(&hash)?;
-  let mime = mime_from_filename(&filename);
+  let user_keys = match user_nostr_keys_for_publish(state, author_handle, "blob announce publish") {
+    Some(k) => k,
+    None => return Ok(None),
+  };
+  validate_blob_hash(hash)?;
+  let mime = mime_from_filename(filename);
+  let client = state.relay_manager.lock().unwrap().client_clone();
+  let hash = hash.to_string();
+  let filename = filename.to_string();
+  let cid = cid.map(|c| c.to_string());
   let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
   rt.block_on(async {
     use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
-    let tags = vec![
-      Tag::parse(vec!["url".to_string(), format!("blob://{}", hash)]).ok(),
-      Tag::parse(vec!["m".to_string(), mime]).ok(),
-      Tag::parse(vec!["x".to_string(), hash.clone()]).ok(),
-    ].into_iter().filter_map(|t| t).collect::<Vec<_>>();
-    let event = EventBuilder::new(Kind::Custom(1063), filename)
+    let mut tag_vecs = vec![
+      vec!["url".to_string(), format!("blob://{}", hash)],
+      vec!["m".to_string(), mime],
+      vec!["x".to_string(), hash.clone()],
+    ];
+    if let Some(ref c) = cid {
+      tag_vecs.push(vec!["cid".to_string(), c.clone()]);
+    }
+    let tags: Vec<Tag> = tag_vecs
+      .into_iter()
+      .filter_map(|t| Tag::parse(t).ok())
+      .collect();
+    let event = EventBuilder::new(Kind::Custom(1063), &filename)
       .tags(tags)
-      .sign(&keys)
+      .sign(&user_keys)
       .await
       .map_err(|e| format!("Signing failed: {}", e))?;
-    let event_id = client.send_event(event)
+    let event_id = client
+      .send_event(event)
       .await
       .map_err(|e| format!("Publish failed: {}", e))?;
-    Ok(event_id.to_hex())
+    Ok(Some(event_id.to_hex()))
   })
+}
+
+#[tauri::command]
+fn announce_blob(state: State<AppState>, session_token: String, hash: String, filename: String) -> Result<String, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  if state.relay_manager.lock().unwrap().relay_count() == 0 {
+    return Err("No relays connected".to_string());
+  }
+  if user_nostr_keys_for_publish(&state, &handle, "blob announce publish").is_none() {
+    return Err("No Nostr signing key stored — cannot announce blob".to_string());
+  }
+  let cid = state
+    .db
+    .get_blob_record(&hash)
+    .ok()
+    .flatten()
+    .and_then(|r| r.cid);
+  match publish_blob_announce(&state, &handle, &hash, cid.as_deref(), &filename)? {
+    Some(event_id) => Ok(event_id),
+    None => Err("No relays connected".to_string()),
+  }
 }
 
 #[tauri::command]
@@ -2066,6 +2120,7 @@ fn flush_offline_queue(state: State<AppState>, session_token: String) -> Result<
           .db
           .create_reply(p.post_id, &handle, &p.content)
           .map_err(|e| AppError::from(e).to_string())?;
+        publish_reply_to_nostr(&state, &handle, p.post_id, &p.content);
         Ok(())
       }
       "toggle_follow" => {
@@ -2452,6 +2507,16 @@ fn upload_blob(
       state.db.grant_karma(&uploader_handle, "", 5, 0, "Content creation").ok();
     }
     earn = EarnResult::build(reward, wb_actual, 5, 0, throttled);
+  }
+
+  if let Err(e) = publish_blob_announce(
+    &state,
+    &uploader_handle,
+    &hash,
+    cid.as_deref(),
+    &record.filename,
+  ) {
+    log::warn!("Auto blob announce after upload failed for {uploader_handle}: {e}");
   }
 
   Ok(UploadBlobResult {

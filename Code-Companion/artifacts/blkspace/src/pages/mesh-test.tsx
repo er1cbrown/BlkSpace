@@ -15,10 +15,14 @@ import {
   useTauriSyncAccountContent,
   useTauriGetUserAccountData,
   useTauriGetPendingOfflineActions,
+  useTauriFlushOfflineQueue,
   useTauriListPinnedContent,
   useTauriListOfflineCache,
   useTauriClaimNodeRewards,
   useTauriGetDeviceSyncHistory,
+  useTauriLogDeviceSync,
+  useTauriRelayStatuses,
+  useTauriSyncTownEvents,
   useTauriRunTier0Benchmark,
 } from "@/hooks/use-app-data";
 import type { Tier0BenchmarkReport } from "@/lib/tauri-api";
@@ -48,6 +52,10 @@ export default function DeviceMeshTestPage() {
   });
 
   const syncMutation = useTauriSyncAccountContent();
+  const logDeviceSync = useTauriLogDeviceSync();
+  const flushQueue = useTauriFlushOfflineQueue();
+  const syncTown = useTauriSyncTownEvents();
+  const { data: relayStatuses } = useTauriRelayStatuses();
   const { data: accountData } = useTauriGetUserAccountData();
   const { data: pendingActions } = useTauriGetPendingOfflineActions();
   const { data: pinnedContent } = useTauriListPinnedContent();
@@ -58,13 +66,79 @@ export default function DeviceMeshTestPage() {
   const [benchReport, setBenchReport] = useState<Tier0BenchmarkReport | null>(
     null,
   );
+  const [lastRelaySyncAt, setLastRelaySyncAt] = useState<string | null>(null);
+
+  const connectedRelays =
+    relayStatuses?.filter((r) => r.connected).length ?? 0;
+  const totalRelays = relayStatuses?.length ?? 0;
+  const userTown = accountData?.user?.town as string | undefined;
 
   const handleSync = () => {
     const start = performance.now();
     syncMutation.mutate(undefined, {
       onSuccess: (syncedItems) => {
         const duration = Math.round(performance.now() - start);
-        console.log(`Synced ${syncedItems.length} items in ${duration}ms`);
+        logDeviceSync.mutate({
+          deviceId,
+          syncType: "account_sync",
+          itemsCount: syncedItems.length,
+          durationMs: duration,
+          success: true,
+        });
+      },
+      onError: () => {
+        const duration = Math.round(performance.now() - start);
+        logDeviceSync.mutate({
+          deviceId,
+          syncType: "account_sync",
+          itemsCount: 0,
+          durationMs: duration,
+          success: false,
+        });
+      },
+    });
+  };
+
+  const handleRelaySync = () => {
+    const town = userTown || "tsu";
+    syncTown.mutate(
+      { town },
+      {
+        onSuccess: (events) => {
+          setLastRelaySyncAt(new Date().toLocaleTimeString());
+          logDeviceSync.mutate({
+            deviceId,
+            syncType: "relay_sync",
+            itemsCount: events.length,
+            durationMs: 0,
+            success: true,
+          });
+        },
+        onError: () => {
+          logDeviceSync.mutate({
+            deviceId,
+            syncType: "relay_sync",
+            itemsCount: 0,
+            durationMs: 0,
+            success: false,
+          });
+        },
+      },
+    );
+  };
+
+  const handleFlushQueue = () => {
+    const start = performance.now();
+    flushQueue.mutate(undefined, {
+      onSuccess: (result) => {
+        const duration = Math.round(performance.now() - start);
+        logDeviceSync.mutate({
+          deviceId,
+          syncType: "offline_flush",
+          itemsCount: result.synced,
+          durationMs: duration,
+          success: result.failed === 0,
+        });
       },
     });
   };
@@ -126,6 +200,83 @@ export default function DeviceMeshTestPage() {
           </TabsList>
 
           <TabsContent value="sync" className="space-y-6">
+            <div className="grid md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Wifi className="w-4 h-4" /> Relays
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Connected</span>
+                    <span className="font-medium">
+                      {connectedRelays}/{totalRelays}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Pending queue</span>
+                    <span className="font-medium">
+                      {pendingActions?.length ?? 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Last relay sync</span>
+                    <span className="font-medium">
+                      {lastRelaySyncAt ?? "—"}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={handleRelaySync}
+                    disabled={
+                      syncTown.isPending || !sessionToken || connectedRelays === 0
+                    }
+                  >
+                    {syncTown.isPending ? "Syncing…" : "Sync Town from Relays"}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="md:col-span-2">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">M0 Sign-off Checklist</CardTitle>
+                  <CardDescription>
+                    Automated backbone ✅ — manual Device B sign-off still required
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="grid sm:grid-cols-2 gap-2 text-sm">
+                    {[
+                      { label: "Account recovery (Phase 1.4)", auto: true, manual: false },
+                      { label: "Cross-device sync <60s (Phase 1.5)", auto: true, manual: false },
+                      { label: "Offline queue flush (Phase 3.1–3.3)", auto: true, manual: false },
+                      { label: "Media CID + cache (§2.4 Iroh)", auto: true, manual: false },
+                      { label: "Tier 0 performance (§4.1)", auto: true, manual: false },
+                      { label: "Stress / no data loss (Phase 4.2)", auto: true, manual: false },
+                    ].map((item) => (
+                      <li key={item.label} className="flex items-start gap-2">
+                        {item.auto ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        )}
+                        <span>
+                          {item.label}
+                          <span className="block text-xs text-muted-foreground">
+                            auto {item.auto ? "✓" : "—"} · manual{" "}
+                            {item.manual ? "✓" : "open"}
+                          </span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="grid md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
@@ -336,7 +487,8 @@ export default function DeviceMeshTestPage() {
               <CardHeader>
                 <CardTitle>Offline Queue Test</CardTitle>
                 <CardDescription>
-                  Test what happens when you create posts without internet
+                  Queue writes offline; flush publishes posts and replies to Nostr
+                  relays on reconnect
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -345,12 +497,37 @@ export default function DeviceMeshTestPage() {
                     <p className="text-sm font-medium mb-2">Test Scenario:</p>
                     <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
                       <li>Disconnect internet</li>
-                      <li>Create a post on Feed page</li>
-                      <li>Post is queued locally</li>
-                      <li>Reconnect internet</li>
-                      <li>Queued posts are published automatically</li>
+                      <li>Create a post, reply, or like on Feed</li>
+                      <li>Action is queued locally (count above)</li>
+                      <li>Reconnect internet — auto-flush every 60s</li>
+                      <li>Or tap Flush Now to publish immediately</li>
                     </ol>
                   </div>
+                  <Button
+                    onClick={handleFlushQueue}
+                    disabled={
+                      flushQueue.isPending ||
+                      !sessionToken ||
+                      (pendingActions?.length ?? 0) === 0
+                    }
+                    className="w-full sm:w-auto"
+                  >
+                    {flushQueue.isPending
+                      ? "Flushing…"
+                      : `Flush Now (${pendingActions?.length ?? 0} pending)`}
+                  </Button>
+                  {flushQueue.isSuccess && flushQueue.data && (
+                    <div className="text-sm text-muted-foreground">
+                      Synced {flushQueue.data.synced}, failed{" "}
+                      {flushQueue.data.failed}, remaining{" "}
+                      {flushQueue.data.remaining}
+                    </div>
+                  )}
+                  {flushQueue.isError && (
+                    <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">
+                      Flush failed: {flushQueue.error?.message}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

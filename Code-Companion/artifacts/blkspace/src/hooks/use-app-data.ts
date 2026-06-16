@@ -1038,6 +1038,24 @@ export function useTauriClearSyncedOfflineActions() {
   });
 }
 
+export function useTauriFlushOfflineQueue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => {
+      const token = getSessionToken();
+      if (!token) {
+        return Promise.resolve({ synced: 0, failed: 0, remaining: 0 });
+      }
+      return tauri.tauriFlushOfflineQueue(token);
+    },
+    onSuccess: (result) => {
+      if (result.synced > 0 || result.failed > 0) {
+        qc.invalidateQueries({ queryKey: ["tauri"] });
+      }
+    },
+  });
+}
+
 // ─── Cross-Device Sync Hooks ────────────────────────────
 
 export function useTauriGetUserAccountData() {
