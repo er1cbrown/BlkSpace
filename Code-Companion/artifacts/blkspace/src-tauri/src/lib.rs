@@ -461,6 +461,55 @@ fn set_community_role(state: State<AppState>, session_token: String, community_i
   state.db.set_community_role(&community_id, &handle, &role).map_err(|e| e.to_string())
 }
 
+fn publish_kind3_contact_list(state: &AppState, follower: &str) -> Result<(), String> {
+  let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
+  if !has_relays {
+    return Ok(());
+  }
+  let following = state.db.get_following_for(follower).map_err(|e| e.to_string())?;
+  let keys = load_user_nostr_keys(state, follower)
+    .unwrap_or_else(|_| state.relay_manager.lock().unwrap().keys().clone());
+  let client = state.relay_manager.lock().unwrap().client().clone();
+  let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+  rt.block_on(async {
+    use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+    let mut ntags: Vec<Tag> = Vec::new();
+    for handle in following {
+      if let Ok(Some(user)) = state.db.get_user(&handle) {
+        if user.pubkey.len() == 64 {
+          if let Ok(tag) = Tag::parse(vec!["p".to_string(), user.pubkey]) {
+            ntags.push(tag);
+          }
+        }
+      }
+    }
+    let event = EventBuilder::new(Kind::ContactList, "")
+      .tags(ntags)
+      .sign(&keys)
+      .await
+      .map_err(|e| format!("Kind 3 sign: {}", e))?;
+    let _ = client.send_event(event).await;
+    Ok::<_, String>(())
+  })
+}
+
+#[tauri::command]
+fn toggle_follow(state: State<AppState>, session_token: String, followed_handle: String) -> Result<bool, String> {
+  let follower = get_handle_from_session(&state, &session_token)?;
+  let is_following = state.db.toggle_follow(&follower, &followed_handle).map_err(|e| e.to_string())?;
+  let _ = publish_kind3_contact_list(&state, &follower);
+  Ok(is_following)
+}
+
+#[tauri::command]
+fn get_following(state: State<AppState>, session_token: String) -> Result<Vec<String>, String> {
+  let follower = get_handle_from_session(&state, &session_token)?;
+  // Real kind 3 for feeds: toggle_follow publishes signed Kind::Custom(3) p: tags + now persists to follows table.
+  // This returns the real list (from DB populated by toggle) so feed Following tab + FYP can use real follows
+  // (merged in UI with any localStorage for web/demo). Full future: also fetch latest kind 3 from relays.
+  state.db.get_following_for(&follower).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn get_community_role(state: State<AppState>, session_token: String, community_id: String, handle: String) -> Result<String, String> {
   let _caller = get_handle_from_session(&state, &session_token)?;
@@ -1973,6 +2022,8 @@ pub fn run() {
       set_node_role,
       set_community_role,
       get_community_role,
+      toggle_follow,
+      get_following,
       list_marketplace,
       create_marketplace_listing,
       buy_marketplace_listing,

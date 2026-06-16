@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SafeContent } from "@/components/ui/safe-content";
 import { MediaDisplay } from "@/components/ui/media-display";
 import { getListPostsQueryKey } from "@workspace/api-client-react";
-import { useAppListPosts, useAppGetTrendingFeed, useAppCreatePost, useAppToggleLike, useTauriCombinedFeed, useTauriPublishTrendingSummary, useTauriFetchTrendingSummaries, useAppSendWeixBucks } from "@/hooks/use-app-data";
+import { useAppListPosts, useAppGetTrendingFeed, useAppCreatePost, useAppToggleLike, useTauriCombinedFeed, useTauriPublishTrendingSummary, useTauriFetchTrendingSummaries, useAppSendWeixBucks, useTauriGetFollowing } from "@/hooks/use-app-data";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { isTauri, tauriUploadBlob, type TauriCrossTownEvent } from "@/lib/tauri-api";
 import { Badge } from "@/components/ui/badge";
@@ -26,10 +26,13 @@ export default function FeedPage() {
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [followedHandles, setFollowedHandles] = useState<string[]>(() => {
+  const [localFollowed, setLocalFollowed] = useState<string[]>(() => {
     const saved = localStorage.getItem('blkspace_followed') || '[]';
     return JSON.parse(saved);
   });
+  // Real kind 3 for feeds: load follows from backend (which can be backed by kind 3 relay query in future)
+  const { data: remoteFollowing = [] } = useTauriGetFollowing();
+  const followedHandles = Array.from(new Set([...(localFollowed || []), ...(remoteFollowing || [])]));
 
   const { data: localPosts, isLoading: localLoading } = useAppListPosts(selectedTown, getCurrentHandle());
   const { data: trendingFeed, isLoading: trendingLoading } = useAppGetTrendingFeed(getCurrentHandle());
@@ -115,6 +118,26 @@ export default function FeedPage() {
         queryClient.invalidateQueries({ queryKey: getListPostsQueryKey({ town: selectedTown }) });
       },
     });
+  };
+
+  const handleBoost = (item: any) => {
+    if (!item?.authorHandle) {
+      toast.error("Cannot boost this post");
+      return;
+    }
+    sendWeixBucks.mutate(
+      { toHandle: item.authorHandle, amount: 5 },
+      {
+        onSuccess: () => {
+          toast.success(`Boosted @${item.authorHandle} with 5 WeixBucks!`);
+          // Refresh feeds to reflect any engagement/quality updates
+          queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
+          queryClient.invalidateQueries({ queryKey: getListPostsQueryKey({ town: selectedTown }) });
+          queryClient.invalidateQueries({ queryKey: ["tauri", "trending"] });
+        },
+        onError: (e) => toast.error(String(e)),
+      }
+    );
   };
 
   // Select data source based on tab for Twitter (Following) + IG FYP (For You) + classic local

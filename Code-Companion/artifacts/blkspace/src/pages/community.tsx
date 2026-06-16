@@ -10,7 +10,7 @@ import { ArrowLeft, Users, MapPin, GraduationCap, CalendarDays, MessageSquare, H
 import { useTauriGetCommunities, useTauriListChannels, useTauriListPostsForChannel, useAppCreatePost, useTauriListUsers } from "@/hooks/use-app-data";
 import { isTauri, type TauriCommunity, tauriCreateChannel, tauriCreateReply, tauriSetNodeRole, tauriSetCommunityRole, tauriGetCommunityRole, tauriListReplies } from "@/lib/tauri-api";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 

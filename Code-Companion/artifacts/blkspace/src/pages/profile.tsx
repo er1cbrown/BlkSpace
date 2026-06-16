@@ -1,16 +1,17 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { MapPin, GraduationCap, CalendarDays, Coins, MessageSquare, Heart, Repeat2, Music, Palette, Users } from "lucide-react";
 import { Link } from "wouter";
-import { useAppGetUser, useAppGetUserPosts, useAppCreatePost } from "@/hooks/use-app-data";
+import { useAppGetUser, useAppGetUserPosts, useAppCreatePost, useTauriToggleFollow, useTauriGetFollowing } from "@/hooks/use-app-data";
 import { SafeContent } from "@/components/ui/safe-content";
 import { MediaDisplay } from "@/components/ui/media-display";
-import { getCurrentHandle } from "@/lib/auth";
+import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { isTauri, tauriGetBlobBytes } from "@/lib/tauri-api";
 import { toast } from "sonner";
 
@@ -24,6 +25,8 @@ export default function ProfilePage() {
   const { data: user, isLoading } = useAppGetUser(handle || currentUser);
   const { data: posts, isLoading: postsLoading } = useAppGetUserPosts(handle || currentUser, currentUser);
   const createPost = useAppCreatePost();
+  const toggleFollowMut = useTauriToggleFollow();
+  const { data: remoteFollowing = [] } = useTauriGetFollowing(isTauri() && !isOwnProfile);
 
   // MySpace-style customization (demo state, persists in session)
   const [profileTheme, setProfileTheme] = useState<"classic" | "pro" | "vibrant" | "myspace">("classic");
@@ -31,6 +34,8 @@ export default function ProfilePage() {
   const [showCustomize, setShowCustomize] = useState(false);
   const [audioSrc, setAudioSrc] = useState<string | null>(null); // for real Iroh play
   const [wallText, setWallText] = useState(""); // for visitor wall posts
+  const [isFollowing, setIsFollowing] = useState<boolean>(false);
+  const [selectedTown, setSelectedTown] = useState<string>("tsu"); // fallback for wall posts etc.
 
   const themeClasses = {
     classic: "border-primary/30 bg-card",
@@ -52,6 +57,14 @@ export default function ProfilePage() {
   ];
 
   const currentSong = demoSongs.find(s => s.hash === profileSong) || demoSongs[0];
+
+  useEffect(() => {
+    const target = handle || currentUser;
+    const saved = localStorage.getItem('blkspace_followed') || '[]';
+    const local: string[] = JSON.parse(saved);
+    const merged = new Set([...local, ...remoteFollowing]);
+    setIsFollowing(merged.has(target));
+  }, [handle, currentUser, remoteFollowing]);
 
   // Real Iroh audio for profile song (if profileSong is a blob hash/CID from Tauri)
   useEffect(() => {
@@ -105,25 +118,48 @@ export default function ProfilePage() {
                     <Palette className="w-4 h-4 mr-1" /> Customize (MySpace)
                   </Button>
                 )}
+                {!isOwnProfile && (
                 <Button 
                   variant={isFollowing ? "secondary" : "outline"} 
                   size="sm" 
                   className="rounded-full"
                   onClick={() => {
-                    const saved = localStorage.getItem('blkspace_followed') || '[]';
-                    let f: string[] = JSON.parse(saved);
-                    if (f.includes(handle)) {
-                      f = f.filter((x: string) => x !== handle);
-                    } else {
-                      f.push(handle);
+                    const target = handle || currentUser;
+                    const syncLocalFollow = (nowFollowing: boolean) => {
+                      const saved = localStorage.getItem('blkspace_followed') || '[]';
+                      let f: string[] = JSON.parse(saved);
+                      if (nowFollowing) {
+                        if (!f.includes(target)) f.push(target);
+                      } else {
+                        f = f.filter((x: string) => x !== target);
+                      }
+                      localStorage.setItem('blkspace_followed', JSON.stringify(f));
+                      setIsFollowing(nowFollowing);
+                    };
+                    if (isTauri()) {
+                      toggleFollowMut.mutate(
+                        { followedHandle: target },
+                        {
+                          onSuccess: (nowFollowing) => {
+                            syncLocalFollow(nowFollowing);
+                            toast.success(nowFollowing ? 'Followed' : 'Unfollowed');
+                          },
+                          onError: (e) => toast.error(String(e)),
+                        }
+                      );
+                      return;
                     }
-                    localStorage.setItem('blkspace_followed', JSON.stringify(f));
-                    setIsFollowing(!isFollowing);
-                    toast.success(isFollowing ? 'Unfollowed' : 'Followed');
+                    const saved = localStorage.getItem('blkspace_followed') || '[]';
+                    const f: string[] = JSON.parse(saved);
+                    const nowFollowing = !f.includes(target);
+                    syncLocalFollow(nowFollowing);
+                    toast.success(nowFollowing ? 'Followed' : 'Unfollowed');
                   }}
+                  disabled={toggleFollowMut.isPending}
                 >
                   {isFollowing ? 'Following' : 'Follow'}
                 </Button>
+                )}
               </div>
             </div>
 

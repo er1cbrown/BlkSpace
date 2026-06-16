@@ -237,6 +237,14 @@ export function tauriToggleLike(sessionToken: string, postId: number): Promise<b
   return invoke("toggle_like", { sessionToken, postId });
 }
 
+export function tauriToggleFollow(sessionToken: string, followedHandle: string): Promise<boolean> {
+  return invoke("toggle_follow", { sessionToken, followedHandle });
+}
+
+export function tauriGetFollowing(sessionToken: string): Promise<string[]> {
+  return invoke<string[]>("get_following", { sessionToken }).catch(() => [] as string[]);
+}
+
 export function tauriGetNotifications(sessionToken: string): Promise<TauriNotification[]> {
   return invoke("get_notifications", { sessionToken });
 }

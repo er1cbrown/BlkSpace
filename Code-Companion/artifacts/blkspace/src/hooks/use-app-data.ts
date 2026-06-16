@@ -344,6 +344,28 @@ export function useAppToggleLike() {
   };
 }
 
+export function useTauriToggleFollow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ followedHandle }: { followedHandle: string }) =>
+      tauri.tauriToggleFollow(getSessionToken() || "", followedHandle),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "following"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "users"] });
+    },
+  });
+}
+
+export function useTauriGetFollowing(enabled: boolean = true) {
+  const token = getSessionToken();
+  return useQuery({
+    queryKey: ["tauri", "following", token],
+    queryFn: () => tauri.tauriGetFollowing(token || ""),
+    enabled: IS_TAURI && enabled && !!token,
+    staleTime: 30_000,
+  });
+}
+
 export function useAppCreateReply() {
   const qc = useQueryClient();
   const web = useCreateReply();

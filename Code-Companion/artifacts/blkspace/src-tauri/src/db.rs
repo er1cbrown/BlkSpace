@@ -1938,6 +1938,47 @@ impl Database {
     Ok(res)
   }
 
+  pub fn toggle_follow(&self, follower: &str, followed: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    // Check if already following
+    let exists: i64 = conn.query_row(
+      "SELECT COUNT(1) FROM follows WHERE follower_handle = ?1 AND followed_handle = ?2",
+      params![follower, followed],
+      |r| r.get(0),
+    ).unwrap_or(0);
+    if exists > 0 {
+      // Unfollow
+      conn.execute(
+        "DELETE FROM follows WHERE follower_handle = ?1 AND followed_handle = ?2",
+        params![follower, followed],
+      )?;
+      // Update counts (best effort)
+      let _ = conn.execute("UPDATE users SET following_count = MAX(0, following_count - 1) WHERE handle = ?1", params![follower]);
+      let _ = conn.execute("UPDATE users SET followers_count = MAX(0, followers_count - 1) WHERE handle = ?1", params![followed]);
+      Ok(false)
+    } else {
+      // Follow
+      conn.execute(
+        "INSERT OR IGNORE INTO follows (follower_handle, followed_handle) VALUES (?1, ?2)",
+        params![follower, followed],
+      )?;
+      let _ = conn.execute("UPDATE users SET following_count = following_count + 1 WHERE handle = ?1", params![follower]);
+      let _ = conn.execute("UPDATE users SET followers_count = followers_count + 1 WHERE handle = ?1", params![followed]);
+      Ok(true)
+    }
+  }
+
+  pub fn get_following_for(&self, follower: &str) -> Result<Vec<String>> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT followed_handle FROM follows WHERE follower_handle = ?1 ORDER BY created_at DESC"
+    )?;
+    let rows = stmt.query_map(params![follower], |r| r.get(0))?;
+    let mut v = vec![];
+    for r in rows { v.push(r?); }
+    Ok(v)
+  }
+
   pub fn create_marketplace_listing(&self, seller: &str, item_type: &str, item_ref: Option<&str>, price: i64, title: &str, description: Option<&str>, is_nft: bool) -> Result<i64> {
     let conn = self.conn.lock().unwrap();
     conn.execute(
