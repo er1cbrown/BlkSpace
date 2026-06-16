@@ -377,6 +377,14 @@ export function useTauriListUsers() {
   });
 }
 
+export function useTauriMarketplace() {
+  return useQuery({
+    queryKey: ["tauri", "marketplace"],
+    queryFn: () => tauri.tauriListMarketplace(getSessionToken() || ""),
+    enabled: IS_TAURI,
+  });
+}
+
 export function useTauriGetNotifications() {
   return useQuery({
     queryKey: ["tauri", "notifications"],
@@ -399,6 +407,38 @@ export function useAppSendWeixBucks() {
     mutationFn: ({ toHandle, amount }: { toHandle: string; amount: number }) =>
       tauri.tauriSendWeixBucks(getSessionToken() || "", toHandle, amount),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "wallet"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "user"] });
+    },
+  });
+}
+
+export function useAppCreateMarketplaceListing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { itemType: string; itemRef: string | null; price: number; title: string; description: string | null; isNft: boolean }) =>
+      tauri.tauriCreateMarketplaceListing(
+        getSessionToken() || "",
+        args.itemType,
+        args.itemRef,
+        args.price,
+        args.title,
+        args.description,
+        args.isNft,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
+    },
+  });
+}
+
+export function useAppBuyMarketplaceListing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (listingId: number) =>
+      tauri.tauriBuyMarketplaceListing(getSessionToken() || "", listingId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
       qc.invalidateQueries({ queryKey: ["tauri", "wallet"] });
       qc.invalidateQueries({ queryKey: ["tauri", "user"] });
     },

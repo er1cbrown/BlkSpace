@@ -173,6 +173,38 @@ export function tauriUpdateUser(sessionToken: string, displayName: string, bio: 
   return invoke("update_user", { sessionToken, displayName, bio, town });
 }
 
+export function tauriSetNodeRole(sessionToken: string, handle: string, role: string): Promise<void> {
+  return invoke("set_node_role", { sessionToken, handle, role });
+}
+
+export function tauriSetCommunityRole(sessionToken: string, communityId: string, handle: string, role: string): Promise<void> {
+  return invoke("set_community_role", { sessionToken, communityId, handle, role });
+}
+
+export function tauriGetCommunityRole(sessionToken: string, communityId: string, handle: string): Promise<string> {
+  return invoke("get_community_role", { sessionToken, communityId, handle });
+}
+
+export function tauriListMarketplace(sessionToken: string): Promise<any[]> {
+  return invoke("list_marketplace", { sessionToken });
+}
+
+export function tauriCreateMarketplaceListing(
+  sessionToken: string,
+  itemType: string,
+  itemRef: string | null,
+  price: number,
+  title: string,
+  description: string | null,
+  isNft: boolean,
+): Promise<number> {
+  return invoke("create_marketplace_listing", { sessionToken, itemType, itemRef, price, title, description, isNft });
+}
+
+export function tauriBuyMarketplaceListing(sessionToken: string, listingId: number): Promise<any> {
+  return invoke("buy_marketplace_listing", { sessionToken, listingId });
+}
+
 export function tauriListPosts(town?: string, currentUser?: string): Promise<TauriPost[]> {
   return invoke("list_posts", { town: town || null, currentUser: currentUser || null });
 }

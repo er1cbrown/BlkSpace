@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useRoute, Link } from "wouter";
 import { ArrowLeft, Users, MapPin, GraduationCap, CalendarDays, MessageSquare, Heart, Repeat2, Send } from "lucide-react";
 import { useTauriGetCommunities, useTauriListChannels, useTauriListPostsForChannel, useAppCreatePost, useTauriListUsers } from "@/hooks/use-app-data";
-import { isTauri, type TauriCommunity, tauriCreateChannel, tauriCreateReply } from "@/lib/tauri-api";
+import { isTauri, type TauriCommunity, tauriCreateChannel, tauriCreateReply, tauriSetNodeRole, tauriSetCommunityRole, tauriGetCommunityRole, tauriListReplies } from "@/lib/tauri-api";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -35,6 +35,8 @@ export default function CommunityPage() {
   const id = params?.id || "";
   const [activeChannel, setActiveChannel] = useState("#general");
   const [draft, setDraft] = useState("");
+  const [commRoles, setCommRoles] = useState<Record<string, string>>({});
+  const [postReplies, setPostReplies] = useState<Record<number, any[]>>({});
 
   const { data: tauriCommunities } = useTauriGetCommunities();
   const { data: tauriUsers } = useTauriListUsers();
@@ -57,6 +59,49 @@ export default function CommunityPage() {
     }
   };
 
+  const handleAssignRole = async (targetHandle: string, role: string) => {
+    const token = getSessionToken();
+    if (!token) { toast.error("Sign in to manage roles"); return; }
+    try {
+      await tauriSetCommunityRole(token, id, targetHandle, role);
+      setCommRoles(prev => ({...prev, [targetHandle]: role}));
+      qc.invalidateQueries({ queryKey: ["tauri", "users"] });
+      toast.success(`Assigned ${role} to @${targetHandle} in this yard`);
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
+  // Load per-community roles for members
+  useEffect(() => {
+    if (!isTauri() || !tauriUsers) return;
+    const token = getSessionToken();
+    if (!token) return;
+    const members = (tauriUsers || []).filter((u: any) => u.town === id);
+    members.forEach(async (u: any) => {
+      try {
+        const r = await tauriGetCommunityRole(token, id, u.handle);
+        setCommRoles(prev => ({...prev, [u.handle]: r}));
+      } catch {}
+    });
+  }, [tauriUsers, id]);
+
+  // Load replies for threaded nesting in channel chat (scoped to these posts)
+  useEffect(() => {
+    if (!isTauri() || !tauriChannelPosts || tauriChannelPosts.length === 0) return;
+    const load = async () => {
+      const newR: Record<number, any[]> = {};
+      for (const p of tauriChannelPosts) {
+        try {
+          const reps = await tauriListReplies(p.id);
+          newR[p.id] = reps || [];
+        } catch { newR[p.id] = []; }
+      }
+      setPostReplies(newR);
+    };
+    load();
+  }, [tauriChannelPosts]);
+
   const handleReply = async (postId: number) => {
     const text = prompt("Reply text:");
     if (!text || !text.trim()) return;
@@ -64,9 +109,11 @@ export default function CommunityPage() {
     if (!token) { toast.error("Sign in"); return; }
     try {
       await tauriCreateReply(token, postId, text.trim());
-      // invalidate channel posts and general posts
+      // invalidate and refresh threaded replies for this post
       qc.invalidateQueries({ queryKey: ["tauri", "channelPosts", activeChannel.replace(/^#/, '').replace(/-hall$/, '')] });
       qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
+      const reps = await tauriListReplies(postId);
+      setPostReplies(prev => ({...prev, [postId]: reps || [] }));
       toast.success("Reply posted");
     } catch (e) {
       toast.error(String(e));
@@ -220,6 +267,20 @@ export default function CommunityPage() {
                             <button onClick={() => handleReply(post.id)} className="hover:text-primary flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" /> Reply</button>
                             <button className="hover:text-primary flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {post.reactions}</button>
                           </div>
+                          {/* Threaded replies nested under this channel post */}
+                          {postReplies[post.id] && postReplies[post.id].length > 0 && (
+                            <div className="ml-4 mt-2 border-l pl-2 space-y-2 text-sm opacity-90">
+                              {postReplies[post.id].map((rep: any, ri: number) => (
+                                <div key={ri} className="flex gap-2">
+                                  <Avatar className="h-6 w-6 mt-0.5"><AvatarFallback>{(rep.authorDisplayName || rep.authorHandle || 'R')[0]}</AvatarFallback></Avatar>
+                                  <div>
+                                    <span className="font-medium text-xs">@{rep.authorHandle}</span>
+                                    <p className="text-xs leading-snug">{rep.content}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -269,13 +330,19 @@ export default function CommunityPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {(isTauri() && tauriUsers ? tauriUsers.filter((u: any) => u.town === id) : []).length > 0 
                         ? (tauriUsers || []).filter((u: any) => u.town === id).map((u: any, i: number) => (
-                            <div key={i} className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/40">
-                              <Avatar><AvatarFallback>{u.displayName?.[0] || u.handle?.[0] || 'M'}</AvatarFallback></Avatar>
-                              <div>
-                                <div className="font-medium">{u.displayName || u.handle}</div>
-                                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                  {(i % 3 === 0 ? "Yard Mod · " : "") + (u.nodeRole || "Student")} · {u.weixBucks || 0} WB
+                            <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-muted/40 border">
+                              <div className="flex items-center gap-3">
+                                <Avatar><AvatarFallback>{u.displayName?.[0] || u.handle?.[0] || 'M'}</AvatarFallback></Avatar>
+                                <div>
+                                  <div className="font-medium">{u.displayName || u.handle}</div>
+                                  <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                    {commRoles[u.handle] || u.nodeRole || "Student"} · {u.weixBucks || 0} WB
+                                  </div>
                                 </div>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="outline" onClick={() => handleAssignRole(u.handle, "Yard Mod")}>Make Mod</Button>
+                                <Button size="sm" variant="outline" onClick={() => handleAssignRole(u.handle, "Student")}>Student</Button>
                               </div>
                             </div>
                           ))
@@ -291,7 +358,7 @@ export default function CommunityPage() {
                             </div>
                           ))}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2 text-center">Real roles from node_role (useTauriListUsers filtered by town).</p>
+                    <p className="text-xs text-muted-foreground mt-2 text-center">Per-community roles (community_roles table). Assign via buttons (persisted per yard).</p>
                   </CardContent>
                 </Card>
               </TabsContent>

@@ -279,6 +279,18 @@ fn has_key(state: State<AppState>, session_token: String, handle: String) -> Res
   Ok(key_path(&state.app_dir, &handle).exists())
 }
 
+/// Load the user's real Nostr signing keys from the secure store (for real signed events / Nostr hygiene).
+fn load_user_nostr_keys(state: &AppState, handle: &str) -> Result<nostr_sdk::prelude::Keys, String> {
+  let path = key_path(&state.app_dir, handle);
+  if let Ok(secret) = std::fs::read_to_string(&path) {
+    let trimmed = secret.trim();
+    if let Ok(keys) = nostr_sdk::prelude::Keys::parse(trimmed) {
+      return Ok(keys);
+    }
+  }
+  Err("no user nostr key".to_string())
+}
+
 fn validate_blob_hash(hash: &str) -> Result<(), String> {
   if hash.len() != 64 || !hash.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')) {
     return Err("Invalid blob hash — expected 64 lowercase hex characters".to_string());
@@ -436,6 +448,103 @@ fn update_user(
   state.db.update_user(&handle, &display_name, &bio, &town).map_err(|e| AppError::from(e).to_string())
 }
 
+#[tauri::command]
+fn set_node_role(state: State<AppState>, session_token: String, handle: String, role: String) -> Result<(), String> {
+  let _caller = get_handle_from_session(&state, &session_token)?;
+  // Assign yard/community role (node_role used in context of the town).
+  state.db.set_node_role(&handle, &role).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_community_role(state: State<AppState>, session_token: String, community_id: String, handle: String, role: String) -> Result<(), String> {
+  let _caller = get_handle_from_session(&state, &session_token)?;
+  state.db.set_community_role(&community_id, &handle, &role).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_community_role(state: State<AppState>, session_token: String, community_id: String, handle: String) -> Result<String, String> {
+  let _caller = get_handle_from_session(&state, &session_token)?;
+  state.db.get_community_role(&community_id, &handle).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_marketplace(state: State<AppState>, session_token: String) -> Result<Vec<serde_json::Value>, String> {
+  let _caller = get_handle_from_session(&state, &session_token)?;
+  state.db.list_marketplace().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_marketplace_listing(
+  state: State<AppState>,
+  session_token: String,
+  item_type: String,
+  item_ref: Option<String>,
+  price: i64,
+  title: String,
+  description: Option<String>,
+  is_nft: bool,
+) -> Result<i64, String> {
+  let seller = get_handle_from_session(&state, &session_token)?;
+  if price <= 0 { return Err("Price must be positive".to_string()); }
+  let listing_id = state.db.create_marketplace_listing(&seller, &item_type, item_ref.as_deref(), price, &title, description.as_deref(), is_nft)
+    .map_err(|e| e.to_string())?;
+
+  // Nostr 30081 NFT listing on create (if NFT or media)
+  if (is_nft || item_type == "media") && state.relay_manager.lock().unwrap().relay_count() > 0 {
+    let content = format!("Listed: {}", title);
+    let tags: Vec<Vec<String>> = vec![
+      vec!["t".to_string(), "blkspace".to_string()],
+      vec!["id".to_string(), listing_id.to_string()],
+      vec!["price".to_string(), price.to_string()],
+    ];
+    let client = state.relay_manager.lock().unwrap().client().clone();
+    let keys = load_user_nostr_keys(&state, &seller).unwrap_or_else(|_| state.relay_manager.lock().unwrap().keys().clone());
+    if let Ok(rt) = tokio::runtime::Runtime::new() {
+      let _ = rt.block_on(async {
+        use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+        let ntags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+        let event = EventBuilder::new(Kind::Custom(30081), &content).tags(ntags).sign(&keys).await.map_err(|e| format!("Nostr sign: {}", e))?;
+        let _ = client.send_event(event).await;
+        Ok::<_, String>(())
+      });
+    }
+  }
+  Ok(listing_id)
+}
+
+#[tauri::command]
+fn buy_marketplace_listing(state: State<AppState>, session_token: String, listing_id: i64) -> Result<Option<serde_json::Value>, String> {
+  let buyer = get_handle_from_session(&state, &session_token)?;
+  let result = state.db.buy_marketplace_listing(listing_id, &buyer).map_err(|e| e.to_string())?;
+  if let Some(listing) = &result {
+    // Publish Nostr 30081 for NFT listing/purchase if applicable
+    if listing["isNft"].as_bool().unwrap_or(false) {
+      let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
+      if has_relays {
+        let content = format!("Purchased NFT: {}", listing["itemType"]);
+        let tags: Vec<Vec<String>> = vec![
+          vec!["t".to_string(), "blkspace".to_string()],
+          vec!["id".to_string(), listing_id.to_string()],
+          vec!["seller".to_string(), listing["seller"].as_str().unwrap_or("").to_string()],
+        ];
+        let client = state.relay_manager.lock().unwrap().client().clone();
+        let keys = load_user_nostr_keys(&state, &buyer).unwrap_or_else(|_| state.relay_manager.lock().unwrap().keys().clone());
+        if let Ok(rt) = tokio::runtime::Runtime::new() {
+          let _ = rt.block_on(async {
+            use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+            let ntags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+            let event = EventBuilder::new(Kind::Custom(30081), &content).tags(ntags).sign(&keys).await.map_err(|e| format!("Nostr sign: {}", e))?;
+            let _ = client.send_event(event).await;
+            Ok::<_, String>(())
+          });
+        }
+      }
+    }
+    // Delivery: if has itemRef (CID/hash), buyer can fetch via existing get_blob / Iroh
+  }
+  Ok(result)
+}
+
 // ─── Post Commands ───────────────────────────────────────
 
 #[tauri::command]
@@ -469,18 +578,19 @@ fn create_post(
     .map_err(|e| AppError::from(e).to_string())?;
 
   // Auto-publish to connected Nostr relays (non-blocking, best-effort)
+  // Now signs with the *user's* real Nostr key (Nostr hygiene: real signed events from the author).
   let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
+  let user_keys = load_user_nostr_keys(&state, &author_handle).unwrap_or_else(|_| {
+    state.relay_manager.lock().unwrap().keys().clone()
+  });
   if has_relays {
     let content_clone = content.clone();
     let town_clone = town_tag.clone();
     let ch_clone = ch.clone();
     let post_id = post.id;
 
-    // Clone client and keys out of the mutex so the async block is Send
-    let (nostr_client, nostr_keys) = {
-      let m = state.relay_manager.lock().unwrap();
-      (m.client().clone(), m.keys().clone())
-    };
+    // Client from manager (for connectivity), but sign with user's real key.
+    let nostr_client = state.relay_manager.lock().unwrap().client().clone();
 
     if let Ok(rt) = tokio::runtime::Runtime::new() {
       let result = rt.block_on(async {
@@ -491,13 +601,15 @@ fn create_post(
         ];
         if !ch_clone.is_empty() {
           tags.push(vec!["t".to_string(), format!("blkspace:channel:{}", ch_clone)]);
+          // Basic Nostr group-kind experiment for the channel (yard:channel as "g" tag)
+          tags.push(vec!["g".to_string(), format!("{}:{}", town_clone, ch_clone)]);
         }
         let nostr_tags: Vec<Tag> = tags.iter()
           .filter_map(|t| Tag::parse(t.clone()).ok())
           .collect();
         let event = EventBuilder::text_note(&content_clone)
           .tags(nostr_tags)
-          .sign(&nostr_keys)
+          .sign(&user_keys)
           .await
           .map_err(|e| format!("Signing failed: {}", e))?;
         let event_id = nostr_client.send_event(event)
@@ -538,16 +650,17 @@ fn create_reply(state: State<AppState>, session_token: String, post_id: i64, con
   validate_content(&content).map_err(map_err)?;
   let reply = state.db.create_reply(post_id, &author_handle, &content).map_err(|e| AppError::from(e).to_string())?;
 
-  // Nostr hygiene for replies: kind 1 + e tag + channel/town tags if available from parent post
+  // Nostr hygiene for replies: kind 1 + e tag + channel/town tags if available from parent post.
+  // Signs with the *reply author's* real key.
   let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
+  let user_keys = load_user_nostr_keys(&state, &author_handle).unwrap_or_else(|_| {
+    state.relay_manager.lock().unwrap().keys().clone()
+  });
   if has_relays {
     if let Ok(Some(parent)) = state.db.get_post(post_id, None) {
       let town = parent.town_tag.clone();
       let ch = parent.channel_id.clone();
-      let (nostr_client, nostr_keys) = {
-        let m = state.relay_manager.lock().unwrap();
-        (m.client().clone(), m.keys().clone())
-      };
+      let nostr_client = state.relay_manager.lock().unwrap().client().clone();
       if let Ok(rt) = tokio::runtime::Runtime::new() {
         let _ = rt.block_on(async {
           use nostr_sdk::prelude::{Tag, EventBuilder};
@@ -562,7 +675,7 @@ fn create_reply(state: State<AppState>, session_token: String, post_id: i64, con
           let nostr_tags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
           let event = EventBuilder::text_note(&content)
             .tags(nostr_tags)
-            .sign(&nostr_keys)
+            .sign(&user_keys)
             .await
             .map_err(|e| format!("Reply sign: {}", e))?;
           let _ = nostr_client.send_event(event).await;
@@ -580,7 +693,9 @@ fn create_reply(state: State<AppState>, session_token: String, post_id: i64, con
 #[tauri::command]
 fn toggle_like(state: State<AppState>, session_token: String, post_id: i64) -> Result<bool, String> {
   let user_handle = check_session_rate_limit(&state, &session_token)?;
-  state.db.toggle_like(post_id, &user_handle).map_err(|e| AppError::from(e).to_string())
+  let liked = state.db.toggle_like(post_id, &user_handle).map_err(|e| AppError::from(e).to_string())?;
+  // (Nostr kind 7 for reaction can be added; skipped for compile stability in this polish)
+  Ok(liked)
 }
 
 // ─── Notification Commands ───────────────────────────────
@@ -614,7 +729,8 @@ fn send_weixbucks(
   let res = state.db.send_weixbucks(&user_handle, &to_handle, amount)
     .map_err(|e| AppError::from(e).to_string())?;
 
-  // Real signed custom kind 30079 (Tip) - Nostr hygiene
+  // Real signed custom kind 30079 (Tip) - Nostr hygiene.
+  // Signs with the *sender's* (user_handle) real user key.
   let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
   if has_relays {
     let content = format!("Tip {} WB to @{}", amount, to_handle);
@@ -624,17 +740,17 @@ fn send_weixbucks(
       vec!["p".to_string(), to_handle.clone()],
       vec!["amount".to_string(), amount.to_string()],
     ];
-    let (nostr_client, nostr_keys) = {
-      let m = state.relay_manager.lock().unwrap();
-      (m.client().clone(), m.keys().clone())
-    };
+    let nostr_client = state.relay_manager.lock().unwrap().client().clone();
+    let user_keys = load_user_nostr_keys(&state, &user_handle).unwrap_or_else(|_| {
+      state.relay_manager.lock().unwrap().keys().clone()
+    });
     if let Ok(rt) = tokio::runtime::Runtime::new() {
       let _ = rt.block_on(async {
         use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
         let nostr_tags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
         let event = EventBuilder::new(Kind::Custom(30079), &content)
           .tags(nostr_tags)
-          .sign(&nostr_keys)
+          .sign(&user_keys)
           .await
           .map_err(|e| format!("Tip sign failed: {}", e))?;
         let _event_id = nostr_client.send_event(event).await.map_err(|e| format!("Tip publish: {}", e))?;
@@ -776,7 +892,7 @@ fn check_relay_health(state: State<AppState>, url: String) -> Result<(bool, Opti
 
 #[tauri::command]
 fn connect_to_default_relays(state: State<AppState>) -> Result<Vec<String>, String> {
-  let mut manager = state.relay_manager.lock().unwrap();
+  let manager = state.relay_manager.lock().unwrap();
   let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
   let connected = rt.block_on(async {
     manager.connect_to_default_relays().await
@@ -818,7 +934,7 @@ fn sync_town_events(
 ) -> Result<Vec<NostrEventData>, String> {
   get_handle_from_session(&state, &session_token)?;
   let town_lower = town.to_lowercase();
-  let manager = state.relay_manager.lock().unwrap();
+  let mut manager = state.relay_manager.lock().unwrap();
   if manager.relay_count() == 0 {
     return Err("No relays connected. Connect to a relay first.".to_string());
   }
@@ -1116,6 +1232,8 @@ fn report_pin_serve(state: State<AppState>, session_token: String, hash: String)
   let served_by = get_handle_from_session(&state, &session_token)?;
   validate_blob_hash(&hash)?;
   
+  let ukeys = load_user_nostr_keys(&state, &served_by).unwrap_or_else(|_| state.relay_manager.lock().unwrap().keys().clone());
+
   // Record the serve
   state.db.record_pin_serve(&hash, &served_by, &served_by).map_err(|e| e.to_string())?;
   
@@ -1137,7 +1255,28 @@ fn report_pin_serve(state: State<AppState>, session_token: String, hash: String)
     rusqlite::params![served_by, 0.1],
   ).ok();
   drop(conn);
-  
+
+  // 30083 pin report Nostr (Nostr kinds)
+  let hasr = { state.relay_manager.lock().unwrap().relay_count() > 0 };
+  if hasr {
+    let content = format!("Pin serve report for {}", hash);
+    let tags: Vec<Vec<String>> = vec![
+      vec!["t".to_string(), "blkspace".to_string()],
+      vec!["hash".to_string(), hash.clone()],
+      vec!["serves".to_string(), "1".to_string()],
+    ];
+    let nclient = { state.relay_manager.lock().unwrap().client().clone() };
+    if let Ok(rt) = tokio::runtime::Runtime::new() {
+      let _ = rt.block_on(async {
+        use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+        let ntags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+        let ev = EventBuilder::new(Kind::Custom(30083), &content).tags(ntags).sign(&ukeys).await.map_err(|e| format!("Pin report sign: {}", e))?;
+        let _ = nclient.send_event(ev).await;
+        Ok::<_, String>(())
+      });
+    }
+  }
+
   Ok(true)
 }
 
@@ -1146,6 +1285,33 @@ fn claim_node_rewards(state: State<AppState>, session_token: String) -> Result<f
   let handle = get_handle_from_session(&state, &session_token)?;
   let serves_today = state.db.count_serves_today(&handle).map_err(|e| e.to_string())?;
   let rewards = (serves_today as f64) * 0.1;
+
+  let user_keys = load_user_nostr_keys(&state, &handle).unwrap_or_else(|_| state.relay_manager.lock().unwrap().keys().clone());
+  // Publish 30080 reward grant on claim (Nostr hygiene)
+  let has_relays = { state.relay_manager.lock().unwrap().relay_count() > 0 };
+  if has_relays {
+    let content = format!("Node reward grant of {} WB", rewards);
+    let tags: Vec<Vec<String>> = vec![
+      vec!["t".to_string(), "blkspace".to_string()],
+      vec!["amount".to_string(), rewards.to_string()],
+      vec!["reason".to_string(), "pin_serves".to_string()],
+    ];
+    let nostr_client = { state.relay_manager.lock().unwrap().client().clone() };
+    if let Ok(rt) = tokio::runtime::Runtime::new() {
+      let _ = rt.block_on(async {
+        use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+        let nostr_tags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+        let event = EventBuilder::new(Kind::Custom(30080), &content)
+          .tags(nostr_tags)
+          .sign(&user_keys)
+          .await
+          .map_err(|e| format!("Reward sign: {}", e))?;
+        let _ = nostr_client.send_event(event).await;
+        Ok::<_, String>(())
+      });
+    }
+  }
+
   Ok(rewards)
 }
 
@@ -1804,6 +1970,12 @@ pub fn run() {
       list_users,
       create_user,
       update_user,
+      set_node_role,
+      set_community_role,
+      get_community_role,
+      list_marketplace,
+      create_marketplace_listing,
+      buy_marketplace_listing,
       list_posts,
       get_post,
       create_post,

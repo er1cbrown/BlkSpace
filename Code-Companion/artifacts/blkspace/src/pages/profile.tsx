@@ -1,15 +1,17 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { useRoute } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MapPin, GraduationCap, CalendarDays, Coins, MessageSquare, Heart, Repeat2, Music, Palette, Users } from "lucide-react";
 import { Link } from "wouter";
-import { useAppGetUser, useAppGetUserPosts } from "@/hooks/use-app-data";
+import { useAppGetUser, useAppGetUserPosts, useAppCreatePost } from "@/hooks/use-app-data";
 import { SafeContent } from "@/components/ui/safe-content";
 import { MediaDisplay } from "@/components/ui/media-display";
 import { getCurrentHandle } from "@/lib/auth";
+import { isTauri, tauriGetBlobBytes } from "@/lib/tauri-api";
 import { toast } from "sonner";
 
 export default function ProfilePage() {
@@ -21,11 +23,14 @@ export default function ProfilePage() {
   
   const { data: user, isLoading } = useAppGetUser(handle || currentUser);
   const { data: posts, isLoading: postsLoading } = useAppGetUserPosts(handle || currentUser, currentUser);
+  const createPost = useAppCreatePost();
 
   // MySpace-style customization (demo state, persists in session)
   const [profileTheme, setProfileTheme] = useState<"classic" | "pro" | "vibrant" | "myspace">("classic");
   const [profileSong, setProfileSong] = useState<string | null>(null); // hash for audio
   const [showCustomize, setShowCustomize] = useState(false);
+  const [audioSrc, setAudioSrc] = useState<string | null>(null); // for real Iroh play
+  const [wallText, setWallText] = useState(""); // for visitor wall posts
 
   const themeClasses = {
     classic: "border-primary/30 bg-card",
@@ -47,6 +52,22 @@ export default function ProfilePage() {
   ];
 
   const currentSong = demoSongs.find(s => s.hash === profileSong) || demoSongs[0];
+
+  // Real Iroh audio for profile song (if profileSong is a blob hash/CID from Tauri)
+  useEffect(() => {
+    if (!isTauri() || !profileSong) {
+      setAudioSrc(null);
+      return;
+    }
+    const token = getSessionToken();
+    if (!token) return;
+    tauriGetBlobBytes(token, profileSong).then((b64) => {
+      if (b64) {
+        // assume audio/mpeg or from blob mime, for demo
+        setAudioSrc(`data:audio/mpeg;base64,${b64}`);
+      }
+    }).catch(() => setAudioSrc(null));
+  }, [profileSong]);
 
   // Facebook-like wall posts (mock on top of real posts)
   const wallPosts = (posts || []).slice(0, 3);
@@ -72,6 +93,9 @@ export default function ProfilePage() {
                       <Music className="w-3 h-3" /> NOW PLAYING ON PROFILE
                     </div>
                     <div className="font-mono text-sm">{currentSong.name} — {currentSong.artist}</div>
+                    {audioSrc && (
+                      <audio controls src={audioSrc} className="mt-1 w-48" />
+                    )}
                   </div>
                 )}
               </div>
@@ -81,7 +105,25 @@ export default function ProfilePage() {
                     <Palette className="w-4 h-4 mr-1" /> Customize (MySpace)
                   </Button>
                 )}
-                <Button variant="outline" size="sm" className="rounded-full">Follow</Button>
+                <Button 
+                  variant={isFollowing ? "secondary" : "outline"} 
+                  size="sm" 
+                  className="rounded-full"
+                  onClick={() => {
+                    const saved = localStorage.getItem('blkspace_followed') || '[]';
+                    let f: string[] = JSON.parse(saved);
+                    if (f.includes(handle)) {
+                      f = f.filter((x: string) => x !== handle);
+                    } else {
+                      f.push(handle);
+                    }
+                    localStorage.setItem('blkspace_followed', JSON.stringify(f));
+                    setIsFollowing(!isFollowing);
+                    toast.success(isFollowing ? 'Unfollowed' : 'Followed');
+                  }}
+                >
+                  {isFollowing ? 'Following' : 'Follow'}
+                </Button>
               </div>
             </div>
 
@@ -128,6 +170,32 @@ export default function ProfilePage() {
                       </CardContent>
                     </Card>
                   )) : <div className="text-muted-foreground text-sm py-8 text-center border rounded-xl">No wall posts yet. Be the first!</div>}
+
+                  {/* Visitor wall composer (real chat feel on profile) */}
+                  {!isOwnProfile && (
+                    <div className="mt-4 border-t pt-4">
+                      <div className="text-xs text-muted-foreground mb-2">Write on {user.displayName}'s wall (posts as regular post for demo, future: dedicated wall_posts + approval)</div>
+                      <Textarea 
+                        placeholder="Say something nice..." 
+                        value={wallText} 
+                        onChange={(e) => setWallText(e.target.value)} 
+                        className="mb-2" 
+                      />
+                      <Button 
+                        size="sm" 
+                        onClick={() => {
+                          if (!wallText.trim()) return;
+                          createPost.mutate({ content: `On @${user.handle}'s wall: ${wallText}`, town_tag: user.town || selectedTown || 'tsu' });
+                          setWallText('');
+                          toast.success('Posted to wall! (will appear in their posts for now)');
+                        }} 
+                        disabled={createPost.isPending}
+                      >
+                        Post to Wall
+                      </Button>
+                    </div>
+                  )}
+
                   {isOwnProfile && <div className="text-xs text-center text-muted-foreground mt-4">Visitors can post here in a future update.</div>}
                 </TabsContent>
 
@@ -166,12 +234,18 @@ export default function ProfilePage() {
                         <div className="font-medium mb-1">{currentSong.name}</div>
                         <div className="text-sm text-muted-foreground mb-3">by {currentSong.artist}</div>
                         
-                        {/* Use existing audio support */}
+                        {/* Real Iroh audio if set, else demo */}
                         <div className="bg-muted/40 p-3 rounded-lg">
-                          <audio controls className="w-full" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3">
-                            Your browser does not support the audio element.
-                          </audio>
-                          <p className="text-[10px] text-center mt-2 text-muted-foreground">Demo track — replace with your uploaded mix in real version</p>
+                          {audioSrc ? (
+                            <audio controls className="w-full" src={audioSrc}>
+                              Your browser does not support the audio element.
+                            </audio>
+                          ) : (
+                            <audio controls className="w-full" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3">
+                              Your browser does not support the audio element.
+                            </audio>
+                          )}
+                          <p className="text-[10px] text-center mt-2 text-muted-foreground">Profile song — powered by Iroh blobs when uploaded</p>
                         </div>
 
                         {isOwnProfile && (

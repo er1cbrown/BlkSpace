@@ -300,6 +300,27 @@ impl Database {
         created_at TEXT DEFAULT (datetime('now'))
       );
 
+      CREATE TABLE IF NOT EXISTS community_roles (
+        community_id TEXT NOT NULL,
+        handle TEXT NOT NULL,
+        role TEXT DEFAULT 'Student',
+        created_at TEXT DEFAULT (datetime('now')),
+        PRIMARY KEY (community_id, handle)
+      );
+
+      CREATE TABLE IF NOT EXISTS marketplace_listings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        seller_handle TEXT NOT NULL,
+        item_type TEXT NOT NULL,
+        item_ref TEXT,
+        price INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        is_nft BOOLEAN DEFAULT 0,
+        sold_to TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
       CREATE TABLE IF NOT EXISTS replies (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         post_id INTEGER NOT NULL,
@@ -1522,7 +1543,7 @@ impl Database {
     Ok(())
   }
 
-  pub fn list_combined_feed(&self, town: Option<&str>, current_user: Option<&str>) -> Result<Vec<CrossTownEvent>> {
+  pub fn list_combined_feed(&self, town: Option<&str>, _current_user: Option<&str>) -> Result<Vec<CrossTownEvent>> {
     let conn = self.conn.lock().unwrap();
 
     let town_filter = if let Some(t) = town {
@@ -1883,6 +1904,99 @@ impl Database {
       |r| r.get(0),
     )?;
     Ok(role)
+  }
+
+  pub fn set_community_role(&self, community_id: &str, handle: &str, role: &str) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "INSERT OR REPLACE INTO community_roles (community_id, handle, role) VALUES (?1, ?2, ?3)",
+      params![community_id, handle, role],
+    )?;
+    Ok(())
+  }
+
+  pub fn get_community_role(&self, community_id: &str, handle: &str) -> Result<String> {
+    let conn = self.conn.lock().unwrap();
+    let role: String = conn.query_row(
+      "SELECT COALESCE(role, 'Student') FROM community_roles WHERE community_id = ?1 AND handle = ?2",
+      params![community_id, handle],
+      |r| r.get(0),
+    ).unwrap_or_else(|_| "Student".to_string());
+    Ok(role)
+  }
+
+  pub fn list_community_roles(&self, community_id: &str) -> Result<Vec<(String, String)>> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT handle, role FROM community_roles WHERE community_id = ?1"
+    )?;
+    let rows = stmt.query_map(params![community_id], |row| {
+      Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    let mut res = vec![];
+    for r in rows { res.push(r?); }
+    Ok(res)
+  }
+
+  pub fn create_marketplace_listing(&self, seller: &str, item_type: &str, item_ref: Option<&str>, price: i64, title: &str, description: Option<&str>, is_nft: bool) -> Result<i64> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "INSERT INTO marketplace_listings (seller_handle, item_type, item_ref, price, title, description, is_nft) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+      params![seller, item_type, item_ref, price, title, description, is_nft as i64],
+    )?;
+    Ok(conn.last_insert_rowid())
+  }
+
+  pub fn list_marketplace(&self) -> Result<Vec<serde_json::Value>> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT id, seller_handle, item_type, item_ref, price, title, description, is_nft, sold_to, created_at FROM marketplace_listings WHERE sold_to IS NULL ORDER BY created_at DESC"
+    )?;
+    let rows = stmt.query_map([], |row| {
+      Ok(serde_json::json!({
+        "id": row.get::<_, i64>(0)?,
+        "sellerHandle": row.get::<_, String>(1)?,
+        "itemType": row.get::<_, String>(2)?,
+        "itemRef": row.get::<_, Option<String>>(3)?,
+        "price": row.get::<_, i64>(4)?,
+        "title": row.get::<_, String>(5)?,
+        "description": row.get::<_, Option<String>>(6)?,
+        "isNft": row.get::<_, i64>(7)? == 1,
+        "soldTo": row.get::<_, Option<String>>(8)?,
+        "createdAt": row.get::<_, String>(9)?,
+      }))
+    })?;
+    let mut res = vec![];
+    for r in rows { res.push(r?); }
+    Ok(res)
+  }
+
+  pub fn buy_marketplace_listing(&self, id: i64, buyer: &str) -> Result<Option<serde_json::Value>> {
+    let conn = self.conn.lock().unwrap();
+    let listing: Option<(String, i64, String, Option<String>, bool)> = conn.query_row(
+      "SELECT seller_handle, price, item_type, item_ref, is_nft FROM marketplace_listings WHERE id = ?1 AND sold_to IS NULL",
+      params![id],
+      |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get::<_, i64>(4)? == 1)),
+    ).ok();
+    if let Some((seller, price, item_type, item_ref, is_nft)) = listing {
+      // Transfer WB
+      self.send_weixbucks(buyer, &seller, price)?;
+      // Mark sold
+      conn.execute(
+        "UPDATE marketplace_listings SET sold_to = ?1 WHERE id = ?2",
+        params![buyer, id],
+      )?;
+      Ok(Some(serde_json::json!({
+        "id": id,
+        "itemType": item_type,
+        "itemRef": item_ref,
+        "isNft": is_nft,
+        "seller": seller,
+        "price": price,
+      })))
+    } else {
+      Ok(None)
+    }
   }
 
   pub fn increment_relay_uptime(&self, handle: &str, hours: i64) -> Result<()> {
@@ -2336,11 +2450,11 @@ impl Database {
     let rows = stmt.query_map(params![handle], |row| {
       Ok(row.get::<_, i64>(1)?)
     })?;
-    let mut burst_hours = 0;
+    let mut _burst_hours = 0;
     let mut total_burst_posts = 0;
     for row in rows {
       let count = row?;
-      burst_hours += 1;
+      _burst_hours += 1;
       total_burst_posts += count - 4; // excess posts
     }
     let score = if total_posts > 0 {

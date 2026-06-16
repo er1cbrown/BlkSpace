@@ -7,6 +7,8 @@ import {
   tauriUploadBlob,
   tauriDeleteBlob,
   tauriGetBlobBytes,
+  tauriPinContent,
+  tauriListPinnedContent,
   isTauri,
   type TauriBlobInfo,
 } from "@/lib/tauri-api";
@@ -57,6 +59,7 @@ export default function MediaPage() {
   const [blobs, setBlobs] = useState<TauriBlobInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [pinned, setPinned] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -64,6 +67,13 @@ export default function MediaPage() {
     const token = getSessionToken();
     if (!token) return;
     tauriListUserBlobs(token).then(setBlobs).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    const token = getSessionToken();
+    if (!token) return;
+    tauriListPinnedContent(token).then(setPinned).catch(() => {});
   }, []);
 
   const handleUpload = async () => {
@@ -102,6 +112,18 @@ export default function MediaPage() {
       await tauriDeleteBlob(token, hash);
       setBlobs((prev) => prev.filter((b) => b.hash !== hash));
       toast.success("Deleted");
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
+  const handlePin = async (hash: string) => {
+    const token = getSessionToken();
+    if (!token || !isTauri()) { toast.info("Pinning in Tauri"); return; }
+    try {
+      await tauriPinContent(token, hash);
+      setPinned((prev) => [...prev, hash]);
+      toast.success("Pinned! Earns node rewards on serves.");
     } catch (e) {
       toast.error(String(e));
     }
@@ -165,6 +187,15 @@ export default function MediaPage() {
                           cid: {blob.cid.slice(0, 10)}…
                         </p>
                       )}
+                      <Button
+                        size="sm"
+                        variant={pinned.includes(blob.hash) ? "secondary" : "outline"}
+                        className="mt-1 h-6 text-[10px]"
+                        onClick={() => handlePin(blob.hash)}
+                        disabled={pinned.includes(blob.hash)}
+                      >
+                        {pinned.includes(blob.hash) ? "Pinned ✓" : "Pin for rewards"}
+                      </Button>
                     </div>
                     <Button
                       variant="destructive"

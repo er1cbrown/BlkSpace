@@ -12,9 +12,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SafeContent } from "@/components/ui/safe-content";
 import { MediaDisplay } from "@/components/ui/media-display";
 import { getListPostsQueryKey } from "@workspace/api-client-react";
-import { useAppListPosts, useAppGetTrendingFeed, useAppCreatePost, useAppToggleLike, useTauriCombinedFeed, useTauriPublishTrendingSummary, useTauriFetchTrendingSummaries } from "@/hooks/use-app-data";
+import { useAppListPosts, useAppGetTrendingFeed, useAppCreatePost, useAppToggleLike, useTauriCombinedFeed, useTauriPublishTrendingSummary, useTauriFetchTrendingSummaries, useAppSendWeixBucks } from "@/hooks/use-app-data";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { isTauri, tauriUploadBlob, type TauriCrossTownEvent } from "@/lib/tauri-api";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export default function FeedPage() {
@@ -25,6 +26,10 @@ export default function FeedPage() {
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [followedHandles, setFollowedHandles] = useState<string[]>(() => {
+    const saved = localStorage.getItem('blkspace_followed') || '[]';
+    return JSON.parse(saved);
+  });
 
   const { data: localPosts, isLoading: localLoading } = useAppListPosts(selectedTown, getCurrentHandle());
   const { data: trendingFeed, isLoading: trendingLoading } = useAppGetTrendingFeed(getCurrentHandle());
@@ -32,19 +37,27 @@ export default function FeedPage() {
   const { data: trendingSummaries, isLoading: summariesLoading } = useTauriFetchTrendingSummaries(selectedTown);
   const createPost = useAppCreatePost();
   const toggleLike = useAppToggleLike();
+  const sendWeixBucks = useAppSendWeixBucks();
   const publishSummary = useTauriPublishTrendingSummary();
 
-  // Mock "Following" (Twitter-style chronological from people you follow)
-  const followingPosts = (localPosts || []).slice(0, 8).map((p: any, i: number) => ({
-    ...p,
-    // Simulate followed users + reposts
-    content: i % 2 === 0 ? p.content : `RT: ${p.content}`,
-    repostsCount: (p.repostsCount || 0) + (i % 3),
-  }));
+  // Real-ish "Following" (Twitter-style chronological from followed, persisted in localStorage synced with profile; in real Nostr kind 3 contacts)
+  const followingPosts = (localPosts || []).filter((p: any) => followedHandles.includes(p.authorHandle))
+    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 8).map((p: any, i: number) => ({
+      ...p,
+      // Simulate followed users + reposts
+      content: i % 2 === 0 ? p.content : `RT: ${p.content}`,
+      repostsCount: (p.repostsCount || 0) + (i % 3),
+    }));
 
-  // Instagram-style FYP: mix of high-engagement + diverse towns + recommendations
+  // Instagram-style FYP: high-engagement (likes * quality), low-malicious (from scores), town diversity signals
+  // Real: use calculate_malicious_intent_vector + engagement_quality + mix towns from Nostr
   const fypPosts = [...(trendingFeed || []), ...(localPosts || [])]
-    .sort((a: any, b: any) => (b.likesCount || 0) - (a.likesCount || 0))
+    .sort((a: any, b: any) => {
+      const scoreA = (b.likesCount || 0) * (b.engagementQuality || 1) * (1 - (b.maliciousScore || 0));
+      const scoreB = (a.likesCount || 0) * (a.engagementQuality || 1) * (1 - (a.maliciousScore || 0));
+      return scoreB - scoreA; // higher score first; town diversity via mix in trending/local
+    })
     .slice(0, 12)
     .map((p: any) => ({
       ...p,
@@ -394,6 +407,15 @@ export default function FeedPage() {
                     onClick={() => handleLike(item.id)}
                   >
                     <Heart className={`w-4 h-4 ${item.liked ? 'fill-current text-destructive' : ''}`} /> {item.likesCount || 0}
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 px-2 gap-2 hover:text-amber-500 hover:bg-amber-500/10"
+                    onClick={() => handleBoost(item)}
+                    title="Boost this post with 5 WB"
+                  >
+                    <Repeat2 className="w-4 h-4" /> Boost
                   </Button>
                   {isCrossTown && (
                     <span className="text-xs text-muted-foreground ml-auto">

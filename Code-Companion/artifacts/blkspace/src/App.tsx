@@ -7,24 +7,27 @@ import NotFound from "@/pages/not-found";
 
 import LandingPage from "@/pages/landing";
 import WelcomePage from "@/pages/welcome";
-import FeedPage from "@/pages/feed";
-import PostPage from "@/pages/post";
-import ProfilePage from "@/pages/profile";
-import RelaysPage from "@/pages/relays";
-import ArchitecturePage from "@/pages/architecture";
-import LoginPage from "@/pages/login";
-import SignupPage from "@/pages/signup";
-import RecoverPage from "@/pages/recover";
-import SettingsPage from "@/pages/settings";
-import NotificationsPage from "@/pages/notifications";
-import CommunitiesPage from "@/pages/communities";
-import CommunityPage from "@/pages/community";
-import SearchPage from "@/pages/search";
-import WalletPage from "@/pages/wallet";
-import MediaPage from "@/pages/media";
-import MeshTestPage from "@/pages/mesh-test";
 import { isFirstRun } from "@/lib/auth";
 import React from "react";
+
+// Lazy load non-initial pages so a bad import/module in one of them
+// doesn't break the initial landing/welcome render (common cause of blank "no display").
+const FeedPage = React.lazy(() => import("@/pages/feed"));
+const PostPage = React.lazy(() => import("@/pages/post"));
+const ProfilePage = React.lazy(() => import("@/pages/profile"));
+const RelaysPage = React.lazy(() => import("@/pages/relays"));
+const ArchitecturePage = React.lazy(() => import("@/pages/architecture"));
+const LoginPage = React.lazy(() => import("@/pages/login"));
+const SignupPage = React.lazy(() => import("@/pages/signup"));
+const RecoverPage = React.lazy(() => import("@/pages/recover"));
+const SettingsPage = React.lazy(() => import("@/pages/settings"));
+const NotificationsPage = React.lazy(() => import("@/pages/notifications"));
+const CommunitiesPage = React.lazy(() => import("@/pages/communities"));
+const CommunityPage = React.lazy(() => import("@/pages/community"));
+const SearchPage = React.lazy(() => import("@/pages/search"));
+const WalletPage = React.lazy(() => import("@/pages/wallet"));
+const MediaPage = React.lazy(() => import("@/pages/media"));
+const MeshTestPage = React.lazy(() => import("@/pages/mesh-test"));
 
 const queryClient = new QueryClient();
 
@@ -70,27 +73,29 @@ class ErrorBoundary extends React.Component<
 function Router() {
   const firstRun = isFirstRun();
   return (
-    <Switch>
-      <Route path="/" component={firstRun ? WelcomePage : LandingPage} />
-      <Route path="/welcome" component={WelcomePage} />
-      <Route path="/feed" component={FeedPage} />
-      <Route path="/posts/:id" component={PostPage} />
-      <Route path="/profile/:handle" component={ProfilePage} />
-      <Route path="/relays" component={RelaysPage} />
-      <Route path="/architecture" component={ArchitecturePage} />
-      <Route path="/login" component={LoginPage} />
-      <Route path="/signup" component={SignupPage} />
-      <Route path="/settings" component={SettingsPage} />
-      <Route path="/recover" component={RecoverPage} />
-      <Route path="/notifications" component={NotificationsPage} />
-      <Route path="/communities" component={CommunitiesPage} />
-      <Route path="/communities/:id" component={CommunityPage} />
-      <Route path="/search" component={SearchPage} />
-      <Route path="/wallet" component={WalletPage} />
-      <Route path="/media" component={MediaPage} />
-      <Route path="/mesh-test" component={MeshTestPage} />
-      <Route component={NotFound} />
-    </Switch>
+    <React.Suspense fallback={<div style={{padding: 40, textAlign: 'center', opacity: 0.7}}>Loading page...</div>}>
+      <Switch>
+        <Route path="/" component={firstRun ? WelcomePage : LandingPage} />
+        <Route path="/welcome" component={WelcomePage} />
+        <Route path="/feed" component={FeedPage} />
+        <Route path="/posts/:id" component={PostPage} />
+        <Route path="/profile/:handle" component={ProfilePage} />
+        <Route path="/relays" component={RelaysPage} />
+        <Route path="/architecture" component={ArchitecturePage} />
+        <Route path="/login" component={LoginPage} />
+        <Route path="/signup" component={SignupPage} />
+        <Route path="/settings" component={SettingsPage} />
+        <Route path="/recover" component={RecoverPage} />
+        <Route path="/notifications" component={NotificationsPage} />
+        <Route path="/communities" component={CommunitiesPage} />
+        <Route path="/communities/:id" component={CommunityPage} />
+        <Route path="/search" component={SearchPage} />
+        <Route path="/wallet" component={WalletPage} />
+        <Route path="/media" component={MediaPage} />
+        <Route path="/mesh-test" component={MeshTestPage} />
+        <Route component={NotFound} />
+      </Switch>
+    </React.Suspense>
   );
 }
 
