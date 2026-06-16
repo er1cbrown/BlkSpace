@@ -1,6 +1,6 @@
 # Implementation Plan: Connect to Real Nostr Relays
 
-**Status:** Draft — Ready for implementation  
+**Status:** Phase 1 smoke complete (2026-06-16) — live connect/health/subscribe/sync pass via `pnpm test:nostr-relay`  
 **Priority:** High (blocks cross-town sync)  
 **Estimated Time:** 2-3 days  
 **Dependencies:** None (relay manager already implemented)
@@ -19,16 +19,16 @@ Currently, BlkSpace uses mock relays with hardcoded data. This plan implements c
 ## Current State
 
 **Working:**
-- `relay_manager.rs` — Nostr SDK integration, event publishing, subscription
+- `relay_manager.rs` — Nostr SDK integration, `DEFAULT_RELAYS` (5 public URLs), health latency
+- `connect_to_default_relays` — connects ≥3 relays, registers connection + latency in DB
 - `connect_to_relay` Tauri command — WebSocket connection
-- `sync_town_events` — Fetch recent events from connected relays
+- `sync_town_events` / `sync_recent` — fetch recent events from connected relays
 - Background sync task — Polls every 60s
+- Live smoke tests — `tests_nostr_relay.rs` (4 tests, network required)
 
 **Gaps:**
-- No real relay URLs configured (only hardcoded mock data)
-- No relay discovery (NIP-65)
-- No event validation before storing
-- No relay health monitoring
+- Cross-client visibility on Damus iOS (automated relay round-trip ✅; optional manual app check)
+- Incoming event validation on ingest (signature/timestamp) — partial via `validate_relay_event_tags`
 
 ---
 
@@ -218,12 +218,15 @@ fn publish_trending_summary(state: State<AppState>, session_token: String) -> Re
 - Cross-town: TSU user posts → Howard user sees it
 - Relay health: Connect → disconnect → reconnect
 
-### Manual Testing
-1. Connect to `wss://relay.damus.io`
-2. Publish a test post
-3. View on damus.io web client
-4. Follow a user from another town
-5. Verify their posts appear in your feed
+### Manual Testing (Damus visibility)
+1. **Tauri desktop** → **Network / Relays** → **Connect Defaults** (if needed)
+2. Click **Publish visibility test note** — publishes kind 1 to `wss://relay.damus.io` with your account keys
+3. Confirm **Relay round-trip OK** in the UI (automated fetch from relay)
+4. **Web:** open **Open on nostr.band** from the result card
+5. **Damus (iOS):** ensure `wss://relay.damus.io` is enabled → search your **npub** (Settings → Security) or note text `BlkSpace visibility test`
+6. Regular posts from Create also publish to relays when connected (same signing path as `create_post`)
+
+**Automated proxy:** `cargo test nostr_publish_roundtrip_damus_relay` (publish + read-back on relay.damus.io)
 
 ---
 
@@ -251,11 +254,13 @@ fn publish_trending_summary(state: State<AppState>, session_token: String) -> Re
 
 ## Success Criteria
 
-- [ ] Can connect to ≥3 public relays
-- [ ] Posts published to Nostr network visible on other clients
-- [ ] Can view posts from other towns via relay sync
-- [ ] Relay health visible in UI
-- [ ] NIP-65 relay lists published and fetched
+- [x] Can connect to ≥3 public relays (`test_nostr_connect_at_least_three_public_relays`)
+- [x] Posts published to relay.damus.io and read back (`test_nostr_publish_roundtrip_damus_relay`); manual Damus app check via Relays → visibility test
+- [x] Can subscribe/sync town-tagged events (`test_nostr_subscribe_hbcu_town_tag`, `test_nostr_sync_recent_events`)
+- [x] Relay health measurable (`test_nostr_relay_health_latency`; UI on `/relays`)
+- [x] NIP-65 relay lists published and fetched (`publish_relay_list` + live `fetch_user_relay_list`; test `test_nostr_nip65_relay_list_roundtrip`; UI Relays → NIP-65 card)
+
+**Run smoke:** `pnpm test:nostr-relay` (or `cargo test nostr_relay_smoke -- --test-threads=1` from `artifacts/blkspace`)
 
 ---
 

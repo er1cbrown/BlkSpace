@@ -1,4 +1,4 @@
-import { Navbar } from "@/components/layout/Navbar";
+import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -500,9 +500,7 @@ export default function WalletPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1 container max-w-3xl py-8 px-4">
+    <AppShell wide>
         <div className="flex items-center gap-3 mb-8">
           <WalletIcon className="w-7 h-7 text-primary" />
           <h1 className="text-3xl font-bold">Wallet</h1>
@@ -879,7 +877,6 @@ export default function WalletPage() {
             </Card>
           </TabsContent>
         </Tabs>
-      </main>
-    </div>
+    </AppShell>
   );
 }

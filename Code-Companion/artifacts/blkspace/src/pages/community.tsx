@@ -1,4 +1,4 @@
-import { Navbar } from "@/components/layout/Navbar";
+import { AppShell } from "@/components/layout/AppShell";
 import {
   Card,
   CardContent,
@@ -29,7 +29,14 @@ import {
   useTauriListPostsForChannel,
   useAppCreatePost,
   useTauriListUsers,
+  useTauriJoinYard,
+  useTauriIsYardMember,
 } from "@/hooks/use-app-data";
+import { showEarnFromResult } from "@/components/economy/EarnToast";
+import { SafeContent } from "@/components/ui/safe-content";
+import { RiskBadge } from "@/components/ui/risk-badge";
+import { SignatureBadge } from "@/components/ui/signature-badge";
+import { ExperimentalMessagingWarning } from "@/components/ui/experimental-messaging-warning";
 import {
   isTauri,
   type TauriCommunity,
@@ -39,6 +46,7 @@ import {
   tauriSetCommunityRole,
   tauriGetCommunityRole,
   tauriListReplies,
+  type TauriPost,
 } from "@/lib/tauri-api";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { useState, useEffect } from "react";
@@ -120,6 +128,8 @@ export default function CommunityPage() {
     activeChannel.replace(/^#/, "").replace(/-hall$/, ""),
   ); // id e.g. "general" or "study" from channel name
   const createPost = useAppCreatePost();
+  const joinYard = useTauriJoinYard();
+  const { data: isMember = false } = useTauriIsYardMember(id);
   const qc = useQueryClient();
 
   const handleCreateChannel = async () => {
@@ -188,6 +198,31 @@ export default function CommunityPage() {
     load();
   }, [tauriChannelPosts]);
 
+  const submitChannelPost = (text: string) => {
+    const channelId = activeChannel.replace(/^#/, "").replace(/-hall$/, "");
+    createPost.mutate(
+      {
+        content: text.trim(),
+        town_tag: id,
+        channel_id: channelId,
+      },
+      {
+        onSuccess: (result: any) => {
+          setDraft("");
+          if (result?.earn) {
+            showEarnFromResult(result.earn, `Posted to ${activeChannel}`);
+          } else {
+            toast.success(`Posted to ${activeChannel}`);
+          }
+          qc.invalidateQueries({
+            queryKey: ["tauri", "channelPosts", channelId],
+          });
+        },
+        onError: (e: unknown) => toast.error(String(e)),
+      },
+    );
+  };
+
   const handleReply = async (postId: number) => {
     const text = prompt("Reply text:");
     if (!text || !text.trim()) return;
@@ -197,8 +232,7 @@ export default function CommunityPage() {
       return;
     }
     try {
-      await tauriCreateReply(token, postId, text.trim());
-      // invalidate and refresh threaded replies for this post
+      const result = await tauriCreateReply(token, postId, text.trim());
       qc.invalidateQueries({
         queryKey: [
           "tauri",
@@ -209,7 +243,11 @@ export default function CommunityPage() {
       qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
       const reps = await tauriListReplies(postId);
       setPostReplies((prev) => ({ ...prev, [postId]: reps || [] }));
-      toast.success("Reply posted");
+      if (result.earn) {
+        showEarnFromResult(result.earn, "Reply posted");
+      } else {
+        toast.success("Reply posted");
+      }
     } catch (e) {
       toast.error(String(e));
     }
@@ -235,25 +273,23 @@ export default function CommunityPage() {
 
   if (!community) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <Navbar />
-        <main className="flex-1 container max-w-2xl py-8 px-4">
-          <div className="text-center py-20 text-muted-foreground">
-            Community not found.
-          </div>
-        </main>
-      </div>
+      <AppShell>
+        <div className="text-center py-20 text-muted-foreground">
+          Community not found.
+        </div>
+      </AppShell>
     );
   }
 
   // Real channel posts when available (from list_posts_for_channel + DB channel_id filter); graceful fallback for demo/web
   const channelPosts =
     isTauri() && tauriChannelPosts.length > 0
-      ? tauriChannelPosts.map((p: any) => ({
+      ? tauriChannelPosts.map((p: TauriPost) => ({
           id: p.id,
           user: p.authorDisplayName || p.authorHandle,
           handle: p.authorHandle,
           content: p.content,
+          raw: p,
           time: p.createdAt
             ? new Date(p.createdAt).toLocaleTimeString([], {
                 hour: "2-digit",
@@ -274,12 +310,11 @@ export default function CommunityPage() {
                 : `Activity in ${activeChannel} — ${community.name} is live!`,
           time: `${i + 2}h ago`,
           reactions: i + 5,
+          raw: null as TauriPost | null,
         }));
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1 container max-w-6xl py-6 px-4">
+    <AppShell fullWidth hideRightRail>
         <Link href="/communities">
           <Button
             variant="ghost"
@@ -312,7 +347,26 @@ export default function CommunityPage() {
                   </span>
                 </div>
               </div>
-              <Button className="rounded-full px-8">Join Yard</Button>
+              <Button
+                className="rounded-full px-8"
+                variant={isMember ? "secondary" : "default"}
+                disabled={joinYard.isPending || isMember}
+                onClick={() => {
+                  joinYard.mutate(id, {
+                    onSuccess: (result) => {
+                      if (result.joined && result.earn) {
+                        showEarnFromResult(
+                          result.earn,
+                          `Joined ${community.name}`,
+                        );
+                      }
+                    },
+                    onError: (e) => toast.error(String(e)),
+                  });
+                }}
+              >
+                {isMember ? "Joined ✓" : "Join Yard"}
+              </Button>
             </div>
             <p className="text-muted-foreground mt-2 max-w-2xl">
               {community.description}
@@ -385,6 +439,7 @@ export default function CommunityPage() {
               <TabsList className="mb-4">
                 <TabsTrigger value="chat">{activeChannel} Chat</TabsTrigger>
                 <TabsTrigger value="members">Members</TabsTrigger>
+                <TabsTrigger value="events">Events</TabsTrigger>
                 <TabsTrigger value="about">About</TabsTrigger>
               </TabsList>
 
@@ -413,15 +468,27 @@ export default function CommunityPage() {
                           <AvatarFallback>{post.user[0]}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                          <div className="flex items-baseline gap-2">
+                          <div className="flex flex-wrap items-baseline gap-2">
                             <span className="font-semibold">{post.user}</span>
                             <span className="text-xs text-muted-foreground">
                               @{post.handle} · {post.time}
                             </span>
+                            {post.raw && (
+                              <>
+                                <RiskBadge
+                                  riskLevel={post.raw.riskLevel}
+                                  maliciousScore={post.raw.maliciousScore}
+                                />
+                                {post.raw.nostrEventId && (
+                                  <SignatureBadge eventId={post.raw.nostrEventId} />
+                                )}
+                              </>
+                            )}
                           </div>
-                          <p className="text-[15px] leading-snug mt-0.5">
-                            {post.content}
-                          </p>
+                          <SafeContent
+                            text={post.content}
+                            className="text-[15px] leading-snug mt-0.5"
+                          />
                           <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground">
                             <button
                               onClick={() => handleReply(post.id)}
@@ -453,9 +520,10 @@ export default function CommunityPage() {
                                         <span className="font-medium text-xs">
                                           @{rep.authorHandle}
                                         </span>
-                                        <p className="text-xs leading-snug">
-                                          {rep.content}
-                                        </p>
+                                        <SafeContent
+                                          text={rep.content}
+                                          className="text-xs leading-snug"
+                                        />
                                       </div>
                                     </div>
                                   ),
@@ -472,6 +540,7 @@ export default function CommunityPage() {
                     )}
                   </CardContent>
                   <div className="p-4 border-t">
+                    <ExperimentalMessagingWarning className="mb-3" />
                     <div className="flex gap-2">
                       <input
                         className="flex-1 bg-muted/50 rounded-full px-4 py-2 text-sm outline-none"
@@ -480,16 +549,7 @@ export default function CommunityPage() {
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && draft.trim()) {
-                            const channelId = activeChannel
-                              .replace(/^#/, "")
-                              .replace(/-hall$/, "");
-                            createPost.mutate({
-                              content: draft.trim(),
-                              town_tag: id,
-                              channel_id: channelId,
-                            });
-                            setDraft("");
-                            toast.success(`Posted to ${activeChannel}`);
+                            submitChannelPost(draft);
                           }
                         }}
                         disabled={createPost.isPending}
@@ -498,16 +558,7 @@ export default function CommunityPage() {
                         size="sm"
                         onClick={() => {
                           if (!draft.trim()) return;
-                          const channelId = activeChannel
-                            .replace(/^#/, "")
-                            .replace(/-hall$/, "");
-                          createPost.mutate({
-                            content: draft.trim(),
-                            town_tag: id,
-                            channel_id: channelId,
-                          });
-                          setDraft("");
-                          toast.success(`Posted to ${activeChannel}`);
+                          submitChannelPost(draft);
                         }}
                         disabled={createPost.isPending || !draft.trim()}
                       >
@@ -611,6 +662,21 @@ export default function CommunityPage() {
                 </Card>
               </TabsContent>
 
+              <TabsContent value="events">
+                <Card>
+                  <CardContent className="p-6 space-y-3 text-sm">
+                    <p className="font-medium">Yard events (Discord + Facebook)</p>
+                    <p className="text-muted-foreground">
+                      Homecoming watch parties, study halls, networking nights — RSVP
+                      flow coming in Phase 2G. Join the yard to earn WB for showing up.
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => toast("Event RSVP — next sprint")}>
+                      + Create Event
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="about">
                 <Card>
                   <CardContent className="p-6 space-y-4 text-sm">
@@ -630,7 +696,6 @@ export default function CommunityPage() {
             </Tabs>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 }

@@ -35,8 +35,10 @@ export function SafeContent({ text, className = "" }: SafeContentProps) {
             href={part.value}
             target="_blank"
             rel="noopener noreferrer nofollow"
+            referrerPolicy="no-referrer"
             className="text-primary underline underline-offset-2 hover:brightness-110"
             onClick={(e) => e.stopPropagation()}
+            title="Link preview disabled for privacy"
           >
             {part.value}
           </a>

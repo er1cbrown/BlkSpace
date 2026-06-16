@@ -14,6 +14,7 @@
 | 3 | Contacts | Follow graph |
 | 4 | Encrypted DM | **Low-trust only** — see `security-considerations.md` |
 | 5 | Deletion | Moderation |
+| 6 | Repost | Boost post to followers (`repost_post` — `e` + `p` tags) |
 | 7 | Reaction | Likes, tips signal |
 
 ---

@@ -130,8 +130,25 @@ pnpm tauri dev
 | @user_a creates post | +5 WB | Balance 105 |
 | @user_b replies | +2 WB | Balance 102 |
 | @user_c likes @user_a | @user_a: +1 WB | Balance 106 |
+| @user_a likes own post | +0 WB | Balance unchanged |
+| @user_a replies to own post | +0 WB | Balance unchanged |
+| Earn past 250 WB/day | Partial/zero + cap toast | UI shows daily cap warning |
 
-### 2.4 Tipping Test
+### 2.4 Security Hardening Test (2026-06-16)
+
+| Check | How to verify | Pass |
+|-------|----------------|------|
+| Post detail `RiskBadge` | Open `/posts/:id` — MIDF badge beside sig badge | [x] code (`post.tsx`) |
+| Invalid sig banner | Post with bad/missing cached sig shows red alert | [x] code (`SignatureWarningBanner`) |
+| `SignatureBadge` on feeds | Watch/Read/Bridge cards show Sig verified/invalid | [x] code (`WatchFeed`, `ReadFeed`, `feed.tsx` Bridge) |
+| Link previews off | URLs in posts are plain links, no OG fetch | [x] code (`SafeContent`, Settings note) |
+| DM warning | Yard channel + post reply show amber experimental banner | [x] code (`community.tsx`, `post.tsx`) |
+| Town tag enforcement | Relay rejects kind 1 without `t:hbcu-town:*` | [x] auto (`test_validate_relay_event_tags`, `ingest_validated_relay_event`) |
+| Daily cap toast | Grant when near 250 WB shows partial/clipped message | [x] auto (`test_earn_result_daily_cap_flag`, `EarnToast`) |
+| Nostr publish identity | Tips/marketplace/node events skip if no user key (no ephemeral key) | [x] code (`user_nostr_keys_for_publish`) |
+| Iroh upload → CID → Device B fetch | `pnpm test:iroh` passes; manual § Iroh two-device steps | [x] auto / [ ] manual |
+
+### 2.5 Tipping Test
 
 1. `@user_b` sends 10 WB to `@user_a`
 2. Verify:
@@ -182,14 +199,18 @@ pnpm tauri dev
 
 **Device B (Windows 10, 4GB RAM):**
 
-| Metric | Target | Test |
-|--------|--------|------|
-| App startup | < 5 seconds | Timer |
-| Feed load (50 posts) | < 2 seconds | Timer |
-| Post creation | < 1 second | Timer |
-| Image upload (5MB) | < 30 seconds | Timer |
-| Memory usage | < 500 MB | Task Manager |
-| CPU usage | < 50% | Task Manager |
+| Metric | Target | Automated | Manual sign-off |
+|--------|--------|-----------|-----------------|
+| App startup | < 5 seconds | — | Timer on Device B |
+| Feed load (50 posts) | < 2 seconds | `pnpm test:tier0` / Mesh Test → Performance | [ ] Device B |
+| Post creation | < 1 second | same | [ ] Device B |
+| Blob round-trip (512 KiB) | < 30 seconds | same (proxy for 5MB upload) | [ ] Device B |
+| Memory usage | < 500 MB | — | Task Manager |
+| CPU usage | < 50% | — | Task Manager |
+
+**Automated baseline (dev hardware):** `pnpm test:tier0` runs `test_tier0_benchmark_feed_post_blob_targets` — passes on Tier 2 Mac; does **not** replace Device B sign-off.
+
+**In-app:** Mesh Test → **Performance** → **Run Tier 0 Benchmark** (`run_tier0_benchmark` Tauri command).
 
 ### 4.2 Stress Test
 
@@ -263,7 +284,7 @@ pnpm tauri dev
 - **Cross-device data** — `get_user_account_data` retrieves user, posts, wallet
 
 ### ✅ Phase 2: Multi-User, Same Town (COMPLETED)
-- **WeixBucks economy** — Post +5, Reply +2, Like +1, Daily cap 100
+- **WeixBucks economy** — Post +5, Reply +2, Like +1, Daily cap 250
 - **Tipping** — `send_weixbucks` command with balance verification
 - **Nostr relay sync** — Real-time sync via relay connections
 

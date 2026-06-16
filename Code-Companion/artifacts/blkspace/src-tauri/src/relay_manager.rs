@@ -30,6 +30,9 @@ pub struct NostrEventData {
   pub content: String,
   pub created_at: u64,
   pub tags: Vec<Vec<String>>,
+  /// Full signed event JSON for signature verification before DB ingest.
+  #[serde(default)]
+  pub event_json: String,
 }
 
 pub struct RelayManager {
@@ -62,13 +65,17 @@ impl RelayManager {
     }
   }
 
-  pub async fn connect_to_default_relays(&self) -> Result<Vec<String>, String> {
+  pub async fn connect_to_default_relays(&mut self) -> Result<Vec<String>, String> {
     let mut connected = Vec::new();
     for url in DEFAULT_RELAYS {
       match self.add_relay(url).await {
         Ok(_) => {
           match self.connect_relay(url).await {
-            Ok(_) => connected.push(url.to_string()),
+            Ok(_) => {
+              let latency = self.check_health(url).await.ok();
+              self.register_connection(url.to_string(), latency);
+              connected.push(url.to_string());
+            }
             Err(e) => log::warn!("Failed to connect to {}: {}", url, e),
           }
         }
@@ -183,6 +190,75 @@ impl RelayManager {
     Ok(event_id.to_hex())
   }
 
+  pub async fn fetch_event_by_id_on_client(
+    client: &Client,
+    event_id_hex: &str,
+    timeout_secs: u64,
+  ) -> Result<Option<NostrEventData>, String> {
+    let event_id = EventId::from_hex(event_id_hex)
+      .map_err(|e| format!("Invalid event id: {}", e))?;
+    let filter = Filter::new().ids(vec![event_id]);
+    let events = client
+      .fetch_events(vec![filter], std::time::Duration::from_secs(timeout_secs))
+      .await
+      .map_err(|e| format!("Fetch failed: {}", e))?;
+    Ok(events.into_iter().next().map(|event| {
+      let event_json = serde_json::to_string(&event).unwrap_or_default();
+      NostrEventData {
+        id: event.id.to_hex(),
+        pubkey: event.pubkey.to_string(),
+        kind: event.kind.as_u16() as u64,
+        content: event.content.clone(),
+        created_at: event.created_at.as_u64(),
+        tags: event.tags.iter().map(|t| t.clone().to_vec()).collect(),
+        event_json,
+      }
+    }))
+  }
+
+  pub async fn fetch_event_by_id(
+    &self,
+    event_id_hex: &str,
+    timeout_secs: u64,
+  ) -> Result<Option<NostrEventData>, String> {
+    Self::fetch_event_by_id_on_client(&self.client, event_id_hex, timeout_secs).await
+  }
+
+  /// NIP-65: latest kind 10002 for a pubkey from connected relays.
+  pub async fn fetch_relay_list_event_on_client(
+    client: &Client,
+    author_pubkey_hex: &str,
+    timeout_secs: u64,
+  ) -> Result<Option<NostrEventData>, String> {
+    let author = PublicKey::from_hex(author_pubkey_hex)
+      .map_err(|e| format!("Invalid pubkey: {e}"))?;
+    let filter = Filter::new().author(author).kind(Kind::RelayList);
+    let events = client
+      .fetch_events(vec![filter], std::time::Duration::from_secs(timeout_secs))
+      .await
+      .map_err(|e| format!("NIP-65 fetch failed: {e}"))?;
+    Ok(events.into_iter().next().map(|event| {
+      let event_json = serde_json::to_string(&event).unwrap_or_default();
+      NostrEventData {
+        id: event.id.to_hex(),
+        pubkey: event.pubkey.to_string(),
+        kind: event.kind.as_u16() as u64,
+        content: event.content.clone(),
+        created_at: event.created_at.as_u64(),
+        tags: event.tags.iter().map(|t| t.clone().to_vec()).collect(),
+        event_json,
+      }
+    }))
+  }
+
+  pub fn relay_urls_from_tags(tags: &[Vec<String>]) -> Vec<String> {
+    tags
+      .iter()
+      .filter(|t| t.len() >= 2 && t[0] == "r")
+      .map(|t| t[1].clone())
+      .collect()
+  }
+
   pub async fn publish_text_note(
     &self,
     content: &str,
@@ -218,22 +294,21 @@ impl RelayManager {
     self.publish_event(event).await
   }
 
-  pub async fn sync_recent(
-    &self,
+  pub async fn sync_recent_on_client(
+    client: &Client,
     filter: Filter,
     timeout_secs: u64,
   ) -> Result<Vec<NostrEventData>, String> {
     let events = Arc::new(std::sync::Mutex::new(Vec::new()));
     let events_clone = events.clone();
 
-    self
-      .client
+    client
       .subscribe(vec![filter], None)
       .await
       .map_err(|e| format!("Subscribe failed: {}", e))
       .map(|_| ())?;
 
-    let mut notifications = self.client.notifications();
+    let mut notifications = client.notifications();
     let deadline = tokio::time::sleep(std::time::Duration::from_secs(timeout_secs));
     tokio::pin!(deadline);
 
@@ -242,6 +317,7 @@ impl RelayManager {
         notification = notifications.recv() => {
           match notification {
             Ok(RelayPoolNotification::Event { event, .. }) => {
+              let event_json = serde_json::to_string(&event).unwrap_or_default();
               events_clone.lock().unwrap().push(NostrEventData {
                 id: event.id.to_hex(),
                 pubkey: event.pubkey.to_string(),
@@ -249,6 +325,7 @@ impl RelayManager {
                 content: event.content.clone(),
                 created_at: event.created_at.as_u64(),
                 tags: event.tags.iter().map(|t| t.clone().to_vec()).collect(),
+                event_json,
               });
             }
             Ok(_) => {}
@@ -260,6 +337,15 @@ impl RelayManager {
     }
 
     let synced = events.lock().unwrap().drain(..).collect::<Vec<_>>();
+    Ok(synced)
+  }
+
+  pub async fn sync_recent(
+    &self,
+    filter: Filter,
+    timeout_secs: u64,
+  ) -> Result<Vec<NostrEventData>, String> {
+    let synced = Self::sync_recent_on_client(&self.client, filter, timeout_secs).await?;
     self
       .events_received
       .fetch_add(synced.len() as u64, Ordering::Relaxed);

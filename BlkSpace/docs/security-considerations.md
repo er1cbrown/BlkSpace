@@ -1,7 +1,7 @@
 # Security Considerations — BlkSpace
 
 **Document:** Threat model, attack vectors, and mitigations for BlkSpace's decentralized architecture.  
-**Last Updated:** 2026-06-15  
+**Last Updated:** 2026-06-16
 **Threat Model:** HBCU students on low-end hardware (Tier 0) connecting to public Nostr relays.  
 
 ---
@@ -28,8 +28,9 @@ Multiple Nostr client implementations failed to verify event signatures under ed
 | Pubkey format | `pubkey.len() != 64` → reject | `lib.rs:294` |
 | Event ID format | `id.len() != 64` → reject | `lib.rs:297` |
 | Schnorr signature verification | `secp.verify_schnorr()` using `schnorr::Signature` | `lib.rs:322` |
-| Event ID reconstruction | SHA-256 of canonical JSON `[0, pubkey, created_at, kind, tags, content]` | `lib.rs:317-320` |
-| Timestamp validation | Reject events > 24 hours old or from future | `lib.rs:303` |
+| Event ID reconstruction | SHA-256 of canonical JSON `[0, pubkey, created_at, kind, tags, content]` | `lib.rs` |
+| Event ID match | Reject if provided `id` ≠ computed hash (Kimura id-forgery) | `lib.rs` `verify_nostr_event_detail` |
+| Timestamp validation | Reject events > 24 hours old or from future | `lib.rs` |
 
 **Code Reference:**
 ```rust
@@ -268,16 +269,19 @@ fn check_rate_limit(
 
 ### 2.3 Economic Anomaly Detection
 
-**WeixBucks rewards:** Post +5, Reply +2, Like +1, Upload +10, Pin serve +0.1 (cap 100/day)
+**WeixBucks rewards:** Post +5, Reply +2, Like +1, Upload +10, Pin serve +0.1 (cap 100 serves/day). **Daily earn cap:** 250 WB per pubkey (rolling 24h).
 
 **Attack:** Farm accounts create spam posts, reply to themselves, and like their own content to drain the reward pool.
 
 **Current Mitigation:**
 - Rate limiting (30 req/60s) prevents rapid spam
+- Daily earn cap (250 WB/pubkey) enforced in `grant_weix_bucks()`
 - `engagement_quality` multiplier reduces rewards for low-quality accounts
-- Future: Self-like and self-reply detection
+- Self-like rewards blocked in `toggle_like()` (author ≠ liker)
+- Self-reply rewards blocked in `create_reply()` (author ≠ post author)
+- `get_self_interaction_score()` feeds MIDF for repeat abusers
 
-**Status:** ⚠️ Partial. Basic rate limiting and quality multipliers exist. Self-interaction detection is planned for Phase 2.
+**Status:** ✅ Core farm loops mitigated. MIDF uses self-interaction as a signal; no hard account ban yet.
 
 ---
 
@@ -315,7 +319,7 @@ BlkSpace uses Nostr's kind 22242 challenge-response (NIP-42) for authentication:
 
 | Practice | Implementation | Status |
 |----------|---------------|--------|
-| **Private key storage** | `localStorage` (frontend) + encrypted backup (future) | ⚠️ Basic |
+| **Private key storage** | OS keychain + ChaCha20-Poly1305 encrypted file fallback (`key_store.rs`); web preview uses `sessionStorage` only | ✅ Tauri |
 | **Recovery phrase** | BIP39 12-word mnemonic → `mnemonicToNsec()` | ✅ Implemented |
 | **Paper backup** | User writes down 12 words; no "Forgot Password" | ✅ Policy enforced |
 | **Key rotation** | Not yet implemented | ❌ Future |
@@ -376,7 +380,7 @@ fn check_relay_health(url: &str) -> Result<RelayStatus, String> {
 | **Per-pubkey** | 30 requests / 60 seconds | `lib.rs:54-68` |
 | **Per-session** | Implicit (session token required) | `lib.rs` (session validation) |
 | **Event sync** | 100 events / batch | `relay_manager.rs` |
-| **Media upload** | 50MB max | `blob_store.rs` |
+| **Media upload** | 20MB max | `blob_store.rs` / upload path |
 
 **Status:** ✅ Implemented.
 
@@ -426,10 +430,17 @@ fn check_relay_health(url: &str) -> Result<RelayStatus, String> {
 - [x] **MIDF composite score** (`calculate_malicious_intent_vector()` — 6-dimensional weighted vector)
 - [x] **Malicious intent scoring table** (`malicious_intent_scores` — persistent score storage)
 - [x] **Risk classification** (`low`/`medium`/`high` based on composite score)
+- [x] **Event id hash match** (reject forged `id` field per Kimura §1.1)
+- [x] **Unified relay ingest** (`ingest_validated_relay_event` — signature + town tag + consensus on all paths)
+- [x] **`sync_town_events` hardened** (uses `hbcu-town:*` filter; no unvalidated DB writes)
+- [x] **Publish identity binding** (all Nostr publishes use user keychain key — tips, marketplace, NIP-65, pin reports skip or error if missing)
+- [x] **Daily earn cap** 250 WB with `dailyCapLimited` UI feedback
+- [x] **Self-reply / self-like reward blocks** (`create_reply`, `toggle_like`)
+- [x] **Damus visibility test** (signed publish + relay round-trip on `relay.damus.io`)
 
 ### ⚠️ Partially Implemented
 
-- [~] Economic anomaly detection (rate limiting + quality multipliers; no ML yet)
+- [~] Economic anomaly detection (rate limiting + quality multipliers + MIDF; no ML yet)
 
 ### ❌ Not Yet Implemented
 
@@ -455,4 +466,4 @@ fn check_relay_health(url: &str) -> Result<RelayStatus, String> {
 
 *This document is a living threat model. It should be updated whenever new attack vectors are discovered or new mitigations are implemented.*
 
-*Last reviewed: 2026-06-15*
+*Last reviewed: 2026-06-16*

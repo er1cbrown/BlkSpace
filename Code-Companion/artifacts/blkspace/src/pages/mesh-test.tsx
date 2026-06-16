@@ -19,7 +19,9 @@ import {
   useTauriListOfflineCache,
   useTauriClaimNodeRewards,
   useTauriGetDeviceSyncHistory,
+  useTauriRunTier0Benchmark,
 } from "@/hooks/use-app-data";
+import type { Tier0BenchmarkReport } from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { isTauri } from "@/lib/tauri-api";
 import {
@@ -52,6 +54,10 @@ export default function DeviceMeshTestPage() {
   const { data: offlineCache } = useTauriListOfflineCache();
   const { data: nodeRewards } = useTauriClaimNodeRewards();
   const { data: syncHistory } = useTauriGetDeviceSyncHistory(deviceId);
+  const tier0Bench = useTauriRunTier0Benchmark();
+  const [benchReport, setBenchReport] = useState<Tier0BenchmarkReport | null>(
+    null,
+  );
 
   const handleSync = () => {
     const start = performance.now();
@@ -357,51 +363,71 @@ export default function DeviceMeshTestPage() {
                   <Laptop className="w-5 h-5" /> Tier 0 Performance Benchmark
                 </CardTitle>
                 <CardDescription>
-                  Target: Windows 10, 4GB RAM, i3 processor
+                  Target: Windows 10, 4GB RAM, i3 — run on Tier 0 hardware and
+                  sign off DEVICE_MESH_TESTING.md §4.1
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>App Startup</span>
-                      <span className="text-muted-foreground">
-                        Target: &lt; 5s
-                      </span>
-                    </div>
-                    <Progress value={60} className="h-2" />
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Measured on this device
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Feed Load (50 posts)</span>
-                      <span className="text-muted-foreground">
-                        Target: &lt; 2s
-                      </span>
-                    </div>
-                    <Progress value={75} className="h-2" />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Post Creation</span>
-                      <span className="text-muted-foreground">
-                        Target: &lt; 1s
-                      </span>
-                    </div>
-                    <Progress value={80} className="h-2" />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Image Upload (5MB)</span>
-                      <span className="text-muted-foreground">
-                        Target: &lt; 30s
-                      </span>
-                    </div>
-                    <Progress value={90} className="h-2" />
-                  </div>
-                </div>
+                {isDesktop ? (
+                  <>
+                    <Button
+                      onClick={() =>
+                        tier0Bench.mutate(undefined, {
+                          onSuccess: (report) => setBenchReport(report),
+                        })
+                      }
+                      disabled={tier0Bench.isPending}
+                    >
+                      {tier0Bench.isPending
+                        ? "Running…"
+                        : "Run Tier 0 Benchmark"}
+                    </Button>
+                    {benchReport && (
+                      <div className="space-y-4 pt-2">
+                        {benchReport.metrics.map((m) => (
+                          <div key={m.name}>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="flex items-center gap-2">
+                                {m.pass ? (
+                                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <AlertCircle className="w-4 h-4 text-amber-500" />
+                                )}
+                                {m.name}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {m.durationMs}ms / &lt; {m.targetMs}ms
+                              </span>
+                            </div>
+                            <Progress
+                              value={Math.min(
+                                100,
+                                (m.durationMs / m.targetMs) * 100,
+                              )}
+                              className="h-2"
+                            />
+                          </div>
+                        ))}
+                        <p className="text-xs text-muted-foreground">
+                          {benchReport.deviceNote}
+                        </p>
+                        <Badge
+                          variant={
+                            benchReport.allPass ? "default" : "secondary"
+                          }
+                        >
+                          {benchReport.allPass
+                            ? "All targets met on this device"
+                            : "Some targets missed — retry on Tier 0"}
+                        </Badge>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Open in Tauri desktop to run live benchmarks.
+                  </p>
+                )}
               </CardContent>
             </Card>
 

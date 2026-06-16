@@ -2,6 +2,7 @@ mod db;
 mod blob_store;
 mod key_store;
 mod relay_manager;
+mod tier0_benchmark;
 
 #[cfg(feature = "iroh")]
 mod iroh_node;
@@ -9,10 +10,20 @@ mod iroh_node;
 #[cfg(test)]
 mod tests;
 
-use blob_store::{BlobInfo, BlobStore};
+#[cfg(all(test, feature = "iroh"))]
+mod tests_iroh;
+
+#[cfg(test)]
+mod tests_nostr_relay;
+
+use blob_store::BlobStore;
 use key_store::KeyStore;
 use db::{
-  AppError, BlobRecord, Community, CrossTownEvent, Database, NetworkStats, Notification, Post, Relay, Reply, User, WalletTx,
+  AppError, ApproveWallPostResult, BlobRecord, Community, CreatePostResult, CreateReplyResult,
+  CrossTownEvent, Database, EarnResult, EarnSummary, JoinYardResult, KarmaLeaderboardEntry,
+  RepostFeedItem, RepostResult,
+  NetworkStats,
+  Notification, Post, Relay, Reply, UploadBlobResult, User, WalletTx, WallPost, WallPostResult,
   RelayConnectionRecord, RelayEventRecord,
   validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
 };
@@ -277,6 +288,85 @@ fn load_user_nostr_keys(state: &AppState, handle: &str) -> Result<nostr_sdk::pre
   Err("no user nostr key".to_string())
 }
 
+/// Never publish social content with the ephemeral relay-manager key.
+fn user_nostr_keys_for_publish(
+  state: &AppState,
+  handle: &str,
+  context: &str,
+) -> Option<nostr_sdk::prelude::Keys> {
+  match load_user_nostr_keys(state, handle) {
+    Ok(keys) => Some(keys),
+    Err(e) => {
+      log::warn!("Skipping Nostr {context} for {handle}: {e}");
+      None
+    }
+  }
+}
+
+fn format_hbcu_town_tag(town: &str) -> String {
+  let t = town.trim().to_lowercase();
+  if t.starts_with("hbcu-town:") {
+    t
+  } else {
+    format!("hbcu-town:{t}")
+  }
+}
+
+fn town_id_from_tag(town_tag: &str) -> String {
+  town_tag
+    .strip_prefix("hbcu-town:")
+    .unwrap_or(town_tag)
+    .to_string()
+}
+
+/// Validate signature, town tags, then persist relay event + consensus record.
+fn ingest_validated_relay_event(
+  state: &AppState,
+  event_json: &str,
+  relay_url: &str,
+  relay_town: Option<&str>,
+) -> bool {
+  if !validate_incoming_event(event_json).unwrap_or(false) {
+    log::warn!("Rejected relay event — signature or id validation failed");
+    return false;
+  }
+  let event: serde_json::Value = match serde_json::from_str(event_json) {
+    Ok(v) => v,
+    Err(_) => return false,
+  };
+  let event_id = match event["id"].as_str() {
+    Some(v) => v,
+    None => return false,
+  };
+  let kind_i64 = event["kind"].as_i64().unwrap_or(0);
+  let pubkey = event["pubkey"].as_str().unwrap_or("");
+  let content = event["content"].as_str().unwrap_or("");
+  let created_at = event["created_at"].as_i64().unwrap_or(0);
+  let tags_json = serde_json::to_string(&event["tags"]).unwrap_or_else(|_| "[]".to_string());
+
+  if !state
+    .db
+    .validate_relay_event_tags(kind_i64, &tags_json, relay_town)
+  {
+    log::warn!("Rejected event {event_id} — missing or invalid t:hbcu-town tag");
+    return false;
+  }
+
+  let _ = state.db.store_nostr_event_json(event_id, event_json);
+  let content_hash = format!("{:x}", sha2::Sha256::digest(content.as_bytes()));
+  let _ = state.db.insert_relay_event(
+    event_id,
+    relay_url,
+    kind_i64,
+    pubkey,
+    content,
+    &tags_json,
+    created_at,
+  );
+  let _ = state.db.record_relay_consensus(event_id, relay_url, &content_hash);
+  true
+}
+
 fn validate_blob_hash(hash: &str) -> Result<(), String> {
   if hash.len() != 64 || !hash.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')) {
     return Err("Invalid blob hash — expected 64 lowercase hex characters".to_string());
@@ -284,49 +374,160 @@ fn validate_blob_hash(hash: &str) -> Result<(), String> {
   Ok(())
 }
 
-fn validate_incoming_event(event_json: &str) -> Result<bool, String> {
-  let event: serde_json::Value = serde_json::from_str(event_json)
-    .map_err(|_| "Invalid event JSON".to_string())?;
-  
-  // Check required fields
-  let pubkey = event["pubkey"].as_str().ok_or("Missing pubkey")?;
-  let id = event["id"].as_str().ok_or("Missing event id")?;
-  let created_at = event["created_at"].as_i64().ok_or("Missing timestamp")?;
-  let kind = event["kind"].as_i64().ok_or("Missing kind")?;
-  let sig = event["sig"].as_str().ok_or("Missing signature")?;
-  
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct NostrEventVerification {
+  valid: bool,
+  status: String,
+  message: Option<String>,
+  event_id: Option<String>,
+  pubkey: Option<String>,
+  kind: Option<i64>,
+}
+
+fn verify_nostr_event_detail(event_json: &str) -> NostrEventVerification {
+  let fail = |status: &str, message: &str, event: &serde_json::Value| NostrEventVerification {
+    valid: false,
+    status: status.to_string(),
+    message: Some(message.to_string()),
+    event_id: event["id"].as_str().map(|s| s.to_string()),
+    pubkey: event["pubkey"].as_str().map(|s| s.to_string()),
+    kind: event["kind"].as_i64(),
+  };
+
+  let event: serde_json::Value = match serde_json::from_str(event_json) {
+    Ok(v) => v,
+    Err(_) => {
+      return NostrEventVerification {
+        valid: false,
+        status: "error".to_string(),
+        message: Some("Invalid event JSON".to_string()),
+        event_id: None,
+        pubkey: None,
+        kind: None,
+      };
+    }
+  };
+
+  let pubkey = match event["pubkey"].as_str() {
+    Some(v) => v,
+    None => return fail("error", "Missing pubkey", &event),
+  };
+  let id = match event["id"].as_str() {
+    Some(v) => v,
+    None => return fail("error", "Missing event id", &event),
+  };
+  let created_at = match event["created_at"].as_i64() {
+    Some(v) => v,
+    None => return fail("error", "Missing timestamp", &event),
+  };
+  let kind = match event["kind"].as_i64() {
+    Some(v) => v,
+    None => return fail("error", "Missing kind", &event),
+  };
+  let sig = match event["sig"].as_str() {
+    Some(v) => v,
+    None => return fail("error", "Missing signature", &event),
+  };
+
   if pubkey.len() != 64 {
-    return Err("Invalid pubkey format".to_string());
+    return fail("invalid", "Invalid pubkey format", &event);
   }
   if id.len() != 64 {
-    return Err("Invalid event id format".to_string());
+    return fail("invalid", "Invalid event id format", &event);
   }
-  
-  // Check timestamp (not older than 1 day, not in future)
+
   let now = chrono::Utc::now().timestamp();
   if (now - created_at).abs() > 86400 {
-    return Ok(false); // Too old or from future, skip silently
+    return fail("expired", "Event timestamp outside 24h verification window", &event);
   }
-  
-  // Verify Schnorr signature
+
   let secp = Secp256k1::new();
-  let pubkey_obj = XOnlyPublicKey::from_slice(
-    &hex::decode(pubkey).map_err(|_| "Invalid pubkey hex")?
-  ).map_err(|_| "Invalid pubkey")?;
-  let sig_obj = schnorr::Signature::from_slice(
-    &hex::decode(sig).map_err(|_| "Invalid sig hex")?
-  ).map_err(|_| "Invalid signature")?;
-  
-  // Reconstruct event id
-  let tags = event["tags"].as_array().ok_or("Missing tags")?;
-  let serialized = serde_json::json!([0, pubkey, created_at, kind, tags, event["content"].as_str().unwrap_or("")]);
-  let canonical = serde_json::to_string(&serialized).map_err(|_| "Serialization error")?;
+  let pubkey_obj = match XOnlyPublicKey::from_slice(&hex::decode(pubkey).unwrap_or_default()) {
+    Ok(v) => v,
+    Err(_) => return fail("invalid", "Invalid pubkey", &event),
+  };
+  let sig_obj = match schnorr::Signature::from_slice(&hex::decode(sig).unwrap_or_default()) {
+    Ok(v) => v,
+    Err(_) => return fail("invalid", "Invalid signature encoding", &event),
+  };
+
+  let tags = match event["tags"].as_array() {
+    Some(v) => v,
+    None => return fail("error", "Missing tags", &event),
+  };
+  let serialized = serde_json::json!([
+    0,
+    pubkey,
+    created_at,
+    kind,
+    tags,
+    event["content"].as_str().unwrap_or("")
+  ]);
+  let canonical = match serde_json::to_string(&serialized) {
+    Ok(v) => v,
+    Err(_) => return fail("error", "Serialization error", &event),
+  };
   let event_id = Sha256::digest(canonical.as_bytes());
-  
-  secp.verify_schnorr(&sig_obj, &event_id, &pubkey_obj)
-    .map_err(|_| "Signature verification failed")?;
-  
-  Ok(true)
+  let computed_id = hex::encode(event_id);
+  if computed_id != id {
+    return fail("invalid", "Event id does not match canonical hash", &event);
+  }
+
+  if secp.verify_schnorr(&sig_obj, &event_id, &pubkey_obj).is_err() {
+    return fail("invalid", "Schnorr signature verification failed", &event);
+  }
+
+  NostrEventVerification {
+    valid: true,
+    status: "valid".to_string(),
+    message: None,
+    event_id: Some(id.to_string()),
+    pubkey: Some(pubkey.to_string()),
+    kind: Some(kind),
+  }
+}
+
+pub(crate) fn validate_incoming_event(event_json: &str) -> Result<bool, String> {
+  let result = verify_nostr_event_detail(event_json);
+  if result.valid {
+    Ok(true)
+  } else if result.status == "expired" {
+    Ok(false)
+  } else {
+    Err(result.message.unwrap_or_else(|| "Invalid event".to_string()))
+  }
+}
+
+#[tauri::command]
+fn verify_nostr_event(event_json: String) -> Result<NostrEventVerification, String> {
+  Ok(verify_nostr_event_detail(&event_json))
+}
+
+#[tauri::command]
+fn get_nostr_event_json(state: State<AppState>, event_id: String) -> Result<Option<String>, String> {
+  state
+    .db
+    .get_nostr_event_json(&event_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn verify_nostr_event_by_id(
+  state: State<AppState>,
+  event_id: String,
+) -> Result<NostrEventVerification, String> {
+  match state.db.get_nostr_event_json(&event_id).map_err(|e| e.to_string())? {
+    Some(json) => Ok(verify_nostr_event_detail(&json)),
+    None => Ok(NostrEventVerification {
+      valid: false,
+      status: "unknown".to_string(),
+      message: Some("No signed event cached locally — connect to relays and sync".to_string()),
+      event_id: Some(event_id),
+      pubkey: None,
+      kind: None,
+    }),
+  }
 }
 
 #[tauri::command]
@@ -410,6 +611,42 @@ fn list_users(state: State<AppState>) -> Result<Vec<User>, String> {
 }
 
 #[tauri::command]
+fn search_users(state: State<AppState>, query: String, limit: Option<i64>) -> Result<Vec<User>, String> {
+  let q = query.trim();
+  if q.is_empty() {
+    return Ok(vec![]);
+  }
+  let lim = limit.unwrap_or(50).clamp(1, 100);
+  state
+    .db
+    .search_users(q, lim)
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn search_posts(
+  state: State<AppState>,
+  query: String,
+  limit: Option<i64>,
+  current_user: Option<String>,
+) -> Result<Vec<Post>, String> {
+  let q = query.trim();
+  if q.is_empty() {
+    return Ok(vec![]);
+  }
+  let lim = limit.unwrap_or(50).clamp(1, 100);
+  state
+    .db
+    .search_posts(q, lim, current_user.as_deref())
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn search_communities(state: State<AppState>, query: String) -> Result<Vec<Community>, String> {
+  Ok(state.db.search_communities(query.trim()))
+}
+
+#[tauri::command]
 fn create_user(state: State<AppState>, handle: String, display_name: String, pubkey: String) -> Result<User, String> {
   validate_handle(&handle).map_err(map_err)?;
   validate_display_name(&display_name).map_err(map_err)?;
@@ -434,6 +671,110 @@ fn update_user(
   state.db.update_user(&handle, &display_name, &bio, &town).map_err(|e| AppError::from(e).to_string())
 }
 
+fn theme_name_to_id(theme: &str) -> i64 {
+  match theme {
+    "pro" => 1,
+    "vibrant" => 2,
+    "myspace" => 3,
+    _ => 0,
+  }
+}
+
+fn theme_id_to_name(theme_id: i64) -> &'static str {
+  match theme_id {
+    1 => "pro",
+    2 => "vibrant",
+    3 => "myspace",
+    _ => "classic",
+  }
+}
+
+fn publish_profile_to_nostr(state: &AppState, handle: &str) {
+  let user = match state.db.get_user(handle) {
+    Ok(Some(u)) => u,
+    _ => return,
+  };
+  let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
+  if !has_relays {
+    return;
+  }
+  let user_keys = match user_nostr_keys_for_publish(state, handle, "profile publish") {
+    Some(k) => k,
+    None => return,
+  };
+  let nostr_client = state.relay_manager.lock().unwrap().client().clone();
+  let theme_name = theme_id_to_name(user.theme_id);
+  let profile_content = serde_json::json!({
+    "name": user.display_name,
+    "about": user.bio,
+    "picture": user.avatar_url,
+    "blkspace": {
+      "theme": theme_name,
+      "music_hash": user.music_hash,
+      "town": user.town,
+    }
+  });
+  let content_str = profile_content.to_string();
+
+  if let Ok(rt) = tokio::runtime::Runtime::new() {
+    let _ = rt.block_on(async {
+      use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+      let mut tag_vecs: Vec<Vec<String>> = vec![
+        vec!["t".to_string(), format!("hbcu-town:{}", user.town)],
+        vec!["t".to_string(), "blkspace".to_string()],
+        vec!["theme".to_string(), theme_name.to_string()],
+      ];
+      if !user.music_hash.is_empty() {
+        tag_vecs.push(vec!["music".to_string(), user.music_hash.clone()]);
+        if let Ok(Some(rec)) = state.db.get_blob_record(&user.music_hash) {
+          if let Some(cid) = rec.cid.as_ref() {
+            tag_vecs.push(vec!["cid".to_string(), cid.clone()]);
+          }
+        }
+      }
+      let nostr_tags: Vec<Tag> = tag_vecs
+        .iter()
+        .filter_map(|t| Tag::parse(t.clone()).ok())
+        .collect();
+      let event = EventBuilder::new(Kind::Metadata, &content_str)
+        .tags(nostr_tags)
+        .sign(&user_keys)
+        .await
+        .map_err(|e| format!("Profile sign failed: {}", e))?;
+      let event_id_hex = event.id.to_hex();
+      if let Ok(json) = serde_json::to_string(&event) {
+        let _ = state.db.store_nostr_event_json(&event_id_hex, &json);
+      }
+      nostr_client
+        .send_event(event)
+        .await
+        .map_err(|e| format!("Profile publish failed: {}", e))?;
+      Ok::<_, String>(())
+    });
+  }
+}
+
+#[tauri::command]
+fn update_profile_customization(
+  state: State<AppState>,
+  session_token: String,
+  theme: String,
+  music_hash: Option<String>,
+) -> Result<User, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  let theme_id = theme_name_to_id(&theme);
+  let music = music_hash.unwrap_or_default();
+  if music.len() == 64 {
+    validate_blob_hash(&music).map_err(|e| e.to_string())?;
+  }
+  let user = state
+    .db
+    .update_profile_customization(&handle, theme_id, &music)
+    .map_err(|e| AppError::from(e).to_string())?;
+  publish_profile_to_nostr(&state, &handle);
+  Ok(user)
+}
+
 #[tauri::command]
 fn set_node_role(state: State<AppState>, session_token: String, handle: String, role: String) -> Result<(), String> {
   let _caller = get_handle_from_session(&state, &session_token)?;
@@ -453,8 +794,10 @@ fn publish_kind3_contact_list(state: &AppState, follower: &str) -> Result<(), St
     return Ok(());
   }
   let following = state.db.get_following_for(follower).map_err(|e| e.to_string())?;
-  let keys = load_user_nostr_keys(state, follower)
-    .unwrap_or_else(|_| state.relay_manager.lock().unwrap().keys().clone());
+  let keys = match user_nostr_keys_for_publish(state, follower, "contact list publish") {
+    Some(k) => k,
+    None => return Ok(()),
+  };
   let client = state.relay_manager.lock().unwrap().client().clone();
   let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
   rt.block_on(async {
@@ -526,6 +869,7 @@ fn create_marketplace_listing(
 
   // Nostr 30081 NFT listing on create (if NFT or media)
   if (is_nft || item_type == "media") && state.relay_manager.lock().unwrap().relay_count() > 0 {
+    if let Some(keys) = user_nostr_keys_for_publish(&state, &seller, "marketplace listing publish") {
     let content = format!("Listed: {}", title);
     let tags: Vec<Vec<String>> = vec![
       vec!["t".to_string(), "blkspace".to_string()],
@@ -533,7 +877,6 @@ fn create_marketplace_listing(
       vec!["price".to_string(), price.to_string()],
     ];
     let client = state.relay_manager.lock().unwrap().client().clone();
-    let keys = load_user_nostr_keys(&state, &seller).unwrap_or_else(|_| state.relay_manager.lock().unwrap().keys().clone());
     if let Ok(rt) = tokio::runtime::Runtime::new() {
       let _ = rt.block_on(async {
         use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
@@ -542,6 +885,7 @@ fn create_marketplace_listing(
         let _ = client.send_event(event).await;
         Ok::<_, String>(())
       });
+    }
     }
   }
   Ok(listing_id)
@@ -556,6 +900,7 @@ fn buy_marketplace_listing(state: State<AppState>, session_token: String, listin
     if listing["isNft"].as_bool().unwrap_or(false) {
       let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
       if has_relays {
+        if let Some(keys) = user_nostr_keys_for_publish(&state, &buyer, "marketplace purchase publish") {
         let content = format!("Purchased NFT: {}", listing["itemType"]);
         let tags: Vec<Vec<String>> = vec![
           vec!["t".to_string(), "blkspace".to_string()],
@@ -563,7 +908,6 @@ fn buy_marketplace_listing(state: State<AppState>, session_token: String, listin
           vec!["seller".to_string(), listing["seller"].as_str().unwrap_or("").to_string()],
         ];
         let client = state.relay_manager.lock().unwrap().client().clone();
-        let keys = load_user_nostr_keys(&state, &buyer).unwrap_or_else(|_| state.relay_manager.lock().unwrap().keys().clone());
         if let Ok(rt) = tokio::runtime::Runtime::new() {
           let _ = rt.block_on(async {
             use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
@@ -572,6 +916,7 @@ fn buy_marketplace_listing(state: State<AppState>, session_token: String, listin
             let _ = client.send_event(event).await;
             Ok::<_, String>(())
           });
+        }
         }
       }
     }
@@ -593,6 +938,99 @@ fn get_post(state: State<AppState>, id: i64, current_user: Option<String>) -> Re
 }
 
 #[tauri::command]
+fn build_post_nostr_tags(
+  state: &AppState,
+  town_tag: &str,
+  channel_id: &str,
+  media_hashes: &[String],
+) -> Vec<Vec<String>> {
+  let mut tags: Vec<Vec<String>> = vec![
+    vec!["t".to_string(), format!("hbcu-town:{}", town_tag)],
+    vec!["t".to_string(), "blkspace".to_string()],
+  ];
+  if !channel_id.is_empty() {
+    tags.push(vec![
+      "t".to_string(),
+      format!("blkspace:channel:{}", channel_id),
+    ]);
+    tags.push(vec![
+      "g".to_string(),
+      format!("{}:{}", town_tag, channel_id),
+    ]);
+  }
+  for hash in media_hashes {
+    if let Ok(Some(rec)) = state.db.get_blob_record(hash) {
+      let cid = rec.cid.as_deref().unwrap_or(hash.as_str());
+      tags.push(vec![
+        "imeta".to_string(),
+        format!("url blob://{}", hash),
+        format!("m {}", rec.mime_type),
+        format!("x {}", hash),
+        format!("cid {}", cid),
+      ]);
+    } else {
+      tags.push(vec![
+        "imeta".to_string(),
+        format!("url blob://{}", hash),
+        format!("x {}", hash),
+      ]);
+    }
+  }
+  tags
+}
+
+fn publish_post_to_nostr(
+  state: &AppState,
+  author_handle: &str,
+  post_id: i64,
+  content: &str,
+  town_tag: &str,
+  channel_id: &str,
+  media_hashes: &[String],
+) {
+  let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
+  if !has_relays {
+    return;
+  }
+  let user_keys = match user_nostr_keys_for_publish(state, author_handle, "post publish") {
+    Some(k) => k,
+    None => return,
+  };
+  let nostr_client = state.relay_manager.lock().unwrap().client().clone();
+  let tag_vecs = build_post_nostr_tags(state, town_tag, channel_id, media_hashes);
+
+  if let Ok(rt) = tokio::runtime::Runtime::new() {
+    let result = rt.block_on(async {
+      use nostr_sdk::prelude::{Tag, EventBuilder};
+      let nostr_tags: Vec<Tag> = tag_vecs
+        .iter()
+        .filter_map(|t| Tag::parse(t.clone()).ok())
+        .collect();
+      let event = EventBuilder::text_note(content)
+        .tags(nostr_tags)
+        .sign(&user_keys)
+        .await
+        .map_err(|e| format!("Signing failed: {}", e))?;
+      let event_id_hex = event.id.to_hex();
+      if let Ok(json) = serde_json::to_string(&event) {
+        let _ = state.db.store_nostr_event_json(&event_id_hex, &json);
+      }
+      nostr_client
+        .send_event(event)
+        .await
+        .map_err(|e| format!("Publish failed: {}", e))?;
+      Ok::<_, String>(event_id_hex)
+    });
+    match result {
+      Ok(event_id) => {
+        let _ = state.db.update_post_nostr_meta(post_id, &event_id, "self-published");
+      }
+      Err(e) => log::warn!("Nostr post publish failed for {author_handle}: {e}"),
+    }
+  }
+}
+
+#[tauri::command]
 fn create_post(
   state: State<AppState>,
   session_token: String,
@@ -600,7 +1038,7 @@ fn create_post(
   town_tag: String,
   channel_id: Option<String>,
   media_hashes: Option<String>,
-) -> Result<Post, String> {
+) -> Result<CreatePostResult, String> {
   let author_handle = check_session_rate_limit(&state, &session_token)?;
   validate_content(&content).map_err(map_err)?;
   validate_town(&town_tag).map_err(map_err)?;
@@ -609,56 +1047,22 @@ fn create_post(
     .unwrap_or_default();
   let hashes: Vec<String> = hashes.into_iter().take(10).collect();
   let ch = channel_id.unwrap_or_default();
-  let post = state.db.create_post(&author_handle, &content, &town_tag, &ch, &hashes)
+  let result = state
+    .db
+    .create_post(&author_handle, &content, &town_tag, &ch, &hashes)
     .map_err(|e| AppError::from(e).to_string())?;
 
-  // Auto-publish to connected Nostr relays (non-blocking, best-effort)
-  // Now signs with the *user's* real Nostr key (Nostr hygiene: real signed events from the author).
-  let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
-  let user_keys = load_user_nostr_keys(&state, &author_handle).unwrap_or_else(|_| {
-    state.relay_manager.lock().unwrap().keys().clone()
-  });
-  if has_relays {
-    let content_clone = content.clone();
-    let town_clone = town_tag.clone();
-    let ch_clone = ch.clone();
-    let post_id = post.id;
+  publish_post_to_nostr(
+    &state,
+    &author_handle,
+    result.post.id,
+    &content,
+    &town_tag,
+    &ch,
+    &hashes,
+  );
 
-    // Client from manager (for connectivity), but sign with user's real key.
-    let nostr_client = state.relay_manager.lock().unwrap().client().clone();
-
-    if let Ok(rt) = tokio::runtime::Runtime::new() {
-      let result = rt.block_on(async {
-        use nostr_sdk::prelude::{Tag, EventBuilder};
-        let mut tags: Vec<Vec<String>> = vec![
-          vec!["t".to_string(), format!("hbcu-town:{}", town_clone)],
-          vec!["t".to_string(), "blkspace".to_string()],
-        ];
-        if !ch_clone.is_empty() {
-          tags.push(vec!["t".to_string(), format!("blkspace:channel:{}", ch_clone)]);
-          // Basic Nostr group-kind experiment for the channel (yard:channel as "g" tag)
-          tags.push(vec!["g".to_string(), format!("{}:{}", town_clone, ch_clone)]);
-        }
-        let nostr_tags: Vec<Tag> = tags.iter()
-          .filter_map(|t| Tag::parse(t.clone()).ok())
-          .collect();
-        let event = EventBuilder::text_note(&content_clone)
-          .tags(nostr_tags)
-          .sign(&user_keys)
-          .await
-          .map_err(|e| format!("Signing failed: {}", e))?;
-        let event_id = nostr_client.send_event(event)
-          .await
-          .map_err(|e| format!("Publish failed: {}", e))?;
-        Ok::<_, String>(event_id.to_hex())
-      });
-      if let Ok(ref event_id) = result {
-        let _ = state.db.update_post_nostr_meta(post_id, event_id, "self-published");
-      }
-    }
-  }
-
-  Ok(post)
+  Ok(result)
 }
 
 #[tauri::command]
@@ -680,18 +1084,17 @@ fn list_replies(state: State<AppState>, post_id: i64) -> Result<Vec<Reply>, Stri
 }
 
 #[tauri::command]
-fn create_reply(state: State<AppState>, session_token: String, post_id: i64, content: String) -> Result<Reply, String> {
+fn create_reply(state: State<AppState>, session_token: String, post_id: i64, content: String) -> Result<CreateReplyResult, String> {
   let author_handle = check_session_rate_limit(&state, &session_token)?;
   validate_content(&content).map_err(map_err)?;
-  let reply = state.db.create_reply(post_id, &author_handle, &content).map_err(|e| AppError::from(e).to_string())?;
+  let result = state.db.create_reply(post_id, &author_handle, &content).map_err(|e| AppError::from(e).to_string())?;
 
   // Nostr hygiene for replies: kind 1 + e tag + channel/town tags if available from parent post.
   // Signs with the *reply author's* real key.
   let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
-  let user_keys = load_user_nostr_keys(&state, &author_handle).unwrap_or_else(|_| {
-    state.relay_manager.lock().unwrap().keys().clone()
-  });
-  if has_relays {
+  let user_keys = user_nostr_keys_for_publish(&state, &author_handle, "reply publish");
+  if has_relays && user_keys.is_some() {
+    let user_keys = user_keys.unwrap();
     if let Ok(Some(parent)) = state.db.get_post(post_id, None) {
       let town = parent.town_tag.clone();
       let ch = parent.channel_id.clone();
@@ -720,7 +1123,7 @@ fn create_reply(state: State<AppState>, session_token: String, post_id: i64, con
     }
   }
 
-  Ok(reply)
+  Ok(result)
 }
 
 // ─── Like Command ────────────────────────────────────────
@@ -768,29 +1171,34 @@ fn send_weixbucks(
   // Signs with the *sender's* (user_handle) real user key.
   let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
   if has_relays {
-    let content = format!("Tip {} WB to @{}", amount, to_handle);
-    let tags: Vec<Vec<String>> = vec![
-      vec!["t".to_string(), "blkspace".to_string()],
-      vec!["t".to_string(), "tip".to_string()],
-      vec!["p".to_string(), to_handle.clone()],
-      vec!["amount".to_string(), amount.to_string()],
-    ];
-    let nostr_client = state.relay_manager.lock().unwrap().client().clone();
-    let user_keys = load_user_nostr_keys(&state, &user_handle).unwrap_or_else(|_| {
-      state.relay_manager.lock().unwrap().keys().clone()
-    });
-    if let Ok(rt) = tokio::runtime::Runtime::new() {
-      let _ = rt.block_on(async {
-        use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
-        let nostr_tags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
-        let event = EventBuilder::new(Kind::Custom(30079), &content)
-          .tags(nostr_tags)
-          .sign(&user_keys)
-          .await
-          .map_err(|e| format!("Tip sign failed: {}", e))?;
-        let _event_id = nostr_client.send_event(event).await.map_err(|e| format!("Tip publish: {}", e))?;
-        Ok::<_, String>(())
-      });
+    if let Some(user_keys) = user_nostr_keys_for_publish(&state, &user_handle, "tip publish") {
+      let content = format!("Tip {} WB to @{}", amount, to_handle);
+      let tags: Vec<Vec<String>> = vec![
+        vec!["t".to_string(), "blkspace".to_string()],
+        vec!["t".to_string(), "tip".to_string()],
+        vec!["p".to_string(), to_handle.clone()],
+        vec!["amount".to_string(), amount.to_string()],
+      ];
+      let nostr_client = state.relay_manager.lock().unwrap().client().clone();
+      if let Ok(rt) = tokio::runtime::Runtime::new() {
+        let result = rt.block_on(async {
+          use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+          let nostr_tags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+          let event = EventBuilder::new(Kind::Custom(30079), &content)
+            .tags(nostr_tags)
+            .sign(&user_keys)
+            .await
+            .map_err(|e| format!("Tip sign failed: {}", e))?;
+          nostr_client
+            .send_event(event)
+            .await
+            .map_err(|e| format!("Tip publish: {}", e))?;
+          Ok::<_, String>(())
+        });
+        if let Err(e) = result {
+          log::warn!("Nostr tip publish failed for {user_handle}: {e}");
+        }
+      }
     }
   }
 
@@ -927,11 +1335,12 @@ fn check_relay_health(state: State<AppState>, url: String) -> Result<(bool, Opti
 
 #[tauri::command]
 fn connect_to_default_relays(state: State<AppState>) -> Result<Vec<String>, String> {
-  let manager = state.relay_manager.lock().unwrap();
+  let mut manager = state.relay_manager.lock().unwrap();
   let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
-  let connected = rt.block_on(async {
-    manager.connect_to_default_relays().await
-  })?;
+  let connected = rt.block_on(async { manager.connect_to_default_relays().await })?;
+  for url in &connected {
+    let _ = state.db.upsert_relay_connection(url, "Public", "global", "connected");
+  }
   Ok(connected)
 }
 
@@ -968,34 +1377,32 @@ fn sync_town_events(
   town: String,
 ) -> Result<Vec<NostrEventData>, String> {
   get_handle_from_session(&state, &session_token)?;
-  let town_lower = town.to_lowercase();
+  let town_tag = format_hbcu_town_tag(&town);
+  let town_id = town_id_from_tag(&town_tag);
   let mut manager = state.relay_manager.lock().unwrap();
   if manager.relay_count() == 0 {
     return Err("No relays connected. Connect to a relay first.".to_string());
   }
   let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
   rt.block_on(async {
-    manager.subscribe_tag_filter("t", &town_lower, 3600).await?;
+    manager.subscribe_tag_filter("t", &town_tag, 3600).await?;
     let now = std::time::SystemTime::now()
       .duration_since(std::time::UNIX_EPOCH)
       .unwrap_or_default()
       .as_secs();
     let filter = nostr_sdk::prelude::Filter::new()
-      .custom_tag(nostr_sdk::prelude::SingleLetterTag::lowercase(nostr_sdk::prelude::Alphabet::T), vec![&town_lower])
+      .custom_tag(
+        nostr_sdk::prelude::SingleLetterTag::lowercase(nostr_sdk::prelude::Alphabet::T),
+        vec![town_tag.as_str()],
+      )
       .since(nostr_sdk::prelude::Timestamp::from_secs(now - 3600));
     let events = manager.sync_recent(filter, 5).await?;
 
-    // Store events in DB
     for event in &events {
-      let _ = state.db.insert_relay_event(
-        &event.id,
-        "synced",
-        event.kind as i64,
-        &event.pubkey,
-        &event.content,
-        &serde_json::to_string(&event.tags).unwrap_or("[]".to_string()),
-        event.created_at as i64,
-      );
+      if event.event_json.is_empty() {
+        continue;
+      }
+      let _ = ingest_validated_relay_event(&state, &event.event_json, "synced", Some(&town_id));
     }
     Ok(events)
   })
@@ -1029,10 +1436,10 @@ fn list_relay_events_with_consensus(
 #[tauri::command]
 fn subscribe_to_town(state: State<AppState>, session_token: String, town: String) -> Result<(), String> {
   get_handle_from_session(&state, &session_token)?;
-  let town_lower = town.to_lowercase();
+  let town_tag = format_hbcu_town_tag(&town);
   let mut subs = state.relay_town_subscriptions.lock().unwrap();
-  if !subs.contains(&town_lower) {
-    subs.push(town_lower);
+  if !subs.contains(&town_tag) {
+    subs.push(town_tag);
   }
   Ok(())
 }
@@ -1040,9 +1447,9 @@ fn subscribe_to_town(state: State<AppState>, session_token: String, town: String
 #[tauri::command]
 fn unsubscribe_from_town(state: State<AppState>, session_token: String, town: String) -> Result<(), String> {
   get_handle_from_session(&state, &session_token)?;
-  let town_lower = town.to_lowercase();
+  let town_tag = format_hbcu_town_tag(&town);
   let mut subs = state.relay_town_subscriptions.lock().unwrap();
-  subs.retain(|t| t != &town_lower);
+  subs.retain(|t| t != &town_tag);
   Ok(())
 }
 
@@ -1058,11 +1465,10 @@ fn list_combined_feed(state: State<AppState>, town: Option<String>, current_user
 
 #[tauri::command]
 fn publish_relay_list(state: State<AppState>, session_token: String) -> Result<String, String> {
-  get_handle_from_session(&state, &session_token)?;
-  let (client, keys) = {
-    let m = state.relay_manager.lock().unwrap();
-    (m.client_clone(), m.keys_clone())
-  };
+  let handle = get_handle_from_session(&state, &session_token)?;
+  let keys = user_nostr_keys_for_publish(&state, &handle, "NIP-65 relay list publish")
+    .ok_or("No Nostr signing key stored — cannot publish relay list")?;
+  let client = state.relay_manager.lock().unwrap().client_clone();
   let connections = state.db.list_relay_connections()
     .map_err(|e| e.to_string())?;
   if connections.is_empty() {
@@ -1082,38 +1488,117 @@ fn publish_relay_list(state: State<AppState>, session_token: String) -> Result<S
       .sign(&keys)
       .await
       .map_err(|e| format!("Signing failed: {}", e))?;
-    let event_id = client.send_event(event)
+    let event_id_hex = event.id.to_hex();
+    let event_json = serde_json::to_string(&event)
+      .map_err(|e| format!("Serialize failed: {}", e))?;
+    client
+      .send_event(event)
       .await
       .map_err(|e| format!("Publish failed: {}", e))?;
 
-    // Store in relay_events for local discovery
-    let _ = state.db.insert_relay_event(
-      &event_id.to_hex(),
-      "self-published",
-      10002,
-      &keys.public_key().to_string(),
-      "",
-      "[]",
-      chrono::Utc::now().timestamp(),
-    );
+    let _ = ingest_validated_relay_event(&state, &event_json, "self-published", None);
 
-    Ok(event_id.to_hex())
+    Ok(event_id_hex)
   })
 }
 
 #[tauri::command]
 fn fetch_user_relay_list(state: State<AppState>, session_token: String, pubkey: String) -> Result<Vec<String>, String> {
   get_handle_from_session(&state, &session_token)?;
+  let pubkey = pubkey.trim().to_string();
+  if pubkey.len() != 64 {
+    return Err("Invalid pubkey — expected 64 hex characters".to_string());
+  }
+
+  ensure_default_relays_connected(&state)?;
+  let client = state.relay_manager.lock().unwrap().client_clone();
+  let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
+  let live_urls = rt.block_on(async {
+    let fetched =
+      RelayManager::fetch_relay_list_event_on_client(&client, &pubkey, 15).await?;
+    if let Some(event_data) = fetched {
+      if !event_data.event_json.is_empty() {
+        let _ = ingest_validated_relay_event(&state, &event_data.event_json, "nip65-fetch", None);
+      }
+      let urls = RelayManager::relay_urls_from_tags(&event_data.tags);
+      if !urls.is_empty() {
+        return Ok::<_, String>(urls);
+      }
+    }
+    Ok(Vec::new())
+  })?;
+
+  if !live_urls.is_empty() {
+    return Ok(live_urls);
+  }
   Ok(state.db.get_relay_list_from_tags(&pubkey))
+}
+
+/// Seeds Jane Doe with a NIP-65 relay list in SQLite and returns a viewer session (e2e only).
+#[tauri::command]
+fn e2e_prepare_profile_relay_fixture(state: State<AppState>) -> Result<serde_json::Value, String> {
+  #[cfg(not(feature = "e2e-testing"))]
+  {
+    let _ = state;
+    return Err("e2e_prepare_profile_relay_fixture is only available in e2e builds".to_string());
+  }
+
+  #[cfg(feature = "e2e-testing")]
+  {
+    const JANE_PUBKEY: &str =
+      "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
+    const VIEWER_PUBKEY: &str =
+      "1111111111111111111111111111111111111111111111111111111111111111";
+
+    state
+      .db
+      .set_user_pubkey("jane_doe", JANE_PUBKEY)
+      .map_err(|e| e.to_string())?;
+
+    let tags = serde_json::json!([
+      ["r", "wss://relay.damus.io"],
+      ["r", "wss://nos.lol", "read"]
+    ]);
+    let now = chrono::Utc::now().timestamp();
+    state
+      .db
+      .insert_relay_event(
+        "e2e_jane_nip65_fixture",
+        "e2e-fixture",
+        10002,
+        JANE_PUBKEY,
+        "",
+        &tags.to_string(),
+        now,
+      )
+      .map_err(|e| e.to_string())?;
+
+    let token = generate_token();
+    let mut sessions = state.sessions.lock().unwrap();
+    sessions.insert(
+      token.clone(),
+      SessionInfo {
+        handle: "demo_user".to_string(),
+        pubkey: VIEWER_PUBKEY.to_string(),
+        created_at: Instant::now(),
+      },
+    );
+
+    Ok(serde_json::json!({
+      "sessionToken": token,
+      "viewerPubkey": VIEWER_PUBKEY,
+      "profileHandle": "jane_doe",
+      "profilePubkey": JANE_PUBKEY,
+    }))
+  }
 }
 
 #[tauri::command]
 fn announce_blob(state: State<AppState>, session_token: String, hash: String, filename: String) -> Result<String, String> {
-  get_handle_from_session(&state, &session_token)?;
-  let (client, keys) = {
-    let m = state.relay_manager.lock().unwrap();
-    (m.client_clone(), m.keys_clone())
-  };
+  let handle = get_handle_from_session(&state, &session_token)?;
+  let keys = user_nostr_keys_for_publish(&state, &handle, "blob announce publish")
+    .ok_or("No Nostr signing key stored — cannot announce blob")?;
+  let client = state.relay_manager.lock().unwrap().client_clone();
   if state.relay_manager.lock().unwrap().relay_count() == 0 {
     return Err("No relays connected".to_string());
   }
@@ -1178,11 +1663,10 @@ fn publish_trending_summary(state: State<AppState>, session_token: String) -> Re
     "weix_bucks_circulating": stats.weix_bucks_in_circulation,
   });
   
-  let (client, keys) = {
-    let m = state.relay_manager.lock().unwrap();
-    (m.client_clone(), m.keys_clone())
-  };
-  
+  let keys = user_nostr_keys_for_publish(&state, &handle, "trending summary publish")
+    .ok_or("No Nostr signing key stored — cannot publish trending summary")?;
+  let client = state.relay_manager.lock().unwrap().client_clone();
+
   if state.relay_manager.lock().unwrap().relay_count() == 0 {
     return Err("No relays connected".to_string());
   }
@@ -1267,8 +1751,6 @@ fn report_pin_serve(state: State<AppState>, session_token: String, hash: String)
   let served_by = get_handle_from_session(&state, &session_token)?;
   validate_blob_hash(&hash)?;
   
-  let ukeys = load_user_nostr_keys(&state, &served_by).unwrap_or_else(|_| state.relay_manager.lock().unwrap().keys().clone());
-
   // Record the serve
   state.db.record_pin_serve(&hash, &served_by, &served_by).map_err(|e| e.to_string())?;
   
@@ -1294,21 +1776,23 @@ fn report_pin_serve(state: State<AppState>, session_token: String, hash: String)
   // 30083 pin report Nostr (Nostr kinds)
   let hasr = { state.relay_manager.lock().unwrap().relay_count() > 0 };
   if hasr {
-    let content = format!("Pin serve report for {}", hash);
-    let tags: Vec<Vec<String>> = vec![
-      vec!["t".to_string(), "blkspace".to_string()],
-      vec!["hash".to_string(), hash.clone()],
-      vec!["serves".to_string(), "1".to_string()],
-    ];
-    let nclient = { state.relay_manager.lock().unwrap().client().clone() };
-    if let Ok(rt) = tokio::runtime::Runtime::new() {
-      let _ = rt.block_on(async {
-        use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
-        let ntags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
-        let ev = EventBuilder::new(Kind::Custom(30083), &content).tags(ntags).sign(&ukeys).await.map_err(|e| format!("Pin report sign: {}", e))?;
-        let _ = nclient.send_event(ev).await;
-        Ok::<_, String>(())
-      });
+    if let Some(ukeys) = user_nostr_keys_for_publish(&state, &served_by, "pin serve report") {
+      let content = format!("Pin serve report for {}", hash);
+      let tags: Vec<Vec<String>> = vec![
+        vec!["t".to_string(), "blkspace".to_string()],
+        vec!["hash".to_string(), hash.clone()],
+        vec!["serves".to_string(), "1".to_string()],
+      ];
+      let nclient = { state.relay_manager.lock().unwrap().client().clone() };
+      if let Ok(rt) = tokio::runtime::Runtime::new() {
+        let _ = rt.block_on(async {
+          use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+          let ntags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+          let ev = EventBuilder::new(Kind::Custom(30083), &content).tags(ntags).sign(&ukeys).await.map_err(|e| format!("Pin report sign: {}", e))?;
+          let _ = nclient.send_event(ev).await;
+          Ok::<_, String>(())
+        });
+      }
     }
   }
 
@@ -1321,10 +1805,12 @@ fn claim_node_rewards(state: State<AppState>, session_token: String) -> Result<f
   let serves_today = state.db.count_serves_today(&handle).map_err(|e| e.to_string())?;
   let rewards = (serves_today as f64) * 0.1;
 
-  let user_keys = load_user_nostr_keys(&state, &handle).unwrap_or_else(|_| state.relay_manager.lock().unwrap().keys().clone());
   // Publish 30080 reward grant on claim (Nostr hygiene)
   let has_relays = { state.relay_manager.lock().unwrap().relay_count() > 0 };
   if has_relays {
+    let Some(user_keys) = user_nostr_keys_for_publish(&state, &handle, "node reward claim publish") else {
+      return Ok(rewards);
+    };
     let content = format!("Node reward grant of {} WB", rewards);
     let tags: Vec<Vec<String>> = vec![
       vec!["t".to_string(), "blkspace".to_string()],
@@ -1366,18 +1852,25 @@ fn sync_account_content(state: State<AppState>, session_token: String) -> Result
     
     let mut synced = Vec::new();
     for hash in &hashes {
-      match rt.block_on(iroh.get_blob(hash)) {
+      let iroh_key = state
+        .db
+        .get_blob_record(hash)
+        .ok()
+        .flatten()
+        .and_then(|r| r.cid)
+        .unwrap_or_else(|| hash.clone());
+      match rt.block_on(iroh.get_blob(&iroh_key)) {
         Ok(Some(bytes)) => {
           // Store locally as fallback
           let _ = state.blob_store.store_blob(&bytes);
           synced.push(hash.clone());
-          log::info!("Synced blob {} from Iroh", hash);
+          log::info!("Synced blob {} from Iroh (key {})", hash, iroh_key);
         }
         Ok(None) => {
-          log::warn!("Blob {} not found in Iroh", hash);
+          log::warn!("Blob {} not found in Iroh under key {}", hash, iroh_key);
         }
         Err(e) => {
-          log::warn!("Failed to sync blob {}: {}", hash, e);
+          log::warn!("Failed to sync blob {} (key {}): {}", hash, iroh_key, e);
         }
       }
     }
@@ -1420,7 +1913,14 @@ fn prefetch_content(state: State<AppState>, session_token: String, hashes: Vec<S
     
     let mut fetched = Vec::new();
     for hash in &hashes {
-      match rt.block_on(iroh.get_blob(hash)) {
+      let iroh_key = state
+        .db
+        .get_blob_record(hash)
+        .ok()
+        .flatten()
+        .and_then(|r| r.cid)
+        .unwrap_or_else(|| hash.clone());
+      match rt.block_on(iroh.get_blob(&iroh_key)) {
         Ok(Some(bytes)) => {
           // Store locally as fallback
           let _ = state.blob_store.store_blob(&bytes);
@@ -1476,6 +1976,137 @@ fn count_pending_offline_actions(state: State<AppState>, session_token: String) 
     .map_err(|e| e.to_string())
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FlushOfflineResult {
+  synced: i64,
+  failed: i64,
+  remaining: i64,
+}
+
+#[derive(serde::Deserialize)]
+struct OfflineCreatePostPayload {
+  content: String,
+  #[serde(default = "default_town_tag")]
+  town_tag: String,
+  #[serde(default)]
+  channel_id: String,
+  #[serde(default)]
+  media_hashes: Vec<String>,
+}
+
+fn default_town_tag() -> String {
+  "tsu".to_string()
+}
+
+#[derive(serde::Deserialize)]
+struct OfflineLikePostPayload {
+  post_id: i64,
+}
+
+#[derive(serde::Deserialize)]
+struct OfflineCreateReplyPayload {
+  post_id: i64,
+  content: String,
+}
+
+#[derive(serde::Deserialize)]
+struct OfflineToggleFollowPayload {
+  followed_handle: String,
+}
+
+#[tauri::command]
+fn flush_offline_queue(state: State<AppState>, session_token: String) -> Result<FlushOfflineResult, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  let pending = state
+    .db
+    .get_pending_offline_actions(&handle)
+    .map_err(|e| e.to_string())?;
+
+  let mut synced = 0i64;
+  let mut failed = 0i64;
+
+  for (id, action_type, payload) in pending {
+    let result: Result<(), String> = match action_type.as_str() {
+      "create_post" => {
+        let p: OfflineCreatePostPayload =
+          serde_json::from_str(&payload).map_err(|e| format!("Invalid create_post payload: {}", e))?;
+        validate_content(&p.content).map_err(map_err)?;
+        validate_town(&p.town_tag).map_err(map_err)?;
+        let hashes: Vec<String> = p.media_hashes.into_iter().take(10).collect();
+        let result = state
+          .db
+          .create_post(&handle, &p.content, &p.town_tag, &p.channel_id, &hashes)
+          .map_err(|e| AppError::from(e).to_string())?;
+        publish_post_to_nostr(
+          &state,
+          &handle,
+          result.post.id,
+          &p.content,
+          &p.town_tag,
+          &p.channel_id,
+          &hashes,
+        );
+        Ok(())
+      }
+      "like_post" => {
+        let p: OfflineLikePostPayload =
+          serde_json::from_str(&payload).map_err(|e| format!("Invalid like_post payload: {}", e))?;
+        let _ = state
+          .db
+          .toggle_like(p.post_id, &handle)
+          .map_err(|e| AppError::from(e).to_string())?;
+        Ok(())
+      }
+      "create_reply" => {
+        let p: OfflineCreateReplyPayload = serde_json::from_str(&payload)
+          .map_err(|e| format!("Invalid create_reply payload: {}", e))?;
+        validate_content(&p.content).map_err(map_err)?;
+        let _ = state
+          .db
+          .create_reply(p.post_id, &handle, &p.content)
+          .map_err(|e| AppError::from(e).to_string())?;
+        Ok(())
+      }
+      "toggle_follow" => {
+        let p: OfflineToggleFollowPayload = serde_json::from_str(&payload)
+          .map_err(|e| format!("Invalid toggle_follow payload: {}", e))?;
+        validate_handle(&p.followed_handle).map_err(map_err)?;
+        let _ = state
+          .db
+          .toggle_follow(&handle, &p.followed_handle)
+          .map_err(|e| e.to_string())?;
+        let _ = publish_kind3_contact_list(&state, &handle);
+        Ok(())
+      }
+      other => Err(format!("Unknown offline action type: {}", other)),
+    };
+
+    match result {
+      Ok(()) => {
+        state.db.mark_offline_action_synced(id).map_err(|e| e.to_string())?;
+        synced += 1;
+      }
+      Err(e) => {
+        log::warn!("Offline flush failed for {} (id={}): {}", action_type, id, e);
+        failed += 1;
+      }
+    }
+  }
+
+  let _ = state.db.clear_synced_offline_actions(&handle);
+  let remaining = state
+    .db
+    .count_pending_offline_actions(&handle)
+    .map_err(|e| e.to_string())?;
+
+  Ok(FlushOfflineResult {
+    synced,
+    failed,
+    remaining,
+  })
+}
+
 // ─── Cross-Device Sync ─────────────────────────────────
 
 #[tauri::command]
@@ -1489,6 +2120,97 @@ fn get_user_account_data(state: State<AppState>, session_token: String) -> Resul
 fn log_device_sync(state: State<AppState>, device_id: String, sync_type: String, items_count: i64, duration_ms: i64, success: bool) -> Result<(), String> {
   state.db.log_device_sync(&device_id, &sync_type, items_count, duration_ms, success)
     .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn run_tier0_benchmark(state: State<AppState>) -> Result<tier0_benchmark::Tier0BenchmarkReport, String> {
+  Ok(tier0_benchmark::run_tier0_benchmarks(&state.db, &state.blob_store))
+}
+
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct NostrVisibilityTestResult {
+  event_id: String,
+  nevent: String,
+  npub: String,
+  content: String,
+  relay_url: String,
+  fetched_back: bool,
+}
+
+fn ensure_default_relays_connected(state: &AppState) -> Result<(), String> {
+  if state.relay_manager.lock().unwrap().relay_count() > 0 {
+    return Ok(());
+  }
+  let mut manager = state.relay_manager.lock().unwrap();
+  let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
+  let connected = rt.block_on(async { manager.connect_to_default_relays().await })?;
+  for url in &connected {
+    let _ = state.db.upsert_relay_connection(url, "Public", "global", "connected");
+  }
+  if connected.is_empty() {
+    return Err("No relays connected — check network and try Connect Defaults".to_string());
+  }
+  Ok(())
+}
+
+#[tauri::command]
+fn publish_nostr_visibility_test(
+  state: State<AppState>,
+  session_token: String,
+) -> Result<NostrVisibilityTestResult, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  let user_keys = load_user_nostr_keys(&state, &handle)?;
+  ensure_default_relays_connected(&state)?;
+
+  let content = format!(
+    "#BlkSpace visibility test {} — if you see this on Damus or nostr.band, relay publish works.",
+    uuid::Uuid::new_v4()
+  );
+  let tag_vecs = build_post_nostr_tags(&state, "tsu", "", &[]);
+  use nostr_sdk::prelude::ToBech32;
+  let npub = user_keys
+    .public_key()
+    .to_bech32()
+    .map_err(|e| format!("npub encode: {}", e))?;
+
+  let nostr_client = state.relay_manager.lock().unwrap().client_clone();
+  let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
+  let (event_id, nevent, fetched_back) = rt.block_on(async {
+    use nostr_sdk::prelude::{Tag, EventBuilder};
+    let nostr_tags: Vec<Tag> = tag_vecs
+      .iter()
+      .filter_map(|t| Tag::parse(t.clone()).ok())
+      .collect();
+    let event = EventBuilder::text_note(&content)
+      .tags(nostr_tags)
+      .sign(&user_keys)
+      .await
+      .map_err(|e| format!("Signing failed: {}", e))?;
+    let event_id = event.id.to_hex();
+    let nevent = event
+      .id
+      .to_bech32()
+      .map_err(|e| format!("nevent encode: {}", e))?;
+    nostr_client
+      .send_event(event)
+      .await
+      .map_err(|e| format!("Publish failed: {}", e))?;
+    let fetched_back = RelayManager::fetch_event_by_id_on_client(&nostr_client, &event_id, 20)
+      .await?
+      .map(|e| e.content == content)
+      .unwrap_or(false);
+    Ok::<_, String>((event_id, nevent, fetched_back))
+  })?;
+
+  Ok(NostrVisibilityTestResult {
+    event_id,
+    nevent,
+    npub,
+    content,
+    relay_url: relay_manager::DEFAULT_RELAYS[0].to_string(),
+    fetched_back,
+  })
 }
 
 #[tauri::command]
@@ -1663,7 +2385,7 @@ fn upload_blob(
   session_token: String,
   data: String,
   filename: String,
-) -> Result<BlobInfo, String> {
+) -> Result<UploadBlobResult, String> {
   let uploader_handle = check_session_rate_limit(&state, &session_token)?;
 
   if filename.len() > 255 {
@@ -1716,25 +2438,23 @@ fn upload_blob(
   let (record, is_new) = state.db.insert_blob(&hash, cid.as_deref(), &filename, &mime_type, file_size, &uploader_handle)
     .map_err(|e| AppError::from(e).to_string())?;
 
-  // Reward upload +10 WB only for brand-new blobs (fix 1)
+  let mut earn = EarnResult::default();
   if is_new {
     let quality = state.db.update_engagement_quality(&uploader_handle)
       .map_err(|_| 0.0).unwrap_or(1.0);
-    let reward = (10.0_f64 * quality).round() as i64;
-    let conn = state.db.conn.lock().unwrap();
-    conn.execute(
-      "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
-      rusqlite::params![reward, uploader_handle],
-    ).ok();
-    conn.execute(
-      "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
-       SELECT ?1, 'earn', ?2, 'Media upload', weix_bucks FROM users WHERE handle = ?1",
-      rusqlite::params![uploader_handle, reward],
-    ).ok();
-    drop(conn);
+    let reward = state.db.throttle_rewards(&uploader_handle, 10.0, quality);
+    let throttled = state.db.rewards_throttled(&uploader_handle);
+    let wb_actual = state
+      .db
+      .grant_weix_bucks(&uploader_handle, reward, "Media upload")
+      .unwrap_or(0);
+    if !throttled {
+      state.db.grant_karma(&uploader_handle, "", 5, 0, "Content creation").ok();
+    }
+    earn = EarnResult::build(reward, wb_actual, 5, 0, throttled);
   }
 
-  Ok(BlobInfo {
+  Ok(UploadBlobResult {
     hash,
     cid,
     filename: record.filename,
@@ -1742,6 +2462,7 @@ fn upload_blob(
     file_size: record.file_size,
     uploader_handle: record.uploader_handle,
     created_at: record.created_at,
+    earn,
   })
 }
 
@@ -1819,6 +2540,178 @@ fn get_blob_metadata(state: State<AppState>, session_token: String, hash: String
   state.db.get_blob_record(&hash).map_err(|e| AppError::from(e).to_string())
 }
 
+// ─── Karma, yards, profile extensions ───────────────────
+
+#[tauri::command]
+fn join_yard(state: State<AppState>, session_token: String, community_id: String) -> Result<JoinYardResult, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state.db.join_yard(&handle, &community_id).map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn leave_yard(state: State<AppState>, session_token: String, community_id: String) -> Result<(), String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state.db.leave_yard(&handle, &community_id).map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn is_yard_member(state: State<AppState>, session_token: String, community_id: String) -> Result<bool, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state.db.is_yard_member(&handle, &community_id).map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn list_yard_members(state: State<AppState>, community_id: String) -> Result<Vec<String>, String> {
+  state.db.list_yard_members(&community_id).map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn create_wall_post(
+  state: State<AppState>,
+  session_token: String,
+  wall_owner: String,
+  content: String,
+) -> Result<WallPostResult, String> {
+  let author = check_session_rate_limit(&state, &session_token)?;
+  validate_content(&content).map_err(map_err)?;
+  let auto = wall_owner == author;
+  state.db.create_wall_post(&wall_owner, &author, &content, auto)
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn list_wall_posts(state: State<AppState>, session_token: String, wall_owner: String) -> Result<Vec<WallPost>, String> {
+  let viewer = get_handle_from_session(&state, &session_token)?;
+  state.db.list_wall_posts(&wall_owner, &viewer).map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn approve_wall_post(state: State<AppState>, session_token: String, post_id: i64) -> Result<ApproveWallPostResult, String> {
+  let owner = check_session_rate_limit(&state, &session_token)?;
+  state.db.approve_wall_post(&owner, post_id).map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn update_pro_profile(state: State<AppState>, session_token: String, json: String) -> Result<(), String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state.db.update_pro_profile(&handle, &json).map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn update_profile_layout(state: State<AppState>, session_token: String, json: String) -> Result<(), String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state.db.update_profile_layout(&handle, &json).map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn update_top_friends(state: State<AppState>, session_token: String, json: String) -> Result<(), String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state.db.update_top_friends(&handle, &json).map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn get_karma_leaderboard(state: State<AppState>, yard: Option<String>, limit: Option<i64>) -> Result<Vec<KarmaLeaderboardEntry>, String> {
+  state.db.get_karma_leaderboard(yard.as_deref(), limit.unwrap_or(10))
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+fn publish_repost_to_nostr(state: &AppState, reposter_handle: &str, post: &Post) {
+  if post.nostr_event_id.is_empty() {
+    return;
+  }
+  let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
+  if !has_relays {
+    return;
+  }
+  let author_pubkey: String = {
+    let conn = state.db.conn.lock().unwrap();
+    conn.query_row(
+      "SELECT COALESCE(pubkey, '') FROM users WHERE handle = ?1",
+      rusqlite::params![post.author_handle],
+      |r| r.get(0),
+    )
+    .unwrap_or_default()
+  };
+  let user_keys = match user_nostr_keys_for_publish(state, reposter_handle, "repost publish") {
+    Some(k) => k,
+    None => return,
+  };
+  let nostr_client = state.relay_manager.lock().unwrap().client().clone();
+  let event_id = post.nostr_event_id.clone();
+  let town = post.town_tag.clone();
+  let author_pk = author_pubkey;
+
+  if let Ok(rt) = tokio::runtime::Runtime::new() {
+    let _ = rt.block_on(async {
+      use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+      let mut tag_vecs = vec![
+        vec!["e".to_string(), event_id.clone()],
+        vec!["t".to_string(), format!("hbcu-town:{}", town)],
+        vec!["t".to_string(), "blkspace".to_string()],
+      ];
+      if !author_pk.is_empty() {
+        tag_vecs.push(vec!["p".to_string(), author_pk]);
+      }
+      let nostr_tags: Vec<Tag> = tag_vecs
+        .iter()
+        .filter_map(|t| Tag::parse(t.clone()).ok())
+        .collect();
+      let event = EventBuilder::new(Kind::Repost, "")
+        .tags(nostr_tags)
+        .sign(&user_keys)
+        .await
+        .map_err(|e| format!("Repost sign: {}", e))?;
+      let event_id_hex = event.id.to_hex();
+      if let Ok(json) = serde_json::to_string(&event) {
+        let _ = state.db.store_nostr_event_json(&event_id_hex, &json);
+      }
+      nostr_client.send_event(event).await.map_err(|e| format!("Repost publish: {}", e))?;
+      Ok::<_, String>(())
+    });
+  }
+}
+
+#[tauri::command]
+fn repost_post(
+  state: State<AppState>,
+  session_token: String,
+  post_id: i64,
+) -> Result<RepostResult, String> {
+  let user_handle = check_session_rate_limit(&state, &session_token)?;
+  let result = state
+    .db
+    .create_repost(&user_handle, post_id)
+    .map_err(|e| AppError::from(e).to_string())?;
+  if result.reposted {
+    if let Ok(Some(post)) = state.db.get_post(post_id, Some(&user_handle)) {
+      publish_repost_to_nostr(&state, &user_handle, &post);
+    }
+  }
+  Ok(result)
+}
+
+#[tauri::command]
+fn list_following_reposts(
+  state: State<AppState>,
+  session_token: String,
+) -> Result<Vec<RepostFeedItem>, String> {
+  let user_handle = get_handle_from_session(&state, &session_token)?;
+  let following = state
+    .db
+    .get_following_for(&user_handle)
+    .map_err(|e| AppError::from(e).to_string())?;
+  state
+    .db
+    .list_reposts_for_handles(&following, 20, Some(&user_handle))
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn get_earn_summary(state: State<AppState>, session_token: String) -> Result<EarnSummary, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state.db.get_earn_summary(&handle).map_err(|e| AppError::from(e).to_string())
+}
+
 #[tauri::command]
 fn greet(name: String) -> Result<String, String> {
   if name.len() > 50 {
@@ -1840,7 +2733,7 @@ pub fn run() {
 
   let database = Database::new(app_dir.clone()).expect("Failed to initialize database");
   let blob_store = BlobStore::new(&app_dir);
-  let relay_manager = RelayManager::new();
+  let mut relay_manager = RelayManager::new();
 
   // Initialize Iroh node for decentralized content storage (only if feature enabled)
   #[cfg(feature = "iroh")]
@@ -1860,17 +2753,28 @@ pub fn run() {
   #[cfg(not(feature = "iroh"))]
   let iroh_node: Option<()> = None;
 
-  // Connect to default public relays on startup (non-blocking)
-  let mut default_relays_connected: Vec<String> = Vec::new();
+  // Connect to default public relays on startup
   {
     let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
     if let Ok(connected) = rt.block_on(relay_manager.connect_to_default_relays()) {
-      default_relays_connected = connected.clone();
       log::info!("Connected to {} default relays: {:?}", connected.len(), connected);
+      for url in &connected {
+        let _ = database.upsert_relay_connection(url, "Public", "global", "connected");
+      }
     }
   }
 
-  tauri::Builder::default()
+  let mut app_builder = tauri::Builder::default();
+
+  #[cfg(feature = "e2e-testing")]
+  {
+    app_builder = app_builder.plugin(tauri_plugin_playwright::init_with_config(
+      tauri_plugin_playwright::PluginConfig::new()
+        .socket_path("/tmp/blkspace-playwright.sock"),
+    ));
+  }
+
+  app_builder
     .manage(AppState {
       db: database,
       blob_store,
@@ -1948,35 +2852,28 @@ pub fn run() {
                 notification = notifications.recv() => {
                   match notification {
                     Ok(RelayPoolNotification::Event { event, relay_url, .. }) => {
-                      // Validate event before storage
                       let event_json = serde_json::to_string(&event)
-                        .unwrap_or("{}".to_string());
-                      if validate_incoming_event(&event_json).unwrap_or(false) {
-                        let st = handle.state::<AppState>();
-                        let tags_json = serde_json::to_string(
-                          &event.tags.iter().map(|t| t.clone().to_vec()).collect::<Vec<_>>()
-                        ).unwrap_or("[]".to_string());
-                        let event_id = event.id.to_hex();
-                        let content_hash = format!("{:x}", sha2::Sha256::digest(&event.content));
-                        let relay_url_str = relay_url.to_string();
-                        let _ = st.db.insert_relay_event(
-                          &event_id,
-                          &relay_url_str,
-                          event.kind.as_u16() as i64,
-                          &event.pubkey.to_string(),
-                          &event.content,
-                          &tags_json,
-                          event.created_at.as_u64() as i64,
-                        );
-                        // Record relay consensus for cache poisoning prevention
-                        let _ = st.db.record_relay_consensus(&event_id, &relay_url_str, &content_hash);
+                        .unwrap_or_default();
+                      if event_json.is_empty() {
+                        continue;
+                      }
+                      let st = handle.state::<AppState>();
+                      let relay_town = st
+                        .db
+                        .get_relay_town_by_url(&relay_url.to_string())
+                        .ok()
+                        .flatten();
+                      if ingest_validated_relay_event(
+                        &st,
+                        &event_json,
+                        &relay_url.to_string(),
+                        relay_town.as_deref(),
+                      ) {
                         if let Ok(count) = st.db.count_relay_events_since((now_secs - 86400) as i64) {
                           let _ = st.relay_manager.lock().unwrap().increment_events(
                             if count > 0 { 1 } else { 0 },
                           );
                         }
-                      } else {
-                        log::warn!("Invalid event received: {}", event.id.to_hex());
                       }
                     }
                     Ok(_) => {}
@@ -2004,8 +2901,15 @@ pub fn run() {
       has_key,
       get_user,
       list_users,
+      search_users,
+      search_posts,
+      search_communities,
       create_user,
       update_user,
+      update_profile_customization,
+      verify_nostr_event,
+      verify_nostr_event_by_id,
+      get_nostr_event_json,
       set_node_role,
       set_community_role,
       get_community_role,
@@ -2044,6 +2948,7 @@ pub fn run() {
       list_relay_connections,
       check_relay_health,
       connect_to_default_relays,
+      publish_nostr_visibility_test,
       sync_town_events,
       list_relay_events,
       list_relay_events_with_consensus,
@@ -2054,6 +2959,7 @@ pub fn run() {
       list_combined_feed,
       publish_relay_list,
       fetch_user_relay_list,
+      e2e_prepare_profile_relay_fixture,
       announce_blob,
       publish_trending_summary,
       fetch_trending_summaries,
@@ -2072,8 +2978,10 @@ pub fn run() {
       mark_offline_action_synced,
       clear_synced_offline_actions,
       count_pending_offline_actions,
+      flush_offline_queue,
       get_user_account_data,
       log_device_sync,
+      run_tier0_benchmark,
       get_device_sync_history,
       record_relay_consensus,
       get_relay_consensus,
@@ -2089,6 +2997,20 @@ pub fn run() {
       calculate_malicious_intent_vector,
       get_malicious_intent_scores,
       recalculate_all_malicious_intent_scores,
+      join_yard,
+      leave_yard,
+      is_yard_member,
+      list_yard_members,
+      create_wall_post,
+      list_wall_posts,
+      approve_wall_post,
+      update_pro_profile,
+      update_profile_layout,
+      update_top_friends,
+      get_karma_leaderboard,
+      get_earn_summary,
+      repost_post,
+      list_following_reposts,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

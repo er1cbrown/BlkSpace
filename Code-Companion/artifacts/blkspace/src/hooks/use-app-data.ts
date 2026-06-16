@@ -47,6 +47,9 @@ const MOCK_POSTS = [
     nostrEventId: "",
     relayUrl: "",
     createdAt: "2026-06-14T09:00:00Z",
+    engagementQuality: 1.0,
+    maliciousScore: 0.0,
+    riskLevel: "low" as const,
   },
   {
     id: 2,
@@ -63,6 +66,9 @@ const MOCK_POSTS = [
     nostrEventId: "",
     relayUrl: "",
     createdAt: "2026-06-14T10:30:00Z",
+    engagementQuality: 1.0,
+    maliciousScore: 0.0,
+    riskLevel: "low" as const,
   },
   {
     id: 3,
@@ -80,6 +86,9 @@ const MOCK_POSTS = [
     nostrEventId: "",
     relayUrl: "",
     createdAt: "2026-06-14T11:15:00Z",
+    engagementQuality: 1.2,
+    maliciousScore: 0.0,
+    riskLevel: "low" as const,
   },
 ];
 
@@ -101,7 +110,13 @@ function getMockUser(handle: string) {
     followersCount: 245,
     followingCount: 89,
     weixBucks: 1250,
+    pubkey: "",
     engagementQuality: 1.0,
+    postKarma: 42,
+    commentKarma: 18,
+    proProfileJson: "{}",
+    profileLayoutJson: "{}",
+    topFriendsJson: "[]",
     createdAt: "2026-06-01T00:00:00Z",
   };
 }
@@ -327,6 +342,10 @@ export function useTauriListPostsForChannel(channelId: string) {
 
 // ─── Mutations ───────────────────────────────────────────
 
+function isOffline(): boolean {
+  return typeof navigator !== "undefined" && !navigator.onLine;
+}
+
 export function useAppCreatePost() {
   const qc = useQueryClient();
   const web = useCreatePost();
@@ -349,6 +368,17 @@ export function useAppCreatePost() {
       qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
     },
   });
+  const queueMut = useMutation({
+    mutationFn: (payload: string) =>
+      tauri.tauriQueueOfflineAction(
+        getSessionToken() || "",
+        "create_post",
+        payload,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "offlineQueue"] });
+    },
+  });
   return {
     mutate: IS_TAURI
       ? (
@@ -359,7 +389,19 @@ export function useAppCreatePost() {
             media_hashes?: string[];
           },
           opts?: any,
-        ) =>
+        ) => {
+          if (isOffline()) {
+            queueMut.mutate(
+              JSON.stringify({
+                content: input.content,
+                town_tag: input.town_tag,
+                channel_id: input.channel_id || "",
+                media_hashes: input.media_hashes || [],
+              }),
+              opts,
+            );
+            return;
+          }
           tauriMut.mutate(
             {
               session_token: getSessionToken() || "",
@@ -371,7 +413,8 @@ export function useAppCreatePost() {
                 : undefined,
             },
             opts,
-          )
+          );
+        }
       : (input: any, opts?: any) =>
           web.mutate(
             {
@@ -383,7 +426,9 @@ export function useAppCreatePost() {
             },
             opts,
           ),
-    isPending: IS_TAURI ? tauriMut.isPending : web.isPending,
+    isPending: IS_TAURI
+      ? tauriMut.isPending || queueMut.isPending
+      : web.isPending,
   };
 }
 
@@ -398,9 +443,26 @@ export function useAppToggleLike() {
       qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
     },
   });
+  const queueMut = useMutation({
+    mutationFn: (postId: number) =>
+      tauri.tauriQueueOfflineAction(
+        getSessionToken() || "",
+        "like_post",
+        JSON.stringify({ post_id: postId }),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "offlineQueue"] });
+    },
+  });
   return {
     mutate: IS_TAURI
-      ? (args: { postId: number }, opts?: any) => tauriMut.mutate(args, opts)
+      ? (args: { postId: number }, opts?: any) => {
+          if (isOffline()) {
+            queueMut.mutate(args.postId, opts);
+            return;
+          }
+          tauriMut.mutate(args, opts);
+        }
       : (args: { postId: number; liked: boolean }, opts?: any) => {
           if (args.liked) {
             webUnlike.mutate({ id: args.postId }, opts);
@@ -409,7 +471,7 @@ export function useAppToggleLike() {
           }
         },
     isPending: IS_TAURI
-      ? tauriMut.isPending
+      ? tauriMut.isPending || queueMut.isPending
       : webLike.isPending || webUnlike.isPending,
   };
 }
@@ -469,6 +531,58 @@ export function useTauriListUsers() {
     queryKey: ["tauri", "users"],
     queryFn: tauri.tauriListUsers,
     enabled: IS_TAURI,
+  });
+}
+
+export function useTauriSearchUsers(query: string, enabled = true) {
+  const q = query.trim();
+  return useQuery({
+    queryKey: ["tauri", "search", "users", q],
+    queryFn: () => tauri.tauriSearchUsers(q),
+    enabled: IS_TAURI && enabled && q.length >= 1,
+    staleTime: 10_000,
+  });
+}
+
+export function useTauriSearchPosts(query: string, enabled = true) {
+  const q = query.trim();
+  return useQuery({
+    queryKey: ["tauri", "search", "posts", q],
+    queryFn: () => tauri.tauriSearchPosts(q, 50, getCurrentHandle()),
+    enabled: IS_TAURI && enabled && q.length >= 1,
+    staleTime: 10_000,
+  });
+}
+
+export function useTauriUpdateProfileCustomization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      theme,
+      musicHash,
+    }: {
+      theme: string;
+      musicHash?: string | null;
+    }) =>
+      tauri.tauriUpdateProfileCustomization(
+        getSessionToken() || "",
+        theme,
+        musicHash,
+      ),
+    onSuccess: (_user, vars) => {
+      qc.invalidateQueries({ queryKey: ["tauri", "user"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "users"] });
+    },
+  });
+}
+
+export function useTauriSearchCommunities(query: string, enabled = true) {
+  const q = query.trim();
+  return useQuery({
+    queryKey: ["tauri", "search", "communities", q],
+    queryFn: () => tauri.tauriSearchCommunities(q),
+    enabled: IS_TAURI && enabled && q.length >= 1,
+    staleTime: 10_000,
   });
 }
 
@@ -658,6 +772,13 @@ export function useTauriConnectToDefaultRelays() {
   });
 }
 
+export function useTauriPublishNostrVisibilityTest() {
+  return useMutation({
+    mutationFn: () =>
+      tauri.tauriPublishNostrVisibilityTest(getSessionToken() || ""),
+  });
+}
+
 export function useTauriCheckRelayHealth() {
   return useMutation({
     mutationFn: (url: string) => tauri.tauriCheckRelayHealth(url),
@@ -712,6 +833,7 @@ export function useTauriPublishRelayList() {
     mutationFn: () => tauri.tauriPublishRelayList(getSessionToken() || ""),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "relayStatuses"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "userRelayList"] });
     },
   });
 }
@@ -959,6 +1081,12 @@ export function useTauriGetDeviceSyncHistory(deviceId: string) {
   });
 }
 
+export function useTauriRunTier0Benchmark() {
+  return useMutation({
+    mutationFn: () => tauri.tauriRunTier0Benchmark(),
+  });
+}
+
 // ─── Relay Consensus (Cache Poisoning Prevention) ─────
 
 export function useTauriRecordRelayConsensus() {
@@ -1049,5 +1177,152 @@ export function useTauriGetMaliciousIntentScores(handle: string) {
 export function useTauriRecalculateAllMaliciousIntentScores() {
   return useMutation({
     mutationFn: () => tauri.tauriRecalculateAllMaliciousIntentScores(),
+  });
+}
+
+// ─── Karma, yards, profile extensions ──────────────────
+
+export function useTauriJoinYard() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (communityId: string) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return tauri.tauriJoinYard(token, communityId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "user"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "earnSummary"] });
+    },
+  });
+}
+
+export function useTauriIsYardMember(communityId: string) {
+  return useQuery({
+    queryKey: ["tauri", "yardMember", communityId],
+    queryFn: () => {
+      const token = getSessionToken();
+      if (!token) return false;
+      return tauri.tauriIsYardMember(token, communityId);
+    },
+    enabled: IS_TAURI && !!communityId,
+  });
+}
+
+export function useTauriGetEarnSummary() {
+  return useQuery({
+    queryKey: ["tauri", "earnSummary"],
+    queryFn: () => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return tauri.tauriGetEarnSummary(token);
+    },
+    enabled: IS_TAURI,
+  });
+}
+
+export function useTauriGetKarmaLeaderboard(yard?: string, limit = 25) {
+  return useQuery({
+    queryKey: ["tauri", "karmaLeaderboard", yard, limit],
+    queryFn: () => tauri.tauriGetKarmaLeaderboard(yard, limit),
+    enabled: IS_TAURI,
+  });
+}
+
+export function useTauriRepostPost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: number) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return tauri.tauriRepostPost(token, postId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "followingReposts"] });
+    },
+  });
+}
+
+export function useTauriFollowingReposts(enabled = true) {
+  return useQuery({
+    queryKey: ["tauri", "followingReposts"],
+    queryFn: () => {
+      const token = getSessionToken();
+      if (!token) return [];
+      return tauri.tauriListFollowingReposts(token);
+    },
+    enabled: IS_TAURI && enabled,
+  });
+}
+
+export function useTauriListWallPosts(wallOwner: string) {
+  return useQuery({
+    queryKey: ["tauri", "wallPosts", wallOwner],
+    queryFn: () => {
+      const token = getSessionToken();
+      if (!token) return [];
+      return tauri.tauriListWallPosts(token, wallOwner);
+    },
+    enabled: IS_TAURI && !!wallOwner,
+  });
+}
+
+export function useTauriCreateWallPost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      wallOwner,
+      content,
+    }: {
+      wallOwner: string;
+      content: string;
+    }) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return tauri.tauriCreateWallPost(token, wallOwner, content);
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["tauri", "wallPosts", vars.wallOwner] });
+    },
+  });
+}
+
+export function useTauriApproveWallPost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: number) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return tauri.tauriApproveWallPost(token, postId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "wallPosts"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "user"] });
+    },
+  });
+}
+
+export function useTauriUpdateProProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (json: string) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return tauri.tauriUpdateProProfile(token, json);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tauri", "user"] }),
+  });
+}
+
+export function useTauriUpdateTopFriends() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (json: string) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return tauri.tauriUpdateTopFriends(token, json);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tauri", "user"] }),
   });
 }

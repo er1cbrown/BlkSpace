@@ -10,6 +10,7 @@
     "beforeBuildCommand": "pnpm build"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "BlkSpace",
@@ -18,11 +19,15 @@
         "minWidth": 360,
         "minHeight": 480,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "devtools": true
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* ws://127.0.0.1:* http://localhost:*; img-src 'self' data: https:; font-src 'self' data:; form-action 'self'"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* ws://127.0.0.1:* http://localhost:*; img-src 'self' data: https:; font-src 'self' data:; form-action 'self'",
+      "capabilities": [
+        "default"
+      ]
     }
   },
   "bundle": {

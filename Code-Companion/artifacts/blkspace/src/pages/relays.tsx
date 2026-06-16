@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navbar } from "@/components/layout/Navbar";
+import { AppShell } from "@/components/layout/AppShell";
 import {
   Card,
   CardContent,
@@ -35,8 +35,16 @@ import {
   useTauriRelayNetworkStats,
   useTauriConnectToDefaultRelays,
   useTauriCheckRelayHealth,
+  useTauriPublishNostrVisibilityTest,
+  useTauriPublishRelayList,
+  useTauriFetchUserRelayList,
 } from "@/hooks/use-app-data";
-import { isTauri, TauriRelayStatus } from "@/lib/tauri-api";
+import {
+  isTauri,
+  TauriRelayStatus,
+  type NostrVisibilityTestResult,
+} from "@/lib/tauri-api";
+import { getStoredPubkey } from "@/lib/auth";
 
 export default function RelaysPage() {
   const [connectUrl, setConnectUrl] = useState("");
@@ -56,6 +64,13 @@ export default function RelaysPage() {
   const syncMutation = useTauriSyncTownEvents();
   const defaultRelaysMutation = useTauriConnectToDefaultRelays();
   const healthCheckMutation = useTauriCheckRelayHealth();
+  const visibilityTestMutation = useTauriPublishNostrVisibilityTest();
+  const publishRelayListMutation = useTauriPublishRelayList();
+  const myPubkey = getStoredPubkey() || "";
+  const { data: myRelayList, refetch: refetchMyRelayList } =
+    useTauriFetchUserRelayList(myPubkey);
+  const [visibilityResult, setVisibilityResult] =
+    useState<NostrVisibilityTestResult | null>(null);
   const [healthResults, setHealthResults] = useState<
     Record<string, { connected: boolean; latencyMs?: number }>
   >({});
@@ -94,10 +109,8 @@ export default function RelaysPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <Navbar />
-
-      <div className="bg-secondary text-secondary-foreground py-12 border-b-4 border-primary">
+    <AppShell wide hideRightRail>
+      <div className="-mx-4 -mt-4 md:-mx-0 md:-mt-2 mb-6 bg-secondary text-secondary-foreground py-10 border-b-4 border-primary rounded-b-2xl">
         <div className="container px-4">
           <div className="flex items-center gap-4 mb-4">
             <Network className="w-10 h-10 text-primary" />
@@ -112,7 +125,7 @@ export default function RelaysPage() {
         </div>
       </div>
 
-      <main className="flex-1 container py-8 px-4">
+      <div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           {displayStats && (
             <>
@@ -227,6 +240,158 @@ export default function RelaysPage() {
                 Connected to {defaultRelaysMutation.data?.length} default
                 relays: {defaultRelaysMutation.data?.join(", ")}
               </div>
+            )}
+
+            {isDesktop && (
+              <Card className="mb-6 border-primary/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">
+                    NIP-65 relay list
+                  </CardTitle>
+                  <CardDescription>
+                    Publish kind 10002 to relays, then fetch live from the
+                    network (falls back to local cache).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        publishRelayListMutation.mutate(undefined, {
+                          onSuccess: () => refetchMyRelayList(),
+                        })
+                      }
+                      disabled={publishRelayListMutation.isPending}
+                    >
+                      {publishRelayListMutation.isPending
+                        ? "Publishing…"
+                        : "Publish my relay list"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => refetchMyRelayList()}
+                      disabled={!myPubkey}
+                    >
+                      Refresh from relays
+                    </Button>
+                  </div>
+                  {publishRelayListMutation.isError && (
+                    <p className="text-sm text-destructive">
+                      {publishRelayListMutation.error.message}
+                    </p>
+                  )}
+                  {publishRelayListMutation.isSuccess && (
+                    <p className="text-xs text-green-700">
+                      Published event{" "}
+                      <span className="font-mono">
+                        {publishRelayListMutation.data?.slice(0, 16)}…
+                      </span>
+                    </p>
+                  )}
+                  {myPubkey && (
+                    <div className="text-sm space-y-1">
+                      <p className="text-muted-foreground">Your relays (NIP-65):</p>
+                      {myRelayList && myRelayList.length > 0 ? (
+                        <ul className="font-mono text-xs space-y-1">
+                          {myRelayList.map((url) => (
+                            <li key={url} className="break-all">
+                              {url}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          None found — connect defaults, then publish.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {isDesktop && (
+              <Card className="mb-6 border-primary/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">
+                    Damus / cross-client visibility
+                  </CardTitle>
+                  <CardDescription>
+                    Publish a signed test note to relay.damus.io, then verify on
+                    Damus or nostr.band.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      visibilityTestMutation.mutate(undefined, {
+                        onSuccess: (result) => setVisibilityResult(result),
+                      })
+                    }
+                    disabled={visibilityTestMutation.isPending}
+                  >
+                    {visibilityTestMutation.isPending
+                      ? "Publishing…"
+                      : "Publish visibility test note"}
+                  </Button>
+                  {visibilityTestMutation.isError && (
+                    <p className="text-sm text-destructive">
+                      {visibilityTestMutation.error.message}
+                    </p>
+                  )}
+                  {visibilityResult && (
+                    <div className="space-y-3 text-sm">
+                      <Badge
+                        variant={
+                          visibilityResult.fetchedBack ? "default" : "secondary"
+                        }
+                      >
+                        {visibilityResult.fetchedBack
+                          ? "Relay round-trip OK"
+                          : "Published — waiting on relay index"}
+                      </Badge>
+                      <p className="text-muted-foreground break-all">
+                        {visibilityResult.content}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="secondary" asChild>
+                          <a
+                            href={`https://nostr.band/${visibilityResult.nevent}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open on nostr.band
+                          </a>
+                        </Button>
+                        <Button size="sm" variant="secondary" asChild>
+                          <a
+                            href={`https://nostr.band/${visibilityResult.npub}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Your profile on nostr.band
+                          </a>
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Damus (iOS): add relay{" "}
+                        <span className="font-mono">
+                          {visibilityResult.relayUrl}
+                        </span>
+                        , search your npub{" "}
+                        <span className="font-mono break-all">
+                          {visibilityResult.npub}
+                        </span>
+                        , or search note text “BlkSpace visibility test”.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
 
             {isDesktop && showConnectForm && (
@@ -472,7 +637,7 @@ export default function RelaysPage() {
             </Card>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }

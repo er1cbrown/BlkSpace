@@ -43,13 +43,16 @@ iroh-io = "0.6"
 keyring = "3"
 chacha20poly1305 = "0.10"
 rand = "0.8"
+tauri-plugin-playwright = { version = "0.4.0", optional = true }
 
 [features]
-default = []
+default = ["iroh"]
 iroh = ["dep:iroh-blobs"]
+e2e-testing = ["dep:tauri-plugin-playwright"]
 
-# Note: To build with Iroh (for full decentralized media/pinning/offline + real CIDs instead of sha256-as-cid):
-#   cargo tauri dev --features iroh
+# Iroh is enabled by default for dev and release builds (`pnpm tauri:dev` / `pnpm tauri:build`).
+# CI also runs a dedicated Linux smoke job with explicit `--features iroh`.
+# Disable with `cargo build --no-default-features` if you need a slim binary without blob networking.
 # The build is feature-gated by default because iroh-blobs 0.35 transitives (netwatch) can have
 # platform issues on macOS even with the socket2=0.5.7 pin. When enabled:
 # - upload_blob stores to Iroh fs store and returns real CID (blake3) in BlobInfo.cid

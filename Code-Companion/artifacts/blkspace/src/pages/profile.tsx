@@ -1,4 +1,4 @@
-import { Navbar } from "@/components/layout/Navbar";
+import { AppShell } from "@/components/layout/AppShell";
 import { useRoute } from "wouter";
 import {
   Card,
@@ -8,7 +8,7 @@ import {
   CardFooter,
   CardDescription,
 } from "@/components/ui/card";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,12 +32,41 @@ import {
   useAppCreatePost,
   useTauriToggleFollow,
   useTauriGetFollowing,
+  useTauriUpdateProfileCustomization,
 } from "@/hooks/use-app-data";
 import { SafeContent } from "@/components/ui/safe-content";
 import { MediaDisplay } from "@/components/ui/media-display";
-import { getCurrentHandle, getSessionToken } from "@/lib/auth";
-import { isTauri, tauriGetBlobBytes } from "@/lib/tauri-api";
+import { getCurrentHandle, getSessionToken, getStoredPubkey } from "@/lib/auth";
+import {
+  isTauri,
+  tauriGetBlobBytes,
+  tauriListUserBlobs,
+  type TauriBlobInfo,
+} from "@/lib/tauri-api";
 import { toast } from "sonner";
+import { ProfileGrid } from "@/components/profile/ProfileGrid";
+import { ProfileRelayList } from "@/components/profile/ProfileRelayList";
+import { TopFriends, type TopFriend } from "@/components/profile/TopFriends";
+import { ProProfileTab } from "@/components/profile/ProProfileTab";
+import { KarmaBadge } from "@/components/economy/KarmaBadge";
+import {
+  useTauriUpdateProProfile,
+  useTauriUpdateTopFriends,
+  useTauriListWallPosts,
+  useTauriCreateWallPost,
+  useTauriApproveWallPost,
+} from "@/hooks/use-app-data";
+import { showEarnFromResult } from "@/components/economy/EarnToast";
+import { Badge } from "@/components/ui/badge";
+
+type ThemeKey = "classic" | "pro" | "vibrant" | "myspace";
+
+function themeKeyFromId(id: number): ThemeKey {
+  if (id === 1) return "pro";
+  if (id === 2) return "vibrant";
+  if (id === 3) return "myspace";
+  return "classic";
+}
 
 export default function ProfilePage() {
   const [, params] = useRoute("/profile/:handle");
@@ -53,15 +82,19 @@ export default function ProfilePage() {
   );
   const createPost = useAppCreatePost();
   const toggleFollowMut = useTauriToggleFollow();
+  const updateCustomization = useTauriUpdateProfileCustomization();
+  const updateProProfile = useTauriUpdateProProfile();
+  const updateTopFriends = useTauriUpdateTopFriends();
+  const { data: wallPostsApi = [] } = useTauriListWallPosts(handle || currentUser);
+  const createWallPost = useTauriCreateWallPost();
+  const approveWallPost = useTauriApproveWallPost();
   const { data: remoteFollowing = [] } = useTauriGetFollowing(
     isTauri() && !isOwnProfile,
   );
 
-  // MySpace-style customization (demo state, persists in session)
-  const [profileTheme, setProfileTheme] = useState<
-    "classic" | "pro" | "vibrant" | "myspace"
-  >("classic");
-  const [profileSong, setProfileSong] = useState<string | null>(null); // hash for audio
+  const [profileTheme, setProfileTheme] = useState<ThemeKey>("classic");
+  const [profileSong, setProfileSong] = useState<string | null>(null);
+  const [audioBlobs, setAudioBlobs] = useState<TauriBlobInfo[]>([]);
   const [showCustomize, setShowCustomize] = useState(false);
   const [audioSrc, setAudioSrc] = useState<string | null>(null); // for real Iroh play
   const [wallText, setWallText] = useState(""); // for visitor wall posts
@@ -83,17 +116,52 @@ export default function ProfilePage() {
     myspace: "MySpace Throwback",
   };
 
-  const demoSongs = [
-    { hash: "demo-mix-1", name: "Tailgate Mix 2026", artist: "Campus King" },
-    {
-      hash: "demo-mix-2",
-      name: "Library Chill Beats",
-      artist: "Spelman Sound",
-    },
-  ];
+  const currentSongBlob = audioBlobs.find((b) => b.hash === profileSong);
 
-  const currentSong =
-    demoSongs.find((s) => s.hash === profileSong) || demoSongs[0];
+  const profilePubkey = useMemo(() => {
+    const fromUser = user?.pubkey?.trim() ?? "";
+    if (fromUser.length === 64) return fromUser;
+    if (isOwnProfile) {
+      const stored = getStoredPubkey()?.trim() ?? "";
+      if (stored.length === 64) return stored;
+    }
+    return "";
+  }, [user?.pubkey, isOwnProfile]);
+
+  useEffect(() => {
+    if (!user) return;
+    setProfileTheme(themeKeyFromId((user as any).themeId ?? 0));
+    const mh = (user as any).musicHash as string | undefined;
+    setProfileSong(mh && mh.length > 0 ? mh : null);
+  }, [user]);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    const token = getSessionToken();
+    if (!token) return;
+    tauriListUserBlobs(token)
+      .then((blobs) =>
+        setAudioBlobs(blobs.filter((b) => b.mimeType.startsWith("audio/"))),
+      )
+      .catch(() => setAudioBlobs([]));
+  }, [isOwnProfile, user?.handle]);
+
+  const saveCustomization = (theme: ThemeKey, music: string | null) => {
+    setProfileTheme(theme);
+    setProfileSong(music);
+    if (!isTauri()) {
+      toast.success("Saved locally (web preview mode)");
+      return;
+    }
+    updateCustomization.mutate(
+      { theme, musicHash: music || "" },
+      {
+        onSuccess: () =>
+          toast.success("Profile theme & music saved to DB + Nostr kind 0"),
+        onError: (e) => toast.error(String(e)),
+      },
+    );
+  };
 
   useEffect(() => {
     const target = handle || currentUser;
@@ -121,13 +189,25 @@ export default function ProfilePage() {
       .catch(() => setAudioSrc(null));
   }, [profileSong]);
 
-  // Facebook-like wall posts (mock on top of real posts)
-  const wallPosts = (posts || []).slice(0, 3);
+  const topFriends: TopFriend[] = (() => {
+    try {
+      return JSON.parse((user as any)?.topFriendsJson || "[]");
+    } catch {
+      return [];
+    }
+  })();
+
+  const pendingWallPosts = isTauri()
+    ? wallPostsApi.filter((p) => !p.approved)
+    : [];
+  const approvedWallPosts = isTauri()
+    ? wallPostsApi.filter((p) => p.approved)
+    : wallPostsApi.length > 0
+      ? wallPostsApi
+      : (posts || []).slice(0, 3);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1 container max-w-4xl py-8 px-4">
+    <AppShell wide>
         {isLoading ? (
           <div className="h-64 bg-muted/50 animate-pulse rounded-2xl mb-8"></div>
         ) : user ? (
@@ -152,7 +232,10 @@ export default function ProfilePage() {
                       <Music className="w-3 h-3" /> NOW PLAYING ON PROFILE
                     </div>
                     <div className="font-mono text-sm">
-                      {currentSong.name} — {currentSong.artist}
+                      {currentSongBlob?.filename ||
+                        (profileSong
+                          ? `${profileSong.slice(0, 8)}…`
+                          : "Profile song")}
                     </div>
                     {audioSrc && (
                       <audio controls src={audioSrc} className="mt-1 w-48" />
@@ -262,34 +345,136 @@ export default function ProfilePage() {
                 <div className="flex-1" />
                 <div className="font-bold text-primary flex items-center gap-2 text-xl">
                   <Coins className="w-5 h-5" />{" "}
-                  {user.weixBucks?.toLocaleString()} WeixBucks
+                  {user.weixBucks?.toLocaleString()} WB
                 </div>
+                <KarmaBadge
+                  postKarma={(user as any).postKarma ?? 0}
+                  commentKarma={(user as any).commentKarma ?? 0}
+                />
               </div>
 
-              {/* Rich Profile Tabs: Wall (FB), Posts (Twitter), Music (MySpace), Customize */}
-              <Tabs defaultValue="wall" className="mt-2">
+              <ProfileRelayList
+                pubkey={profilePubkey}
+                isOwnProfile={isOwnProfile}
+                displayName={user.displayName ?? user.handle ?? "User"}
+              />
+
+              <div className="mb-6">
+                <TopFriends
+                  friends={topFriends}
+                  editable={isOwnProfile}
+                  onEdit={() => {
+                    const handles = prompt(
+                      "Top friends (comma handles)",
+                      topFriends.map((f) => f.handle).join(","),
+                    );
+                    if (!handles) return;
+                    const next = handles.split(",").map((h, i) => ({
+                      handle: h.trim(),
+                      label: h.trim().split("_")[0] || `Friend ${i + 1}`,
+                    }));
+                    if (isTauri()) {
+                      updateTopFriends.mutate(JSON.stringify(next));
+                    }
+                    toast.success("Top friends updated");
+                  }}
+                />
+              </div>
+
+              <Tabs defaultValue="grid" className="mt-2">
                 <TabsList className="mb-4 w-full justify-start flex-wrap h-auto">
-                  <TabsTrigger value="wall">Wall (Facebook)</TabsTrigger>
+                  <TabsTrigger value="grid">Grid (IG)</TabsTrigger>
+                  <TabsTrigger value="wall">Wall (FB)</TabsTrigger>
                   <TabsTrigger value="posts">Posts</TabsTrigger>
-                  <TabsTrigger value="music">Music (MySpace)</TabsTrigger>
+                  <TabsTrigger value="pro">Pro</TabsTrigger>
+                  <TabsTrigger value="music">Music</TabsTrigger>
                   {isOwnProfile && (
-                    <TabsTrigger value="customize">Customize</TabsTrigger>
+                    <TabsTrigger value="customize">MySpace</TabsTrigger>
                   )}
                 </TabsList>
+
+                <TabsContent value="grid">
+                  <ProfileGrid
+                    posts={(posts as any) || []}
+                    handle={user.handle}
+                  />
+                </TabsContent>
+
+                <TabsContent value="pro">
+                  <ProProfileTab
+                    initialJson={(user as any).proProfileJson}
+                    isOwn={isOwnProfile}
+                    onSave={(json) => {
+                      if (isTauri()) updateProProfile.mutate(json);
+                      else toast.success("Saved locally (web preview)");
+                    }}
+                  />
+                </TabsContent>
 
                 <TabsContent value="wall" className="space-y-4">
                   <div className="text-sm text-muted-foreground mb-3 flex items-center gap-2">
                     <Users className="w-4 h-4" /> Write on {user.displayName}'s
                     wall (Facebook style)
                   </div>
-                  {wallPosts.length > 0 ? (
-                    wallPosts.map((post: any) => (
+
+                  {isOwnProfile && isTauri() && pendingWallPosts.length > 0 && (
+                    <div className="space-y-3 p-4 rounded-xl border border-amber-500/30 bg-amber-500/5">
+                      <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                        Pending approval ({pendingWallPosts.length})
+                      </p>
+                      {pendingWallPosts.map((post) => (
+                        <Card
+                          key={post.id}
+                          className="border-amber-500/20 bg-background/80"
+                        >
+                          <CardContent className="pt-4">
+                            <SafeContent text={post.content} />
+                            <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
+                              <span className="text-xs text-muted-foreground">
+                                @{post.authorHandle} •{" "}
+                                {new Date(post.createdAt).toLocaleDateString()}
+                              </span>
+                              <Button
+                                size="sm"
+                                disabled={approveWallPost.isPending}
+                                onClick={() =>
+                                  approveWallPost.mutate(post.id, {
+                                    onSuccess: (result) => {
+                                      if (result.approved && result.earn) {
+                                        showEarnFromResult(
+                                          result.earn,
+                                          "Wall post approved",
+                                        );
+                                      }
+                                    },
+                                    onError: (e) => toast.error(String(e)),
+                                  })
+                                }
+                              >
+                                Approve
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+
+                  {approvedWallPosts.length > 0 ? (
+                    approvedWallPosts.map((post: any) => (
                       <Card key={post.id} className="border-border/60">
                         <CardContent className="pt-4">
                           <SafeContent text={post.content} />
-                          <div className="text-xs text-muted-foreground mt-3">
-                            — {post.authorDisplayName} •{" "}
-                            {new Date(post.createdAt).toLocaleDateString()}
+                          <div className="text-xs text-muted-foreground mt-3 flex items-center gap-2">
+                            <span>
+                              — {post.authorDisplayName ?? post.authorHandle} •{" "}
+                              {new Date(post.createdAt).toLocaleDateString()}
+                            </span>
+                            {post.approved === false && (
+                              <Badge variant="outline" className="text-[10px]">
+                                Pending
+                              </Badge>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -304,8 +489,8 @@ export default function ProfilePage() {
                   {!isOwnProfile && (
                     <div className="mt-4 border-t pt-4">
                       <div className="text-xs text-muted-foreground mb-2">
-                        Write on {user.displayName}'s wall (posts as regular
-                        post for demo, future: dedicated wall_posts + approval)
+                        Write on {user.displayName}'s wall — posts await owner
+                        approval before appearing publicly.
                       </div>
                       <Textarea
                         placeholder="Say something nice..."
@@ -317,6 +502,30 @@ export default function ProfilePage() {
                         size="sm"
                         onClick={() => {
                           if (!wallText.trim()) return;
+                          if (isTauri()) {
+                            createWallPost.mutate(
+                              {
+                                wallOwner: handle || currentUser,
+                                content: wallText.trim(),
+                              },
+                              {
+                                onSuccess: (result) => {
+                                  setWallText("");
+                                  if (result.wallPost.approved && result.earn) {
+                                    showEarnFromResult(
+                                      result.earn,
+                                      "Wall post published",
+                                    );
+                                  } else {
+                                    toast.success(
+                                      "Wall post submitted — awaiting approval",
+                                    );
+                                  }
+                                },
+                              },
+                            );
+                            return;
+                          }
                           createPost.mutate({
                             content: `On @${user.handle}'s wall: ${wallText}`,
                             town_tag: user.town || selectedTown || "tsu",
@@ -333,9 +542,10 @@ export default function ProfilePage() {
                     </div>
                   )}
 
-                  {isOwnProfile && (
+                  {isOwnProfile && pendingWallPosts.length === 0 && (
                     <div className="text-xs text-center text-muted-foreground mt-4">
-                      Visitors can post here in a future update.
+                      Visitors can write on your wall — you approve before they
+                      go live.
                     </div>
                   )}
                 </TabsContent>
@@ -391,10 +601,13 @@ export default function ProfilePage() {
                     <Card className="border-primary/30">
                       <CardContent className="pt-5 pb-4">
                         <div className="font-medium mb-1">
-                          {currentSong.name}
+                          {currentSongBlob?.filename ||
+                            (profileSong ? "Uploaded track" : "No song set")}
                         </div>
                         <div className="text-sm text-muted-foreground mb-3">
-                          by {currentSong.artist}
+                          {profileSong
+                            ? `hash ${profileSong.slice(0, 12)}…`
+                            : "Upload audio on Media to set your profile song"}
                         </div>
 
                         {/* Real Iroh audio if set, else demo */}
@@ -419,31 +632,43 @@ export default function ProfilePage() {
 
                         {isOwnProfile && (
                           <div className="mt-4 flex flex-wrap gap-2">
-                            {demoSongs.map((song) => (
+                            {audioBlobs.length === 0 ? (
+                              <p className="text-sm text-muted-foreground w-full">
+                                Upload audio on the Media page to set a profile
+                                song.
+                              </p>
+                            ) : (
+                              audioBlobs.map((blob) => (
+                                <Button
+                                  key={blob.hash}
+                                  size="sm"
+                                  variant={
+                                    profileSong === blob.hash
+                                      ? "default"
+                                      : "outline"
+                                  }
+                                  onClick={() =>
+                                    saveCustomization(profileTheme, blob.hash)
+                                  }
+                                  disabled={updateCustomization.isPending}
+                                >
+                                  {profileSong === blob.hash ? "✓ " : ""}
+                                  {blob.filename}
+                                </Button>
+                              ))
+                            )}
+                            {profileSong && (
                               <Button
-                                key={song.hash}
                                 size="sm"
-                                variant={
-                                  profileSong === song.hash
-                                    ? "default"
-                                    : "outline"
+                                variant="ghost"
+                                onClick={() =>
+                                  saveCustomization(profileTheme, null)
                                 }
-                                onClick={() => setProfileSong(song.hash)}
+                                disabled={updateCustomization.isPending}
                               >
-                                Set as profile song: {song.name}
+                                Clear profile song
                               </Button>
-                            ))}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                toast(
-                                  "Connect to your Media uploads to pick real audio",
-                                )
-                              }
-                            >
-                              Browse my media...
-                            </Button>
+                            )}
                           </div>
                         )}
                       </CardContent>
@@ -457,8 +682,8 @@ export default function ProfilePage() {
                       <CardHeader>
                         <CardTitle>MySpace Customization</CardTitle>
                         <CardDescription>
-                          Spend WeixBucks later to unlock more themes & layouts.
-                          This is fully client-side for now.
+                          Themes and profile music persist to SQLite and publish
+                          as Nostr kind 0 metadata with theme/music tags.
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-6">
@@ -476,24 +701,19 @@ export default function ProfilePage() {
                                   profileTheme === t ? "default" : "outline"
                                 }
                                 size="sm"
-                                onClick={() => setProfileTheme(t)}
+                                onClick={() =>
+                                  saveCustomization(t, profileSong)
+                                }
+                                disabled={updateCustomization.isPending}
                               >
                                 {themeLabel[t]}
                               </Button>
                             ))}
                           </div>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          Real version will store theme + music CID on your
-                          Nostr profile (or Iroh blob) and let visitors see your
-                          custom page.
-                        </div>
                         <Button
-                          onClick={() => {
-                            setProfileTheme("classic");
-                            setProfileSong(null);
-                            toast("Customization reset");
-                          }}
+                          onClick={() => saveCustomization("classic", null)}
+                          disabled={updateCustomization.isPending}
                         >
                           Reset to default
                         </Button>
@@ -509,7 +729,6 @@ export default function ProfilePage() {
             Profile not found.
           </div>
         )}
-      </main>
-    </div>
+    </AppShell>
   );
 }

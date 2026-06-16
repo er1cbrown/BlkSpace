@@ -1,4 +1,4 @@
-import { Navbar } from "@/components/layout/Navbar";
+import { AppShell } from "@/components/layout/AppShell";
 import { useRoute } from "wouter";
 import {
   Card,
@@ -21,6 +21,11 @@ import {
 } from "@/hooks/use-app-data";
 import { SafeContent } from "@/components/ui/safe-content";
 import { MediaDisplay } from "@/components/ui/media-display";
+import { SignatureBadge } from "@/components/ui/signature-badge";
+import { RiskBadge } from "@/components/ui/risk-badge";
+import { SignatureWarningBanner } from "@/components/ui/signature-warning-banner";
+import { ExperimentalMessagingWarning } from "@/components/ui/experimental-messaging-warning";
+import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { getCurrentHandle } from "@/lib/auth";
 
 export default function PostPage() {
@@ -41,8 +46,11 @@ export default function PostPage() {
     createReply.mutate(
       { postId: id, content: replyContent },
       {
-        onSuccess: () => {
+        onSuccess: (result: { earn?: { wb: number; wbNominal?: number; karmaPost: number; karmaComment: number; throttled: boolean; dailyCapLimited?: boolean } }) => {
           setReplyContent("");
+          if (result?.earn) {
+            showEarnFromResult(result.earn, "Reply posted");
+          }
           queryClient.invalidateQueries({ queryKey: ["tauri", "replies"] });
           queryClient.invalidateQueries({ queryKey: ["tauri", "post"] });
           queryClient.invalidateQueries({ queryKey: ["replies"] });
@@ -53,9 +61,7 @@ export default function PostPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1 container max-w-2xl py-8 px-4">
+    <AppShell>
         <Link href="/feed">
           <Button
             variant="ghost"
@@ -69,6 +75,7 @@ export default function PostPage() {
           <div className="h-64 bg-muted/50 animate-pulse rounded-xl"></div>
         ) : post ? (
           <div className="space-y-6">
+            <SignatureWarningBanner eventId={post.nostrEventId} />
             <Card className="border-primary/20 shadow-md">
               <CardHeader className="flex flex-row items-center gap-4">
                 <Link href={`/profile/${post.authorHandle}`}>
@@ -87,8 +94,17 @@ export default function PostPage() {
                       </span>
                     </Link>
                   </CardTitle>
-                  <p className="text-muted-foreground text-sm">
-                    @{post.authorHandle} • {post.townTag}
+                  <p className="text-muted-foreground text-sm flex items-center gap-2 flex-wrap">
+                    <span>
+                      @{post.authorHandle} • {post.townTag}
+                    </span>
+                    <RiskBadge
+                      riskLevel={post.riskLevel}
+                      maliciousScore={post.maliciousScore}
+                    />
+                    {post.nostrEventId && (
+                      <SignatureBadge eventId={post.nostrEventId} />
+                    )}
                   </p>
                 </div>
               </CardHeader>
@@ -142,6 +158,7 @@ export default function PostPage() {
                     onChange={(e) => setReplyContent(e.target.value)}
                     className="min-h-[80px] mb-4 bg-background"
                   />
+                  <ExperimentalMessagingWarning className="mb-3" />
                   <div className="flex justify-end">
                     <Button
                       onClick={handleReplySubmit}
@@ -197,7 +214,6 @@ export default function PostPage() {
             Post not found.
           </div>
         )}
-      </main>
-    </div>
+    </AppShell>
   );
 }

@@ -11,9 +11,86 @@ export interface TauriUser {
   followersCount: number;
   followingCount: number;
   weixBucks: number;
+  pubkey: string;
   engagementQuality: number;
+  themeId: number;
+  musicHash: string;
   nodeRole: string;
   createdAt: string;
+  postKarma?: number;
+  commentKarma?: number;
+  proProfileJson?: string;
+  profileLayoutJson?: string;
+  topFriendsJson?: string;
+}
+
+export interface TauriWallPost {
+  id: number;
+  wallOwnerHandle: string;
+  authorHandle: string;
+  authorDisplayName: string;
+  content: string;
+  approved: boolean;
+  createdAt: string;
+}
+
+export interface TauriEarnResult {
+  wb: number;
+  wbNominal: number;
+  karmaPost: number;
+  karmaComment: number;
+  throttled: boolean;
+  dailyCapLimited: boolean;
+}
+
+export interface TauriCreatePostResult {
+  post: TauriPost;
+  earn: TauriEarnResult;
+}
+
+export interface TauriCreateReplyResult {
+  reply: TauriReply;
+  earn: TauriEarnResult;
+}
+
+export interface TauriJoinYardResult {
+  joined: boolean;
+  earn: TauriEarnResult;
+}
+
+export interface TauriWallPostResult {
+  wallPost: TauriWallPost;
+  earn: TauriEarnResult;
+}
+
+export interface TauriApproveWallPostResult {
+  approved: boolean;
+  earn: TauriEarnResult;
+}
+
+export interface TauriKarmaEntry {
+  handle: string;
+  displayName: string;
+  postKarma: number;
+  commentKarma: number;
+  town: string;
+}
+
+export interface TauriEarnSummary {
+  totalWb: number;
+  postKarma: number;
+  commentKarma: number;
+  yardsJoined: number;
+  uploadsCount: number;
+}
+
+export interface TauriNostrEventVerification {
+  valid: boolean;
+  status: string;
+  message?: string | null;
+  eventId?: string | null;
+  pubkey?: string | null;
+  kind?: number | null;
 }
 
 export interface TauriPost {
@@ -32,6 +109,9 @@ export interface TauriPost {
   nostrEventId: string;
   relayUrl: string;
   createdAt: string;
+  engagementQuality: number;
+  maliciousScore: number;
+  riskLevel: "low" | "medium" | "high";
 }
 
 export interface TauriReply {
@@ -112,6 +192,10 @@ export interface TauriBlobInfo {
   createdAt: string;
 }
 
+export interface TauriUploadBlobResult extends TauriBlobInfo {
+  earn: TauriEarnResult;
+}
+
 export interface TauriActivityEvent {
   id: number;
   type: string;
@@ -180,6 +264,29 @@ export function tauriListUsers(): Promise<TauriUser[]> {
   return invoke("list_users");
 }
 
+export function tauriSearchUsers(
+  query: string,
+  limit?: number,
+): Promise<TauriUser[]> {
+  return invoke("search_users", { query, limit: limit ?? null });
+}
+
+export function tauriSearchPosts(
+  query: string,
+  limit?: number,
+  currentUser?: string,
+): Promise<TauriPost[]> {
+  return invoke("search_posts", {
+    query,
+    limit: limit ?? null,
+    currentUser: currentUser ?? null,
+  });
+}
+
+export function tauriSearchCommunities(query: string): Promise<TauriCommunity[]> {
+  return invoke("search_communities", { query });
+}
+
 export function tauriCreateUser(
   handle: string,
   displayName: string,
@@ -195,6 +302,36 @@ export function tauriUpdateUser(
   town: string,
 ): Promise<void> {
   return invoke("update_user", { sessionToken, displayName, bio, town });
+}
+
+export function tauriUpdateProfileCustomization(
+  sessionToken: string,
+  theme: string,
+  musicHash?: string | null,
+): Promise<TauriUser> {
+  return invoke("update_profile_customization", {
+    sessionToken,
+    theme,
+    musicHash: musicHash ?? null,
+  });
+}
+
+export function tauriVerifyNostrEvent(
+  eventJson: string,
+): Promise<TauriNostrEventVerification> {
+  return invoke("verify_nostr_event", { eventJson });
+}
+
+export function tauriVerifyNostrEventById(
+  eventId: string,
+): Promise<TauriNostrEventVerification> {
+  return invoke("verify_nostr_event_by_id", { eventId });
+}
+
+export function tauriGetNostrEventJson(
+  eventId: string,
+): Promise<string | null> {
+  return invoke("get_nostr_event_json", { eventId });
 }
 
 export function tauriSetNodeRole(
@@ -281,7 +418,7 @@ export function tauriCreatePost(
   townTag: string,
   channelId?: string | null,
   mediaHashes?: string | null,
-): Promise<TauriPost> {
+): Promise<TauriCreatePostResult> {
   return invoke("create_post", {
     sessionToken,
     content,
@@ -312,7 +449,7 @@ export function tauriCreateReply(
   sessionToken: string,
   postId: number,
   content: string,
-): Promise<TauriReply> {
+): Promise<TauriCreateReplyResult> {
   return invoke("create_reply", { sessionToken, postId, content });
 }
 
@@ -420,7 +557,7 @@ export function tauriUploadBlob(
   sessionToken: string,
   data: string,
   filename: string,
-): Promise<TauriBlobInfo> {
+): Promise<TauriUploadBlobResult> {
   return invoke("upload_blob", { sessionToken, data, filename });
 }
 
@@ -605,6 +742,22 @@ export interface TauriCrossTownEvent {
   relayUrl: string;
   createdAt: string;
   createdAtUnix: number;
+  consensusValid: boolean;
+  consensusAgreement: number;
+  maliciousScore: number;
+  riskLevel: "low" | "medium" | "high";
+}
+
+export interface TauriRepostResult {
+  reposted: boolean;
+  repostsCount: number;
+}
+
+export interface TauriRepostFeedItem {
+  reposterHandle: string;
+  reposterDisplayName: string;
+  repostedAt: string;
+  post: TauriPost;
 }
 
 export function tauriSubscribeToTown(
@@ -784,6 +937,18 @@ export function tauriCountPendingOfflineActions(
   return invoke("count_pending_offline_actions", { sessionToken });
 }
 
+export interface TauriFlushOfflineResult {
+  synced: number;
+  failed: number;
+  remaining: number;
+}
+
+export function tauriFlushOfflineQueue(
+  sessionToken: string,
+): Promise<TauriFlushOfflineResult> {
+  return invoke("flush_offline_queue", { sessionToken });
+}
+
 // ─── Cross-Device Sync ────────────────────────────────
 
 export function tauriGetUserAccountData(
@@ -812,6 +977,38 @@ export function tauriGetDeviceSyncHistory(
   deviceId: string,
 ): Promise<[string, number, number, boolean][]> {
   return invoke("get_device_sync_history", { deviceId });
+}
+
+export interface Tier0BenchmarkMetric {
+  name: string;
+  durationMs: number;
+  targetMs: number;
+  pass: boolean;
+}
+
+export interface Tier0BenchmarkReport {
+  metrics: Tier0BenchmarkMetric[];
+  allPass: boolean;
+  deviceNote: string;
+}
+
+export function tauriRunTier0Benchmark(): Promise<Tier0BenchmarkReport> {
+  return invoke("run_tier0_benchmark");
+}
+
+export interface NostrVisibilityTestResult {
+  eventId: string;
+  nevent: string;
+  npub: string;
+  content: string;
+  relayUrl: string;
+  fetchedBack: boolean;
+}
+
+export function tauriPublishNostrVisibilityTest(
+  sessionToken: string,
+): Promise<NostrVisibilityTestResult> {
+  return invoke("publish_nostr_visibility_test", { sessionToken });
 }
 
 // ─── Relay Consensus (Cache Poisoning Prevention) ─────
@@ -918,4 +1115,94 @@ export function tauriGetMaliciousIntentScores(
 
 export function tauriRecalculateAllMaliciousIntentScores(): Promise<number> {
   return invoke("recalculate_all_malicious_intent_scores", {});
+}
+
+export function tauriJoinYard(
+  sessionToken: string,
+  communityId: string,
+): Promise<TauriJoinYardResult> {
+  return invoke("join_yard", { sessionToken, communityId });
+}
+
+export function tauriLeaveYard(
+  sessionToken: string,
+  communityId: string,
+): Promise<void> {
+  return invoke("leave_yard", { sessionToken, communityId });
+}
+
+export function tauriIsYardMember(
+  sessionToken: string,
+  communityId: string,
+): Promise<boolean> {
+  return invoke("is_yard_member", { sessionToken, communityId });
+}
+
+export function tauriCreateWallPost(
+  sessionToken: string,
+  wallOwner: string,
+  content: string,
+): Promise<TauriWallPostResult> {
+  return invoke("create_wall_post", { sessionToken, wallOwner, content });
+}
+
+export function tauriListWallPosts(
+  sessionToken: string,
+  wallOwner: string,
+): Promise<TauriWallPost[]> {
+  return invoke("list_wall_posts", { sessionToken, wallOwner });
+}
+
+export function tauriApproveWallPost(
+  sessionToken: string,
+  postId: number,
+): Promise<TauriApproveWallPostResult> {
+  return invoke("approve_wall_post", { sessionToken, postId });
+}
+
+export function tauriUpdateProProfile(
+  sessionToken: string,
+  json: string,
+): Promise<void> {
+  return invoke("update_pro_profile", { sessionToken, json });
+}
+
+export function tauriUpdateProfileLayout(
+  sessionToken: string,
+  json: string,
+): Promise<void> {
+  return invoke("update_profile_layout", { sessionToken, json });
+}
+
+export function tauriUpdateTopFriends(
+  sessionToken: string,
+  json: string,
+): Promise<void> {
+  return invoke("update_top_friends", { sessionToken, json });
+}
+
+export function tauriGetKarmaLeaderboard(
+  yard?: string,
+  limit?: number,
+): Promise<TauriKarmaEntry[]> {
+  return invoke("get_karma_leaderboard", { yard, limit });
+}
+
+export function tauriGetEarnSummary(
+  sessionToken: string,
+): Promise<TauriEarnSummary> {
+  return invoke("get_earn_summary", { sessionToken });
+}
+
+export function tauriRepostPost(
+  sessionToken: string,
+  postId: number,
+): Promise<TauriRepostResult> {
+  return invoke("repost_post", { sessionToken, postId });
+}
+
+export function tauriListFollowingReposts(
+  sessionToken: string,
+): Promise<TauriRepostFeedItem[]> {
+  return invoke("list_following_reposts", { sessionToken });
 }

@@ -1,4 +1,4 @@
-import { Navbar } from "@/components/layout/Navbar";
+import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,7 +30,11 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { nip19 } from "nostr-tools";
+import { Badge } from "@/components/ui/badge";
+import { isTauri, tauriVerifyNostrEvent } from "@/lib/tauri-api";
+import type { TauriNostrEventVerification } from "@/lib/tauri-api";
 import {
   getCurrentHandle,
   getCurrentDisplayName,
@@ -41,6 +45,65 @@ import {
   getStoredPubkey,
 } from "@/lib/auth";
 import { Eye, EyeOff, Shield, Key, LogOut, AlertTriangle } from "lucide-react";
+
+function EventSignatureVerifier() {
+  const [eventJson, setEventJson] = useState("");
+  const [result, setResult] = useState<TauriNostrEventVerification | null>(
+    null,
+  );
+  const [checking, setChecking] = useState(false);
+
+  const handleVerify = async () => {
+    if (!eventJson.trim()) return;
+    setChecking(true);
+    try {
+      const res = await tauriVerifyNostrEvent(eventJson.trim());
+      setResult(res);
+    } catch (e) {
+      setResult({
+        valid: false,
+        status: "error",
+        message: String(e),
+      });
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <Textarea
+        placeholder='{"id":"…","pubkey":"…","sig":"…","kind":1,…}'
+        className="font-mono text-xs min-h-[120px]"
+        value={eventJson}
+        onChange={(e) => setEventJson(e.target.value)}
+      />
+      <Button onClick={handleVerify} disabled={checking || !eventJson.trim()}>
+        {checking ? "Verifying…" : "Verify Signature"}
+      </Button>
+      {result && (
+        <div className="rounded-lg border p-3 space-y-2 text-sm">
+          <Badge variant={result.valid ? "default" : "destructive"}>
+            {result.valid ? "Valid signature" : result.status}
+          </Badge>
+          {result.message && (
+            <p className="text-muted-foreground">{result.message}</p>
+          )}
+          {result.eventId && (
+            <p className="font-mono text-xs break-all">
+              id: {result.eventId}
+            </p>
+          )}
+          {result.pubkey && (
+            <p className="font-mono text-xs break-all">
+              pubkey: {result.pubkey}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const TOWNS = [
   { value: "tsu", label: "TSU Yard" },
@@ -97,11 +160,17 @@ export default function SettingsPage() {
   };
 
   const pubkey = getStoredPubkey();
+  const npub = useMemo(() => {
+    if (!pubkey) return null;
+    try {
+      return nip19.npubEncode(pubkey);
+    } catch {
+      return null;
+    }
+  }, [pubkey]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1 container max-w-2xl py-8 px-4">
+    <AppShell>
         <h1 className="text-3xl font-bold mb-8">Settings</h1>
 
         <div className="flex items-center gap-6 mb-8 p-6 bg-card rounded-2xl border">
@@ -288,16 +357,27 @@ export default function SettingsPage() {
 
                 <div className="pt-4 border-t space-y-4">
                   <div className="space-y-2">
-                    <Label>Nostr Public Key</Label>
+                    <Label>Nostr Public Key (npub)</Label>
                     <Input
-                      value={pubkey || "Not available"}
+                      value={npub || pubkey || "Not available"}
                       disabled
                       className="font-mono text-xs opacity-60"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Your public key is safe to share. It is how others find
-                      and follow you.
+                      Share this npub so others can follow you on Damus, Amethyst,
+                      or nostr.band.
                     </p>
+                    {npub && (
+                      <Button size="sm" variant="outline" asChild>
+                        <a
+                          href={`https://nostr.band/${npub}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View profile on nostr.band
+                        </a>
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -396,11 +476,21 @@ export default function SettingsPage() {
                     Session expires after 24 hours of inactivity
                   </p>
                 </div>
+
+                {isTauri() && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <Label>Verify Nostr Event Signature</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Paste a signed Nostr event JSON to verify its Schnorr
+                      signature client-side (Kimura et al. 2025 mitigations).
+                    </p>
+                    <EventSignatureVerifier />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-      </main>
-    </div>
+    </AppShell>
   );
 }

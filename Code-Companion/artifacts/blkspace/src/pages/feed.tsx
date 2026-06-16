@@ -1,4 +1,12 @@
-import { Navbar } from "@/components/layout/Navbar";
+import { AppShell } from "@/components/layout/AppShell";
+import { PostComposer } from "@/components/social/PostComposer";
+import { StoryStrip } from "@/components/social/StoryStrip";
+import { WatchFeed } from "@/components/feed/WatchFeed";
+import { ReadFeed } from "@/components/feed/ReadFeed";
+import { KarmaBadge } from "@/components/economy/KarmaBadge";
+import {
+  showEarnFromResult,
+} from "@/components/economy/EarnToast";
 import {
   Card,
   CardContent,
@@ -8,8 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { useState, useRef } from "react";
-import { Textarea } from "@/components/ui/textarea";
+import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -18,18 +25,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Heart,
-  MessageSquare,
-  Repeat2,
-  Share,
-  MapPin,
-  Image,
-  X,
-} from "lucide-react";
+import { Heart, MessageSquare, Repeat2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SafeContent } from "@/components/ui/safe-content";
+import { SignatureBadge } from "@/components/ui/signature-badge";
+import { RiskBadge } from "@/components/ui/risk-badge";
+import { ConsensusBadge } from "@/components/ui/consensus-badge";
 import { MediaDisplay } from "@/components/ui/media-display";
 import { getListPostsQueryKey } from "@workspace/api-client-react";
 import {
@@ -42,24 +44,21 @@ import {
   useTauriFetchTrendingSummaries,
   useAppSendWeixBucks,
   useTauriGetFollowing,
+  useTauriRepostPost,
+  useTauriFollowingReposts,
 } from "@/hooks/use-app-data";
-import { getCurrentHandle, getSessionToken } from "@/lib/auth";
-import {
-  isTauri,
-  tauriUploadBlob,
-  type TauriCrossTownEvent,
-} from "@/lib/tauri-api";
+import { getCurrentHandle } from "@/lib/auth";
+import { isTauri, type TauriCrossTownEvent } from "@/lib/tauri-api";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export default function FeedPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("fyp"); // Default to Instagram-style FYP
+  const [activeTab, setActiveTab] = useState("watch");
   const [selectedTown, setSelectedTown] = useState("tsu");
   const [content, setContent] = useState("");
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [showFlagged, setShowFlagged] = useState(false);
   const [localFollowed, setLocalFollowed] = useState<string[]>(() => {
     const saved = localStorage.getItem("blkspace_followed") || "[]";
     return JSON.parse(saved);
@@ -84,45 +83,64 @@ export default function FeedPage() {
   const toggleLike = useAppToggleLike();
   const sendWeixBucks = useAppSendWeixBucks();
   const publishSummary = useTauriPublishTrendingSummary();
+  const repostPost = useTauriRepostPost();
+  const { data: followingReposts = [] } = useTauriFollowingReposts(
+    isTauri() && followedHandles.length > 0,
+  );
 
-  // Real-ish "Following" (Twitter-style chronological from followed, persisted in localStorage synced with profile; in real Nostr kind 3 contacts)
-  const followingPosts = (localPosts || [])
-    .filter((p: any) => followedHandles.includes(p.authorHandle))
-    .sort(
-      (a: any, b: any) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    )
-    .slice(0, 8)
-    .map((p: any, i: number) => ({
-      ...p,
-      // Simulate followed users + reposts
-      content: i % 2 === 0 ? p.content : `RT: ${p.content}`,
-      repostsCount: (p.repostsCount || 0) + (i % 3),
+  const followingPosts = useMemo(() => {
+    const posts = (localPosts || [])
+      .filter((p: any) => followedHandles.includes(p.authorHandle))
+      .map((p: any) => ({
+        ...p,
+        _feedKind: "post" as const,
+        _sortAt: p.createdAt,
+      }));
+    const reposts = followingReposts.map((r) => ({
+      ...r.post,
+      _feedKind: "repost" as const,
+      _sortAt: r.repostedAt,
+      _reposterHandle: r.reposterHandle,
+      _reposterDisplayName: r.reposterDisplayName,
     }));
+    return [...posts, ...reposts]
+      .sort(
+        (a: any, b: any) =>
+          new Date(b._sortAt).getTime() - new Date(a._sortAt).getTime(),
+      )
+      .slice(0, 12);
+  }, [localPosts, followedHandles, followingReposts]);
 
-  // Instagram-style FYP: high-engagement (likes * quality), low-malicious (from scores), town diversity signals
-  // Real: use calculate_malicious_intent_vector + engagement_quality + mix towns from Nostr
+  const fypRankScore = (p: {
+    likesCount?: number;
+    engagementQuality?: number;
+    maliciousScore?: number;
+  }) =>
+    (p.likesCount || 0) *
+    (p.engagementQuality || 1) *
+    (1 - (p.maliciousScore || 0));
+
+  const isHighRisk = (p: {
+    riskLevel?: string;
+    maliciousScore?: number;
+  }) =>
+    p.riskLevel === "high" || (p.maliciousScore ?? 0) > 0.7;
+
+  const isBridgeHighRisk = (e: TauriCrossTownEvent) =>
+    e.riskLevel === "high" || (e.maliciousScore ?? 0) > 0.7;
+
+  // FYP: rank by engagement × quality × (1 − MIDF); demote high-risk posts
   const fypPosts = [...(trendingFeed || []), ...(localPosts || [])]
-    .sort((a: any, b: any) => {
-      const scoreA =
-        (b.likesCount || 0) *
-        (b.engagementQuality || 1) *
-        (1 - (b.maliciousScore || 0));
-      const scoreB =
-        (a.likesCount || 0) *
-        (a.engagementQuality || 1) *
-        (1 - (a.maliciousScore || 0));
-      return scoreB - scoreA; // higher score first; town diversity via mix in trending/local
-    })
+    .filter((p: any) => !isHighRisk(p))
+    .sort(
+      (a: any, b: any) => fypRankScore(b) - fypRankScore(a),
+    )
     .slice(0, 12)
-    .map((p: any) => ({
-      ...p,
-      // Add "recommended" flavor
-      content: p.content + (Math.random() > 0.7 ? " 🔥" : ""),
-    }));
+    .map((p: any) => ({ ...p }));
 
   const handleSubmit = () => {
     if (!content.trim()) return;
+    const offline = isTauri() && !navigator.onLine;
     createPost.mutate(
       {
         content,
@@ -130,9 +148,15 @@ export default function FeedPage() {
         media_hashes: mediaHashes.length > 0 ? mediaHashes : undefined,
       },
       {
-        onSuccess: () => {
+        onSuccess: (result: any) => {
           setContent("");
           setMediaHashes([]);
+          if (offline) {
+            toast.success("Post queued — will sync when you're back online");
+          } else if (result?.earn) {
+            showEarnFromResult(result.earn, "Post created");
+          }
+          queryClient.invalidateQueries({ queryKey: ["tauri", "user"] });
           queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
           queryClient.invalidateQueries({
             queryKey: getListPostsQueryKey({ town: selectedTown }),
@@ -140,40 +164,6 @@ export default function FeedPage() {
         },
       },
     );
-  };
-
-  const handleUploadMedia = async () => {
-    const file = fileRef.current?.files?.[0];
-    if (!file) return;
-    const token = getSessionToken();
-    if (!token) {
-      toast.error("Please sign in");
-      return;
-    }
-    if (file.size > 20 * 1024 * 1024) {
-      toast.error("File too large (max 20MB)");
-      return;
-    }
-    setUploading(true);
-    try {
-      const reader = new FileReader();
-      const b64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result.split(",")[1]);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      const info = await tauriUploadBlob(token, b64, file.name);
-      setMediaHashes((prev) => [...prev, info.hash]);
-      toast.success("Media attached");
-      if (fileRef.current) fileRef.current.value = "";
-    } catch (e) {
-      toast.error(String(e));
-    } finally {
-      setUploading(false);
-    }
   };
 
   const handleLike = (postId: number) => {
@@ -188,6 +178,24 @@ export default function FeedPage() {
         },
       },
     );
+  };
+
+  const handleRepost = (postId: number) => {
+    if (!isTauri()) {
+      toast("Repost requires the Tauri app");
+      return;
+    }
+    repostPost.mutate(postId, {
+      onSuccess: (result) => {
+        if (result.reposted) {
+          toast.success("Reposted to your followers (Nostr kind 6)");
+        } else {
+          toast.info("You already reposted this");
+        }
+        queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
+      },
+      onError: (e) => toast.error(String(e)),
+    });
   };
 
   const handleBoost = (item: any) => {
@@ -212,159 +220,115 @@ export default function FeedPage() {
     );
   };
 
+  const filterFlagged = (list: any[]) =>
+    showFlagged ? list : list.filter((p: any) => !isHighRisk(p));
+
   // Select data source based on tab for Twitter (Following) + IG FYP (For You) + classic local
   let posts: any[] = [];
   let isLoading = false;
 
-  if (activeTab === "fyp") {
+  if (activeTab === "watch" || activeTab === "read") {
     posts = fypPosts;
     isLoading = trendingLoading || localLoading;
   } else if (activeTab === "following") {
-    posts = followingPosts;
+    posts = filterFlagged(followingPosts as any[]);
     isLoading = localLoading;
   } else if (activeTab === "local") {
-    posts = localPosts || [];
+    posts = filterFlagged(localPosts || []);
     isLoading = localLoading;
   } else if (activeTab === "bridge") {
-    posts = crossTownFeed || [];
+    const bridge = crossTownFeed || [];
+    posts = showFlagged
+      ? bridge
+      : bridge.filter((e) => !isBridgeHighRisk(e));
     isLoading = crossTownLoading || summariesLoading;
   } else {
-    posts = trendingFeed || [];
+    posts = filterFlagged(trendingFeed || []);
     isLoading = trendingLoading;
   }
 
+  const composerPlaceholder =
+    activeTab === "following"
+      ? "Share with your people..."
+      : activeTab === "watch"
+        ? "Caption your reel — TikTok FYP"
+        : activeTab === "read"
+          ? "Short thread — Twitter / Threads style"
+          : "What's happening on the yard?";
+
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1 container max-w-2xl py-8 px-4">
-        <Tabs
-          defaultValue="fyp"
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="mb-8"
-        >
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-5 mb-6 h-12">
-            <TabsTrigger value="fyp" className="text-base font-bold">
-              For You
-            </TabsTrigger>
-            <TabsTrigger value="following" className="text-base font-bold">
-              Following
-            </TabsTrigger>
-            <TabsTrigger value="local" className="text-base font-bold">
-              Local Yard
-            </TabsTrigger>
-            <TabsTrigger value="bridge" className="text-base font-bold">
-              The Bridge
-            </TabsTrigger>
-            <TabsTrigger
-              value="trending"
-              className="text-base font-bold hidden lg:block"
-            >
-              Trending
-            </TabsTrigger>
-          </TabsList>
+    <AppShell>
+      <Tabs
+        defaultValue="watch"
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="mb-6"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          {(activeTab === "following" ||
+            activeTab === "local" ||
+            activeTab === "trending" ||
+            activeTab === "bridge") && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showFlagged}
+                onChange={(e) => setShowFlagged(e.target.checked)}
+                className="rounded border-border"
+              />
+              Show flagged content (MIDF &gt; 0.7)
+            </label>
+          )}
+        </div>
 
-          {/* Composer always visible but context-aware */}
-          <Card className="border-primary/20 shadow-md mb-6">
-            <CardContent className="pt-6">
-              <div className="flex gap-4">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback>DU</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <Textarea
-                    placeholder={
-                      activeTab === "following"
-                        ? "Share with your people..."
-                        : activeTab === "fyp"
-                          ? "What's popping? (this might go viral)"
-                          : "What's happening on the yard?"
-                    }
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    className="min-h-[80px] mb-4 border-none resize-none focus-visible:ring-0 text-lg p-0"
-                  />
-                  <div className="flex justify-between items-center pt-2 border-t">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-muted-foreground" />
-                      <Select
-                        value={selectedTown}
-                        onValueChange={setSelectedTown}
-                      >
-                        <SelectTrigger className="w-[140px] h-8 border-none bg-muted/50">
-                          <SelectValue placeholder="Select Town" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="tsu">TSU Yard</SelectItem>
-                          <SelectItem value="howard">Howard Yard</SelectItem>
-                          <SelectItem value="spelman">Spelman Yard</SelectItem>
-                          <SelectItem value="famu">FAMU Yard</SelectItem>
-                          <SelectItem value="morehouse">
-                            Morehouse Yard
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {isTauri() && (
-                        <>
-                          <input
-                            ref={fileRef}
-                            type="file"
-                            accept="image/*,video/*,audio/*"
-                            className="hidden"
-                            onChange={handleUploadMedia}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => fileRef.current?.click()}
-                            disabled={uploading}
-                          >
-                            <Image className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={createPost.isPending || !content.trim()}
-                      className="rounded-full px-6"
-                    >
-                      Post
-                    </Button>
-                  </div>
-                  {mediaHashes.length > 0 && (
-                    <div className="flex gap-2 mt-2 flex-wrap">
-                      {mediaHashes.map((h) => (
-                        <div
-                          key={h}
-                          className="flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded-full"
-                        >
-                          <Image className="h-3 w-3" />
-                          {h.slice(0, 8)}…
-                          <button
-                            onClick={() =>
-                              setMediaHashes((prev) =>
-                                prev.filter((x) => x !== h),
-                              )
-                            }
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 mb-4 h-11">
+          <TabsTrigger value="watch" className="text-xs sm:text-sm font-bold">
+            Watch
+          </TabsTrigger>
+          <TabsTrigger value="read" className="text-xs sm:text-sm font-bold">
+            Read
+          </TabsTrigger>
+          <TabsTrigger value="following" className="text-xs sm:text-sm font-bold">
+            Following
+          </TabsTrigger>
+          <TabsTrigger value="local" className="text-xs sm:text-sm font-bold hidden sm:flex">
+            Local
+          </TabsTrigger>
+          <TabsTrigger value="bridge" className="text-xs sm:text-sm font-bold hidden sm:flex">
+            Bridge
+          </TabsTrigger>
+          <TabsTrigger
+            value="trending"
+            className="text-xs sm:text-sm font-bold hidden lg:flex"
+          >
+            Trending
+          </TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="fyp">
-            <div className="bg-accent/10 text-accent-foreground p-4 rounded-xl mb-6 text-sm font-medium border border-accent/20">
-              For You — Instagram-style recommendations. Mix of viral from your
-              interests, high-engagement across yards, and fresh discoveries.
+        {(activeTab === "watch" || activeTab === "read") && <StoryStrip />}
+
+        <PostComposer
+          content={content}
+          onContentChange={setContent}
+          selectedTown={selectedTown}
+          onTownChange={setSelectedTown}
+          mediaHashes={mediaHashes}
+          onMediaHashesChange={setMediaHashes}
+          onSubmit={handleSubmit}
+          isSubmitting={createPost.isPending}
+          onUploadSuccess={(earn) => showEarnFromResult(earn, "Media upload")}
+          placeholder={composerPlaceholder}
+        />
+
+          <TabsContent value="watch">
+            <div className="bg-accent/10 text-accent-foreground p-3 rounded-xl mb-4 text-xs font-medium border border-accent/20">
+              TikTok Watch — vertical FYP ranked by engagement × quality
+            </div>
+          </TabsContent>
+
+          <TabsContent value="read">
+            <div className="bg-primary/10 text-primary p-3 rounded-xl mb-4 text-xs font-medium border border-primary/20">
+              Threads / Twitter Read — text-first discovery feed
             </div>
           </TabsContent>
 
@@ -479,6 +443,14 @@ export default function FeedPage() {
               <Card key={i} className="h-40 bg-muted/50"></Card>
             ))}
           </div>
+        ) : activeTab === "watch" ? (
+          <WatchFeed posts={posts} onLike={handleLike} />
+        ) : activeTab === "read" ? (
+          <ReadFeed
+            posts={posts}
+            onLike={handleLike}
+            onRepost={handleRepost}
+          />
         ) : (
           <div className="space-y-4">
             {!Array.isArray(posts) && (
@@ -499,10 +471,8 @@ export default function FeedPage() {
               posts.map((item: any) => {
                 const isCrossTown = "pubkey" in item && "eventId" in item;
                 const crossTownItem = item as TauriCrossTownEvent;
-                const isRepost = item.content?.startsWith("RT:");
-                const displayContent = isRepost
-                  ? item.content.replace("RT: ", "")
-                  : item.content;
+                const isRepost = item._feedKind === "repost";
+                const displayContent = item.content;
 
                 return (
                   <Card
@@ -511,7 +481,10 @@ export default function FeedPage() {
                   >
                     {isRepost && (
                       <div className="px-4 pt-3 text-xs text-green-500 flex items-center gap-1.5">
-                        <Repeat2 className="w-3 h-3" /> Reposted
+                        <Repeat2 className="w-3 h-3" />{" "}
+                        {(item as any)._reposterDisplayName ||
+                          (item as any)._reposterHandle}{" "}
+                        reposted
                       </div>
                     )}
                     <CardHeader className="pb-2 flex flex-row items-start gap-4">
@@ -523,18 +496,45 @@ export default function FeedPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <CardTitle className="text-base flex items-center justify-between">
+                        <CardTitle className="text-base flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="font-bold">
                             {isCrossTown
                               ? `${crossTownItem.pubkey.slice(0, 8)}…${crossTownItem.pubkey.slice(-4)}`
                               : (item as any).authorDisplayName}
                           </span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(
-                              item.createdAt ||
-                                crossTownItem.createdAtUnix * 1000,
-                            ).toLocaleDateString()}
-                          </span>
+                          <div className="flex items-center gap-1.5 ml-auto">
+                            {!isCrossTown && (
+                              <RiskBadge
+                                riskLevel={(item as any).riskLevel}
+                                maliciousScore={(item as any).maliciousScore}
+                              />
+                            )}
+                            {isCrossTown && (
+                              <>
+                                <RiskBadge
+                                  riskLevel={crossTownItem.riskLevel}
+                                  maliciousScore={crossTownItem.maliciousScore}
+                                />
+                                <ConsensusBadge
+                                  consensusValid={crossTownItem.consensusValid}
+                                  consensusAgreement={
+                                    crossTownItem.consensusAgreement
+                                  }
+                                />
+                              </>
+                            )}
+                            {!isCrossTown && (item as any).nostrEventId && (
+                              <SignatureBadge
+                                eventId={(item as any).nostrEventId}
+                              />
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(
+                                item.createdAt ||
+                                  crossTownItem.createdAtUnix * 1000,
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
                         </CardTitle>
                         <div className="text-sm text-muted-foreground flex gap-2 items-center mt-1">
                           {isCrossTown && (
@@ -580,10 +580,9 @@ export default function FeedPage() {
                         size="sm"
                         className="h-8 px-2 gap-2 hover:text-green-500 hover:bg-green-500/10"
                         onClick={() =>
-                          toast(
-                            "Repost feature coming in next update — stay tuned!",
-                          )
+                          !isCrossTown && handleRepost(Number(item.id))
                         }
+                        disabled={isCrossTown || repostPost.isPending}
                       >
                         <Repeat2 className="w-4 h-4" /> {item.repostsCount || 0}
                       </Button>
@@ -618,7 +617,6 @@ export default function FeedPage() {
               })}
           </div>
         )}
-      </main>
-    </div>
+    </AppShell>
   );
 }

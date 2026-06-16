@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import WelcomePage from "@/pages/welcome";
 import { isFirstRun } from "@/lib/auth";
+import { OfflineSyncProvider } from "@/lib/offline-sync";
 import React from "react";
 
 // Lazy load non-initial pages so a bad import/module in one of them
@@ -27,6 +28,8 @@ const CommunityPage = React.lazy(() => import("@/pages/community"));
 const SearchPage = React.lazy(() => import("@/pages/search"));
 const WalletPage = React.lazy(() => import("@/pages/wallet"));
 const MediaPage = React.lazy(() => import("@/pages/media"));
+const CreatePage = React.lazy(() => import("@/pages/create"));
+const LeaderboardPage = React.lazy(() => import("@/pages/leaderboard"));
 const MeshTestPage = React.lazy(() => import("@/pages/mesh-test"));
 
 const queryClient = new QueryClient();
@@ -99,6 +102,8 @@ function Router() {
         <Route path="/communities/:id" component={CommunityPage} />
         <Route path="/search" component={SearchPage} />
         <Route path="/wallet" component={WalletPage} />
+        <Route path="/create" component={CreatePage} />
+        <Route path="/leaderboard" component={LeaderboardPage} />
         <Route path="/media" component={MediaPage} />
         <Route path="/mesh-test" component={MeshTestPage} />
         <Route component={NotFound} />
@@ -112,12 +117,14 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
-            </WouterRouter>
-            <Toaster />
-          </TooltipProvider>
+          <OfflineSyncProvider>
+            <TooltipProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <Router />
+              </WouterRouter>
+              <Toaster />
+            </TooltipProvider>
+          </OfflineSyncProvider>
         </QueryClientProvider>
       </ThemeProvider>
     </ErrorBoundary>

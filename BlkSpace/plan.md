@@ -3,7 +3,7 @@
 **Project Spec / Planning Dashboard**  
 **Date**: 2026-06-14  
 **User**: Eric Brown (B.L.A.C.K. branding • TSU roots • Liberian background • cultural/creative/spiritual focus)  
-**Status**: Phase 0 (Rev 6) • Concepts agreed • Security/architecture docs added • **Not ready for Phase 1 code**  
+**Status**: Phase 1 ACTIVE (Rev 7) • Core social + economy shipped • Phase 2 Iroh integration in progress  
 **Core Constraint**: Build **bottom-up theoretical decentralized hub first**. No heavy devops until the model is solid.
 
 ---
@@ -291,13 +291,19 @@ Concept agreement does **not** open Phase 1. Remaining before any code:
 6. Node spec validated on actual low-end hardware
 7. Explicit user signal: **"ready for Phase 1"**
 
-### Phase 1 security hardening (planned, not started)
+### Phase 1 security hardening
 
-- Strict event signature verification in client
-- Disable automatic link previews
-- UI warning on experimental private messages
-- Enforce `t:hbcu-town:*` at town relays
-- Engagement Quality signal in reward engine
+- ✅ Backend event signature verification (`validate_incoming_event`)
+- ✅ Event `id` must match canonical SHA-256 hash (Kimura §1.1)
+- ✅ Unified relay ingest (`ingest_validated_relay_event` on background sync + `sync_town_events`)
+- ✅ Engagement Quality signal in reward engine
+- ✅ OS keychain / encrypted key storage (`key_store.rs`)
+- ✅ Strict event signature verification in client UI (`SignatureBadge` + `SignatureWarningBanner`)
+- ✅ Disable automatic link previews (`SafeContent` — no unfurl, `referrerPolicy=no-referrer`)
+- ✅ UI warning on experimental private messages (`ExperimentalMessagingWarning`)
+- ✅ Enforce `t:hbcu-town:*` at town relays (`validate_relay_event_tags` on ingest)
+- ✅ Social Nostr publish requires user key (no ephemeral relay-manager key)
+- ✅ Daily WB cap 250 + self-reply/self-like reward blocks
 
 ## Next Steps (Phase 0 only)
 

@@ -3,7 +3,7 @@ mod tests {
   use sha2::{Digest, Sha256};
   use rusqlite;
   use crate::db::{
-    Database, validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
+    Database, DAILY_WB_EARN_CAP, validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
   };
 
   const NO_CHANNEL: &str = "";
@@ -89,7 +89,7 @@ mod tests {
     let db = setup_test_db();
     db.create_user("author", "Author", "").unwrap();
     
-    let post = db.create_post("author", "Test content", "tsu", NO_CHANNEL, &[]).unwrap();
+    let post = db.create_post("author", "Test content", "tsu", NO_CHANNEL, &[]).unwrap().post;
     
     assert_eq!(post.author_handle, "author");
     assert_eq!(post.content, "Test content");
@@ -115,7 +115,7 @@ mod tests {
     db.create_user("author", "Author", "").unwrap();
     db.create_user("liker", "Liker", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     let post_id = post.id;
     
     // Like
@@ -137,10 +137,10 @@ mod tests {
     db.create_user("author", "Author", "").unwrap();
     db.create_user("replier", "Replier", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     let post_id = post.id;
     
-    let reply = db.create_reply(post_id, "replier", "Nice post!").unwrap();
+    let reply = db.create_reply(post_id, "replier", "Nice post!").unwrap().reply;
     
     assert_eq!(reply.post_id, post_id);
     assert_eq!(reply.author_handle, "replier");
@@ -217,6 +217,31 @@ mod tests {
   }
 
   #[test]
+  fn test_profile_customization_persistence() {
+    let db = setup_test_db();
+    db.create_user("demo_user", "Demo User", "").unwrap();
+    let user = db
+      .update_profile_customization("demo_user", 3, "abc123")
+      .unwrap();
+    assert_eq!(user.theme_id, 3);
+    assert_eq!(user.music_hash, "abc123");
+
+    let stored = db.get_user("demo_user").unwrap().unwrap();
+    assert_eq!(stored.theme_id, 3);
+    assert_eq!(stored.music_hash, "abc123");
+  }
+
+  #[test]
+  fn test_nostr_signed_event_cache() {
+    let db = setup_test_db();
+    let json = r#"{"id":"abc","pubkey":"def"}"#;
+    db.store_nostr_event_json("event123", json).unwrap();
+    let got = db.get_nostr_event_json("event123").unwrap();
+    assert_eq!(got.as_deref(), Some(json));
+    assert!(db.get_nostr_event_json("missing").unwrap().is_none());
+  }
+
+  #[test]
   fn test_update_user() {
     let db = setup_test_db();
     db.create_user("user", "Old Name", "").unwrap();
@@ -260,7 +285,7 @@ mod tests {
     db.create_user("author", "Author", "").unwrap();
     db.create_user("replier", "Replier", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     
     let initial = db.get_user("replier").unwrap().unwrap();
     assert_eq!(initial.weix_bucks, 100);
@@ -278,7 +303,7 @@ mod tests {
     db.create_user("author", "Author", "").unwrap();
     db.create_user("liker", "Liker", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     
     // Reset author balance (seeding gave 100, post creation gave +5)
     let author = db.get_user("author").unwrap().unwrap();
@@ -296,7 +321,7 @@ mod tests {
     let db = setup_test_db();
     db.create_user("author", "Author", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     
     let before = db.get_user("author").unwrap().unwrap();
     db.toggle_like(post.id, "author").unwrap();
@@ -538,7 +563,7 @@ mod tests {
     let db = setup_test_db();
     db.create_user("author", "Author", "").unwrap();
     
-    let created = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
+    let created = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     
     let found = db.get_post(created.id, None).unwrap().unwrap();
     assert_eq!(found.content, "Test");
@@ -554,7 +579,7 @@ mod tests {
     db.create_user("author", "Author", "").unwrap();
     db.create_user("viewer", "Viewer", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     db.toggle_like(post.id, "viewer").unwrap();
     
     let found = db.get_post(post.id, Some("viewer")).unwrap().unwrap();
@@ -568,7 +593,7 @@ mod tests {
     db.create_user("author", "Author", "").unwrap();
     db.create_user("replier", "Replier", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     db.create_reply(post.id, "replier", "Reply 1").unwrap();
     db.create_reply(post.id, "replier", "Reply 2").unwrap();
     
@@ -611,7 +636,7 @@ mod tests {
     let db = setup_test_db();
     db.create_user("author", "Author", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     
     db.update_post_nostr_meta(post.id, "nostr_event_123", "wss://relay.example.com").unwrap();
     
@@ -628,10 +653,51 @@ mod tests {
     
     db.insert_relay_event("e1", "r1", 1, "pk", "Hello", r#"[["t","hbcu-town:tsu"]]"#, now).unwrap();
     db.insert_relay_event("e2", "r1", 1, "pk", "World", r#"[["t","hbcu-town:howard"]]"#, now - 1).unwrap();
-    
+    db.record_relay_consensus("e1", "r1", "hash_a").unwrap();
+    db.record_relay_consensus("e1", "r2", "hash_a").unwrap();
+
     let combined = db.list_combined_feed(Some("tsu"), None).unwrap();
     assert_eq!(combined.len(), 1);
     assert_eq!(combined[0].town_tag, "tsu");
+    assert!(combined[0].consensus_valid);
+    assert!(combined[0].consensus_agreement > 0.0);
+  }
+
+  #[test]
+  fn test_combined_feed_excludes_no_consensus() {
+    let db = setup_test_db();
+    let now = chrono::Utc::now().timestamp();
+
+    db.insert_relay_event("solo", "r1", 1, "pk", "No consensus", r#"[["t","hbcu-town:tsu"]]"#, now).unwrap();
+    db.record_relay_consensus("solo", "r1", "hash_only").unwrap();
+
+    let combined = db.list_combined_feed(Some("tsu"), None).unwrap();
+    assert!(combined.is_empty());
+  }
+
+  #[test]
+  fn test_enrich_post_security() {
+    let db = setup_test_db();
+    db.create_user("risky", "Risky User", "").unwrap();
+    db.create_post("risky", "Test post", "tsu", NO_CHANNEL, &[]).unwrap();
+
+    {
+      let conn = db.conn.lock().unwrap();
+      conn.execute(
+        "UPDATE users SET engagement_quality = 0.6 WHERE handle = 'risky'",
+        [],
+      ).unwrap();
+      conn.execute(
+        "UPDATE malicious_intent_scores SET overall_score = 0.75 WHERE handle = 'risky'",
+        [],
+      ).unwrap();
+    }
+
+    let posts = db.list_posts(Some("tsu"), None).unwrap();
+    assert_eq!(posts.len(), 1);
+    assert!((posts[0].engagement_quality - 0.6).abs() < f64::EPSILON);
+    assert!((posts[0].malicious_score - 0.75).abs() < f64::EPSILON);
+    assert_eq!(posts[0].risk_level, "high");
   }
 
   #[test]
@@ -877,6 +943,49 @@ mod tests {
     assert_eq!(count, 1);
   }
 
+  #[test]
+  fn test_search_users_and_posts() {
+    let db = setup_test_db();
+    db.create_user("demo_user", "Demo User", "").unwrap();
+    db.create_post("demo_user", "TSU homecoming vibes", "tsu", "", &[]).unwrap();
+
+    let users = db.search_users("demo", 10).unwrap();
+    assert!(!users.is_empty());
+    assert!(users.iter().any(|u| u.handle == "demo_user"));
+
+    let posts = db.search_posts("homecoming", 10, Some("demo_user")).unwrap();
+    assert_eq!(posts.len(), 1);
+    assert!(posts[0].content.contains("homecoming"));
+  }
+
+  #[test]
+  fn test_search_communities() {
+    let db = setup_test_db();
+    let all = db.search_communities("");
+    assert_eq!(all.len(), 5);
+
+    let howard = db.search_communities("howard");
+    assert_eq!(howard.len(), 1);
+    assert_eq!(howard[0].id, "howard");
+  }
+
+  #[test]
+  fn test_offline_flush_create_post() {
+    let db = setup_test_db();
+    db.create_user("demo_user", "Demo User", "").unwrap();
+    let payload = r#"{"content":"Queued post","town_tag":"tsu","channel_id":"","media_hashes":[]}"#;
+    let id = db.queue_offline_action("create_post", payload, "demo_user").unwrap();
+    assert_eq!(db.count_pending_offline_actions("demo_user").unwrap(), 1);
+
+    let post = db
+      .create_post("demo_user", "Queued post", "tsu", "", &[])
+      .unwrap()
+      .post;
+    assert!(post.content.contains("Queued"));
+    db.mark_offline_action_synced(id).unwrap();
+    assert_eq!(db.count_pending_offline_actions("demo_user").unwrap(), 0);
+  }
+
   // ─── Device Sync Log Tests ──────────────────────────
 
   #[test]
@@ -1101,7 +1210,7 @@ mod tests {
     db.create_user("other", "Other", "").unwrap();
     
     // Create a post
-    let post = db.create_post("self_lover", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
+    let post = db.create_post("self_lover", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     
     // Self-like
     db.toggle_like(post.id, "self_lover").unwrap();
@@ -1238,7 +1347,8 @@ mod tests {
       // Post
       let post = db
         .create_post("yard_walker", "First post on the yard!", "tsu", NO_CHANNEL, &[])
-        .unwrap();
+        .unwrap()
+        .post;
       post_id = post.id;
       assert_eq!(post.author_handle, "yard_walker");
 
@@ -1276,5 +1386,140 @@ mod tests {
 
     let wallet = db.get_wallet_tx("yard_walker").unwrap();
     assert!(wallet.iter().any(|tx| tx.tx_type == "spend" && tx.amount == -25));
+  }
+
+  #[test]
+  fn test_daily_wb_earn_cap() {
+    let db = setup_test_db();
+    db.create_user("capper", "Capper", "").unwrap();
+    let first = db.grant_weix_bucks("capper", 200, "Test earn").unwrap();
+    assert_eq!(first, 200);
+    let second = db.grant_weix_bucks("capper", 100, "Test earn 2").unwrap();
+    assert_eq!(second, 50);
+    let third = db.grant_weix_bucks("capper", 5, "Test earn 3").unwrap();
+    assert_eq!(third, 0);
+    assert_eq!(db.daily_wb_earned("capper").unwrap(), DAILY_WB_EARN_CAP);
+  }
+
+  #[test]
+  fn test_create_repost() {
+    let db = setup_test_db();
+    db.create_user("author", "Author", "").unwrap();
+    db.create_user("fan", "Fan", "").unwrap();
+    let post = db.create_post("author", "Original", "tsu", NO_CHANNEL, &[]).unwrap().post;
+    let r1 = db.create_repost("fan", post.id).unwrap();
+    assert!(r1.reposted);
+    assert_eq!(r1.reposts_count, 1);
+    let r2 = db.create_repost("fan", post.id).unwrap();
+    assert!(!r2.reposted);
+    assert_eq!(r2.reposts_count, 1);
+  }
+
+  #[test]
+  fn test_self_reply_no_reward() {
+    let db = setup_test_db();
+    db.create_user("author", "Author", "").unwrap();
+    let post = db.create_post("author", "Solo thread", "tsu", NO_CHANNEL, &[]).unwrap().post;
+    let before = db.get_user("author").unwrap().unwrap().weix_bucks;
+    let result = db.create_reply(post.id, "author", "Talking to myself").unwrap();
+    let after = db.get_user("author").unwrap().unwrap().weix_bucks;
+    assert_eq!(after, before);
+    assert_eq!(result.earn.wb, 0);
+    assert_eq!(result.earn.karma_comment, 0);
+  }
+
+  #[test]
+  fn test_validate_relay_event_tags() {
+    let db = setup_test_db();
+    let good = r#"[["t","hbcu-town:tsu"],["t","blkspace"]]"#;
+    let bad_plain = r#"[["t","tsu"]]"#;
+    let foreign = r#"[["t","hbcu-town:howard"]]"#;
+    assert!(db.validate_relay_event_tags(1, good, Some("tsu")));
+    assert!(!db.validate_relay_event_tags(1, bad_plain, Some("tsu")));
+    assert!(!db.validate_relay_event_tags(1, foreign, Some("tsu")));
+    assert!(db.validate_relay_event_tags(10002, bad_plain, Some("tsu")));
+  }
+
+  #[test]
+  fn test_earn_result_daily_cap_flag() {
+    let db = setup_test_db();
+    db.create_user("capper2", "Capper2", "").unwrap();
+    db.grant_weix_bucks("capper2", 248, "Fill").unwrap();
+    let result = db.create_post("capper2", "Near cap", "tsu", NO_CHANNEL, &[]).unwrap();
+    assert_eq!(result.earn.wb, 2);
+    assert_eq!(result.earn.wb_nominal, 5);
+    assert!(result.earn.daily_cap_limited);
+  }
+
+  #[test]
+  fn test_karma_throttled_when_midf_high() {
+    let db = setup_test_db();
+    db.create_user("risky", "Risky", "").unwrap();
+    db.conn.lock().unwrap().execute(
+      "INSERT INTO malicious_intent_scores (handle, overall_score) VALUES ('risky', 0.85)",
+      [],
+    ).unwrap();
+    db.grant_karma("risky", "tsu", 5, 2, "Test").unwrap();
+    let user = db.get_user("risky").unwrap().unwrap();
+    assert_eq!(user.post_karma, 0);
+    assert_eq!(user.comment_karma, 0);
+  }
+
+  #[tokio::test]
+  async fn test_validate_incoming_event_rejects_tampered_id() {
+    use crate::validate_incoming_event;
+    use nostr_sdk::prelude::{EventBuilder, Keys};
+
+    let keys = Keys::generate();
+    let event = EventBuilder::text_note("BlkSpace security test")
+      .sign(&keys)
+      .await
+      .expect("sign event");
+    let mut json: serde_json::Value =
+      serde_json::from_str(&serde_json::to_string(&event).unwrap()).unwrap();
+    json["id"] = serde_json::Value::String("f".repeat(64));
+    let tampered = serde_json::to_string(&json).unwrap();
+    assert!(validate_incoming_event(&tampered).is_err());
+  }
+
+  #[tokio::test]
+  async fn test_validate_incoming_event_accepts_valid_note() {
+    use crate::validate_incoming_event;
+    use nostr_sdk::prelude::{EventBuilder, Keys};
+
+    let keys = Keys::generate();
+    let event = EventBuilder::text_note("BlkSpace security test valid")
+      .sign(&keys)
+      .await
+      .expect("sign event");
+    let json = serde_json::to_string(&event).unwrap();
+    assert!(validate_incoming_event(&json).unwrap());
+  }
+
+  #[test]
+  fn test_tier0_benchmark_feed_post_blob_targets() {
+    use crate::blob_store::BlobStore;
+    use crate::tier0_benchmark::run_tier0_benchmarks;
+
+    let temp_dir = std::env::temp_dir().join(format!("blkspace_tier0_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let db = Database::new_for_test(temp_dir.clone()).unwrap();
+    let blob_store = BlobStore::new(&temp_dir);
+
+    let report = run_tier0_benchmarks(&db, &blob_store);
+    assert_eq!(report.metrics.len(), 3);
+    assert!(report.metrics.iter().any(|m| m.name.contains("Feed load")));
+    assert!(report.metrics.iter().any(|m| m.name.contains("Post creation")));
+    assert!(report.metrics.iter().any(|m| m.name.contains("Blob store")));
+    for metric in &report.metrics {
+      assert!(
+        metric.pass,
+        "{} took {}ms (target <{}ms)",
+        metric.name,
+        metric.duration_ms,
+        metric.target_ms
+      );
+    }
+    assert!(report.all_pass);
   }
 }

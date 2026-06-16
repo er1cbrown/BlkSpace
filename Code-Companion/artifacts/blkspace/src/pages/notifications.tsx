@@ -1,4 +1,4 @@
-import { Navbar } from "@/components/layout/Navbar";
+import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -104,9 +104,7 @@ export default function NotificationsPage() {
       : mockNotifications;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-      <main className="flex-1 container max-w-2xl py-8 px-4">
+    <AppShell>
         <div className="flex items-center gap-3 mb-8">
           <Bell className="w-7 h-7 text-primary" />
           <h1 className="text-3xl font-bold">Notifications</h1>
@@ -156,7 +154,6 @@ export default function NotificationsPage() {
             </div>
           </TabsContent>
         </Tabs>
-      </main>
-    </div>
+    </AppShell>
   );
 }
