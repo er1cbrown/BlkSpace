@@ -1,11 +1,22 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { storeIdentity, authenticateWithNostr, createNostrIdentity, nsecToMnemonic } from "@/lib/auth";
+import {
+  storeIdentity,
+  authenticateWithNostr,
+  createNostrIdentity,
+  nsecToMnemonic,
+} from "@/lib/auth";
 import { isTauri, tauriCreateUser } from "@/lib/tauri-api";
 
 export default function SignupPage() {
@@ -55,7 +66,9 @@ export default function SignupPage() {
 
   // ─── Mnemonic Verification ───────────────────────────────
 
-  const [verifyWords, setVerifyWords] = useState<{ index: number; word: string }[]>([]);
+  const [verifyWords, setVerifyWords] = useState<
+    { index: number; word: string }[]
+  >([]);
   const [verifyInputs, setVerifyInputs] = useState<string[]>(["", ""]);
   const [verifyError, setVerifyError] = useState("");
 
@@ -69,21 +82,23 @@ export default function SignupPage() {
       if (!indices.includes(idx)) indices.push(idx);
     }
     indices.sort((a, b) => a - b);
-    setVerifyWords(indices.map(i => ({ index: i + 1, word: words[i] })));
+    setVerifyWords(indices.map((i) => ({ index: i + 1, word: words[i] })));
     setVerifyInputs(["", ""]);
     setVerifyError("");
     setConfirmed(true);
   };
 
   const checkVerification = () => {
-    const correct = verifyWords.every((vw, i) =>
-      verifyInputs[i].trim().toLowerCase() === vw.word.toLowerCase()
+    const correct = verifyWords.every(
+      (vw, i) => verifyInputs[i].trim().toLowerCase() === vw.word.toLowerCase(),
     );
     if (correct) {
       setVerifyError("");
       finishSignup();
     } else {
-      setVerifyError("Words don't match. Please check your paper and try again.");
+      setVerifyError(
+        "Words don't match. Please check your paper and try again.",
+      );
     }
   };
 
@@ -94,14 +109,18 @@ export default function SignupPage() {
         <main className="flex-1 flex items-center justify-center p-4">
           <Card className="w-full max-w-md shadow-lg border-primary/10">
             <CardHeader className="text-center pb-6">
-              <CardTitle className="text-3xl font-serif">Verify Your Backup</CardTitle>
+              <CardTitle className="text-3xl font-serif">
+                Verify Your Backup
+              </CardTitle>
               <CardDescription className="text-base">
                 Type the words from your paper to prove you wrote them down
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {verifyError && (
-                <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">{verifyError}</div>
+                <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">
+                  {verifyError}
+                </div>
               )}
               <div className="space-y-4">
                 {verifyWords.map((vw, i) => (
@@ -123,12 +142,13 @@ export default function SignupPage() {
                 ))}
               </div>
               <div className="bg-amber-950/20 border border-amber-600/30 text-amber-200 text-sm p-4 rounded-lg">
-                <strong>Can't remember?</strong> Go back and write your phrase again on paper. No screenshots.
+                <strong>Can't remember?</strong> Go back and write your phrase
+                again on paper. No screenshots.
               </div>
               <Button
                 onClick={checkVerification}
                 className="w-full rounded-full h-12 text-base font-bold"
-                disabled={verifyInputs.some(v => !v.trim()) || saving}
+                disabled={verifyInputs.some((v) => !v.trim()) || saving}
               >
                 {saving ? "Creating Account..." : "Verify & Create Account"}
               </Button>
@@ -156,17 +176,22 @@ export default function SignupPage() {
         <main className="flex-1 flex items-center justify-center p-4">
           <Card className="w-full max-w-md shadow-lg border-primary/10">
             <CardHeader className="text-center pb-6">
-              <CardTitle className="text-3xl font-serif">Your Recovery Phrase</CardTitle>
+              <CardTitle className="text-3xl font-serif">
+                Your Recovery Phrase
+              </CardTitle>
               <CardDescription className="text-base">
-                Save these 12 words — this is the only way to recover your account
+                Save these 12 words — this is the only way to recover your
+                account
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="bg-amber-950/20 border border-amber-600/30 text-amber-200 text-sm p-4 rounded-lg">
-                <strong>⚠ Never share these words.</strong> Anyone with this phrase can take your identity permanently.
+                <strong>⚠ Never share these words.</strong> Anyone with this
+                phrase can take your identity permanently.
               </div>
               <div className="bg-amber-950/10 border border-amber-600/20 text-amber-200 text-sm p-4 rounded-lg">
-                <strong>Write this on paper.</strong> Do NOT screenshot, photograph, or copy to your phone. Paper is safer.
+                <strong>Write this on paper.</strong> Do NOT screenshot,
+                photograph, or copy to your phone. Paper is safer.
               </div>
               <div className="bg-muted p-4 rounded-xl font-mono text-sm leading-relaxed select-all">
                 {seedPhrase}
@@ -174,7 +199,9 @@ export default function SignupPage() {
               <Button
                 variant="outline"
                 className="w-full rounded-full"
-                onClick={() => { navigator.clipboard?.writeText(seedPhrase); }}
+                onClick={() => {
+                  navigator.clipboard?.writeText(seedPhrase);
+                }}
               >
                 Copy to Clipboard (Not Recommended)
               </Button>
@@ -186,7 +213,8 @@ export default function SignupPage() {
                 I Wrote It Down — Continue
               </Button>
               <p className="text-center text-xs text-muted-foreground">
-                By continuing, you confirm you understand there is no "Forgot Password" option.
+                By continuing, you confirm you understand there is no "Forgot
+                Password" option.
               </p>
             </CardContent>
           </Card>
@@ -202,11 +230,15 @@ export default function SignupPage() {
         <Card className="w-full max-w-md shadow-lg border-primary/10">
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-3xl font-serif">Join the Yard</CardTitle>
-            <CardDescription className="text-base">Create your Nostr identity to get started</CardDescription>
+            <CardDescription className="text-base">
+              Create your Nostr identity to get started
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {error && (
-              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">{error}</div>
+              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">
+                {error}
+              </div>
             )}
             <div className="space-y-2">
               <Label htmlFor="name">Display Name</Label>
@@ -227,16 +259,26 @@ export default function SignupPage() {
                 className="font-mono"
               />
             </div>
-            <Button onClick={generateKey} className="w-full rounded-full h-12 text-base font-bold" disabled={saving}>
+            <Button
+              onClick={generateKey}
+              className="w-full rounded-full h-12 text-base font-bold"
+              disabled={saving}
+            >
               {saving ? "Creating..." : "Generate Key & Sign Up"}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               Already have a key?{" "}
-              <Link href="/login" className="text-primary font-medium hover:underline">
+              <Link
+                href="/login"
+                className="text-primary font-medium hover:underline"
+              >
                 Sign in
               </Link>
               {" · "}
-              <Link href="/recover" className="text-primary font-medium hover:underline">
+              <Link
+                href="/recover"
+                className="text-primary font-medium hover:underline"
+              >
                 Recover with seed phrase
               </Link>
             </p>

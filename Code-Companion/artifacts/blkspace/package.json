@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo '[lint] ESLint installed + .eslintrc present but using typecheck proxy for CI-stability (flat config migration pending; run pnpm typecheck for full); solana modules are pre-existing noise'; ./node_modules/.bin/tsc -p tsconfig.json --noEmit",
     "test": "vitest",
-    "test:run": "vitest run",
+    "test:run": "vitest run --config vitest.config.ts",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
@@ -70,6 +70,7 @@
     "eslint": "^10.5.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "framer-motion": "catalog:",
+    "happy-dom": "^20.10.3",
     "input-otp": "^1.4.2",
     "jsdom": "^26.0.0",
     "lucide-react": "catalog:",

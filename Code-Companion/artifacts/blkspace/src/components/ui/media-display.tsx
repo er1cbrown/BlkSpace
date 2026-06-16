@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { tauriGetBlobBytes, tauriGetBlobMetadata, isTauri, type TauriBlobInfo } from "@/lib/tauri-api";
+import {
+  tauriGetBlobBytes,
+  tauriGetBlobMetadata,
+  isTauri,
+  type TauriBlobInfo,
+} from "@/lib/tauri-api";
 import { getSessionToken } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -20,7 +25,9 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
 
   useEffect(() => {
     if (!isTauri() || hashes.length === 0) return;
-    setItems(hashes.map((h) => ({ hash: h, src: null, info: null, loading: true })));
+    setItems(
+      hashes.map((h) => ({ hash: h, src: null, info: null, loading: true })),
+    );
 
     const token = getSessionToken();
     if (!token) return;
@@ -31,7 +38,14 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
       ]);
       setItems((prev) => {
         const next = [...prev];
-        next[i] = { hash, src: b64 ? `data:${info?.mimeType ?? "application/octet-stream"};base64,${b64}` : null, info, loading: false };
+        next[i] = {
+          hash,
+          src: b64
+            ? `data:${info?.mimeType ?? "application/octet-stream"};base64,${b64}`
+            : null,
+          info,
+          loading: false,
+        };
         return next;
       });
     });
@@ -40,9 +54,17 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
   if (!isTauri() || hashes.length === 0) return null;
 
   return (
-    <div className={`grid gap-2 mt-3 ${hashes.length === 1 ? "grid-cols-1" : "grid-cols-2"} ${className}`}>
+    <div
+      className={`grid gap-2 mt-3 ${hashes.length === 1 ? "grid-cols-1" : "grid-cols-2"} ${className}`}
+    >
       {items.map((item) => {
-        if (item.loading) return <Skeleton key={item.hash} className="w-full aspect-video rounded-md" />;
+        if (item.loading)
+          return (
+            <Skeleton
+              key={item.hash}
+              className="w-full aspect-video rounded-md"
+            />
+          );
         if (!item.src || !item.info) return null;
 
         const { mimeType, filename } = item.info;
@@ -59,14 +81,26 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
         }
         if (mimeType.startsWith("video/")) {
           return (
-            <video key={item.hash} src={item.src} controls className="w-full rounded-md max-h-96" preload="metadata">
+            <video
+              key={item.hash}
+              src={item.src}
+              controls
+              className="w-full rounded-md max-h-96"
+              preload="metadata"
+            >
               <source src={item.src} type={mimeType} />
             </video>
           );
         }
         if (mimeType.startsWith("audio/")) {
           return (
-            <audio key={item.hash} src={item.src} controls className="w-full mt-2" preload="none">
+            <audio
+              key={item.hash}
+              src={item.src}
+              controls
+              className="w-full mt-2"
+              preload="none"
+            >
               <source src={item.src} type={mimeType} />
             </audio>
           );

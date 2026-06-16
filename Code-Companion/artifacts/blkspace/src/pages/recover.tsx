@@ -1,12 +1,22 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { mnemonicToNsec, derivePubkey, authenticateWithNostr } from "@/lib/auth";
+import {
+  mnemonicToNsec,
+  derivePubkey,
+  authenticateWithNostr,
+} from "@/lib/auth";
 import { isTauri, tauriCreateUser, tauriGetUser } from "@/lib/tauri-api";
 
 export default function RecoverPage() {
@@ -34,7 +44,9 @@ export default function RecoverPage() {
       await authenticateWithNostr(handle.trim(), nsecHex);
       navigate("/feed");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Recovery failed — check your phrase");
+      setError(
+        e instanceof Error ? e.message : "Recovery failed — check your phrase",
+      );
     } finally {
       setSaving(false);
     }
@@ -46,12 +58,18 @@ export default function RecoverPage() {
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-lg border-primary/10">
           <CardHeader className="text-center pb-6">
-            <CardTitle className="text-3xl font-serif">Recover Account</CardTitle>
-            <CardDescription className="text-base">Enter your 12-word recovery phrase</CardDescription>
+            <CardTitle className="text-3xl font-serif">
+              Recover Account
+            </CardTitle>
+            <CardDescription className="text-base">
+              Enter your 12-word recovery phrase
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {error && (
-              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">{error}</div>
+              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">
+                {error}
+              </div>
             )}
             <div className="space-y-2">
               <Label htmlFor="handle">Handle</Label>
@@ -73,11 +91,18 @@ export default function RecoverPage() {
                 className="font-mono min-h-[100px]"
               />
             </div>
-            <Button onClick={handleRecover} className="w-full rounded-full h-12 text-base font-bold" disabled={saving || !phrase.trim() || !handle.trim()}>
+            <Button
+              onClick={handleRecover}
+              className="w-full rounded-full h-12 text-base font-bold"
+              disabled={saving || !phrase.trim() || !handle.trim()}
+            >
               {saving ? "Recovering..." : "Recover Account"}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
-              <Link href="/signup" className="text-primary font-medium hover:underline">
+              <Link
+                href="/signup"
+                className="text-primary font-medium hover:underline"
+              >
                 Create a new account instead
               </Link>
             </p>

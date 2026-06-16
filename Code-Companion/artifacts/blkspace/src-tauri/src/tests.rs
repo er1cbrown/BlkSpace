@@ -1214,4 +1214,67 @@ mod tests {
     assert!(!consensus2.get("consensusValid").unwrap().as_bool().unwrap());
     assert_eq!(consensus2.get("totalSightings").unwrap().as_i64().unwrap(), 1);
   }
+
+  // ─── Phase 1 desktop E2E (DB persistence flow) ─────────
+
+  #[test]
+  fn test_phase1_desktop_e2e_flow() {
+    let temp_dir = std::env::temp_dir().join(format!("blkspace_e2e_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let post_id;
+    {
+      let db = Database::new_for_test(temp_dir.clone()).unwrap();
+
+      // Signup
+      let newbie = db
+        .create_user("yard_walker", "Yard Walker", "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
+        .unwrap();
+      assert_eq!(newbie.handle, "yard_walker");
+      assert_eq!(newbie.weix_bucks, 100);
+
+      db.create_user("campus_queen", "Campus Queen", "").unwrap();
+
+      // Post
+      let post = db
+        .create_post("yard_walker", "First post on the yard!", "tsu", NO_CHANNEL, &[])
+        .unwrap();
+      post_id = post.id;
+      assert_eq!(post.author_handle, "yard_walker");
+
+      // Follow
+      assert!(db.toggle_follow("campus_queen", "yard_walker").unwrap());
+      let following = db.get_following_for("campus_queen").unwrap();
+      assert_eq!(following, vec!["yard_walker".to_string()]);
+
+      // Like
+      assert!(db.toggle_like(post_id, "campus_queen").unwrap());
+
+      // Wallet transfer (author earned +5 post / +1 like rewards before sending)
+      let (sender_balance, receiver_balance) =
+        db.send_weixbucks("yard_walker", "campus_queen", 25).unwrap();
+      assert_eq!(sender_balance, 81);
+      assert_eq!(receiver_balance, 125);
+    }
+
+    // Simulate app restart — reopen the same on-disk DB
+    let db = Database::new_for_test(temp_dir).unwrap();
+
+    let user = db.get_user("yard_walker").unwrap().unwrap();
+    assert_eq!(user.weix_bucks, 81);
+
+    let queen = db.get_user("campus_queen").unwrap().unwrap();
+    assert_eq!(queen.weix_bucks, 125);
+
+    let posts = db.list_posts(Some("tsu"), Some("campus_queen")).unwrap();
+    assert_eq!(posts.len(), 1);
+    assert_eq!(posts[0].id, post_id);
+    assert_eq!(posts[0].likes_count, 1);
+
+    let following = db.get_following_for("campus_queen").unwrap();
+    assert!(following.contains(&"yard_walker".to_string()));
+
+    let wallet = db.get_wallet_tx("yard_walker").unwrap();
+    assert!(wallet.iter().any(|tx| tx.tx_type == "spend" && tx.amount == -25));
+  }
 }

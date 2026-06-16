@@ -51,16 +51,18 @@ class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ 
-          padding: 20, 
-          background: '#fee', 
-          color: '#900', 
-          fontFamily: 'monospace',
-          whiteSpace: 'pre-wrap',
-          height: '100vh',
-          overflow: 'auto'
-        }}>
-          <h1 style={{ color: '#c00' }}>App crashed (white screen fix)</h1>
+        <div
+          style={{
+            padding: 20,
+            background: "#fee",
+            color: "#900",
+            fontFamily: "monospace",
+            whiteSpace: "pre-wrap",
+            height: "100vh",
+            overflow: "auto",
+          }}
+        >
+          <h1 style={{ color: "#c00" }}>App crashed (white screen fix)</h1>
           <p>Open DevTools (right-click → Inspect) for full stack.</p>
           <pre>{this.state.error?.stack || this.state.error?.message}</pre>
         </div>
@@ -73,7 +75,13 @@ class ErrorBoundary extends React.Component<
 function Router() {
   const firstRun = isFirstRun();
   return (
-    <React.Suspense fallback={<div style={{padding: 40, textAlign: 'center', opacity: 0.7}}>Loading page...</div>}>
+    <React.Suspense
+      fallback={
+        <div style={{ padding: 40, textAlign: "center", opacity: 0.7 }}>
+          Loading page...
+        </div>
+      }
+    >
       <Switch>
         <Route path="/" component={firstRun ? WelcomePage : LandingPage} />
         <Route path="/welcome" component={WelcomePage} />

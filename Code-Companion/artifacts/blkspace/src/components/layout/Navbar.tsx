@@ -31,7 +31,9 @@ export function Navbar() {
         <div className="hidden md:flex gap-6 items-center">
           {navItems.map((item) => (
             <Link key={item.href} href={item.href}>
-              <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === item.href ? "text-primary" : "text-muted-foreground"}`}>
+              <span
+                className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === item.href ? "text-primary" : "text-muted-foreground"}`}
+              >
                 {item.label}
               </span>
             </Link>
@@ -45,7 +47,11 @@ export function Navbar() {
             </Button>
           </Link>
           <Link href="/notifications">
-            <Button variant="ghost" size="icon" className="rounded-full relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full relative"
+            >
               <Bell className="h-5 w-5" />
               <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" />
             </Button>
@@ -64,8 +70,13 @@ export function Navbar() {
             <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </Button>
-          <Link href={`/profile/${getCurrentHandle()}`} className="hidden md:block">
-            <Button variant="outline" size="sm">Profile</Button>
+          <Link
+            href={`/profile/${getCurrentHandle()}`}
+            className="hidden md:block"
+          >
+            <Button variant="outline" size="sm">
+              Profile
+            </Button>
           </Link>
           <Button
             variant="ghost"
@@ -73,7 +84,11 @@ export function Navbar() {
             className="md:hidden rounded-full"
             onClick={() => setMobileOpen(!mobileOpen)}
           >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
           </Button>
         </div>
       </div>
@@ -91,7 +106,9 @@ export function Navbar() {
             </Link>
           ))}
           <Link href={`/profile/${getCurrentHandle()}`}>
-            <Button variant="outline" size="sm" className="w-full mt-2">Profile</Button>
+            <Button variant="outline" size="sm" className="w-full mt-2">
+              Profile
+            </Button>
           </Link>
         </div>
       )}

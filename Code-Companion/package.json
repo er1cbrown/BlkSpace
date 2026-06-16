@@ -6,7 +6,11 @@
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "lint": "pnpm --filter @workspace/blkspace run lint",
+    "test": "pnpm --filter @workspace/blkspace run test:run",
+    "format": "prettier --write \"artifacts/**/*.{ts,tsx,js,json}\" \"lib/**/*.{ts,tsx,js,json}\" \"scripts/**/*.{ts,js,json}\"",
+    "format:check": "prettier --check \"artifacts/blkspace/src/**/*.{ts,tsx}\" \"artifacts/blkspace/*.{ts,json}\""
   },
   "private": true,
   "devDependencies": {

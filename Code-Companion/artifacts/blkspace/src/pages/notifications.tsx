@@ -7,12 +7,60 @@ import { useTauriGetNotifications } from "@/hooks/use-app-data";
 import { isTauri, type TauriNotification } from "@/lib/tauri-api";
 
 const mockNotifications = [
-  { id: 1, type: "like", user: "jane_doe", display: "Jane Doe", message: "liked your post", time: "2m ago", unread: true },
-  { id: 2, type: "reply", user: "campus_king", display: "Campus King", message: "replied to your post", time: "15m ago", unread: true },
-  { id: 3, type: "repost", user: "hbcustudent", display: "HBCU Student", message: "reposted your post", time: "1h ago", unread: false },
-  { id: 4, type: "follow", user: "new_freshman", display: "New Freshman", message: "followed you", time: "3h ago", unread: false },
-  { id: 5, type: "like", user: "alumnus_01", display: "Alumnus 01", message: "liked your post", time: "5h ago", unread: false },
-  { id: 6, type: "reply", user: "grad_student", display: "Grad Student", message: "replied to your thread", time: "1d ago", unread: false },
+  {
+    id: 1,
+    type: "like",
+    user: "jane_doe",
+    display: "Jane Doe",
+    message: "liked your post",
+    time: "2m ago",
+    unread: true,
+  },
+  {
+    id: 2,
+    type: "reply",
+    user: "campus_king",
+    display: "Campus King",
+    message: "replied to your post",
+    time: "15m ago",
+    unread: true,
+  },
+  {
+    id: 3,
+    type: "repost",
+    user: "hbcustudent",
+    display: "HBCU Student",
+    message: "reposted your post",
+    time: "1h ago",
+    unread: false,
+  },
+  {
+    id: 4,
+    type: "follow",
+    user: "new_freshman",
+    display: "New Freshman",
+    message: "followed you",
+    time: "3h ago",
+    unread: false,
+  },
+  {
+    id: 5,
+    type: "like",
+    user: "alumnus_01",
+    display: "Alumnus 01",
+    message: "liked your post",
+    time: "5h ago",
+    unread: false,
+  },
+  {
+    id: 6,
+    type: "reply",
+    user: "grad_student",
+    display: "Grad Student",
+    message: "replied to your thread",
+    time: "1d ago",
+    unread: false,
+  },
 ];
 
 const iconMap: Record<string, typeof Heart> = {
@@ -50,9 +98,10 @@ const typeToIcon: Record<string, string> = {
 export default function NotificationsPage() {
   const { data: tauriData } = useTauriGetNotifications();
 
-  const items = isTauri() && Array.isArray(tauriData)
-    ? tauriData.map(mapTauriNotification)
-    : mockNotifications;
+  const items =
+    isTauri() && Array.isArray(tauriData)
+      ? tauriData.map(mapTauriNotification)
+      : mockNotifications;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -70,11 +119,15 @@ export default function NotificationsPage() {
           </TabsList>
 
           <TabsContent value="all" className="space-y-1">
-            {items.map(n => {
+            {items.map((n) => {
               const Icon = iconMap[n.type] || Bell;
-              const style = iconStyles[n.type] || "text-muted-foreground bg-muted";
+              const style =
+                iconStyles[n.type] || "text-muted-foreground bg-muted";
               return (
-                <Card key={n.id} className={`border-0 shadow-none rounded-none ${n.unread ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}>
+                <Card
+                  key={n.id}
+                  className={`border-0 shadow-none rounded-none ${n.unread ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
+                >
                   <CardContent className="flex items-start gap-4 py-4 px-2">
                     <div className={`p-2 rounded-full shrink-0 ${style}`}>
                       <Icon className="w-4 h-4" />
@@ -84,9 +137,12 @@ export default function NotificationsPage() {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm">
-                        <span className="font-bold">{n.display}</span> {n.message}
+                        <span className="font-bold">{n.display}</span>{" "}
+                        {n.message}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{n.time}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {n.time}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -95,7 +151,9 @@ export default function NotificationsPage() {
           </TabsContent>
 
           <TabsContent value="mentions">
-            <div className="text-center py-20 text-muted-foreground">No mentions yet.</div>
+            <div className="text-center py-20 text-muted-foreground">
+              No mentions yet.
+            </div>
           </TabsContent>
         </Tabs>
       </main>

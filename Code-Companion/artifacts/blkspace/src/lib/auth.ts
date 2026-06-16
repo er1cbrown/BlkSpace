@@ -1,12 +1,25 @@
 import {
-  isTauri, tauriStoreKey, tauriGetKey, tauriHasKey,
-  tauriGetChallenge, tauriLogin, tauriLogout, tauriVerifySession,
+  isTauri,
+  tauriStoreKey,
+  tauriGetKey,
+  tauriHasKey,
+  tauriGetChallenge,
+  tauriLogin,
+  tauriLogout,
+  tauriVerifySession,
 } from "@/lib/tauri-api";
-import { generateSecretKey, getPublicKey, finalizeEvent, nip19 } from "nostr-tools";
+import {
+  generateSecretKey,
+  getPublicKey,
+  finalizeEvent,
+  nip19,
+} from "nostr-tools";
 import { entropyToMnemonic, mnemonicToEntropy, validateMnemonic } from "bip39";
 
 function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function hexToBytes(hex: string): Uint8Array {
@@ -66,7 +79,10 @@ export function mnemonicToNsec(mnemonic: string): string {
   return mnemonicToEntropy(cleaned);
 }
 
-export async function getStoredNsec(sessionToken: string, handle: string): Promise<string | null> {
+export async function getStoredNsec(
+  sessionToken: string,
+  handle: string,
+): Promise<string | null> {
   if (isTauri()) {
     return await tauriGetKey(sessionToken, handle);
   }
@@ -85,7 +101,10 @@ export async function signAuthEvent(
   const event = {
     kind: 22242,
     created_at: Math.floor(Date.now() / 1000),
-    tags: [["challenge", challenge], ["relay", "blkspace"]],
+    tags: [
+      ["challenge", challenge],
+      ["relay", "blkspace"],
+    ],
     content: "",
     pubkey,
   };
@@ -102,7 +121,12 @@ function webStore(handle: string, nsecHex: string, displayName: string) {
   localStorage.setItem(DISPLAY_KEY, displayName);
 }
 
-export async function storeIdentity(sessionToken: string, handle: string, nsecHex: string, displayName: string) {
+export async function storeIdentity(
+  sessionToken: string,
+  handle: string,
+  nsecHex: string,
+  displayName: string,
+) {
   if (isTauri()) {
     await tauriStoreKey(sessionToken, handle, nsecHex);
     localStorage.setItem(HANDLE_KEY, handle);
@@ -141,7 +165,9 @@ export async function authenticateWithNostr(
   nsecHex: string,
 ): Promise<string> {
   // 1. Get challenge from server
-  const challenge = isTauri() ? await tauriGetChallenge(handle) : "web_challenge";
+  const challenge = isTauri()
+    ? await tauriGetChallenge(handle)
+    : "web_challenge";
 
   // 2. Sign auth event
   const { authEvent, pubkey } = await signAuthEvent(nsecHex, challenge);
@@ -175,7 +201,10 @@ export async function getIdentity(): Promise<{
     const stored = await tauriHasKey(token, handle);
     return { handle, displayName, hasKey: stored };
   }
-  const hasKey = !!(localStorage.getItem("blkspace_nsec") || localStorage.getItem("blkspace_key"));
+  const hasKey = !!(
+    localStorage.getItem("blkspace_nsec") ||
+    localStorage.getItem("blkspace_key")
+  );
   return { handle, displayName, hasKey };
 }
 

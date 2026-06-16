@@ -14,7 +14,15 @@ import {
 } from "@/lib/tauri-api";
 import { getSessionToken } from "@/lib/auth";
 import { toast } from "sonner";
-import { Trash2, Upload, Image, Film, Music, File, ArrowLeft } from "lucide-react";
+import {
+  Trash2,
+  Upload,
+  Image,
+  Film,
+  Music,
+  File,
+  ArrowLeft,
+} from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Link } from "wouter";
 
@@ -25,7 +33,15 @@ function blobIcon(mime: string) {
   return <File className="h-4 w-4" />;
 }
 
-function BlobPreview({ hash, mimeType, filename }: { hash: string; mimeType: string; filename: string }) {
+function BlobPreview({
+  hash,
+  mimeType,
+  filename,
+}: {
+  hash: string;
+  mimeType: string;
+  filename: string;
+}) {
   const [src, setSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,18 +57,41 @@ function BlobPreview({ hash, mimeType, filename }: { hash: string; mimeType: str
   }, [hash, mimeType]);
 
   if (loading) return <Skeleton className="w-full aspect-square rounded-md" />;
-  if (!src) return <div className="w-full aspect-square bg-muted rounded-md flex items-center justify-center text-muted-foreground text-sm">Unavailable</div>;
+  if (!src)
+    return (
+      <div className="w-full aspect-square bg-muted rounded-md flex items-center justify-center text-muted-foreground text-sm">
+        Unavailable
+      </div>
+    );
 
   if (mimeType.startsWith("image/")) {
-    return <img src={src} alt={filename} className="w-full aspect-square object-cover rounded-md" loading="lazy" />;
+    return (
+      <img
+        src={src}
+        alt={filename}
+        className="w-full aspect-square object-cover rounded-md"
+        loading="lazy"
+      />
+    );
   }
   if (mimeType.startsWith("video/")) {
-    return <video src={src} controls className="w-full rounded-md" preload="metadata" />;
+    return (
+      <video
+        src={src}
+        controls
+        className="w-full rounded-md"
+        preload="metadata"
+      />
+    );
   }
   if (mimeType.startsWith("audio/")) {
     return <audio src={src} controls className="w-full" preload="none" />;
   }
-  return <div className="w-full aspect-square bg-muted rounded-md flex items-center justify-center text-muted-foreground text-sm">{filename}</div>;
+  return (
+    <div className="w-full aspect-square bg-muted rounded-md flex items-center justify-center text-muted-foreground text-sm">
+      {filename}
+    </div>
+  );
 }
 
 export default function MediaPage() {
@@ -66,22 +105,32 @@ export default function MediaPage() {
     if (!isTauri()) return;
     const token = getSessionToken();
     if (!token) return;
-    tauriListUserBlobs(token).then(setBlobs).finally(() => setLoading(false));
+    tauriListUserBlobs(token)
+      .then(setBlobs)
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
     if (!isTauri()) return;
     const token = getSessionToken();
     if (!token) return;
-    tauriListPinnedContent(token).then(setPinned).catch(() => {});
+    tauriListPinnedContent(token)
+      .then(setPinned)
+      .catch(() => {});
   }, []);
 
   const handleUpload = async () => {
     const file = fileRef.current?.files?.[0];
     if (!file) return;
     const token = getSessionToken();
-    if (!token) { toast.error("Please sign in"); return; }
-    if (file.size > 20 * 1024 * 1024) { toast.error("File too large (max 20MB)"); return; }
+    if (!token) {
+      toast.error("Please sign in");
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("File too large (max 20MB)");
+      return;
+    }
 
     setUploading(true);
     try {
@@ -119,7 +168,10 @@ export default function MediaPage() {
 
   const handlePin = async (hash: string) => {
     const token = getSessionToken();
-    if (!token || !isTauri()) { toast.info("Pinning in Tauri"); return; }
+    if (!token || !isTauri()) {
+      toast.info("Pinning in Tauri");
+      return;
+    }
     try {
       await tauriPinContent(token, hash);
       setPinned((prev) => [...prev, hash]);
@@ -135,7 +187,10 @@ export default function MediaPage() {
       <main className="flex-1 container max-w-4xl py-8 px-4">
         <div className="flex items-center gap-3 mb-6">
           <Link href="/feed">
-            <Button variant="ghost" className="pl-0 hover:bg-transparent hover:text-primary gap-2">
+            <Button
+              variant="ghost"
+              className="pl-0 hover:bg-transparent hover:text-primary gap-2"
+            >
               <ArrowLeft className="w-4 h-4" /> Back to Feed
             </Button>
           </Link>
@@ -158,7 +213,11 @@ export default function MediaPage() {
                 onChange={handleUpload}
                 disabled={uploading}
               />
-              {uploading && <span className="text-sm text-muted-foreground">Uploading...</span>}
+              {uploading && (
+                <span className="text-sm text-muted-foreground">
+                  Uploading...
+                </span>
+              )}
             </div>
 
             {loading ? (
@@ -168,12 +227,21 @@ export default function MediaPage() {
                 ))}
               </div>
             ) : blobs.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No media uploaded yet.</p>
+              <p className="text-muted-foreground text-center py-8">
+                No media uploaded yet.
+              </p>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {blobs.map((blob) => (
-                  <Card key={blob.hash} className="overflow-hidden relative group">
-                    <BlobPreview hash={blob.hash} mimeType={blob.mimeType} filename={blob.filename} />
+                  <Card
+                    key={blob.hash}
+                    className="overflow-hidden relative group"
+                  >
+                    <BlobPreview
+                      hash={blob.hash}
+                      mimeType={blob.mimeType}
+                      filename={blob.filename}
+                    />
                     <div className="p-2 space-y-1">
                       <p className="text-xs truncate flex items-center gap-1">
                         {blobIcon(blob.mimeType)}
@@ -183,18 +251,25 @@ export default function MediaPage() {
                         {(blob.fileSize / 1024).toFixed(1)} KB
                       </p>
                       {blob.cid && (
-                        <p className="text-[10px] text-muted-foreground/70 truncate font-mono" title={blob.cid}>
+                        <p
+                          className="text-[10px] text-muted-foreground/70 truncate font-mono"
+                          title={blob.cid}
+                        >
                           cid: {blob.cid.slice(0, 10)}…
                         </p>
                       )}
                       <Button
                         size="sm"
-                        variant={pinned.includes(blob.hash) ? "secondary" : "outline"}
+                        variant={
+                          pinned.includes(blob.hash) ? "secondary" : "outline"
+                        }
                         className="mt-1 h-6 text-[10px]"
                         onClick={() => handlePin(blob.hash)}
                         disabled={pinned.includes(blob.hash)}
                       >
-                        {pinned.includes(blob.hash) ? "Pinned ✓" : "Pin for rewards"}
+                        {pinned.includes(blob.hash)
+                          ? "Pinned ✓"
+                          : "Pin for rewards"}
                       </Button>
                     </div>
                     <Button

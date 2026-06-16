@@ -1,12 +1,33 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Navbar } from "@/components/layout/Navbar";
-import { ArrowRight, ArrowLeft, Shield, Globe, Coins, Key, Eye, EyeOff, Check } from "lucide-react";
-import { createNostrIdentity, nsecToMnemonic, storeIdentity, authenticateWithNostr } from "@/lib/auth";
+import {
+  ArrowRight,
+  ArrowLeft,
+  Shield,
+  Globe,
+  Coins,
+  Key,
+  Eye,
+  EyeOff,
+  Check,
+} from "lucide-react";
+import {
+  createNostrIdentity,
+  nsecToMnemonic,
+  storeIdentity,
+  authenticateWithNostr,
+} from "@/lib/auth";
 import { isTauri, tauriCreateUser } from "@/lib/tauri-api";
 import { markFirstRunComplete } from "@/lib/auth";
 
@@ -69,18 +90,23 @@ export default function WelcomePage() {
       </div>
       <h2 className="text-3xl font-bold font-serif">Welcome to BlkSpace</h2>
       <p className="text-lg text-muted-foreground">
-        The digital yard for HBCU communities. Built on decentralized technology, owned by the people who use it.
+        The digital yard for HBCU communities. Built on decentralized
+        technology, owned by the people who use it.
       </p>
       <div className="grid grid-cols-3 gap-4 text-sm pt-4">
         <div className="bg-card p-4 rounded-xl border">
           <Shield className="w-6 h-6 text-primary mx-auto mb-2" />
           <p className="font-medium">Your Keys</p>
-          <p className="text-muted-foreground text-xs">Your identity, your control</p>
+          <p className="text-muted-foreground text-xs">
+            Your identity, your control
+          </p>
         </div>
         <div className="bg-card p-4 rounded-xl border">
           <Globe className="w-6 h-6 text-primary mx-auto mb-2" />
           <p className="font-medium">Your Town</p>
-          <p className="text-muted-foreground text-xs">Campus-first community</p>
+          <p className="text-muted-foreground text-xs">
+            Campus-first community
+          </p>
         </div>
         <div className="bg-card p-4 rounded-xl border">
           <Coins className="w-6 h-6 text-primary mx-auto mb-2" />
@@ -92,27 +118,40 @@ export default function WelcomePage() {
 
     // Step 1: What Makes BlkSpace Different
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold font-serif text-center">What Makes This Different</h2>
+      <h2 className="text-2xl font-bold font-serif text-center">
+        What Makes This Different
+      </h2>
       <div className="space-y-4">
         <div className="bg-card p-4 rounded-xl border flex gap-4">
           <Key className="w-8 h-8 text-primary shrink-0 mt-1" />
           <div>
             <p className="font-bold">No Company Owns Your Account</p>
-            <p className="text-sm text-muted-foreground">Instagram, TikTok, Twitter — they all own your data. BlkSpace gives you cryptographic keys. Your account belongs to you, not a corporation.</p>
+            <p className="text-sm text-muted-foreground">
+              Instagram, TikTok, Twitter — they all own your data. BlkSpace
+              gives you cryptographic keys. Your account belongs to you, not a
+              corporation.
+            </p>
           </div>
         </div>
         <div className="bg-card p-4 rounded-xl border flex gap-4">
           <Shield className="w-8 h-8 text-primary shrink-0 mt-1" />
           <div>
             <p className="font-bold">No "Forgot Password"</p>
-            <p className="text-sm text-muted-foreground">Because there's no password. Instead, you get a <strong>recovery phrase</strong> — 12 words that unlock your account anywhere. Lose it, and nobody can help you. Not even us.</p>
+            <p className="text-sm text-muted-foreground">
+              Because there's no password. Instead, you get a{" "}
+              <strong>recovery phrase</strong> — 12 words that unlock your
+              account anywhere. Lose it, and nobody can help you. Not even us.
+            </p>
           </div>
         </div>
         <div className="bg-card p-4 rounded-xl border flex gap-4">
           <Globe className="w-8 h-8 text-primary shrink-0 mt-1" />
           <div>
             <p className="font-bold">Your Town, Your Rules</p>
-            <p className="text-sm text-muted-foreground">TSU, Howard, FAMU, Spelman — each has its own digital yard. No algorithms from Silicon Valley decide what you see.</p>
+            <p className="text-sm text-muted-foreground">
+              TSU, Howard, FAMU, Spelman — each has its own digital yard. No
+              algorithms from Silicon Valley decide what you see.
+            </p>
           </div>
         </div>
       </div>
@@ -120,8 +159,12 @@ export default function WelcomePage() {
 
     // Step 2: Create Profile
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold font-serif text-center">Create Your Profile</h2>
-      <p className="text-center text-muted-foreground">Pick your handle and name. This is how people will find you on the yard.</p>
+      <h2 className="text-2xl font-bold font-serif text-center">
+        Create Your Profile
+      </h2>
+      <p className="text-center text-muted-foreground">
+        Pick your handle and name. This is how people will find you on the yard.
+      </p>
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="name">Display Name</Label>
@@ -138,28 +181,40 @@ export default function WelcomePage() {
             id="handle"
             placeholder="your_handle (letters, numbers, _ or -)"
             value={handle}
-            onChange={(e) => setHandle(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ""))}
+            onChange={(e) =>
+              setHandle(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ""))
+            }
             className="font-mono"
           />
-          <p className="text-xs text-muted-foreground">This will be your username: @{handle || "your_handle"}</p>
+          <p className="text-xs text-muted-foreground">
+            This will be your username: @{handle || "your_handle"}
+          </p>
         </div>
         {error && (
-          <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">{error}</div>
+          <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">
+            {error}
+          </div>
         )}
       </div>
     </div>,
 
     // Step 3: Recovery Phrase
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold font-serif text-center">Your Recovery Phrase</h2>
+      <h2 className="text-2xl font-bold font-serif text-center">
+        Your Recovery Phrase
+      </h2>
       <div className="space-y-4">
         <div className="bg-amber-950/20 border border-amber-600/30 text-amber-200 text-sm p-4 rounded-lg">
           <strong>⚠ This is the most important step.</strong>
-          <p className="mt-1">These 12 words are your account. Lose them, and your account is gone forever. There is no reset, no support, no recovery.</p>
+          <p className="mt-1">
+            These 12 words are your account. Lose them, and your account is gone
+            forever. There is no reset, no support, no recovery.
+          </p>
         </div>
 
         <div className="bg-amber-950/10 border border-amber-600/20 text-amber-200 text-sm p-4 rounded-lg">
-          <strong>Write this on paper.</strong> Do NOT screenshot, photograph, or save to your phone. Paper is safer than pixels.
+          <strong>Write this on paper.</strong> Do NOT screenshot, photograph,
+          or save to your phone. Paper is safer than pixels.
         </div>
 
         <div className="bg-muted p-4 rounded-xl font-mono text-sm leading-relaxed relative">
@@ -170,7 +225,11 @@ export default function WelcomePage() {
             onClick={() => setShowPhrase(!showPhrase)}
             className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
           >
-            {showPhrase ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            {showPhrase ? (
+              <EyeOff className="w-5 h-5" />
+            ) : (
+              <Eye className="w-5 h-5" />
+            )}
           </button>
         </div>
 
@@ -206,12 +265,19 @@ export default function WelcomePage() {
       </div>
       <h2 className="text-3xl font-bold font-serif">You're Ready</h2>
       <p className="text-lg text-muted-foreground">
-        Your account is created. Your keys are stored on this device. Your phrase is on paper.
+        Your account is created. Your keys are stored on this device. Your
+        phrase is on paper.
       </p>
       <div className="bg-card p-6 rounded-xl border text-left space-y-3">
-        <p><strong>Handle:</strong> @{handle || "your_handle"}</p>
-        <p><strong>Name:</strong> {displayName || handle || "Your Name"}</p>
-        <p className="text-sm text-muted-foreground">Recovery phrase: Saved on paper (not shown again)</p>
+        <p>
+          <strong>Handle:</strong> @{handle || "your_handle"}
+        </p>
+        <p>
+          <strong>Name:</strong> {displayName || handle || "Your Name"}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Recovery phrase: Saved on paper (not shown again)
+        </p>
       </div>
       <p className="text-sm text-muted-foreground">
         You can find your phrase anytime in Settings → Security.
@@ -243,7 +309,9 @@ export default function WelcomePage() {
             {steps[step]}
 
             {error && step !== 2 && (
-              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">{error}</div>
+              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">
+                {error}
+              </div>
             )}
 
             <div className="flex justify-between pt-4">

@@ -1,16 +1,33 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useListPosts, getListPostsQueryKey, useGetTrendingFeed, getGetTrendingFeedQueryKey,
-  useGetPost, getGetPostQueryKey, useListReplies, getListRepliesQueryKey,
-  useGetUser, getGetUserQueryKey, useGetUserPosts, getGetUserPostsQueryKey,
-  useCreatePost, useLikePost, useUnlikePost, useCreateReply,
-  useListRelays, getListRelaysQueryKey, useGetNetworkStats, getGetNetworkStatsQueryKey,
-  useGetRecentActivity, getGetRecentActivityQueryKey,
+  useListPosts,
+  getListPostsQueryKey,
+  useGetTrendingFeed,
+  getGetTrendingFeedQueryKey,
+  useGetPost,
+  getGetPostQueryKey,
+  useListReplies,
+  getListRepliesQueryKey,
+  useGetUser,
+  getGetUserQueryKey,
+  useGetUserPosts,
+  getGetUserPostsQueryKey,
+  useCreatePost,
+  useLikePost,
+  useUnlikePost,
+  useCreateReply,
+  useListRelays,
+  getListRelaysQueryKey,
+  useGetNetworkStats,
+  getGetNetworkStatsQueryKey,
+  useGetRecentActivity,
+  getGetRecentActivityQueryKey,
 } from "@workspace/api-client-react";
 import * as tauri from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 
-export const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+export const IS_TAURI =
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 // Simple mock data so web/preview mode (no backend) shows content instead of perpetual loading spinners.
 const MOCK_POSTS = [
@@ -19,7 +36,8 @@ const MOCK_POSTS = [
     authorHandle: "demo_user",
     authorDisplayName: "Demo User",
     authorAvatarUrl: "",
-    content: "Just stepped on the yard for the first time. This place is incredible! 🏆",
+    content:
+      "Just stepped on the yard for the first time. This place is incredible! 🏆",
     townTag: "tsu",
     repliesCount: 12,
     repostsCount: 5,
@@ -51,7 +69,8 @@ const MOCK_POSTS = [
     authorHandle: "campus_king",
     authorDisplayName: "Campus King",
     authorAvatarUrl: "",
-    content: "New mix just dropped. Link in bio. Who's bumping this at the next tailgate? 🎧",
+    content:
+      "New mix just dropped. Link in bio. Who's bumping this at the next tailgate? 🎧",
     townTag: "famu",
     repliesCount: 8,
     repostsCount: 23,
@@ -164,8 +183,26 @@ function getMockReplies(_postId: number) {
 }
 
 const MOCK_RELAYS = [
-  { id: 1, name: "TSU Stray Relay", university: "Tennessee State", town: "tsu", status: "online", uptimePercent: 99, connectedPeers: 42, eventsPerHour: 128 },
-  { id: 2, name: "Howard Hub", university: "Howard", town: "howard", status: "online", uptimePercent: 97, connectedPeers: 67, eventsPerHour: 203 },
+  {
+    id: 1,
+    name: "TSU Stray Relay",
+    university: "Tennessee State",
+    town: "tsu",
+    status: "online",
+    uptimePercent: 99,
+    connectedPeers: 42,
+    eventsPerHour: 128,
+  },
+  {
+    id: 2,
+    name: "Howard Hub",
+    university: "Howard",
+    town: "howard",
+    status: "online",
+    uptimePercent: 97,
+    connectedPeers: 67,
+    eventsPerHour: 203,
+  },
 ];
 
 const MOCK_NETWORK = {
@@ -282,7 +319,8 @@ export function useTauriListChannels(communityId: string) {
 export function useTauriListPostsForChannel(channelId: string) {
   return useQuery({
     queryKey: ["tauri", "channelPosts", channelId],
-    queryFn: () => tauri.tauriListPostsForChannel(channelId, getCurrentHandle()),
+    queryFn: () =>
+      tauri.tauriListPostsForChannel(channelId, getCurrentHandle()),
     enabled: IS_TAURI && !!channelId,
   });
 }
@@ -293,25 +331,56 @@ export function useAppCreatePost() {
   const qc = useQueryClient();
   const web = useCreatePost();
   const tauriMut = useMutation({
-    mutationFn: (input: { session_token: string; content: string; town_tag: string; channel_id?: string; media_hashes?: string }) =>
-      tauri.tauriCreatePost(input.session_token, input.content, input.town_tag, input.channel_id, input.media_hashes),
+    mutationFn: (input: {
+      session_token: string;
+      content: string;
+      town_tag: string;
+      channel_id?: string;
+      media_hashes?: string;
+    }) =>
+      tauri.tauriCreatePost(
+        input.session_token,
+        input.content,
+        input.town_tag,
+        input.channel_id,
+        input.media_hashes,
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
     },
   });
   return {
     mutate: IS_TAURI
-      ? (input: { content: string; town_tag: string; channel_id?: string; media_hashes?: string[] }, opts?: any) =>
-          tauriMut.mutate({
-            session_token: getSessionToken() || "",
-            content: input.content,
-            town_tag: input.town_tag,
-            channel_id: input.channel_id,
-            media_hashes: input.media_hashes ? JSON.stringify(input.media_hashes) : undefined,
-          }, opts)
+      ? (
+          input: {
+            content: string;
+            town_tag: string;
+            channel_id?: string;
+            media_hashes?: string[];
+          },
+          opts?: any,
+        ) =>
+          tauriMut.mutate(
+            {
+              session_token: getSessionToken() || "",
+              content: input.content,
+              town_tag: input.town_tag,
+              channel_id: input.channel_id,
+              media_hashes: input.media_hashes
+                ? JSON.stringify(input.media_hashes)
+                : undefined,
+            },
+            opts,
+          )
       : (input: any, opts?: any) =>
           web.mutate(
-            { data: { content: input.content, authorHandle: "demo_user", townTag: input.town_tag } },
+            {
+              data: {
+                content: input.content,
+                authorHandle: "demo_user",
+                townTag: input.town_tag,
+              },
+            },
             opts,
           ),
     isPending: IS_TAURI ? tauriMut.isPending : web.isPending,
@@ -331,8 +400,7 @@ export function useAppToggleLike() {
   });
   return {
     mutate: IS_TAURI
-      ? (args: { postId: number }, opts?: any) =>
-          tauriMut.mutate(args, opts)
+      ? (args: { postId: number }, opts?: any) => tauriMut.mutate(args, opts)
       : (args: { postId: number; liked: boolean }, opts?: any) => {
           if (args.liked) {
             webUnlike.mutate({ id: args.postId }, opts);
@@ -340,7 +408,9 @@ export function useAppToggleLike() {
             webLike.mutate({ id: args.postId }, opts);
           }
         },
-    isPending: IS_TAURI ? tauriMut.isPending : (webLike.isPending || webUnlike.isPending),
+    isPending: IS_TAURI
+      ? tauriMut.isPending
+      : webLike.isPending || webUnlike.isPending,
   };
 }
 
@@ -382,7 +452,10 @@ export function useAppCreateReply() {
           tauriMut.mutate(input, opts)
       : (input: any, opts?: any) =>
           web.mutate(
-            { id: input.postId, data: { content: input.content, authorHandle: "demo_user" } },
+            {
+              id: input.postId,
+              data: { content: input.content, authorHandle: "demo_user" },
+            },
             opts,
           ),
     isPending: IS_TAURI ? tauriMut.isPending : web.isPending,
@@ -438,7 +511,14 @@ export function useAppSendWeixBucks() {
 export function useAppCreateMarketplaceListing() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (args: { itemType: string; itemRef: string | null; price: number; title: string; description: string | null; isNft: boolean }) =>
+    mutationFn: (args: {
+      itemType: string;
+      itemRef: string | null;
+      price: number;
+      title: string;
+      description: string | null;
+      isNft: boolean;
+    }) =>
       tauri.tauriCreateMarketplaceListing(
         getSessionToken() || "",
         args.itemType,
@@ -470,8 +550,18 @@ export function useAppBuyMarketplaceListing() {
 export function useAppWithdrawToSolana() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ studentSolanaAddress, amountWb }: { studentSolanaAddress: string; amountWb: number }) =>
-      tauri.tauriWithdrawToSolana(getSessionToken() || "", studentSolanaAddress, amountWb),
+    mutationFn: ({
+      studentSolanaAddress,
+      amountWb,
+    }: {
+      studentSolanaAddress: string;
+      amountWb: number;
+    }) =>
+      tauri.tauriWithdrawToSolana(
+        getSessionToken() || "",
+        studentSolanaAddress,
+        amountWb,
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "wallet"] });
       qc.invalidateQueries({ queryKey: ["tauri", "user"] });
@@ -518,8 +608,15 @@ export function useTauriRelayNetworkStats() {
 export function useTauriConnectToRelay() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ url, name, town }: { url: string; name: string; town: string }) =>
-      tauri.tauriConnectToRelay(getSessionToken() || "", url, name, town),
+    mutationFn: ({
+      url,
+      name,
+      town,
+    }: {
+      url: string;
+      name: string;
+      town: string;
+    }) => tauri.tauriConnectToRelay(getSessionToken() || "", url, name, town),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "relayStatuses"] });
       qc.invalidateQueries({ queryKey: ["tauri", "relayConnections"] });
@@ -622,7 +719,8 @@ export function useTauriPublishRelayList() {
 export function useTauriFetchUserRelayList(pubkey: string) {
   return useQuery({
     queryKey: ["tauri", "userRelayList", pubkey],
-    queryFn: () => tauri.tauriFetchUserRelayList(getSessionToken() || "", pubkey),
+    queryFn: () =>
+      tauri.tauriFetchUserRelayList(getSessionToken() || "", pubkey),
     enabled: IS_TAURI && !!pubkey,
   });
 }
@@ -641,7 +739,8 @@ export function useTauriAnnounceBlob() {
 export function useTauriPublishTrendingSummary() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => tauri.tauriPublishTrendingSummary(getSessionToken() || ""),
+    mutationFn: () =>
+      tauri.tauriPublishTrendingSummary(getSessionToken() || ""),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "trendingSummaries"] });
     },
@@ -651,7 +750,8 @@ export function useTauriPublishTrendingSummary() {
 export function useTauriFetchTrendingSummaries(town: string) {
   return useQuery({
     queryKey: ["tauri", "trendingSummaries", town],
-    queryFn: () => tauri.tauriFetchTrendingSummaries(getSessionToken() || "", town),
+    queryFn: () =>
+      tauri.tauriFetchTrendingSummaries(getSessionToken() || "", town),
     enabled: IS_TAURI && !!town,
   });
 }
@@ -712,8 +812,21 @@ export function useTauriSyncAccountContent() {
 export function useTauriAddToOfflineCache() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ hash, contentType, source }: { hash: string; contentType: string; source: string }) =>
-      tauri.tauriAddToOfflineCache(getSessionToken() || "", hash, contentType, source),
+    mutationFn: ({
+      hash,
+      contentType,
+      source,
+    }: {
+      hash: string;
+      contentType: string;
+      source: string;
+    }) =>
+      tauri.tauriAddToOfflineCache(
+        getSessionToken() || "",
+        hash,
+        contentType,
+        source,
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "offlineCache"] });
     },
@@ -755,8 +868,18 @@ export function useTauriPrefetchContent() {
 export function useTauriQueueOfflineAction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ actionType, payload }: { actionType: string; payload: string }) =>
-      tauri.tauriQueueOfflineAction(getSessionToken() || "", actionType, payload),
+    mutationFn: ({
+      actionType,
+      payload,
+    }: {
+      actionType: string;
+      payload: string;
+    }) =>
+      tauri.tauriQueueOfflineAction(
+        getSessionToken() || "",
+        actionType,
+        payload,
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "offlineQueue"] });
     },
@@ -785,7 +908,8 @@ export function useTauriMarkOfflineActionSynced() {
 export function useTauriClearSyncedOfflineActions() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => tauri.tauriClearSyncedOfflineActions(getSessionToken() || ""),
+    mutationFn: () =>
+      tauri.tauriClearSyncedOfflineActions(getSessionToken() || ""),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "offlineQueue"] });
     },
@@ -804,9 +928,26 @@ export function useTauriGetUserAccountData() {
 
 export function useTauriLogDeviceSync() {
   return useMutation({
-    mutationFn: ({ deviceId, syncType, itemsCount, durationMs, success }: 
-      { deviceId: string; syncType: string; itemsCount: number; durationMs: number; success: boolean }) =>
-      tauri.tauriLogDeviceSync(deviceId, syncType, itemsCount, durationMs, success),
+    mutationFn: ({
+      deviceId,
+      syncType,
+      itemsCount,
+      durationMs,
+      success,
+    }: {
+      deviceId: string;
+      syncType: string;
+      itemsCount: number;
+      durationMs: number;
+      success: boolean;
+    }) =>
+      tauri.tauriLogDeviceSync(
+        deviceId,
+        syncType,
+        itemsCount,
+        durationMs,
+        success,
+      ),
   });
 }
 
@@ -822,13 +963,22 @@ export function useTauriGetDeviceSyncHistory(deviceId: string) {
 
 export function useTauriRecordRelayConsensus() {
   return useMutation({
-    mutationFn: ({ eventId, relayUrl, contentHash }: 
-      { eventId: string; relayUrl: string; contentHash: string }) =>
-      tauri.tauriRecordRelayConsensus(eventId, relayUrl, contentHash),
+    mutationFn: ({
+      eventId,
+      relayUrl,
+      contentHash,
+    }: {
+      eventId: string;
+      relayUrl: string;
+      contentHash: string;
+    }) => tauri.tauriRecordRelayConsensus(eventId, relayUrl, contentHash),
   });
 }
 
-export function useTauriValidateRelayConsensus(eventId: string, minRelays: number) {
+export function useTauriValidateRelayConsensus(
+  eventId: string,
+  minRelays: number,
+) {
   return useQuery({
     queryKey: ["tauri", "consensus", eventId, minRelays],
     queryFn: () => tauri.tauriValidateRelayConsensus(eventId, minRelays),
@@ -849,16 +999,23 @@ export function useTauriGetRelayConsensusStats(eventId: string) {
 export function useTauriListRelayEventsWithConsensus(
   limit?: number,
   kindFilter?: number,
-  minRelays?: number
+  minRelays?: number,
 ) {
   return useQuery({
-    queryKey: ["tauri", "relayEventsWithConsensus", limit, kindFilter, minRelays],
-    queryFn: () => tauri.tauriListRelayEventsWithConsensus(
-      getSessionToken() || "",
+    queryKey: [
+      "tauri",
+      "relayEventsWithConsensus",
       limit,
       kindFilter,
-      minRelays
-    ),
+      minRelays,
+    ],
+    queryFn: () =>
+      tauri.tauriListRelayEventsWithConsensus(
+        getSessionToken() || "",
+        limit,
+        kindFilter,
+        minRelays,
+      ),
     enabled: IS_TAURI,
   });
 }

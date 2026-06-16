@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { 
-  useTauriSyncAccountContent, 
+import {
+  useTauriSyncAccountContent,
   useTauriGetUserAccountData,
   useTauriGetPendingOfflineActions,
   useTauriListPinnedContent,
@@ -16,17 +22,17 @@ import {
 } from "@/hooks/use-app-data";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { isTauri } from "@/lib/tauri-api";
-import { 
-  Smartphone, 
-  Laptop, 
-  Wifi, 
-  WifiOff, 
-  RefreshCw, 
-  Clock, 
+import {
+  Smartphone,
+  Laptop,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  Clock,
   Database,
   ArrowRightLeft,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
 
 export default function DeviceMeshTestPage() {
@@ -64,19 +70,26 @@ export default function DeviceMeshTestPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <Navbar />
-      
+
       <div className="bg-secondary text-secondary-foreground py-12 border-b-4 border-primary">
         <div className="container px-4">
           <div className="flex items-center gap-4 mb-4">
             <ArrowRightLeft className="w-10 h-10 text-primary" />
-            <h1 className="text-4xl font-black tracking-tighter">Device Mesh Test</h1>
+            <h1 className="text-4xl font-black tracking-tighter">
+              Device Mesh Test
+            </h1>
           </div>
           <p className="text-lg opacity-90 max-w-2xl">
-            Cross-device sync, recovery, and performance testing for the BlkSpace mesh network.
+            Cross-device sync, recovery, and performance testing for the
+            BlkSpace mesh network.
           </p>
           <div className="flex items-center gap-2 mt-4 text-sm">
-            <Badge variant="outline" className="bg-background/20">Device: {deviceId}</Badge>
-            <Badge variant="outline" className="bg-background/20">User: {handle}</Badge>
+            <Badge variant="outline" className="bg-background/20">
+              Device: {deviceId}
+            </Badge>
+            <Badge variant="outline" className="bg-background/20">
+              User: {handle}
+            </Badge>
             <Badge variant={isDesktop ? "default" : "secondary"}>
               {isDesktop ? "Desktop" : "Web"}
             </Badge>
@@ -88,11 +101,16 @@ export default function DeviceMeshTestPage() {
         {!sessionToken && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-yellow-800">
             <AlertCircle className="w-4 h-4 inline mr-2" />
-            You must be logged in to test cross-device sync. Go to Settings → Sign In first.
+            You must be logged in to test cross-device sync. Go to Settings →
+            Sign In first.
           </div>
         )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
           <TabsList className="grid grid-cols-5 w-full max-w-3xl">
             <TabsTrigger value="sync">Sync</TabsTrigger>
             <TabsTrigger value="recovery">Recovery</TabsTrigger>
@@ -113,12 +131,14 @@ export default function DeviceMeshTestPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Button 
-                    onClick={handleSync} 
+                  <Button
+                    onClick={handleSync}
                     disabled={syncMutation.isPending || !sessionToken}
                     className="w-full"
                   >
-                    {syncMutation.isPending ? "Syncing..." : "Sync Account Content"}
+                    {syncMutation.isPending
+                      ? "Syncing..."
+                      : "Sync Account Content"}
                   </Button>
                   {syncMutation.isSuccess && (
                     <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm">
@@ -149,23 +169,33 @@ export default function DeviceMeshTestPage() {
                     <>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">User</span>
-                        <span className="font-medium">{accountData.user?.display_name}</span>
+                        <span className="font-medium">
+                          {accountData.user?.display_name}
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Posts</span>
-                        <span className="font-medium">{accountData.posts?.length || 0}</span>
+                        <span className="font-medium">
+                          {accountData.posts?.length || 0}
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Wallet TX</span>
-                        <span className="font-medium">{accountData.wallet_tx?.length || 0}</span>
+                        <span className="font-medium">
+                          {accountData.wallet_tx?.length || 0}
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">WeixBucks</span>
-                        <span className="font-medium">{accountData.user?.weix_bucks}</span>
+                        <span className="font-medium">
+                          {accountData.user?.weix_bucks}
+                        </span>
                       </div>
                     </>
                   ) : (
-                    <div className="text-sm text-muted-foreground">No account data loaded</div>
+                    <div className="text-sm text-muted-foreground">
+                      No account data loaded
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -181,9 +211,16 @@ export default function DeviceMeshTestPage() {
                 {syncHistory && syncHistory.length > 0 ? (
                   <div className="space-y-2">
                     {syncHistory.map((entry, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-sm py-2 border-b last:border-0">
+                      <div
+                        key={idx}
+                        className="flex justify-between items-center text-sm py-2 border-b last:border-0"
+                      >
                         <div className="flex items-center gap-2">
-                          {entry[3] ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <AlertCircle className="w-4 h-4 text-red-500" />}
+                          {entry[3] ? (
+                            <CheckCircle2 className="w-4 h-4 text-green-500" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-red-500" />
+                          )}
                           <span>{entry[0]}</span>
                         </div>
                         <div className="flex items-center gap-4 text-muted-foreground">
@@ -194,7 +231,9 @@ export default function DeviceMeshTestPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-sm text-muted-foreground">No sync history yet</div>
+                  <div className="text-sm text-muted-foreground">
+                    No sync history yet
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -245,8 +284,12 @@ export default function DeviceMeshTestPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">{pendingActions?.length || 0}</div>
-                  <div className="text-sm text-muted-foreground">Queued offline actions</div>
+                  <div className="text-3xl font-bold">
+                    {pendingActions?.length || 0}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Queued offline actions
+                  </div>
                 </CardContent>
               </Card>
 
@@ -257,8 +300,12 @@ export default function DeviceMeshTestPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">{pinnedContent?.length || 0}</div>
-                  <div className="text-sm text-muted-foreground">Locally pinned blobs</div>
+                  <div className="text-3xl font-bold">
+                    {pinnedContent?.length || 0}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Locally pinned blobs
+                  </div>
                 </CardContent>
               </Card>
 
@@ -269,8 +316,12 @@ export default function DeviceMeshTestPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">{offlineCache?.length || 0}</div>
-                  <div className="text-sm text-muted-foreground">Cached for offline</div>
+                  <div className="text-3xl font-bold">
+                    {offlineCache?.length || 0}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Cached for offline
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -314,29 +365,39 @@ export default function DeviceMeshTestPage() {
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>App Startup</span>
-                      <span className="text-muted-foreground">Target: &lt; 5s</span>
+                      <span className="text-muted-foreground">
+                        Target: &lt; 5s
+                      </span>
                     </div>
                     <Progress value={60} className="h-2" />
-                    <div className="text-xs text-muted-foreground mt-1">Measured on this device</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Measured on this device
+                    </div>
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>Feed Load (50 posts)</span>
-                      <span className="text-muted-foreground">Target: &lt; 2s</span>
+                      <span className="text-muted-foreground">
+                        Target: &lt; 2s
+                      </span>
                     </div>
                     <Progress value={75} className="h-2" />
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>Post Creation</span>
-                      <span className="text-muted-foreground">Target: &lt; 1s</span>
+                      <span className="text-muted-foreground">
+                        Target: &lt; 1s
+                      </span>
                     </div>
                     <Progress value={80} className="h-2" />
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>Image Upload (5MB)</span>
-                      <span className="text-muted-foreground">Target: &lt; 30s</span>
+                      <span className="text-muted-foreground">
+                        Target: &lt; 30s
+                      </span>
                     </div>
                     <Progress value={90} className="h-2" />
                   </div>
@@ -382,11 +443,17 @@ export default function DeviceMeshTestPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-primary/10 p-4 rounded-lg">
                     <div className="text-2xl font-bold">{nodeRewards || 0}</div>
-                    <div className="text-sm text-muted-foreground">Today's Rewards (WB)</div>
+                    <div className="text-sm text-muted-foreground">
+                      Today's Rewards (WB)
+                    </div>
                   </div>
                   <div className="bg-accent/10 p-4 rounded-lg">
-                    <div className="text-2xl font-bold">{pinnedContent?.length || 0}</div>
-                    <div className="text-sm text-muted-foreground">Pinned Content</div>
+                    <div className="text-2xl font-bold">
+                      {pinnedContent?.length || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Pinned Content
+                    </div>
                   </div>
                 </div>
                 <div className="text-sm text-muted-foreground">
