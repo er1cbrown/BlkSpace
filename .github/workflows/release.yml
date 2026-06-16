@@ -63,7 +63,8 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf \
-            libssl-dev
+            libssl-dev \
+            libsecret-1-dev
       - run: pnpm install --frozen-lockfile
         working-directory: ./Code-Companion
       - run: pnpm tauri build --target ${{ matrix.target }}
