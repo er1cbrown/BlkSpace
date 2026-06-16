@@ -160,18 +160,21 @@ flowchart TB
 | M0.2 Relay sync | A posts, B on same Wi‑Fi + relays | Post on B feed &lt;60s |
 | M0.3 Offline queue | B offline → post → online | `flush` publishes; no duplicate id |
 | M0.4 Media | A uploads media post | B sees post text; media via CID or local cache |
-| M0.5 Tier 0 | Windows 4GB laptop | Mesh Test → Performance targets §4.1 |
+| M0.5 Tier 0 | Windows 4GB laptop | Sync Test → Performance targets §4.1 |
 
-**Commands:** `pnpm test:iroh`, `pnpm test:nostr-relay`, Mesh Test UI
+**Commands:** `pnpm test:iroh`, `pnpm test:nostr-relay`, Sync Test UI
 
-### Phase M1 — Harden hub sync (3–5 days, code)
+### Phase M1 — Harden hub sync ✅ (shipped `aa3f63b`)
 
 **Goal:** Close gaps without new protocols.
 
-1. **Relay-first media discovery** — ensure kind 1063 / `imeta` published on every upload; B fetches from relay metadata before Iroh P2P
-2. **Flush polish** — queue likes/replies to Nostr on flush (verify `publish_post_to_nostr` path for all action types)
-3. **Sync UX** — Mesh Test shows last relay sync time, pending queue count, explicit “Sync now”
-4. **Device identity** — persist `device_id` in Rust; log all flushes to `device_sync_log`
+| Item | Status |
+|------|--------|
+| Relay-first media discovery — kind 1063 + `cid` on every `upload_blob` | ✅ |
+| Flush polish — replies publish to Nostr on `flush_offline_queue` | ✅ (likes: DB only; kind 7 deferred) |
+| Sync UX — relay count, pending queue, town sync, Flush Now, M0 checklist | ✅ Sync Test |
+| Device sync log — account/relay/flush → `device_sync_log` | ✅ |
+| Persist `device_id` in Rust | ⏳ still `localStorage`; optional M1.5 |
 
 ### Phase M2 — Optional LAN assist (5–8 days, code)
 
@@ -215,14 +218,14 @@ Any **second desktop** substitutes for B/C for M0.1–M0.3.
 
 | # | Criterion | Auto | Manual |
 |---|-----------|------|--------|
-| 1 | Same account on 2 devices via BIP39 | partial | ✅ M0.1 |
-| 2 | Post sync &lt;60s via relays | `test_nostr_*` | ✅ M0.2 |
-| 3 | Offline post flushes without duplicate | `offline_queue` tests | ✅ M0.3 |
-| 4 | Media portable via CID + cache | `pnpm test:iroh` (12) | ✅ M0.4 |
-| 5 | Tier 0 performance | `pnpm test:tier0` | ✅ Device B |
-| 6 | No data loss on sync | DB tests | ✅ M0 stress |
+| 1 | Same account on 2 devices via BIP39 | ✅ `/recover` | ⏳ M0.1 |
+| 2 | Post sync &lt;60s via relays | ✅ `test_nostr_*` | ⏳ M0.2 |
+| 3 | Offline post flushes without duplicate | ✅ queue + M1 reply Nostr | ⏳ M0.3 |
+| 4 | Media portable via CID + cache | ✅ `pnpm test:iroh` + M1 kind 1063 | ⏳ M0.4 |
+| 5 | Tier 0 performance | ✅ `pnpm test:tier0` dev Mac | ⏳ Device B |
+| 6 | No data loss on sync | ✅ DB + rate-limit tests | ⏳ M0 stress |
 
-**Score today:** 0/6 manual, ~4/6 automated backbone.
+**Score today:** 0/6 manual · 6/6 auto backbone (`aa3f63b`).
 
 ---
 
@@ -232,16 +235,17 @@ Any **second desktop** substitutes for B/C for M0.1–M0.3.
 - [x] `phase-0-status.md` — M0 matrix + architecture doc index
 - [x] `IROH_INTEGRATION.md` / `REAL_NOSTR_RELAYS.md` / `plan.md` — cross-links
 - [x] UI — Mesh Test → **Sync Test**; relay-focused copy on feed/landing/sidebar
+- [x] M1 — `publish_blob_announce`, `publish_reply_to_nostr`, Sync Test flush/relay UX (`aa3f63b`)
 - [ ] `weixinfo/` libp2p guides — reference only; not BlkSpace MVP path (no edit)
 
 ---
 
 ## Next actions (ordered)
 
-1. Run **M0 manual matrix** on Device A + any second desktop (see `DEVICE_MESH_TESTING.md` Phases 1–2)
-2. Implement **M1.1** relay-published blob metadata if M0.4 fails on real hardware
-3. Update `phase-0-status.md` mesh row when M0 passes
-4. Revisit **M2 LAN** only if dorm offline-read is a hard requirement
+1. Run **M0 manual matrix** on Device A + second desktop (`DEVICE_MESH_TESTING.md` Phases 1–3, §4.1)
+2. **Device B Tier 0** — Sync Test → Performance; mark §4.1 manual column
+3. Optional **M1.5** — persist `device_id` in Rust keychain/SQLite
+4. Revisit **M2 LAN** only if dorm offline blob transfer is a hard requirement
 
 ---
 
