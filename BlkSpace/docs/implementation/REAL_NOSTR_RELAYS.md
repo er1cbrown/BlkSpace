@@ -264,4 +264,4 @@ fn publish_trending_summary(state: State<AppState>, session_token: String) -> Re
 
 ---
 
-*Next: After relay connection works, proceed to device mesh testing.*
+*Multi-device sign-off: [`MESH_ARCHITECTURE.md`](MESH_ARCHITECTURE.md) M0 + [`DEVICE_MESH_TESTING.md`](DEVICE_MESH_TESTING.md).*

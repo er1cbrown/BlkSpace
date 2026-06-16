@@ -15,7 +15,7 @@ export function Navbar() {
     { href: "/media", label: "Media" },
     { href: "/communities", label: "Communities" },
     { href: "/relays", label: "Network" },
-    { href: "/mesh-test", label: "Mesh Test" },
+    { href: "/mesh-test", label: "Sync Test" },
     { href: "/architecture", label: "Stack" },
   ];
 

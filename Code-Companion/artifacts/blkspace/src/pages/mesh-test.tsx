@@ -82,12 +82,12 @@ export default function DeviceMeshTestPage() {
           <div className="flex items-center gap-4 mb-4">
             <ArrowRightLeft className="w-10 h-10 text-primary" />
             <h1 className="text-4xl font-black tracking-tighter">
-              Device Mesh Test
+              Multi-Device Sync Test
             </h1>
           </div>
           <p className="text-lg opacity-90 max-w-2xl">
-            Cross-device sync, recovery, and performance testing for the
-            BlkSpace mesh network.
+            Cross-device sync, recovery, and performance testing — Nostr relays,
+            Iroh media, and offline queue (hub-sync mesh).
           </p>
           <div className="flex items-center gap-2 mt-4 text-sm">
             <Badge variant="outline" className="bg-background/20">

@@ -474,4 +474,4 @@ pnpm test:iroh   # 12 tests: upload, CID, two-device paths, imeta, pin, fallback
 
 ---
 
-*Next: After Iroh integration, content is truly decentralized and cross-device.*
+*Cross-device mesh sign-off: [`MESH_ARCHITECTURE.md`](MESH_ARCHITECTURE.md) M0 + [`DEVICE_MESH_TESTING.md`](DEVICE_MESH_TESTING.md).*

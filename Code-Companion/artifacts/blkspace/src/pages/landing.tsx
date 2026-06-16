@@ -104,8 +104,8 @@ export default function LandingPage() {
                   Cryptographic Identity
                 </h3>
                 <p className="text-muted-foreground">
-                  Your handle and data belong to you. Portable across the entire
-                  mesh network. Nobody can take your voice away.
+                  Your handle and data belong to you. Portable across every
+                  device and relay. Nobody can take your voice away.
                 </p>
               </div>
               <div className="bg-card p-8 rounded-2xl border shadow-sm hover:shadow-md transition-shadow">
@@ -129,9 +129,9 @@ export default function LandingPage() {
                   Our Infrastructure, Our Rules.
                 </h2>
                 <p className="text-lg opacity-90 mb-8">
-                  BlkSpace runs on a mesh network of community-operated relays.
-                  When you run a node, you strengthen the network for everyone
-                  in your town.
+                  BlkSpace runs on community-operated Nostr relays and Iroh
+                  pinners. When you run a node, you strengthen the network for
+                  everyone in your town.
                 </p>
                 <Link href="/relays">
                   <Button
@@ -146,7 +146,7 @@ export default function LandingPage() {
               <div className="rounded-2xl overflow-hidden shadow-2xl">
                 <img
                   src="/images/mesh-network.png"
-                  alt="Mesh Network Nodes"
+                  alt="Decentralized relay network"
                   className="w-full h-[400px] object-cover"
                 />
               </div>

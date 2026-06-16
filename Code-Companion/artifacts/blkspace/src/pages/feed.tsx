@@ -348,9 +348,8 @@ export default function FeedPage() {
 
           <TabsContent value="bridge">
             <div className="bg-primary/10 text-primary-foreground p-4 rounded-xl mb-6 text-sm font-medium border border-primary/20">
-              Cross-town feed — events synced from connected relays across the
-              BlkSpace mesh. Posts from other towns appear here as they are
-              discovered.
+              Cross-town feed — events synced from connected Nostr relays.
+              Posts from other towns appear here as they are discovered.
             </div>
             {isTauri() && (
               <div className="flex gap-2 mb-4">
@@ -431,8 +430,8 @@ export default function FeedPage() {
 
           <TabsContent value="trending">
             <div className="bg-accent/10 text-accent-foreground p-4 rounded-xl mb-6 text-sm font-medium border border-accent/20">
-              Showing the most active discussions across the entire BlkSpace
-              mesh network.
+              Showing the most active discussions across all connected yards and
+              relays.
             </div>
           </TabsContent>
         </Tabs>

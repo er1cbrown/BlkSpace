@@ -170,6 +170,8 @@ Low-End Hardware Nodes (harvest the hub)
 - Earn/produce EB Productions (tokens + value) for contributors & benefactors
 ```
 
+**Multi-device sync (implemented):** Same account across desktops via BIP39 + Nostr relay gossip + Iroh CIDs + SQLite offline queue. See `docs/implementation/MESH_ARCHITECTURE.md` (hub-sync mesh; BLE/libp2p deferred).
+
 Data & value flow decentralized. No single owner of graph, content, or economy. Local-first with verifiable Nostr events for migration/audit.
 
 **Why This for Solo + Scale**  

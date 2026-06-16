@@ -115,7 +115,7 @@ export function YardSidebar() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-accent" />
-            Trending on the mesh
+            Trending on the yard
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -149,7 +149,7 @@ export function YardSidebar() {
         <CardContent className="p-4 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm">
             <Radio className="w-4 h-4 text-primary" />
-            <span>Mesh network</span>
+            <span>Relay network</span>
           </div>
           <Link href="/relays">
             <Button size="sm" variant="secondary">
@@ -184,7 +184,7 @@ export function YardSidebar() {
         </Link>
         <Link href="/mesh-test" className="flex items-center gap-2 hover:text-foreground">
           <Code2 className="w-3.5 h-3.5" />
-          Mesh test (dev)
+          Sync test (dev)
         </Link>
       </div>
     </aside>

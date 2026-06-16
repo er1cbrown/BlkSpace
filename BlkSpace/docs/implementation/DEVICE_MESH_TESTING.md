@@ -1,9 +1,10 @@
 # Implementation Plan: Device Mesh Testing
 
-**Status:** ✅ Phase 1-2 Complete — Phase 3+ in progress  
+**Status:** ⏳ M0 manual gate — automated backbone ✅; Device B + two-device sign-off open  
 **Priority:** High (proves multi-device viability)  
 **Estimated Time:** 2-3 days  
-**Dependencies:** Nostr relay connection (REAL_NOSTR_RELAYS.md)
+**Dependencies:** Nostr relay connection ([`REAL_NOSTR_RELAYS.md`](REAL_NOSTR_RELAYS.md))  
+**Architecture:** See [`MESH_ARCHITECTURE.md`](MESH_ARCHITECTURE.md) — hub sync (Nostr + Iroh + offline queue), **not** BLE/libp2p
 
 ---
 
@@ -11,9 +12,11 @@
 
 Test BlkSpace across multiple devices to verify:
 1. Cross-device account recovery (BIP39 mnemonic)
-2. Real-time sync between devices on same account
-3. Offline capability (local mesh, Phase 2+)
+2. Real-time sync between devices on same account (via Nostr relays)
+3. Offline capability (SQLite queue → flush to relays on reconnect)
 4. Performance on Tier 0 hardware
+
+**Terminology:** “Mesh” here means **multi-device hub sync**, not a BLE peer mesh.
 
 ---
 
@@ -158,38 +161,42 @@ pnpm tauri dev
 
 ---
 
-## Phase 3: Offline Mesh (Day 2, Phase 2+ Feature)
+## Phase 3: Offline & Bridge (Day 2) — M0.3
 
-### 3.1 Local Network Setup
+Uses shipped **offline queue** (`queue_offline_action` → `flush_offline_queue`) and `OfflineSyncProvider` (flush on `online` + 60s). No BLE or libp2p required.
 
-**Scenario:** Dorm room with 3 laptops, no internet
+### 3.1 Offline write queue
 
-**Setup:**
-1. Create Wi-Fi hotspot on Device A
-2. Connect Device B and C to hotspot
-3. Disable internet on hotspot
+**Scenario:** Device B loses internet mid-session
 
-### 3.2 BLE Mesh Test (Phase 2+)
+1. Disconnect Wi‑Fi on Device B (or use OS offline mode)
+2. On Device B: create post, like, reply, or follow
+3. Confirm pending actions in **Mesh Test → Sync** (or `count_pending_offline_actions`)
+4. Reconnect internet
+5. Verify:
+   - [ ] Toast: “Synced N offline actions”
+   - [ ] Actions visible on Device A after relay round-trip
+   - [ ] No duplicate Nostr events (canonical id ingest)
 
-**Enable in Settings:**
-- "Enable Local Mesh" toggle
-- Discover nearby devices
+### 3.2 Read-only offline (cached feed)
 
-**Test:**
-1. `@user_a` posts: "Party in my room tonight"
-2. Device B and C receive via BLE mesh
+1. While online: load feed and prefetch media on Device B
+2. Go offline
 3. Verify:
-   - [ ] Post appears on all devices (no internet)
-   - [ ] Replies sync when devices are in range
-   - [ ] Events stored locally, sync to relays when online
+   - [ ] Previously loaded posts still readable from SQLite cache
+   - [ ] New publish shows queued state (not lost)
 
-### 3.3 Bridge Test
+### 3.3 Bridge to online (relay publish)
 
-1. Reconnect internet
+1. After 3.1, reconnect internet
 2. Verify:
    - [ ] Offline events published to Nostr relays
-   - [ ] Other towns see the content
+   - [ ] Other towns see the content (if town-tagged)
    - [ ] No duplicate events
+
+### 3.4 Deferred — BLE / internet-free LAN mesh (M2+)
+
+> **Not in MVP.** No BLE or “Enable Local Mesh” toggle exists. See [`MESH_ARCHITECTURE.md`](MESH_ARCHITECTURE.md) Phase M2 for optional LAN blob assist. Do not block M0 on this.
 
 ---
 
@@ -355,14 +362,19 @@ pnpm tauri dev
 
 ---
 
-## Success Criteria
+## Success Criteria (M0 matrix)
 
-- [ ] Account recovery works on all device types
-- [ ] Cross-device sync within 60 seconds
-- [ ] Tier 0 hardware runs smoothly
-- [ ] Offline mesh works (Phase 2+)
-- [ ] No data loss during sync
+| # | Criterion | Auto proof | Manual |
+|---|-----------|------------|--------|
+| 1 | Account recovery on 2+ desktops | — | [ ] Phase 1.4 |
+| 2 | Cross-device sync &lt;60s | `pnpm test:nostr-relay` | [ ] Phase 1.5 |
+| 3 | Offline queue → relay flush | `offline_queue` tests | [ ] Phase 3.1–3.3 |
+| 4 | Media via CID + cache | `pnpm test:iroh` | [ ] §2.4 Iroh row |
+| 5 | Tier 0 performance | `pnpm test:tier0` | [ ] §4.1 Device B |
+| 6 | No data loss on sync | DB tests | [ ] Phase 4.2 stress |
+
+**Score:** 0/6 manual (as of 2026-06-16).
 
 ---
 
-*Next: After mesh testing passes, proceed to Iroh integration.*
+*Next: Complete M0 manual sign-off, then M1 hardening in [`MESH_ARCHITECTURE.md`](MESH_ARCHITECTURE.md). Iroh integration proof is already automated.*

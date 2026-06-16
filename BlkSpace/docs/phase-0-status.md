@@ -9,7 +9,7 @@
 ## Status line
 
 ```
-Phase 0 ✅ | Phase 1 ✅ | Phase 2 Iroh auto ✅ (12) | Nostr smoke ✅ (6) | Security hardening ✅ | Mesh manual ⏳ | Tier 0 Device B ⏳
+Phase 0 ✅ | Phase 1 ✅ | Phase 2 Iroh auto ✅ (12) | Nostr smoke ✅ (6) | Security hardening ✅ | Hub-sync mesh M0 ⏳ | Tier 0 Device B ⏳
 ```
 
 ---
@@ -55,17 +55,18 @@ Phase 0 ✅ | Phase 1 ✅ | Phase 2 Iroh auto ✅ (12) | Nostr smoke ✅ (6) | S
 
 **Score: 5/5**
 
-### Device mesh (`docs/implementation/DEVICE_MESH_TESTING.md` §358)
+### Hub-sync mesh (`docs/implementation/MESH_ARCHITECTURE.md` M0)
 
 | Criterion | Status |
 |-----------|--------|
-| Account recovery all device types | ⏳ manual |
-| Cross-device sync &lt; 60s | ⏳ manual |
-| Tier 0 hardware smooth | ⏳ manual (auto bench ✅ dev Mac) |
-| Offline mesh | ⏳ manual |
+| Account recovery (2+ desktops) | ⏳ manual M0.1 |
+| Cross-device sync &lt; 60s (Nostr) | ⏳ manual M0.2 |
+| Offline queue → relay flush | ⏳ manual M0.3 |
+| Media CID + cache | ⏳ manual M0.4 (`pnpm test:iroh` ✅) |
+| Tier 0 hardware smooth | ⏳ manual M0.5 (auto bench ✅ dev Mac) |
 | No data loss on sync | ⏳ manual |
 
-**Score: 0/5** (manual gate)
+**Score: 0/6** (manual gate). BLE/LAN mesh **deferred** per mesh architecture doc.
 
 ### Security (`docs/security-considerations.md`)
 
@@ -110,10 +111,11 @@ Phase 0 ✅ | Phase 1 ✅ | Phase 2 Iroh auto ✅ (12) | Nostr smoke ✅ (6) | S
 
 ## Open next (priority)
 
-1. **Device B** — Tier 0 §4.1 sign-off (`DEVICE_MESH_TESTING.md`)
-2. **Two-device mesh** — account sync + live Iroh P2P (`DEVICE_MESH_TESTING.md` Phases 1–2)
+1. **M0 manual matrix** — [`MESH_ARCHITECTURE.md`](implementation/MESH_ARCHITECTURE.md) + [`DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) Phases 1–3, §4.1
+2. **Device B** — Tier 0 sign-off (Windows 4GB / i3 ideal)
 3. **§2.4 UI click-through** — flip `[x] code` → `[x] manual` in mesh testing doc
-4. ~~**NIP-65 on profile**~~ — ✅ `ProfileRelayList` on `/profile/:handle`
+4. **M1 code** (after M0) — relay blob metadata, flush polish, Mesh Test UX
+5. ~~**NIP-65 on profile**~~ — ✅ `ProfileRelayList` on `/profile/:handle`
 
 ---
 
@@ -125,7 +127,8 @@ Phase 0 ✅ | Phase 1 ✅ | Phase 2 Iroh auto ✅ (12) | Nostr smoke ✅ (6) | S
 | [`docs/security-considerations.md`](security-considerations.md) | Threat model |
 | [`docs/implementation/IROH_INTEGRATION.md`](implementation/IROH_INTEGRATION.md) | Iroh criteria |
 | [`docs/implementation/REAL_NOSTR_RELAYS.md`](implementation/REAL_NOSTR_RELAYS.md) | Nostr criteria |
-| [`docs/implementation/DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) | Manual mesh + Tier 0 |
+| [`docs/implementation/MESH_ARCHITECTURE.md`](implementation/MESH_ARCHITECTURE.md) | Hub-sync mesh plan (Nostr + Iroh + offline) |
+| [`docs/implementation/DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) | M0 manual checklist + Tier 0 |
 
 ---
 
