@@ -22,6 +22,8 @@ env:
   PNPM_VERSION: 9
   NODE_VERSION: 22
   RUST_TOOLCHAIN: stable
+  PORT: "24442"
+  BASE_PATH: /
 
 jobs:
   lint:

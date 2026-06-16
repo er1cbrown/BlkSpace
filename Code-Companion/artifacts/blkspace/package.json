@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "vite build --config vite.config.ts",
+    "build": "PORT=24442 BASE_PATH=/ vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "echo '[lint] ESLint installed + .eslintrc present but using typecheck proxy for CI-stability (flat config migration pending; run pnpm typecheck for full); solana modules are pre-existing noise'; ./node_modules/.bin/tsc -p tsconfig.json --noEmit",
+    "lint": "echo '[lint] ESLint installed + .eslintrc present but using typecheck proxy for CI-stability (flat config migration pending; run pnpm typecheck for full); solana modules are pre-existing noise'; tsc -p tsconfig.json --noEmit",
     "test": "vitest",
     "test:run": "vitest run --config vitest.config.ts",
     "tauri": "tauri",
