@@ -35,6 +35,13 @@ export const DISPLAY_KEY = "blkspace_display_name";
 export const SESSION_KEY = "blkspace_session";
 export const PUBKEY_KEY = "blkspace_pubkey";
 export const FIRST_RUN_KEY = "blkspace_first_run_complete";
+const SECRET_KEY = "blkspace_nsec";
+const LEGACY_SECRET_KEY = "blkspace_key";
+
+/** Web preview only — sessionStorage clears when the tab closes. Tauri uses Rust key store. */
+function webSecretStorage(): Storage {
+  return sessionStorage;
+}
 
 // ─── First Run Check ─────────────────────────────────────
 
@@ -86,7 +93,7 @@ export async function getStoredNsec(
   if (isTauri()) {
     return await tauriGetKey(sessionToken, handle);
   }
-  return localStorage.getItem("blkspace_nsec");
+  return webSecretStorage().getItem(SECRET_KEY);
 }
 
 // ─── Auth Event Signing ─────────────────────────────────
@@ -116,7 +123,8 @@ export async function signAuthEvent(
 // ─── Identity Storage ───────────────────────────────────
 
 function webStore(handle: string, nsecHex: string, displayName: string) {
-  localStorage.setItem("blkspace_nsec", nsecHex);
+  purgeLegacyWebSecrets();
+  webSecretStorage().setItem(SECRET_KEY, nsecHex);
   localStorage.setItem(HANDLE_KEY, handle);
   localStorage.setItem(DISPLAY_KEY, displayName);
 }
@@ -131,6 +139,7 @@ export async function storeIdentity(
     await tauriStoreKey(sessionToken, handle, nsecHex);
     localStorage.setItem(HANDLE_KEY, handle);
     localStorage.setItem(DISPLAY_KEY, displayName);
+    purgeLegacyWebSecrets();
   } else {
     webStore(handle, nsecHex, displayName);
   }
@@ -202,8 +211,8 @@ export async function getIdentity(): Promise<{
     return { handle, displayName, hasKey: stored };
   }
   const hasKey = !!(
-    localStorage.getItem("blkspace_nsec") ||
-    localStorage.getItem("blkspace_key")
+    webSecretStorage().getItem(SECRET_KEY) ||
+    webSecretStorage().getItem(LEGACY_SECRET_KEY)
   );
   return { handle, displayName, hasKey };
 }
@@ -216,10 +225,16 @@ export function getCurrentDisplayName(): string {
   return localStorage.getItem(DISPLAY_KEY) || "Demo User";
 }
 
+function purgeLegacyWebSecrets() {
+  for (const storage of [localStorage, sessionStorage]) {
+    storage.removeItem(SECRET_KEY);
+    storage.removeItem(LEGACY_SECRET_KEY);
+  }
+}
+
 export function clearIdentity() {
   clearSession();
-  localStorage.removeItem("blkspace_nsec");
-  localStorage.removeItem("blkspace_key");
+  purgeLegacyWebSecrets();
   localStorage.removeItem(HANDLE_KEY);
   localStorage.removeItem(DISPLAY_KEY);
 }

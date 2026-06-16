@@ -1,5 +1,6 @@
 mod db;
 mod blob_store;
+mod key_store;
 mod relay_manager;
 
 #[cfg(feature = "iroh")]
@@ -9,6 +10,7 @@ mod iroh_node;
 mod tests;
 
 use blob_store::{BlobInfo, BlobStore};
+use key_store::KeyStore;
 use db::{
   AppError, BlobRecord, Community, CrossTownEvent, Database, NetworkStats, Notification, Post, Relay, Reply, User, WalletTx,
   RelayConnectionRecord, RelayEventRecord,
@@ -47,6 +49,7 @@ struct AppState {
   #[cfg(not(feature = "iroh"))]
   iroh: Option<()>,
   app_dir: PathBuf,
+  key_store: KeyStore,
   sessions: Mutex<HashMap<String, SessionInfo>>,
   challenges: Mutex<HashMap<String, PendingChallenge>>,
   rate_limiter: Mutex<HashMap<String, Vec<i64>>>,
@@ -230,43 +233,27 @@ fn logout(state: State<AppState>, session_token: String) -> Result<(), String> {
   Ok(())
 }
 
-// ─── Key Store (secure file-based, not localStorage) ─────
-
-fn keys_dir(app_dir: &PathBuf) -> PathBuf {
-  app_dir.join("keys")
-}
-
-fn key_path(app_dir: &PathBuf, handle: &str) -> PathBuf {
-  keys_dir(app_dir).join(format!("{}.key", handle))
-}
+// ─── Key Store (OS keychain + encrypted file fallback) ───
 
 #[tauri::command]
 fn store_key(state: State<AppState>, session_token: String, handle: String, key: String) -> Result<(), String> {
-  let session_handle = get_handle_from_session(&state, &session_token)?;
+  let session_handle = check_session_rate_limit(&state, &session_token)?;
   if session_handle != handle {
     return Err("Cannot store key for a different user".to_string());
   }
   validate_handle(&handle).map_err(map_err)?;
-  let dir = keys_dir(&state.app_dir);
-  std::fs::create_dir_all(&dir).map_err(|_| "Failed to create key storage".to_string())?;
-  let path = key_path(&state.app_dir, &handle);
-  std::fs::write(&path, &key).map_err(|_| "Failed to store key".to_string())?;
+  state.key_store.store(&handle, key.trim())?;
   Ok(())
 }
 
 #[tauri::command]
 fn get_key(state: State<AppState>, session_token: String, handle: String) -> Result<Option<String>, String> {
-  let session_handle = get_handle_from_session(&state, &session_token)?;
+  let session_handle = check_session_rate_limit(&state, &session_token)?;
   if session_handle != handle {
     return Err("Cannot read key for a different user".to_string());
   }
   validate_handle(&handle).map_err(map_err)?;
-  let path = key_path(&state.app_dir, &handle);
-  if path.exists() {
-    std::fs::read_to_string(&path).map(Some).map_err(|_| "Failed to read key".to_string())
-  } else {
-    Ok(None)
-  }
+  state.key_store.load(&handle)
 }
 
 #[tauri::command]
@@ -276,13 +263,12 @@ fn has_key(state: State<AppState>, session_token: String, handle: String) -> Res
     return Err("Cannot check key for a different user".to_string());
   }
   validate_handle(&handle).map_err(map_err)?;
-  Ok(key_path(&state.app_dir, &handle).exists())
+  Ok(state.key_store.exists(&handle))
 }
 
 /// Load the user's real Nostr signing keys from the secure store (for real signed events / Nostr hygiene).
 fn load_user_nostr_keys(state: &AppState, handle: &str) -> Result<nostr_sdk::prelude::Keys, String> {
-  let path = key_path(&state.app_dir, handle);
-  if let Ok(secret) = std::fs::read_to_string(&path) {
+  if let Some(secret) = state.key_store.load(handle)? {
     let trimmed = secret.trim();
     if let Ok(keys) = nostr_sdk::prelude::Keys::parse(trimmed) {
       return Ok(keys);
@@ -1889,7 +1875,8 @@ pub fn run() {
       db: database,
       blob_store,
       iroh: iroh_node,
-      app_dir,
+      app_dir: app_dir.clone(),
+      key_store: KeyStore::new(app_dir),
       sessions: Mutex::new(HashMap::new()),
       challenges: Mutex::new(HashMap::new()),
       rate_limiter: Mutex::new(HashMap::new()),
