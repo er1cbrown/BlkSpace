@@ -1,16 +1,17 @@
 #[cfg(test)]
 mod tests {
-  use rusqlite::{Connection, Result};
-  use std::path::PathBuf;
-  use std::sync::Mutex;
+  use sha2::{Digest, Sha256};
+  use rusqlite;
   use crate::db::{
-    Database, User, Post, validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
+    Database, validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
   };
+
+  const NO_CHANNEL: &str = "";
 
   fn setup_test_db() -> Database {
     let temp_dir = std::env::temp_dir().join(format!("blkspace_test_{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir).unwrap();
-    Database::new(temp_dir).unwrap()
+    Database::new_for_test(temp_dir).unwrap()
   }
 
   #[test]
@@ -88,7 +89,7 @@ mod tests {
     let db = setup_test_db();
     db.create_user("author", "Author", "").unwrap();
     
-    let post = db.create_post("author", "Test content", "tsu", &[]).unwrap();
+    let post = db.create_post("author", "Test content", "tsu", NO_CHANNEL, &[]).unwrap();
     
     assert_eq!(post.author_handle, "author");
     assert_eq!(post.content, "Test content");
@@ -101,8 +102,8 @@ mod tests {
   fn test_list_posts() {
     let db = setup_test_db();
     db.create_user("author", "Author", "").unwrap();
-    db.create_post("author", "Post 1", "tsu", &[]).unwrap();
-    db.create_post("author", "Post 2", "tsu", &[]).unwrap();
+    db.create_post("author", "Post 1", "tsu", NO_CHANNEL, &[]).unwrap();
+    db.create_post("author", "Post 2", "tsu", NO_CHANNEL, &[]).unwrap();
     
     let posts = db.list_posts(Some("tsu"), None).unwrap();
     assert_eq!(posts.len(), 2);
@@ -114,7 +115,7 @@ mod tests {
     db.create_user("author", "Author", "").unwrap();
     db.create_user("liker", "Liker", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
     let post_id = post.id;
     
     // Like
@@ -136,7 +137,7 @@ mod tests {
     db.create_user("author", "Author", "").unwrap();
     db.create_user("replier", "Replier", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
     let post_id = post.id;
     
     let reply = db.create_reply(post_id, "replier", "Nice post!").unwrap();
@@ -246,7 +247,7 @@ mod tests {
     let initial = db.get_user("author").unwrap().unwrap();
     assert_eq!(initial.weix_bucks, 100);
     
-    db.create_post("author", "Test", "tsu", &[]).unwrap();
+    db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
     
     let after_post = db.get_user("author").unwrap().unwrap();
     // Post creation should reward +5 WB * engagement_quality (1.0)
@@ -259,7 +260,7 @@ mod tests {
     db.create_user("author", "Author", "").unwrap();
     db.create_user("replier", "Replier", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
     
     let initial = db.get_user("replier").unwrap().unwrap();
     assert_eq!(initial.weix_bucks, 100);
@@ -277,7 +278,7 @@ mod tests {
     db.create_user("author", "Author", "").unwrap();
     db.create_user("liker", "Liker", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
     
     // Reset author balance (seeding gave 100, post creation gave +5)
     let author = db.get_user("author").unwrap().unwrap();
@@ -295,7 +296,7 @@ mod tests {
     let db = setup_test_db();
     db.create_user("author", "Author", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
     
     let before = db.get_user("author").unwrap().unwrap();
     db.toggle_like(post.id, "author").unwrap();
@@ -315,7 +316,7 @@ mod tests {
       1,
       "pubkey123",
       "Hello",
-      "[["t","tsu"]]",
+      r#"[["t","tsu"]]"#,
       1234567890,
     ).unwrap();
     
@@ -328,7 +329,7 @@ mod tests {
       1,
       "pubkey123",
       "Hello",
-      "[["t","tsu"]]",
+      r#"[["t","tsu"]]"#,
       1234567890,
     ).unwrap();
     
@@ -360,7 +361,7 @@ mod tests {
     
     let stats = db.get_network_stats().unwrap();
     assert_eq!(stats.total_users, 2);
-    assert_eq!(stats.active_towns, 0); // Both users have empty town
+    assert_eq!(stats.active_towns, 1); // create_user defaults town to "tsu"
     assert!(stats.weix_bucks_in_circulation > 0);
   }
 
@@ -371,6 +372,7 @@ mod tests {
     
     let (record, is_new) = db.insert_blob(
       "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+      None,
       "photo.jpg",
       "image/jpeg",
       1024,
@@ -384,6 +386,7 @@ mod tests {
     // Duplicate hash should return existing record
     let (record2, is_new2) = db.insert_blob(
       "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+      None,
       "photo.jpg",
       "image/jpeg",
       1024,
@@ -401,6 +404,7 @@ mod tests {
     
     let (record, _) = db.insert_blob(
       "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+      None,
       "photo.jpg",
       "image/jpeg",
       1024,
@@ -423,7 +427,7 @@ mod tests {
     
     assert!(!db.blob_hash_exists(hash));
     
-    db.insert_blob(hash, "photo.jpg", "image/jpeg", 1024, "uploader").unwrap();
+    db.insert_blob(hash, None, "photo.jpg", "image/jpeg", 1024, "uploader").unwrap();
     
     assert!(db.blob_hash_exists(hash));
   }
@@ -446,13 +450,18 @@ mod tests {
     let db = setup_test_db();
     db.create_user("user", "User", "").unwrap();
     db.create_user("from", "From", "").unwrap();
-    
-    // Create a notification by seeding
+
+    {
+      let conn = db.conn.lock().unwrap();
+      conn.execute(
+        "INSERT INTO notifications (user_handle, notification_type, from_handle, message) VALUES (?1, 'like', 'from', 'liked your post')",
+        rusqlite::params!["user"],
+      ).unwrap();
+    }
+
     let notifications = db.get_notifications("user").unwrap();
-    // Note: seed data creates 3 notifications for demo_user
-    // Since we create user with empty handle, we need to check demo_user
-    let demo_notifications = db.get_notifications("demo_user").unwrap();
-    assert!(demo_notifications.len() >= 3);
+    assert_eq!(notifications.len(), 1);
+    assert_eq!(notifications[0].from_handle, "from");
   }
 
   #[test]
@@ -483,9 +492,9 @@ mod tests {
     let db = setup_test_db();
     db.create_user("author", "Author", "").unwrap();
     
-    db.create_post("author", "Post 1", "tsu", &[]).unwrap();
-    db.create_post("author", "Post 2", "tsu", &[]).unwrap();
-    db.create_post("author", "Post 3", "howard", &[]).unwrap();
+    db.create_post("author", "Post 1", "tsu", NO_CHANNEL, &[]).unwrap();
+    db.create_post("author", "Post 2", "tsu", NO_CHANNEL, &[]).unwrap();
+    db.create_post("author", "Post 3", "howard", NO_CHANNEL, &[]).unwrap();
     
     let trending = db.get_trending_feed(None).unwrap();
     assert_eq!(trending.len(), 3);
@@ -496,8 +505,8 @@ mod tests {
     let db = setup_test_db();
     db.create_user("author", "Author", "").unwrap();
     
-    db.create_post("author", "Post 1", "tsu", &[]).unwrap();
-    db.create_post("author", "Post 2", "tsu", &[]).unwrap();
+    db.create_post("author", "Post 1", "tsu", NO_CHANNEL, &[]).unwrap();
+    db.create_post("author", "Post 2", "tsu", NO_CHANNEL, &[]).unwrap();
     
     let posts = db.get_user_posts("author", None).unwrap();
     assert_eq!(posts.len(), 2);
@@ -529,7 +538,7 @@ mod tests {
     let db = setup_test_db();
     db.create_user("author", "Author", "").unwrap();
     
-    let created = db.create_post("author", "Test", "tsu", &[]).unwrap();
+    let created = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
     
     let found = db.get_post(created.id, None).unwrap().unwrap();
     assert_eq!(found.content, "Test");
@@ -545,7 +554,7 @@ mod tests {
     db.create_user("author", "Author", "").unwrap();
     db.create_user("viewer", "Viewer", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
     db.toggle_like(post.id, "viewer").unwrap();
     
     let found = db.get_post(post.id, Some("viewer")).unwrap().unwrap();
@@ -559,7 +568,7 @@ mod tests {
     db.create_user("author", "Author", "").unwrap();
     db.create_user("replier", "Replier", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
     db.create_reply(post.id, "replier", "Reply 1").unwrap();
     db.create_reply(post.id, "replier", "Reply 2").unwrap();
     
@@ -602,7 +611,7 @@ mod tests {
     let db = setup_test_db();
     db.create_user("author", "Author", "").unwrap();
     
-    let post = db.create_post("author", "Test", "tsu", &[]).unwrap();
+    let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
     
     db.update_post_nostr_meta(post.id, "nostr_event_123", "wss://relay.example.com").unwrap();
     
@@ -617,8 +626,8 @@ mod tests {
     
     let now = chrono::Utc::now().timestamp();
     
-    db.insert_relay_event("e1", "r1", 1, "pk", "Hello", "[["t","hbcu-town:tsu"]]", now).unwrap();
-    db.insert_relay_event("e2", "r1", 1, "pk", "World", "[["t","hbcu-town:howard"]]", now - 1).unwrap();
+    db.insert_relay_event("e1", "r1", 1, "pk", "Hello", r#"[["t","hbcu-town:tsu"]]"#, now).unwrap();
+    db.insert_relay_event("e2", "r1", 1, "pk", "World", r#"[["t","hbcu-town:howard"]]"#, now - 1).unwrap();
     
     let combined = db.list_combined_feed(Some("tsu"), None).unwrap();
     assert_eq!(combined.len(), 1);
@@ -628,7 +637,8 @@ mod tests {
   #[test]
   fn test_blob_with_cid() {
     let db = setup_test_db();
-    
+    db.create_user("demo_user", "Demo User", "").unwrap();
+
     // Test inserting blob with CID
     let (record, is_new) = db.insert_blob(
       "abc123",
@@ -656,7 +666,8 @@ mod tests {
   #[test]
   fn test_blob_without_cid() {
     let db = setup_test_db();
-    
+    db.create_user("demo_user", "Demo User", "").unwrap();
+
     // Test inserting blob without CID (fallback mode)
     let (record, is_new) = db.insert_blob(
       "def456",
@@ -787,9 +798,10 @@ mod tests {
   #[test]
   fn test_get_user_media_hashes() {
     let db = setup_test_db();
-    
+    db.create_user("demo_user", "Demo User", "").unwrap();
+
     // Create a post with media blobs
-    db.insert_post("demo_user", "Test post", "tsu", None).unwrap();
+    db.create_post("demo_user", "Test post", "tsu", NO_CHANNEL, &[]).unwrap();
     
     // Add blobs
     db.insert_blob("hash1", Some("cid1"), "test1.jpg", "image/jpeg", 1024, "demo_user").unwrap();
@@ -806,7 +818,8 @@ mod tests {
   #[test]
   fn test_node_role() {
     let db = setup_test_db();
-    
+    db.create_user("demo_user", "Demo User", "").unwrap();
+
     // Set node role
     db.set_node_role("demo_user", "relay").unwrap();
     
@@ -878,14 +891,15 @@ mod tests {
     // Get history
     let history = db.get_device_sync_history("device_1").unwrap();
     assert_eq!(history.len(), 3);
-    assert_eq!(history[0].0, "account_sync");
-    assert_eq!(history[0].1, 0); // items_count
-    assert_eq!(history[0].2, 2000); // duration_ms
-    assert!(!history[0].3); // success
-    
-    assert_eq!(history[1].0, "media_sync");
-    assert_eq!(history[1].1, 5);
-    assert!(history[1].3);
+
+    let failed = history.iter().find(|e| !e.3).expect("failed sync entry");
+    assert_eq!(failed.0, "account_sync");
+    assert_eq!(failed.1, 0);
+    assert_eq!(failed.2, 2000);
+
+    let media = history.iter().find(|e| e.0 == "media_sync").expect("media sync entry");
+    assert_eq!(media.1, 5);
+    assert!(media.3);
   }
 
   // ─── Cross-Device Data Retrieval Tests ───────────────
@@ -893,10 +907,11 @@ mod tests {
   #[test]
   fn test_get_user_account_data() {
     let db = setup_test_db();
-    
+    db.create_user("demo_user", "Demo User", "").unwrap();
+
     // Add user data
-    db.insert_post("demo_user", "Test post", "tsu", None).unwrap();
-    db.insert_post("demo_user", "Another post", "tsu", None).unwrap();
+    db.create_post("demo_user", "Test post", "tsu", NO_CHANNEL, &[]).unwrap();
+    db.create_post("demo_user", "Another post", "tsu", NO_CHANNEL, &[]).unwrap();
     
     // Get account data
     let data = db.get_user_account_data("demo_user").unwrap();
@@ -1016,6 +1031,7 @@ mod tests {
     
     // Create a legitimate user with diverse followers
     db.create_user("legit", "Legit", "").unwrap();
+    db.create_user("user_a", "User A", "").unwrap();
     for i in 0..5 {
       let follower = format!("user_{}", i);
       db.create_user(&follower, &format!("User {}", i), "").unwrap();
@@ -1023,6 +1039,12 @@ mod tests {
       // Legit users follow multiple people
       db.toggle_follow(&follower, "target").unwrap();
       db.toggle_follow(&follower, "user_a").unwrap();
+      // Give each follower inbound follows so they don't look like bot leaves
+      for j in 0..3 {
+        let fan = format!("fan_{}_{}", i, j);
+        db.create_user(&fan, &fan, "").unwrap();
+        db.toggle_follow(&fan, &follower).unwrap();
+      }
     }
     
     let legit_score = db.get_star_pattern_score("legit").unwrap();
@@ -1079,7 +1101,7 @@ mod tests {
     db.create_user("other", "Other", "").unwrap();
     
     // Create a post
-    let post = db.insert_post("self_lover", "Test", "tsu", None).unwrap();
+    let post = db.create_post("self_lover", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
     
     // Self-like
     db.toggle_like(post.id, "self_lover").unwrap();
@@ -1105,16 +1127,16 @@ mod tests {
     db.create_user("spammer", "Spammer", "").unwrap();
     
     // Unique posts
-    db.insert_post("spammer", "Post one", "tsu", None).unwrap();
-    db.insert_post("spammer", "Post two", "tsu", None).unwrap();
+    db.create_post("spammer", "Post one", "tsu", NO_CHANNEL, &[]).unwrap();
+    db.create_post("spammer", "Post two", "tsu", NO_CHANNEL, &[]).unwrap();
     
     let score = db.get_content_similarity_score("spammer").unwrap();
     assert_eq!(score, 0.0, "Different posts should have zero similarity");
     
     // Duplicate posts
-    db.insert_post("spammer", "Spam message here", "tsu", None).unwrap();
-    db.insert_post("spammer", "Spam message here", "tsu", None).unwrap();
-    db.insert_post("spammer", "Spam message here", "tsu", None).unwrap();
+    db.create_post("spammer", "Spam message here", "tsu", NO_CHANNEL, &[]).unwrap();
+    db.create_post("spammer", "Spam message here", "tsu", NO_CHANNEL, &[]).unwrap();
+    db.create_post("spammer", "Spam message here", "tsu", NO_CHANNEL, &[]).unwrap();
     
     let score2 = db.get_content_similarity_score("spammer").unwrap();
     assert!(score2 > 0.0, "Duplicate posts should have positive similarity");
@@ -1127,7 +1149,7 @@ mod tests {
     db.create_user("bot", "Bot", "").unwrap();
     
     // Normal posting: 1 post
-    db.insert_post("bot", "Normal", "tsu", None).unwrap();
+    db.create_post("bot", "Normal", "tsu", NO_CHANNEL, &[]).unwrap();
     
     let score = db.get_temporal_pattern_score("bot").unwrap();
     assert_eq!(score, 0.0, "Single post should have zero temporal pattern score");
@@ -1168,12 +1190,12 @@ mod tests {
     db.insert_relay_event("event2", "wss://relay2.com", 1, "pubkey2", "content2", "[]", 2000).unwrap();
     
     // Record consensus for event1 (multiple relays agree)
-    let hash1 = format!("{:x}", sha2::Sha256::digest("content1"));
+    let hash1 = format!("{:x}", Sha256::digest(b"content1"));
     db.record_relay_consensus("event1", "wss://relay1.com", &hash1).unwrap();
     db.record_relay_consensus("event1", "wss://relay3.com", &hash1).unwrap();
     
     // Record consensus for event2 (single relay)
-    let hash2 = format!("{:x}", sha2::Sha256::digest("content2"));
+    let hash2 = format!("{:x}", Sha256::digest(b"content2"));
     db.record_relay_consensus("event2", "wss://relay2.com", &hash2).unwrap();
     
     // List events with consensus, require min 2 relays

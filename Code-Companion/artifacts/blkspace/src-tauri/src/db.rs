@@ -249,12 +249,24 @@ pub struct Database {
 
 impl Database {
   pub fn new(app_dir: PathBuf) -> Result<Self> {
+    Self::open(app_dir, true)
+  }
+
+  /// Test-only constructor: fresh schema without demo seed data.
+  #[cfg(test)]
+  pub fn new_for_test(app_dir: PathBuf) -> Result<Self> {
+    Self::open(app_dir, false)
+  }
+
+  fn open(app_dir: PathBuf, seed: bool) -> Result<Self> {
     std::fs::create_dir_all(&app_dir).ok();
     let db_path = app_dir.join("blkspace.db");
     let conn = Connection::open(db_path)?;
     let db = Database { conn: Mutex::new(conn) };
     db.initialize()?;
-    db.seed()?;
+    if seed {
+      db.seed()?;
+    }
     Ok(db)
   }
 
@@ -793,7 +805,7 @@ impl Database {
   pub fn get_post(&self, id: i64, current_user: Option<&str>) -> Result<Option<Post>> {
     let conn = self.conn.lock().unwrap();
     let mut stmt = conn.prepare(
-      "SELECT p.id, p.author_handle, u.display_name, u.avatar_url, p.content, p.town_tag,
+      "SELECT p.id, p.author_handle, u.display_name, u.avatar_url, p.content, p.town_tag, p.channel_id,
               p.replies_count, p.reposts_count, p.likes_count,
               CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END as liked,
               p.media_blobs, COALESCE(p.nostr_event_id, ''), COALESCE(p.relay_url, ''), p.created_at
@@ -826,14 +838,6 @@ impl Database {
   }
 
   pub fn create_post(&self, author_handle: &str, content: &str, town_tag: &str, channel_id: &str, media_hashes: &[String]) -> Result<Post> {
-    let conn = self.conn.lock().unwrap();
-    let media_json = serde_json::to_string(media_hashes).unwrap_or("[]".to_string());
-    conn.execute(
-      "INSERT INTO posts (author_handle, content, town_tag, channel_id, media_blobs) VALUES (?1, ?2, ?3, ?4, ?5)",
-      params![author_handle, content, town_tag, channel_id, media_json],
-    )?;
-    let id = conn.last_insert_rowid();
-
     let quality = self.update_engagement_quality(author_handle)?;
     let mut reward = (5.0_f64 * quality).round() as i64;
 
@@ -845,6 +849,14 @@ impl Database {
         }
       }
     }
+
+    let conn = self.conn.lock().unwrap();
+    let media_json = serde_json::to_string(media_hashes).unwrap_or("[]".to_string());
+    conn.execute(
+      "INSERT INTO posts (author_handle, content, town_tag, channel_id, media_blobs) VALUES (?1, ?2, ?3, ?4, ?5)",
+      params![author_handle, content, town_tag, channel_id, media_json],
+    )?;
+    let id = conn.last_insert_rowid();
 
     conn.execute(
       "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
@@ -915,17 +927,6 @@ impl Database {
   }
 
   pub fn create_reply(&self, post_id: i64, author_handle: &str, content: &str) -> Result<Reply> {
-    let conn = self.conn.lock().unwrap();
-    conn.execute(
-      "INSERT INTO replies (post_id, author_handle, content) VALUES (?1, ?2, ?3)",
-      params![post_id, author_handle, content],
-    )?;
-    let id = conn.last_insert_rowid();
-    conn.execute(
-      "UPDATE posts SET replies_count = replies_count + 1 WHERE id = ?1",
-      params![post_id],
-    )?;
-
     let quality = self.update_engagement_quality(author_handle)?;
     let mut reward = (2.0_f64 * quality).round() as i64;
 
@@ -937,6 +938,17 @@ impl Database {
         }
       }
     }
+
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "INSERT INTO replies (post_id, author_handle, content) VALUES (?1, ?2, ?3)",
+      params![post_id, author_handle, content],
+    )?;
+    let id = conn.last_insert_rowid();
+    conn.execute(
+      "UPDATE posts SET replies_count = replies_count + 1 WHERE id = ?1",
+      params![post_id],
+    )?;
 
     conn.execute(
       "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
@@ -1004,6 +1016,7 @@ impl Database {
       ).ok();
       if let Some(ref author_handle) = author {
         if author_handle != user_handle {
+          drop(conn);
           let quality = self.update_engagement_quality(author_handle)?;
           let mut reward = (1.0_f64 * quality).round() as i64;
           // Wire malicious intent throttle
@@ -1014,6 +1027,7 @@ impl Database {
               }
             }
           }
+          let conn = self.conn.lock().unwrap();
           conn.execute(
             "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
             params![reward, author_handle],
@@ -1547,9 +1561,9 @@ impl Database {
     let conn = self.conn.lock().unwrap();
 
     let town_filter = if let Some(t) = town {
-      format!("%\"t\":\"{}\"%", t)
+      format!("%hbcu-town:{}%", t)
     } else {
-      "%\"hbcu-town%".to_string()
+      "%hbcu-town%".to_string()
     };
 
     let events: Vec<CrossTownEvent> = {
@@ -2376,7 +2390,7 @@ impl Database {
     }
     let connections: i64 = conn.query_row(
       "SELECT COUNT(*) FROM follows WHERE follower_handle = ?1 OR followed_handle = ?1",
-      params![handle, handle],
+      params![handle],
       |r| r.get(0),
     )?;
     let max_possible = (total_users - 1) * 2; // can follow and be followed by everyone else
@@ -2414,7 +2428,7 @@ impl Database {
     // Self-likes
     let self_likes: i64 = conn.query_row(
       "SELECT COUNT(*) FROM likes l JOIN posts p ON l.post_id = p.id WHERE p.author_handle = ?1 AND l.user_handle = ?1",
-      params![handle, handle],
+      params![handle],
       |r| r.get(0),
     )?;
     let total_likes: i64 = conn.query_row(
@@ -2425,7 +2439,7 @@ impl Database {
     // Self-replies
     let self_replies: i64 = conn.query_row(
       "SELECT COUNT(*) FROM replies r JOIN posts p ON r.post_id = p.id WHERE p.author_handle = ?1 AND r.author_handle = ?1",
-      params![handle, handle],
+      params![handle],
       |r| r.get(0),
     )?;
     let total_replies: i64 = conn.query_row(
