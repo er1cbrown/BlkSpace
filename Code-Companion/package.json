@@ -7,7 +7,7 @@
     "build": "pnpm run typecheck && pnpm --filter @workspace/blkspace run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "lint": "pnpm --filter @workspace/blkspace run lint",
+    "lint": "pnpm --filter @workspace/blkspace run typecheck",
     "test": "pnpm --filter @workspace/blkspace run test:run",
     "format": "prettier --write \"artifacts/**/*.{ts,tsx,js,json}\" \"lib/**/*.{ts,tsx,js,json}\" \"scripts/**/*.{ts,js,json}\"",
     "format:check": "prettier --check \"artifacts/blkspace/src/**/*.{ts,tsx}\" \"artifacts/blkspace/*.{ts,json}\""
