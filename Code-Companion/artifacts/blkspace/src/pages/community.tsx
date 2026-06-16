@@ -8,8 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useRoute, Link } from "wouter";
 import { ArrowLeft, Users, MapPin, GraduationCap, CalendarDays, MessageSquare, Heart, Repeat2, Send } from "lucide-react";
 import { useTauriGetCommunities, useTauriListChannels, useTauriListPostsForChannel, useAppCreatePost, useTauriListUsers } from "@/hooks/use-app-data";
-import { isTauri, type TauriCommunity, getCurrentHandle, getSessionToken } from "@/lib/tauri-api";
+import { isTauri, type TauriCommunity, tauriCreateChannel, tauriCreateReply } from "@/lib/tauri-api";
+import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const fallbackCommunityData: Record<string, { name: string; school: string; location: string; members: number; description: string }> = {
@@ -32,15 +34,53 @@ export default function CommunityPage() {
   const [, params] = useRoute("/communities/:id");
   const id = params?.id || "";
   const [activeChannel, setActiveChannel] = useState("#general");
+  const [draft, setDraft] = useState("");
 
   const { data: tauriCommunities } = useTauriGetCommunities();
   const { data: tauriUsers } = useTauriListUsers();
+  const { data: tauriChannelsData } = useTauriListChannels(id);
+  const { data: tauriChannelPosts = [] } = useTauriListPostsForChannel(activeChannel.replace(/^#/, '').replace(/-hall$/, '')); // id e.g. "general" or "study" from channel name
+  const createPost = useAppCreatePost();
+  const qc = useQueryClient();
+
+  const handleCreateChannel = async () => {
+    const nm = prompt("New channel name (e.g. #projects or projects)");
+    if (!nm || !nm.trim()) return;
+    const token = getSessionToken();
+    if (!token) { toast.error("Sign in required"); return; }
+    try {
+      await tauriCreateChannel(token, id, nm.trim());
+      qc.invalidateQueries({ queryKey: ["tauri", "channels", id] });
+      toast.success("Channel created");
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
+  const handleReply = async (postId: number) => {
+    const text = prompt("Reply text:");
+    if (!text || !text.trim()) return;
+    const token = getSessionToken();
+    if (!token) { toast.error("Sign in"); return; }
+    try {
+      await tauriCreateReply(token, postId, text.trim());
+      // invalidate channel posts and general posts
+      qc.invalidateQueries({ queryKey: ["tauri", "channelPosts", activeChannel.replace(/^#/, '').replace(/-hall$/, '')] });
+      qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
+      toast.success("Reply posted");
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
 
   const community = isTauri() && Array.isArray(tauriCommunities)
     ? tauriCommunities.find((c: TauriCommunity) => c.id === id)
     : fallbackCommunityData[id];
 
-  const channels = ["#general", "#events", "#music", "#study-hall", "#networking", "#market"];
+  // Real channels when in Tauri (from DB via list_channels); fallback hardcoded for web/demo
+  const channels = (isTauri() && tauriChannelsData && tauriChannelsData.length > 0)
+    ? tauriChannelsData.map((c: any) => c.name)
+    : ["#general", "#events", "#music", "#study-hall", "#networking", "#market"];
 
   if (!community) {
     return (
@@ -53,19 +93,28 @@ export default function CommunityPage() {
     );
   }
 
-  // Discord-like: channel-filtered "chat" feed
-  const channelPosts = [1,2,3,4].map(i => ({
-    id: i,
-    user: `YardMember${i}`,
-    handle: `ym${i}`,
-    content: activeChannel === "#music" 
-      ? "Just dropped a new mix for the tailgate — link in bio 🎧" 
-      : activeChannel === "#study-hall"
-      ? "Library study group tonight at 8. Bring laptops and focus."
-      : `Activity in ${activeChannel} — ${community.name} is live!`,
-    time: `${i + 2}h ago`,
-    reactions: i + 5,
-  }));
+  // Real channel posts when available (from list_posts_for_channel + DB channel_id filter); graceful fallback for demo/web
+  const channelPosts = (isTauri() && tauriChannelPosts.length > 0)
+    ? tauriChannelPosts.map((p: any) => ({
+        id: p.id,
+        user: p.authorDisplayName || p.authorHandle,
+        handle: p.authorHandle,
+        content: p.content,
+        time: p.createdAt ? new Date(p.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'now',
+        reactions: p.likesCount || 0,
+      }))
+    : [1,2,3,4].map(i => ({
+        id: i,
+        user: `YardMember${i}`,
+        handle: `ym${i}`,
+        content: activeChannel === "#music" 
+          ? "Just dropped a new mix for the tailgate — link in bio 🎧" 
+          : activeChannel === "#study-hall"
+          ? "Library study group tonight at 8. Bring laptops and focus."
+          : `Activity in ${activeChannel} — ${community.name} is live!`,
+        time: `${i + 2}h ago`,
+        reactions: i + 5,
+      }));
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -116,6 +165,12 @@ export default function CommunityPage() {
                     </button>
                   ))}
                 </div>
+                <button
+                  onClick={handleCreateChannel}
+                  className="mt-2 w-full text-left px-3 py-1 text-xs rounded-md hover:bg-primary/10 text-primary flex items-center gap-1"
+                >
+                  + Create channel
+                </button>
                 <div className="mt-6 pt-4 border-t text-xs text-muted-foreground">
                   This yard supports structured casual chat + professional networking. Voice channels coming in future update.
                 </div>
@@ -149,7 +204,7 @@ export default function CommunityPage() {
                       <div className="font-semibold text-lg">{activeChannel} — {community.name}</div>
                       <div className="text-xs text-muted-foreground">Casual + focused discussion for the yard</div>
                     </div>
-                    <Badge variant="secondary">{channelPosts.length} new</Badge>
+                    <Badge variant="secondary">{channelPosts.length} messages</Badge>
                   </CardHeader>
                   <CardContent className="space-y-4 max-h-[520px] overflow-auto pr-2">
                     {channelPosts.map((post, idx) => (
@@ -162,23 +217,48 @@ export default function CommunityPage() {
                           </div>
                           <p className="text-[15px] leading-snug mt-0.5">{post.content}</p>
                           <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground">
-                            <button className="hover:text-primary flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" /> Reply</button>
+                            <button onClick={() => handleReply(post.id)} className="hover:text-primary flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" /> Reply</button>
                             <button className="hover:text-primary flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {post.reactions}</button>
                           </div>
                         </div>
                       </div>
                     ))}
+                    {channelPosts.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-8">No posts in this channel yet. Be the first!</p>
+                    )}
                   </CardContent>
                   <div className="p-4 border-t">
                     <div className="flex gap-2">
                       <input 
                         className="flex-1 bg-muted/50 rounded-full px-4 py-2 text-sm outline-none" 
-                        placeholder={`Message ${activeChannel}`} 
-                        onKeyDown={(e) => { if (e.key === 'Enter' && e.currentTarget.value) { toast(`Posted to ${activeChannel}`); e.currentTarget.value = ''; } }}
+                        placeholder={`Message ${activeChannel}`}
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && draft.trim()) {
+                            const channelId = activeChannel.replace(/^#/, '').replace(/-hall$/, '');
+                            createPost.mutate({ content: draft.trim(), town_tag: id, channel_id: channelId });
+                            setDraft('');
+                            toast.success(`Posted to ${activeChannel}`);
+                          }
+                        }}
+                        disabled={createPost.isPending}
                       />
-                      <Button size="sm" onClick={() => toast("Message sent to channel (demo)")}>Send</Button>
+                      <Button 
+                        size="sm" 
+                        onClick={() => {
+                          if (!draft.trim()) return;
+                          const channelId = activeChannel.replace(/^#/, '').replace(/-hall$/, '');
+                          createPost.mutate({ content: draft.trim(), town_tag: id, channel_id: channelId });
+                          setDraft('');
+                          toast.success(`Posted to ${activeChannel}`);
+                        }}
+                        disabled={createPost.isPending || !draft.trim()}
+                      >
+                        {createPost.isPending ? 'Sending...' : 'Send'}
+                      </Button>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1.5">Messages are powered by the yard's local Nostr relay. Professional tone encouraged.</p>
+                    <p className="text-[10px] text-muted-foreground mt-1.5">Messages saved to channel (channel_id persisted). In Tauri + relays: will also publish as kind 1 with town tag.</p>
                   </div>
                 </Card>
               </TabsContent>
@@ -194,7 +274,7 @@ export default function CommunityPage() {
                               <div>
                                 <div className="font-medium">{u.displayName || u.handle}</div>
                                 <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                  {u.nodeRole || "Student"} · {u.weixBucks || 0} WB
+                                  {(i % 3 === 0 ? "Yard Mod · " : "") + (u.nodeRole || "Student")} · {u.weixBucks || 0} WB
                                 </div>
                               </div>
                             </div>

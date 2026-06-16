@@ -1,6 +1,6 @@
 # Implementation Plan: Iroh Integration
 
-**Status:** ✅ ALL PHASES COMPLETE  
+**Status:** ✅ CORE COMPLETE (feature-gated): Iroh 0.35 fs-store compiles with socket2 pin + API updates for Store/import_bytes/data_reader; basic media CIDs (real blake3 CIDs from iroh-blobs + cid column populated on upload, preferred on get_blob_bytes fetch) + pinning/sync scaffolding work. Full p2p node/replication still behind `cargo tauri dev --features iroh` (mac netwatch issues possible at runtime).  
 **Priority:** High (replaces local blob storage)  
 **Estimated Time:** 3-5 days  
 **Dependencies:** Device mesh testing (proves multi-device viability)

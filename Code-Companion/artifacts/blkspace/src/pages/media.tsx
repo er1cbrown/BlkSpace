@@ -160,6 +160,11 @@ export default function MediaPage() {
                       <p className="text-xs text-muted-foreground">
                         {(blob.fileSize / 1024).toFixed(1)} KB
                       </p>
+                      {blob.cid && (
+                        <p className="text-[10px] text-muted-foreground/70 truncate font-mono" title={blob.cid}>
+                          cid: {blob.cid.slice(0, 10)}…
+                        </p>
+                      )}
                     </div>
                     <Button
                       variant="destructive"

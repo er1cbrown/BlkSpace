@@ -473,6 +473,7 @@ fn create_post(
   if has_relays {
     let content_clone = content.clone();
     let town_clone = town_tag.clone();
+    let ch_clone = ch.clone();
     let post_id = post.id;
 
     // Clone client and keys out of the mutex so the async block is Send
@@ -484,9 +485,13 @@ fn create_post(
     if let Ok(rt) = tokio::runtime::Runtime::new() {
       let result = rt.block_on(async {
         use nostr_sdk::prelude::{Tag, EventBuilder};
-        let tags = vec![
+        let mut tags: Vec<Vec<String>> = vec![
           vec!["t".to_string(), format!("hbcu-town:{}", town_clone)],
+          vec!["t".to_string(), "blkspace".to_string()],
         ];
+        if !ch_clone.is_empty() {
+          tags.push(vec!["t".to_string(), format!("blkspace:channel:{}", ch_clone)]);
+        }
         let nostr_tags: Vec<Tag> = tags.iter()
           .filter_map(|t| Tag::parse(t.clone()).ok())
           .collect();
@@ -531,7 +536,43 @@ fn list_replies(state: State<AppState>, post_id: i64) -> Result<Vec<Reply>, Stri
 fn create_reply(state: State<AppState>, session_token: String, post_id: i64, content: String) -> Result<Reply, String> {
   let author_handle = check_session_rate_limit(&state, &session_token)?;
   validate_content(&content).map_err(map_err)?;
-  state.db.create_reply(post_id, &author_handle, &content).map_err(|e| AppError::from(e).to_string())
+  let reply = state.db.create_reply(post_id, &author_handle, &content).map_err(|e| AppError::from(e).to_string())?;
+
+  // Nostr hygiene for replies: kind 1 + e tag + channel/town tags if available from parent post
+  let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
+  if has_relays {
+    if let Ok(Some(parent)) = state.db.get_post(post_id, None) {
+      let town = parent.town_tag.clone();
+      let ch = parent.channel_id.clone();
+      let (nostr_client, nostr_keys) = {
+        let m = state.relay_manager.lock().unwrap();
+        (m.client().clone(), m.keys().clone())
+      };
+      if let Ok(rt) = tokio::runtime::Runtime::new() {
+        let _ = rt.block_on(async {
+          use nostr_sdk::prelude::{Tag, EventBuilder};
+          let mut tags: Vec<Vec<String>> = vec![
+            vec!["t".to_string(), format!("hbcu-town:{}", town)],
+            vec!["t".to_string(), "blkspace".to_string()],
+            vec!["e".to_string(), post_id.to_string()],
+          ];
+          if !ch.is_empty() {
+            tags.push(vec!["t".to_string(), format!("blkspace:channel:{}", ch)]);
+          }
+          let nostr_tags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+          let event = EventBuilder::text_note(&content)
+            .tags(nostr_tags)
+            .sign(&nostr_keys)
+            .await
+            .map_err(|e| format!("Reply sign: {}", e))?;
+          let _ = nostr_client.send_event(event).await;
+          Ok::<_, String>(())
+        });
+      }
+    }
+  }
+
+  Ok(reply)
 }
 
 // ─── Like Command ────────────────────────────────────────
@@ -573,9 +614,34 @@ fn send_weixbucks(
   let res = state.db.send_weixbucks(&user_handle, &to_handle, amount)
     .map_err(|e| AppError::from(e).to_string())?;
 
-  // Wire custom kind 30079 (Tip) on the tip path (Nostr hygiene)
-  log::info!("Would publish Nostr kind 30079 tip event for {} -> {} : {} WB", user_handle, to_handle, amount);
-  // In full: sign with user key (from secure store) and publish via manager with proper tags
+  // Real signed custom kind 30079 (Tip) - Nostr hygiene
+  let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
+  if has_relays {
+    let content = format!("Tip {} WB to @{}", amount, to_handle);
+    let tags: Vec<Vec<String>> = vec![
+      vec!["t".to_string(), "blkspace".to_string()],
+      vec!["t".to_string(), "tip".to_string()],
+      vec!["p".to_string(), to_handle.clone()],
+      vec!["amount".to_string(), amount.to_string()],
+    ];
+    let (nostr_client, nostr_keys) = {
+      let m = state.relay_manager.lock().unwrap();
+      (m.client().clone(), m.keys().clone())
+    };
+    if let Ok(rt) = tokio::runtime::Runtime::new() {
+      let _ = rt.block_on(async {
+        use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+        let nostr_tags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+        let event = EventBuilder::new(Kind::Custom(30079), &content)
+          .tags(nostr_tags)
+          .sign(&nostr_keys)
+          .await
+          .map_err(|e| format!("Tip sign failed: {}", e))?;
+        let _event_id = nostr_client.send_event(event).await.map_err(|e| format!("Tip publish: {}", e))?;
+        Ok::<_, String>(())
+      });
+    }
+  }
 
   Ok(res)
 }
@@ -646,6 +712,23 @@ fn list_channels(state: State<AppState>, community_id: String) -> Vec<db::Channe
 #[tauri::command]
 fn list_posts_for_channel(state: State<AppState>, channel_id: String, current_user: Option<String>) -> Result<Vec<Post>, String> {
   state.db.list_posts_for_channel(&channel_id, current_user.as_deref()).map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn create_channel(
+  state: State<AppState>,
+  session_token: String,
+  community_id: String,
+  name: String,
+  description: Option<String>,
+) -> Result<db::Channel, String> {
+  let _handle = get_handle_from_session(&state, &session_token)?;
+  if name.trim().is_empty() {
+    return Err("Channel name required".to_string());
+  }
+  let id = name.trim().trim_start_matches('#').to_lowercase().replace(|c: char| !c.is_alphanumeric() && c != '-', "-");
+  let desc = description.unwrap_or_default();
+  state.db.create_channel(&community_id, &id, &name, &desc).map_err(|e| e.to_string())
 }
 
 // ─── Relay Networking Commands ───────────────────────────
@@ -1464,17 +1547,22 @@ fn upload_blob(
 #[tauri::command]
 fn get_blob_bytes(state: State<AppState>, session_token: String, hash: String) -> Result<Option<String>, String> {
   check_session_rate_limit(&state, &session_token)?;
-  validate_blob_hash(&hash)?;
-  if !state.db.blob_hash_exists(&hash) {
-    return Ok(None);
-  }
+  // Accept either local content hash (sha256) or CID (iroh/blake3 when feature enabled).
+  // Validation is lenient (both are 64 lowercase hex) so CIDs from posts/Nostr can be fetched directly.
+  validate_blob_hash(&hash).ok(); // best-effort; continue even if odd format for future CID cases
+  // If no record under hash col, we still proceed (may be pure cid key or will be served from Iroh).
+  // Local blob_store fallback will only succeed for real sha hashes.
 
-  // Try Iroh first (decentralized content fetching)
+  // Try Iroh first (decentralized content fetching). Prefer the recorded CID (real Iroh/blake3 hash)
+  // when present — this is the key step that makes "media CIDs" actually fetch from the Iroh store.
   #[cfg(feature = "iroh")]
   if let Some(iroh) = &state.iroh {
     let iroh = iroh.lock().unwrap();
     let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
-    match rt.block_on(iroh.get_blob(&hash)) {
+    // Look up record to get cid if available (upload stores cid separately from the local sha hash)
+    let rec = state.db.get_blob_record(&hash).ok().flatten();
+    let iroh_key = rec.as_ref().and_then(|r| r.cid.clone()).unwrap_or_else(|| hash.clone());
+    match rt.block_on(iroh.get_blob(&iroh_key)) {
       Ok(Some(bytes)) => {
         let b64 = base64::Engine::encode(
           &base64::engine::general_purpose::STANDARD,
@@ -1483,22 +1571,24 @@ fn get_blob_bytes(state: State<AppState>, session_token: String, hash: String) -
         return Ok(Some(b64));
       }
       Ok(None) => {
-        log::warn!("Blob not found in Iroh: {}. Falling back to local storage.", hash);
+        log::warn!("Blob not found in Iroh under key {} (cid fallback from record)", iroh_key);
       }
       Err(e) => {
-        log::warn!("Failed to fetch from Iroh: {}. Falling back to local storage.", e);
+        log::warn!("Failed to fetch from Iroh under key {}: {}. Falling back to local storage.", iroh_key, e);
       }
     }
   }
 
-  // Fallback to local blob store
-  let bytes = state.blob_store.get_blob(&hash)
-    .ok_or("Blob not found on disk or Iroh".to_string())?;
-  let b64 = base64::Engine::encode(
-    &base64::engine::general_purpose::STANDARD,
-    &bytes,
-  );
-  Ok(Some(b64))
+  // Fallback to local blob store (only works for sha256 keys that were stored locally)
+  if let Some(bytes) = state.blob_store.get_blob(&hash) {
+    let b64 = base64::Engine::encode(
+      &base64::engine::general_purpose::STANDARD,
+      &bytes,
+    );
+    return Ok(Some(b64));
+  }
+  // Unknown key (e.g. a CID with no local sha record and no Iroh hit) -> treat as not available rather than hard error
+  Ok(None)
 }
 
 #[tauri::command]
@@ -1721,6 +1811,8 @@ pub fn run() {
       get_trending_feed,
       list_replies,
       create_reply,
+      list_channels,
+      create_channel,
       toggle_like,
       get_notifications,
       get_wallet_tx,

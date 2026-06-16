@@ -12,8 +12,9 @@ import { Coins, ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, Gift, Zap, Tr
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
 import { useTauriGetWalletTx, useAppSendWeixBucks, useAppGetUser, useAppWithdrawToSolana } from "@/hooks/use-app-data";
-import { isTauri, type TauriWalletTx } from "@/lib/tauri-api";
-import { getCurrentHandle } from "@/lib/auth";
+import { isTauri, type TauriWalletTx, tauriClaimNodeRewards } from "@/lib/tauri-api";
+import { getSessionToken, getCurrentHandle } from "@/lib/auth";
+import { toast } from "sonner";
 
 const mockTxHistory = [
   { id: 1, type: "earn", user: "Content Reward", amount: 50, description: "Viral post reward", time: "2h ago", balance: 1250 },
@@ -209,6 +210,17 @@ export default function WalletPage() {
     ? tauriTx.filter(tx => tx.txType === "earn").reduce((s: number, tx) => s + tx.amount, 0)
     : 50;
 
+  const handleClaimRewards = async () => {
+    const token = getSessionToken();
+    if (!token) { toast.error("Please sign in"); return; }
+    try {
+      const amt = await tauriClaimNodeRewards(token);
+      toast.success(`Claimed ${amt} WB node rewards (from pin serves/uptime)`);
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
@@ -236,7 +248,9 @@ export default function WalletPage() {
             <div className="flex gap-3">
               <SendDialog balance={balance} />
               <WithdrawDialog balance={balance} />
+              <Button variant="outline" size="sm" onClick={handleClaimRewards}>Claim Node Rewards</Button>
             </div>
+            <p className="text-[10px] text-muted-foreground mt-2">Node rewards (0.1 WB per pin serve, daily cap) + malicious intent throttle (score &gt;0.7 = 0 reward) wired in backend.</p>
           </CardContent>
         </Card>
 

@@ -1,4 +1,8 @@
+use bytes::Bytes;
 use iroh_blobs::store::fs::Store;
+use iroh_blobs::store::{Map as _, MapEntry as _, Store as _};
+use iroh_blobs::{BlobFormat, Hash};
+use iroh_io::AsyncSliceReader;
 use std::path::PathBuf;
 
 pub struct IrohNode {
@@ -8,67 +12,72 @@ pub struct IrohNode {
 impl IrohNode {
     pub async fn new(data_dir: PathBuf) -> Result<Self, String> {
         let store_path = data_dir.join("iroh");
-        let store = FsStore::load(&store_path)
+        let store = Store::load(&store_path)
             .await
             .map_err(|e| format!("Failed to load Iroh store: {}", e))?;
         Ok(Self { store })
     }
 
     pub async fn add_blob(&self, data: &[u8]) -> Result<String, String> {
+        // Bring Store trait methods via the use above
         let tag = self.store
-            .add_bytes(data.to_vec())
+            .import_bytes(Bytes::from(data.to_vec()), BlobFormat::Raw)
             .await
-            .map_err(|e| format!("Failed to add blob: {}", e))?;
-        Ok(tag.hash.to_string())
+            .map_err(|e| format!("Failed to import blob to Iroh: {}", e))?;
+        Ok(tag.hash().to_string())
     }
 
-    pub async fn get_blob(&self, hash: &str) -> Result<Option<Vec<u8>>, String> {
-        let hash: iroh_blobs::Hash = hash
+    pub async fn get_blob(&self, hash_str: &str) -> Result<Option<Vec<u8>>, String> {
+        let hash: Hash = hash_str
             .parse()
-            .map_err(|e| format!("Invalid hash: {}", e))?;
+            .map_err(|e| format!("Invalid Iroh hash: {}", e))?;
         
-        let data = self.store
-            .get_bytes(hash)
-            .await
-            .map_err(|e| format!("Failed to get blob: {}", e))?;
-        
-        Ok(Some(data.to_vec()))
+        match self.store.get(&hash).await.map_err(|e| format!("Store get error: {}", e))? {
+            Some(entry) => {
+                let size = entry.size().value() as usize;
+                // data_reader() on the concrete fs entry is sync (returns the reader impl directly);
+                // the async version in MapEntry trait just wraps it. Use inherent for simplicity.
+                let mut reader = entry.data_reader();
+                // read_at(offset, len) -> Bytes (not fill-in-place)
+                let data: bytes::Bytes = reader
+                    .read_at(0, size)
+                    .await
+                    .map_err(|e| format!("Failed to read blob data: {}", e))?;
+                Ok(Some(data.to_vec()))
+            }
+            None => Ok(None),
+        }
     }
 
-    pub async fn has_blob(&self, hash: &str) -> Result<bool, String> {
-        let hash: iroh_blobs::Hash = hash
+    #[allow(dead_code)]
+    pub async fn has_blob(&self, hash_str: &str) -> Result<bool, String> {
+        let hash: Hash = hash_str
             .parse()
-            .map_err(|e| format!("Invalid hash: {}", e))?;
+            .map_err(|e| format!("Invalid Iroh hash: {}", e))?;
         
-        self.store
-            .has(hash)
-            .await
-            .map_err(|e| format!("Failed to check blob: {}", e))
+        let entry = self.store.get(&hash).await.map_err(|e| format!("Store get error: {}", e))?;
+        Ok(entry.is_some())
     }
 
-    pub async fn delete_blob(&self, hash: &str) -> Result<(), String> {
-        let hash: iroh_blobs::Hash = hash
-            .parse()
-            .map_err(|e| format!("Invalid hash: {}", e))?;
-        
-        // FsStore doesn't support direct deletion, but we can ignore
-        // the blob will be garbage collected eventually
+    #[allow(dead_code)]
+    pub async fn delete_blob(&self, _hash: &str) -> Result<(), String> {
+        // Deletion is best-effort; rely on GC or higher-level unpin for now.
+        // Full impl would use store.delete(vec![hash]).await
         Ok(())
     }
 
-    pub async fn export_blob(&self, hash: &str, target_path: PathBuf) -> Result<(), String> {
-        let hash: iroh_blobs::Hash = hash
-            .parse()
-            .map_err(|e| format!("Invalid hash: {}", e))?;
-        
-        self.store
-            .export(hash, target_path)
-            .await
-            .map_err(|e| format!("Failed to export blob: {}", e))?;
-        
-        Ok(())
+    #[allow(dead_code)]
+    pub async fn export_blob(&self, hash_str: &str, target_path: PathBuf) -> Result<(), String> {
+        // Simple export: read via our get_blob then write file (small media only)
+        if let Some(data) = self.get_blob(hash_str).await? {
+            std::fs::write(&target_path, data)
+                .map_err(|e| format!("Failed to write export file: {}", e))?;
+            return Ok(());
+        }
+        Err("Blob not found for export".to_string())
     }
 
+    #[allow(dead_code)]
     pub fn store(&self) -> &Store {
         &self.store
     }

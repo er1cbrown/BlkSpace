@@ -34,11 +34,25 @@ nostr-sdk = { version = "0.38", features = [] }
 url = "2"
 async-trait = "0.1"
 iroh-blobs = { version = "0.35", features = ["fs-store"], optional = true }
+# Pin socket2 to a version compatible with netwatch v0.5.0 (pulled by iroh-blobs 0.35) on macOS.
+# This resolves the "Type::RAW" and UnixStream From<Socket> errors on BSD.
+socket2 = { version = "0.5.7", features = ["all"] }
+# Transitive re-exports from iroh-blobs for direct use in our IrohNode wrapper (no extra bloat).
+bytes = "1"
+iroh-io = "0.6"
 
 [features]
 default = []
 iroh = ["dep:iroh-blobs"]
 
-# Note: To build with Iroh (for full decentralized media/pinning/offline):
-# cargo tauri dev --features iroh   (or edit to default include)
-# If still fails on netwatch/socket2 on mac, the pin below or use cargo update -p socket2 --precise 0.4.10 may help, or update iroh-blobs version and adapt iroh_node.rs API.
+# Note: To build with Iroh (for full decentralized media/pinning/offline + real CIDs instead of sha256-as-cid):
+#   cargo tauri dev --features iroh
+# The build is feature-gated by default because iroh-blobs 0.35 transitives (netwatch) can have
+# platform issues on macOS even with the socket2=0.5.7 pin. When enabled:
+# - upload_blob stores to Iroh fs store and returns real CID (blake3) in BlobInfo.cid
+# - blobs table stores both local sha hash (for fs fallback) + cid
+# - get_blob_bytes prefers cid for Iroh fetch when present (unblocks media CIDs, future p2p/pinning rewards)
+# Default (no feature) still provides cid=hash fallback so UI/media never breaks.
+
+[dev-dependencies]
+tempfile = "3"

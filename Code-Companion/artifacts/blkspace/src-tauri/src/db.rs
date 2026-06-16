@@ -1319,7 +1319,52 @@ impl Database {
     ]
   }
 
+  pub fn create_channel(&self, community_id: &str, id: &str, name: &str, description: &str) -> Result<Channel> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "INSERT OR IGNORE INTO channels (id, community_id, name, description) VALUES (?1, ?2, ?3, ?4)",
+      params![id, community_id, name, description],
+    )?;
+    Ok(Channel {
+      id: id.to_string(),
+      community_id: community_id.to_string(),
+      name: name.to_string(),
+      description: description.to_string(),
+    })
+  }
+
   pub fn list_channels(&self, community_id: &str) -> Vec<Channel> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = match conn.prepare("SELECT id, community_id, name, description FROM channels WHERE community_id = ?1 ORDER BY created_at, id") {
+      Ok(s) => s,
+      Err(_) => return self.seed_channels_for_community(community_id),
+    };
+    let rows = match stmt.query_map(params![community_id], |row| {
+      Ok(Channel {
+        id: row.get(0)?,
+        community_id: row.get(1)?,
+        name: row.get(2)?,
+        description: row.get(3)?,
+      })
+    }) {
+      Ok(r) => r,
+      Err(_) => return self.seed_channels_for_community(community_id),
+    };
+    let mut chs: Vec<Channel> = rows.filter_map(|r| r.ok()).collect();
+    if chs.is_empty() {
+      chs = self.seed_channels_for_community(community_id);
+      // seed into table for future
+      for c in &chs {
+        let _ = conn.execute(
+          "INSERT OR IGNORE INTO channels (id, community_id, name, description) VALUES (?1, ?2, ?3, ?4)",
+          params![c.id, c.community_id, c.name, c.description],
+        );
+      }
+    }
+    chs
+  }
+
+  fn seed_channels_for_community(&self, community_id: &str) -> Vec<Channel> {
     match community_id {
       "tsu" => vec![
         Channel { id: "general".into(), community_id: "tsu".into(), name: "#general".into(), description: "General discussion".into() },

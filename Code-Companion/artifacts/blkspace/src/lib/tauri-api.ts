@@ -241,6 +241,10 @@ export function tauriListChannels(communityId: string): Promise<TauriChannel[]> 
   return invoke("list_channels", { communityId });
 }
 
+export function tauriCreateChannel(sessionToken: string, communityId: string, name: string, description?: string | null): Promise<TauriChannel> {
+  return invoke("create_channel", { sessionToken, communityId, name, description: description || null });
+}
+
 export function tauriListPostsForChannel(channelId: string, currentUser?: string): Promise<TauriPost[]> {
   return invoke("list_posts_for_channel", { channelId, currentUser: currentUser || null });
 }
