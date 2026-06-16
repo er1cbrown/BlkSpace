@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Coins, ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, Gift, Zap, TrendingUp, Users } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
-import { useTauriGetWalletTx, useAppSendWeixBucks, useAppGetUser } from "@/hooks/use-app-data";
+import { useTauriGetWalletTx, useAppSendWeixBucks, useAppGetUser, useAppWithdrawToSolana } from "@/hooks/use-app-data";
 import { isTauri, type TauriWalletTx } from "@/lib/tauri-api";
 import { getCurrentHandle } from "@/lib/auth";
 
@@ -88,6 +88,114 @@ function SendDialog({ balance }: { balance: number }) {
   );
 }
 
+function WithdrawDialog({ balance }: { balance: number }) {
+  const [solanaAddress, setSolanaAddress] = useState("");
+  const [amount, setAmount] = useState("");
+  const [txSignature, setTxSignature] = useState("");
+  const withdrawMut = useAppWithdrawToSolana();
+
+  const handleWithdraw = () => {
+    const amt = parseInt(amount, 10);
+    if (!solanaAddress.trim() || isNaN(amt) || amt < 100 || amt > balance) return;
+    withdrawMut.mutate(
+      { studentSolanaAddress: solanaAddress.trim(), amountWb: amt },
+      {
+        onSuccess: (sig) => {
+          setTxSignature(sig);
+          setSolanaAddress("");
+          setAmount("");
+        },
+      }
+    );
+  };
+
+  return (
+    <Dialog onOpenChange={(open) => { if (!open) setTxSignature(""); }}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="rounded-full gap-2 flex-1 h-12 font-bold border-primary/20 hover:bg-primary/5">
+          <ArrowDownLeft className="w-5 h-5 text-primary" /> Withdraw to Solana
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Withdraw to Solana (BLKCOIN)</DialogTitle>
+          <DialogDescription>Convert your off-chain WeixBucks (WB) into on-chain BLKCOIN tokens.</DialogDescription>
+        </DialogHeader>
+        
+        {txSignature ? (
+          <div className="space-y-4 py-4 text-center">
+            <div className="p-3 bg-green-500/10 rounded-full w-12 h-12 flex items-center justify-center mx-auto text-green-500">
+              <Zap className="w-6 h-6 animate-pulse" />
+            </div>
+            <h4 className="font-bold text-lg">Withdrawal Successful!</h4>
+            <p className="text-sm text-muted-foreground px-4">
+              Your off-chain WeixBucks have been converted and the BLKCOIN tokens are on the way to your Solana wallet.
+            </p>
+            <div className="bg-muted p-3 rounded-lg text-left">
+              <Label className="text-xs text-muted-foreground block mb-1">Solana Transaction Signature</Label>
+              <p className="font-mono text-xs break-all text-primary font-semibold select-all">{txSignature}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="solana">Solana Recipient Address</Label>
+              <Input
+                id="solana"
+                placeholder="Solana Wallet Address (e.g. 5tzq...)"
+                value={solanaAddress}
+                onChange={e => setSolanaAddress(e.target.value)}
+                className="font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="withdraw-amount">Amount (WB)</Label>
+              <Input
+                id="withdraw-amount"
+                type="number"
+                placeholder="Minimum 100 WB"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                min={100}
+                max={balance}
+              />
+            </div>
+            <div className="bg-accent/5 p-3 rounded-lg border border-primary/10 flex items-start gap-3">
+              <Coins className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="text-xs space-y-1">
+                <p className="font-semibold">Hybrid Bridge Rules</p>
+                <p className="text-muted-foreground">1 WeixBuck (WB) = 1,000,000,000 BLKCOIN on Solana Devnet.</p>
+                <p className="text-muted-foreground">Standard daily cap is 1,000 WB per student.</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Available balance: {balance.toLocaleString()} WB</p>
+            {withdrawMut.isError && (
+              <p className="text-sm text-destructive">{withdrawMut.error instanceof Error ? withdrawMut.error.message : "Withdrawal failed"}</p>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          {txSignature ? (
+            <DialogClose asChild>
+              <Button className="w-full">Done</Button>
+            </DialogClose>
+          ) : (
+            <>
+              <DialogClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button onClick={handleWithdraw} disabled={withdrawMut.isPending || !solanaAddress.trim() || !amount || parseInt(amount, 10) < 100 || parseInt(amount, 10) > balance}>
+                {withdrawMut.isPending ? "Signing CPI Mint..." : "Confirm & Withdraw"}
+              </Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function WalletPage() {
   const handle = getCurrentHandle();
   const { data: user } = useAppGetUser(handle);
@@ -127,9 +235,7 @@ export default function WalletPage() {
             <p className="text-sm text-muted-foreground mb-6">WeixBucks</p>
             <div className="flex gap-3">
               <SendDialog balance={balance} />
-              <Button variant="outline" className="rounded-full gap-2 flex-1 h-12 font-bold" disabled>
-                <ArrowDownLeft className="w-5 h-5" /> Receive
-              </Button>
+              <WithdrawDialog balance={balance} />
             </div>
           </CardContent>
         </Card>

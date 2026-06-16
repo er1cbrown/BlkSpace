@@ -213,11 +213,13 @@ This is a Grok conversation log covering **TSU COMP-3310 (Data Communications & 
 
 **What the paper says:**
 - Signature verification bypasses in Nostr clients
-- Unauthenticated CBC encryption in DMs (no MAC)
+- Unauthenticated CBC encryption in **NIP-04** legacy DMs (AES-256-CBC without MAC)
 - CBC malleability + link preview = confidentiality breach
 - Cache poisoning in client implementations
 
 **How BlkSpace mitigates:**
+- **No NIP-04 implementation** — legacy DM standard is not implemented (vulnerable CBC)
+- **No NIP-17 implementation** — modern sealed-box DMs also treated as untrusted per paper's general caution
 - **Disable automatic link previews** (prevents CBC malleability attack)
 - **Strict signature verification** on every event
 - **Town tag filtering** (reject events without `t:hbcu-town:`)

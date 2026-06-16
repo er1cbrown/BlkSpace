@@ -11,6 +11,7 @@ fn validate_hash(hash: &str) -> bool {
 #[serde(rename_all = "camelCase")]
 pub struct BlobInfo {
   pub hash: String,
+  pub cid: Option<String>,
   pub filename: String,
   pub mime_type: String,
   pub file_size: i64,

@@ -12,6 +12,7 @@ export interface TauriUser {
   followingCount: number;
   weixBucks: number;
   engagementQuality: number;
+  nodeRole: string;
   createdAt: string;
 }
 
@@ -22,6 +23,7 @@ export interface TauriPost {
   authorAvatarUrl: string;
   content: string;
   townTag: string;
+  channelId: string;
   repliesCount: number;
   repostsCount: number;
   likesCount: number;
@@ -71,6 +73,13 @@ export interface TauriCommunity {
   description: string;
   members: number;
   color: string;
+}
+
+export interface TauriChannel {
+  id: string;
+  communityId: string;
+  name: string;
+  description: string;
 }
 
 export interface TauriRelay {
@@ -172,8 +181,8 @@ export function tauriGetPost(id: number, currentUser?: string): Promise<TauriPos
   return invoke("get_post", { id, currentUser: currentUser || null });
 }
 
-export function tauriCreatePost(sessionToken: string, content: string, townTag: string, mediaHashes?: string | null): Promise<TauriPost> {
-  return invoke("create_post", { sessionToken, content, townTag, mediaHashes: mediaHashes || null });
+export function tauriCreatePost(sessionToken: string, content: string, townTag: string, channelId?: string | null, mediaHashes?: string | null): Promise<TauriPost> {
+  return invoke("create_post", { sessionToken, content, townTag, channelId: channelId || null, mediaHashes: mediaHashes || null });
 }
 
 export function tauriGetUserPosts(handle: string, currentUser?: string): Promise<TauriPost[]> {
@@ -208,6 +217,10 @@ export function tauriSendWeixBucks(sessionToken: string, toHandle: string, amoun
   return invoke("send_weixbucks", { sessionToken, toHandle, amount });
 }
 
+export function tauriWithdrawToSolana(sessionToken: string, studentSolanaAddress: string, amountWb: number): Promise<string> {
+  return invoke("withdraw_to_solana", { sessionToken, studentSolanaAddress, amountWb });
+}
+
 export function tauriGetNetworkStats(): Promise<TauriNetworkStats> {
   return invoke("get_network_stats");
 }
@@ -222,6 +235,14 @@ export function tauriGetRecentActivity(): Promise<TauriActivityEvent[]> {
 
 export function tauriGetCommunities(): Promise<TauriCommunity[]> {
   return invoke("get_communities");
+}
+
+export function tauriListChannels(communityId: string): Promise<TauriChannel[]> {
+  return invoke("list_channels", { communityId });
+}
+
+export function tauriListPostsForChannel(channelId: string, currentUser?: string): Promise<TauriPost[]> {
+  return invoke("list_posts_for_channel", { channelId, currentUser: currentUser || null });
 }
 
 // ─── Blob (Media) Commands ──────────────────────────────
@@ -324,6 +345,26 @@ export function tauriSyncTownEvents(sessionToken: string, town: string): Promise
 
 export function tauriListRelayEvents(sessionToken: string, limit?: number, kindFilter?: number): Promise<TauriRelayEventRecord[]> {
   return invoke("list_relay_events", { sessionToken, limit: limit ?? null, kindFilter: kindFilter ?? null });
+}
+
+export function tauriListRelayEventsWithConsensus(sessionToken: string, limit?: number, kindFilter?: number, minRelays?: number): Promise<{
+  id: number;
+  eventId: string;
+  relayUrl: string;
+  kind: number;
+  pubkey: string;
+  content: string;
+  tags: string;
+  createdAtUnix: number;
+  firstSeen: string;
+  consensus: {
+    totalSightings: number;
+    uniqueHashes: number;
+    agreementPercent: number;
+    consensusValid: boolean;
+  };
+}[]> {
+  return invoke("list_relay_events_with_consensus", { sessionToken, limit: limit ?? null, kindFilter: kindFilter ?? null, minRelays: minRelays ?? null });
 }
 
 export function tauriGetRelayNetworkStats(): Promise<TauriNetworkStats> {
@@ -467,4 +508,108 @@ export function tauriLogDeviceSync(deviceId: string, syncType: string, itemsCoun
 
 export function tauriGetDeviceSyncHistory(deviceId: string): Promise<[string, number, number, boolean][]> {
   return invoke("get_device_sync_history", { deviceId });
+}
+
+// ─── Relay Consensus (Cache Poisoning Prevention) ─────
+
+export interface RelayConsensusEntry {
+  relayUrl: string;
+  contentHash: string;
+}
+
+export interface RelayConsensusStats {
+  totalSightings: number;
+  uniqueHashes: number;
+  agreementPercent: number;
+}
+
+export function tauriRecordRelayConsensus(
+  eventId: string,
+  relayUrl: string,
+  contentHash: string
+): Promise<boolean> {
+  return invoke("record_relay_consensus", { eventId, relayUrl, contentHash });
+}
+
+export function tauriGetRelayConsensus(
+  eventId: string
+): Promise<[string, string][]> {
+  return invoke("get_relay_consensus", { eventId });
+}
+
+export function tauriValidateRelayConsensus(
+  eventId: string,
+  minRelays: number
+): Promise<boolean> {
+  return invoke("validate_relay_consensus", { eventId, minRelays });
+}
+
+export function tauriGetRelayConsensusStats(
+  eventId: string
+): Promise<RelayConsensusStats> {
+  return invoke("get_relay_consensus_stats", { eventId });
+}
+
+// ─── MIDF Graph Analysis (Malicious Intent Detection) ──
+
+export interface MaliciousIntentVector {
+  handle: string;
+  overallScore: number;
+  dimensions: {
+    starPattern: number;
+    networkCentrality: number;
+    followerVelocity: number;
+    selfInteraction: number;
+    contentSimilarity: number;
+    temporalPattern: number;
+  };
+  riskLevel: "low" | "medium" | "high" | "unknown";
+  updatedAt: string;
+}
+
+export function tauriGetFollowerGraph(
+  handle: string,
+  depth: number
+): Promise<[string, string][]> {
+  return invoke("get_follower_graph", { handle, depth });
+}
+
+export function tauriGetStarPatternScore(handle: string): Promise<number> {
+  return invoke("get_star_pattern_score", { handle });
+}
+
+export function tauriGetNetworkCentrality(handle: string): Promise<number> {
+  return invoke("get_network_centrality", { handle });
+}
+
+export function tauriGetFollowerVelocity(handle: string): Promise<number> {
+  return invoke("get_follower_velocity", { handle });
+}
+
+export function tauriGetSelfInteractionScore(handle: string): Promise<number> {
+  return invoke("get_self_interaction_score", { handle });
+}
+
+export function tauriGetContentSimilarityScore(handle: string): Promise<number> {
+  return invoke("get_content_similarity_score", { handle });
+}
+
+export function tauriGetTemporalPatternScore(handle: string): Promise<number> {
+  return invoke("get_temporal_pattern_score", { handle });
+}
+
+export function tauriCalculateMaliciousIntentVector(
+  handle: string
+): Promise<MaliciousIntentVector> {
+  return invoke("calculate_malicious_intent_vector", { handle });
+}
+
+export function tauriGetMaliciousIntentScores(
+  handle: string
+): Promise<MaliciousIntentVector> {
+  return invoke("get_malicious_intent_scores", { handle });
+}
+
+export function tauriRecalculateAllMaliciousIntentScores(): Promise<number> {
+  return invoke("recalculate_all_malicious_intent_scores", {});
 }

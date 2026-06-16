@@ -24,8 +24,48 @@ import WalletPage from "@/pages/wallet";
 import MediaPage from "@/pages/media";
 import MeshTestPage from "@/pages/mesh-test";
 import { isFirstRun } from "@/lib/auth";
+import React from "react";
 
 const queryClient = new QueryClient();
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Tauri App ErrorBoundary caught:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ 
+          padding: 20, 
+          background: '#fee', 
+          color: '#900', 
+          fontFamily: 'monospace',
+          whiteSpace: 'pre-wrap',
+          height: '100vh',
+          overflow: 'auto'
+        }}>
+          <h1 style={{ color: '#c00' }}>App crashed (white screen fix)</h1>
+          <p>Open DevTools (right-click → Inspect) for full stack.</p>
+          <pre>{this.state.error?.stack || this.state.error?.message}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function Router() {
   const firstRun = isFirstRun();
@@ -56,16 +96,18 @@ function Router() {
 
 function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

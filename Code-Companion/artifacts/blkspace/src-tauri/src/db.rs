@@ -83,6 +83,9 @@ pub struct User {
   pub weix_bucks: i64,
   pub pubkey: String,
   pub engagement_quality: f64,
+  pub theme_id: i64,
+  pub music_hash: String,
+  pub node_role: String,
   pub created_at: String,
 }
 
@@ -108,6 +111,7 @@ pub struct Post {
   pub author_avatar_url: String,
   pub content: String,
   pub town_tag: String,
+  pub channel_id: String,
   pub replies_count: i64,
   pub reposts_count: i64,
   pub likes_count: i64,
@@ -165,6 +169,15 @@ pub struct Community {
   pub description: String,
   pub members: i64,
   pub color: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Channel {
+  pub id: String,
+  pub community_id: String,
+  pub name: String,
+  pub description: String,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -271,11 +284,20 @@ impl Database {
         author_handle TEXT NOT NULL,
         content TEXT NOT NULL,
         town_tag TEXT DEFAULT 'tsu',
+        channel_id TEXT DEFAULT '',
         replies_count INTEGER DEFAULT 0,
         reposts_count INTEGER DEFAULT 0,
         likes_count INTEGER DEFAULT 0,
         created_at TEXT DEFAULT (datetime('now')),
         FOREIGN KEY (author_handle) REFERENCES users(handle)
+      );
+
+      CREATE TABLE IF NOT EXISTS channels (
+        id TEXT PRIMARY KEY,
+        community_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        created_at TEXT DEFAULT (datetime('now'))
       );
 
       CREATE TABLE IF NOT EXISTS replies (
@@ -426,6 +448,35 @@ impl Database {
 
       CREATE INDEX IF NOT EXISTS idx_device_sync_log_device ON device_sync_log(device_id);
       CREATE INDEX IF NOT EXISTS idx_device_sync_log_type ON device_sync_log(sync_type);
+
+      -- Relay consensus tracking for cache poisoning prevention
+      CREATE TABLE IF NOT EXISTS relay_consensus (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id TEXT NOT NULL,
+        relay_url TEXT NOT NULL,
+        content_hash TEXT NOT NULL,
+        first_seen TEXT DEFAULT (datetime('now')),
+        UNIQUE(event_id, relay_url)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_relay_consensus_event ON relay_consensus(event_id);
+      CREATE INDEX IF NOT EXISTS idx_relay_consensus_relay ON relay_consensus(relay_url);
+
+      -- Malicious Intent Detection Framework (MIDF) scores
+      CREATE TABLE IF NOT EXISTS malicious_intent_scores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        handle TEXT NOT NULL UNIQUE,
+        overall_score REAL DEFAULT 0.0,
+        follower_velocity REAL DEFAULT 0.0,
+        network_centrality REAL DEFAULT 0.0,
+        content_similarity REAL DEFAULT 0.0,
+        temporal_pattern REAL DEFAULT 0.0,
+        self_interaction REAL DEFAULT 0.0,
+        updated_at TEXT DEFAULT (datetime('now')),
+        FOREIGN KEY (handle) REFERENCES users(handle)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_malicious_intent_handle ON malicious_intent_scores(handle);
       "
     )?;
 
@@ -441,6 +492,9 @@ impl Database {
     let _ = conn.execute("ALTER TABLE blobs ADD COLUMN cid TEXT", []);
     let _ = conn.execute("ALTER TABLE users ADD COLUMN node_role TEXT DEFAULT ''", []);
     let _ = conn.execute("ALTER TABLE users ADD COLUMN relay_uptime_hours INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN theme_id INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN music_hash TEXT DEFAULT ''", []);
+    let _ = conn.execute("ALTER TABLE posts ADD COLUMN channel_id TEXT DEFAULT ''", []);
 
     Ok(())
   }
@@ -462,14 +516,14 @@ impl Database {
         ('hbcustudent', 'HBCU Student', 'Future engineer. Building the future.', 'Spelman College', 'spelman', 891, 203, 1560, ''),
         ('alumnus_01', 'Alumnus 01', 'Class of 2020. Still reppin the yard.', 'Morehouse College', 'morehouse', 563, 112, 980, '');
 
-      INSERT INTO posts (author_handle, content, town_tag, replies_count, reposts_count, likes_count, created_at)
+      INSERT INTO posts (author_handle, content, town_tag, channel_id, replies_count, reposts_count, likes_count, created_at)
       VALUES
-        ('demo_user', 'Just stepped on the yard for the first time. This place is incredible! 🏆', 'tsu', 12, 5, 47, '2026-06-14T09:00:00'),
-        ('jane_doe', 'Hot take: the best HBCU homecoming is... (drop yours below) 👇', 'howard', 34, 18, 89, '2026-06-14T10:30:00'),
-        ('campus_king', 'New mix just dropped. Link in bio. Who''s bumping this at the next tailgate? 🎧', 'famu', 8, 23, 156, '2026-06-14T11:15:00'),
-        ('hbcustudent', 'Study group in the library at 4. Bring your laptops and your focus. 📚', 'spelman', 19, 4, 34, '2026-06-14T12:00:00'),
-        ('alumnus_01', '20 years later and I still get chills walking across this campus. Once a tiger, always a tiger. 🐯', 'morehouse', 7, 12, 67, '2026-06-14T13:45:00'),
-        ('demo_user', 'Who else is going to the career fair tomorrow? Let''s link up!', 'tsu', 5, 2, 23, '2026-06-14T14:30:00');
+        ('demo_user', 'Just stepped on the yard for the first time. This place is incredible! 🏆', 'tsu', 'general', 12, 5, 47, '2026-06-14T09:00:00'),
+        ('jane_doe', 'Hot take: the best HBCU homecoming is... (drop yours below) 👇', 'howard', 'general', 34, 18, 89, '2026-06-14T10:30:00'),
+        ('campus_king', 'New mix just dropped. Link in bio. Who''s bumping this at the next tailgate? 🎧', 'famu', 'music', 8, 23, 156, '2026-06-14T11:15:00'),
+        ('hbcustudent', 'Study group in the library at 4. Bring your laptops and your focus. 📚', 'spelman', 'study', 19, 4, 34, '2026-06-14T12:00:00'),
+        ('alumnus_01', '20 years later and I still get chills walking across this campus. Once a tiger, always a tiger. 🐯', 'morehouse', 'general', 7, 12, 67, '2026-06-14T13:45:00'),
+        ('demo_user', 'Who else is going to the career fair tomorrow? Let''s link up!', 'tsu', 'events', 5, 2, 23, '2026-06-14T14:30:00');
 
       INSERT INTO replies (post_id, author_handle, content, created_at)
       VALUES
@@ -498,7 +552,7 @@ impl Database {
     let mut stmt = conn.prepare(
       "SELECT id, handle, display_name, bio, avatar_url, university, town,
               followers_count, following_count, weix_bucks, pubkey,
-              engagement_quality, created_at
+              engagement_quality, theme_id, music_hash, node_role, created_at
        FROM users WHERE handle = ?1"
     )?;
     let mut rows = stmt.query(params![handle])?;
@@ -516,7 +570,10 @@ impl Database {
         weix_bucks: row.get(9)?,
         pubkey: row.get(10)?,
         engagement_quality: row.get(11)?,
-        created_at: row.get(12)?,
+        theme_id: row.get(12)?,
+        music_hash: row.get(13)?,
+        node_role: row.get(14)?,
+        created_at: row.get(15)?,
       })),
       None => Ok(None),
     }
@@ -527,7 +584,7 @@ impl Database {
     let mut stmt = conn.prepare(
       "SELECT id, handle, display_name, bio, avatar_url, university, town,
               followers_count, following_count, weix_bucks, pubkey,
-              engagement_quality, created_at
+              engagement_quality, theme_id, music_hash, node_role, created_at
        FROM users ORDER BY followers_count DESC"
     )?;
     let rows = stmt.query_map([], |row| {
@@ -544,7 +601,10 @@ impl Database {
         weix_bucks: row.get(9)?,
         pubkey: row.get(10)?,
         engagement_quality: row.get(11)?,
-        created_at: row.get(12)?,
+        theme_id: row.get(12)?,
+        music_hash: row.get(13)?,
+        node_role: row.get(14)?,
+        created_at: row.get(15)?,
       })
     })?;
     let mut users = Vec::new();
@@ -574,6 +634,9 @@ impl Database {
       weix_bucks: 100,
       pubkey: pubkey.to_string(),
       engagement_quality: 1.0,
+      theme_id: 0,
+      music_hash: String::new(),
+      node_role: String::new(),
       created_at: chrono::Utc::now().to_rfc3339(),
     })
   }
@@ -592,7 +655,7 @@ impl Database {
     let mut stmt = conn.prepare(
       "SELECT id, handle, display_name, bio, avatar_url, university, town,
               followers_count, following_count, weix_bucks, pubkey,
-              engagement_quality, created_at
+              engagement_quality, theme_id, music_hash, node_role, created_at
        FROM users WHERE pubkey = ?1"
     )?;
     let mut rows = stmt.query(params![pubkey])?;
@@ -610,7 +673,10 @@ impl Database {
         weix_bucks: row.get(9)?,
         pubkey: row.get(10)?,
         engagement_quality: row.get(11)?,
-        created_at: row.get(12)?,
+        theme_id: row.get(12)?,
+        music_hash: row.get(13)?,
+        node_role: row.get(14)?,
+        created_at: row.get(15)?,
       })),
       None => Ok(None),
     }
@@ -629,7 +695,7 @@ impl Database {
     let conn = self.conn.lock().unwrap();
     let has_town = town.is_some();
     let sql = if has_town {
-      "SELECT p.id, p.author_handle, u.display_name, u.avatar_url, p.content, p.town_tag,
+      "SELECT p.id, p.author_handle, u.display_name, u.avatar_url, p.content, p.town_tag, p.channel_id,
               p.replies_count, p.reposts_count, p.likes_count,
               CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END as liked,
               p.media_blobs, COALESCE(p.nostr_event_id, ''), COALESCE(p.relay_url, ''), p.created_at
@@ -639,7 +705,7 @@ impl Database {
        WHERE p.town_tag = ?1
        ORDER BY p.created_at DESC"
     } else {
-      "SELECT p.id, p.author_handle, u.display_name, u.avatar_url, p.content, p.town_tag,
+      "SELECT p.id, p.author_handle, u.display_name, u.avatar_url, p.content, p.town_tag, p.channel_id,
               p.replies_count, p.reposts_count, p.likes_count,
               CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END as liked,
               p.media_blobs, COALESCE(p.nostr_event_id, ''), COALESCE(p.relay_url, ''), p.created_at
@@ -663,14 +729,15 @@ impl Database {
           author_avatar_url: row.get(3)?,
           content: row.get(4)?,
           town_tag: row.get(5)?,
-          replies_count: row.get(6)?,
-          reposts_count: row.get(7)?,
-          likes_count: row.get(8)?,
-          liked: row.get::<_, i64>(9)? != 0,
-          media_blobs: parse_media_blobs(&row.get::<_, String>(10).unwrap_or_default()),
-          nostr_event_id: row.get::<_, String>(11).unwrap_or_default(),
-          relay_url: row.get::<_, String>(12).unwrap_or_default(),
-          created_at: row.get(13)?,
+          channel_id: row.get(6).unwrap_or_default(),
+          replies_count: row.get(7)?,
+          reposts_count: row.get(8)?,
+          likes_count: row.get(9)?,
+          liked: row.get::<_, i64>(10)? != 0,
+          media_blobs: parse_media_blobs(&row.get::<_, String>(11).unwrap_or_default()),
+          nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
+          relay_url: row.get::<_, String>(13).unwrap_or_default(),
+          created_at: row.get(14)?,
         })
       })?)
     } else {
@@ -682,14 +749,15 @@ impl Database {
           author_avatar_url: row.get(3)?,
           content: row.get(4)?,
           town_tag: row.get(5)?,
-          replies_count: row.get(6)?,
-          reposts_count: row.get(7)?,
-          likes_count: row.get(8)?,
-          liked: row.get::<_, i64>(9)? != 0,
-          media_blobs: parse_media_blobs(&row.get::<_, String>(10).unwrap_or_default()),
-          nostr_event_id: row.get::<_, String>(11).unwrap_or_default(),
-          relay_url: row.get::<_, String>(12).unwrap_or_default(),
-          created_at: row.get(13)?,
+          channel_id: row.get(6).unwrap_or_default(),
+          replies_count: row.get(7)?,
+          reposts_count: row.get(8)?,
+          likes_count: row.get(9)?,
+          liked: row.get::<_, i64>(10)? != 0,
+          media_blobs: parse_media_blobs(&row.get::<_, String>(11).unwrap_or_default()),
+          nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
+          relay_url: row.get::<_, String>(13).unwrap_or_default(),
+          created_at: row.get(14)?,
         })
       })?)
     };
@@ -722,30 +790,40 @@ impl Database {
         author_avatar_url: row.get(3)?,
         content: row.get(4)?,
         town_tag: row.get(5)?,
-        replies_count: row.get(6)?,
-        reposts_count: row.get(7)?,
-        likes_count: row.get(8)?,
-        liked: row.get::<_, i64>(9)? != 0,
-        media_blobs: serde_json::from_str(&row.get::<_, String>(10).unwrap_or_default()).unwrap_or_default(),
-        nostr_event_id: row.get::<_, String>(11).unwrap_or_default(),
-        relay_url: row.get::<_, String>(12).unwrap_or_default(),
-        created_at: row.get(13)?,
+        channel_id: row.get(6).unwrap_or_default(),
+        replies_count: row.get(7)?,
+        reposts_count: row.get(8)?,
+        likes_count: row.get(9)?,
+        liked: row.get::<_, i64>(10)? != 0,
+        media_blobs: serde_json::from_str(&row.get::<_, String>(11).unwrap_or_default()).unwrap_or_default(),
+        nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
+        relay_url: row.get::<_, String>(13).unwrap_or_default(),
+        created_at: row.get(14)?,
       })),
       None => Ok(None),
     }
   }
 
-  pub fn create_post(&self, author_handle: &str, content: &str, town_tag: &str, media_hashes: &[String]) -> Result<Post> {
+  pub fn create_post(&self, author_handle: &str, content: &str, town_tag: &str, channel_id: &str, media_hashes: &[String]) -> Result<Post> {
     let conn = self.conn.lock().unwrap();
     let media_json = serde_json::to_string(media_hashes).unwrap_or("[]".to_string());
     conn.execute(
-      "INSERT INTO posts (author_handle, content, town_tag, media_blobs) VALUES (?1, ?2, ?3, ?4)",
-      params![author_handle, content, town_tag, media_json],
+      "INSERT INTO posts (author_handle, content, town_tag, channel_id, media_blobs) VALUES (?1, ?2, ?3, ?4, ?5)",
+      params![author_handle, content, town_tag, channel_id, media_json],
     )?;
     let id = conn.last_insert_rowid();
 
     let quality = self.update_engagement_quality(author_handle)?;
-    let reward = (5.0_f64 * quality).round() as i64;
+    let mut reward = (5.0_f64 * quality).round() as i64;
+
+    // Wire malicious intent throttle (for end-to-end test: high score -> reward=0)
+    if let Ok(scores) = self.calculate_malicious_intent_vector(author_handle) {
+      if let Some(overall) = scores.get("overallScore").and_then(|v| v.as_f64()) {
+        if overall > 0.7 {
+          reward = 0;
+        }
+      }
+    }
 
     conn.execute(
       "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
@@ -776,6 +854,7 @@ impl Database {
       author_avatar_url: avatar,
       content: content.to_string(),
       town_tag: town_tag.to_string(),
+      channel_id: channel_id.to_string(),
       replies_count: 0,
       reposts_count: 0,
       likes_count: 0,
@@ -827,7 +906,16 @@ impl Database {
     )?;
 
     let quality = self.update_engagement_quality(author_handle)?;
-    let reward = (2.0_f64 * quality).round() as i64;
+    let mut reward = (2.0_f64 * quality).round() as i64;
+
+    // Wire malicious intent throttle
+    if let Ok(scores) = self.calculate_malicious_intent_vector(author_handle) {
+      if let Some(overall) = scores.get("overallScore").and_then(|v| v.as_f64()) {
+        if overall > 0.7 {
+          reward = 0;
+        }
+      }
+    }
 
     conn.execute(
       "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
@@ -896,7 +984,15 @@ impl Database {
       if let Some(ref author_handle) = author {
         if author_handle != user_handle {
           let quality = self.update_engagement_quality(author_handle)?;
-          let reward = (1.0_f64 * quality).round() as i64;
+          let mut reward = (1.0_f64 * quality).round() as i64;
+          // Wire malicious intent throttle
+          if let Ok(scores) = self.calculate_malicious_intent_vector(author_handle) {
+            if let Some(overall) = scores.get("overallScore").and_then(|v| v.as_f64()) {
+              if overall > 0.7 {
+                reward = 0;
+              }
+            }
+          }
           conn.execute(
             "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
             params![reward, author_handle],
@@ -1049,6 +1145,43 @@ impl Database {
     Ok((sender_new, receiver_new))
   }
 
+  pub fn deduct_weix_bucks(&self, handle: &str, amount: i64, description: &str) -> Result<i64> {
+    if amount <= 0 {
+      return Err(rusqlite::Error::InvalidParameterName("Amount must be positive".into()));
+    }
+    let conn = self.conn.lock().unwrap();
+    let tx = conn.unchecked_transaction()?;
+
+    let current_bucks: i64 = tx.query_row(
+      "SELECT weix_bucks FROM users WHERE handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    if current_bucks < amount {
+      return Err(rusqlite::Error::InvalidParameterName("Insufficient WeixBucks".into()));
+    }
+
+    tx.execute(
+      "UPDATE users SET weix_bucks = weix_bucks - ?1 WHERE handle = ?2",
+      params![amount, handle],
+    )?;
+
+    tx.execute(
+      "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
+       SELECT ?1, 'spend', -?2, ?3, weix_bucks FROM users WHERE handle = ?1",
+      params![handle, amount, description],
+    )?;
+
+    let balance_new: i64 = tx.query_row(
+      "SELECT weix_bucks FROM users WHERE handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+
+    tx.commit()?;
+    Ok(balance_new)
+  }
+
   pub fn insert_blob(&self, hash: &str, cid: Option<&str>, filename: &str, mime_type: &str, file_size: i64, uploader_handle: &str) -> Result<(BlobRecord, bool)> {
     let conn = self.conn.lock().unwrap();
     let changed = conn.execute(
@@ -1186,6 +1319,26 @@ impl Database {
     ]
   }
 
+  pub fn list_channels(&self, community_id: &str) -> Vec<Channel> {
+    match community_id {
+      "tsu" => vec![
+        Channel { id: "general".into(), community_id: "tsu".into(), name: "#general".into(), description: "General discussion".into() },
+        Channel { id: "events".into(), community_id: "tsu".into(), name: "#events".into(), description: "Campus events and parties".into() },
+        Channel { id: "music".into(), community_id: "tsu".into(), name: "#music".into(), description: "DJ mixes and tunes".into() },
+        Channel { id: "study".into(), community_id: "tsu".into(), name: "#study-hall".into(), description: "Study groups and academics".into() },
+      ],
+      "howard" => vec![
+        Channel { id: "general".into(), community_id: "howard".into(), name: "#general".into(), description: "General discussion".into() },
+        Channel { id: "events".into(), community_id: "howard".into(), name: "#events".into(), description: "Campus events".into() },
+        Channel { id: "music".into(), community_id: "howard".into(), name: "#music".into(), description: "Music and mixes".into() },
+      ],
+      _ => vec![
+        Channel { id: "general".into(), community_id: community_id.into(), name: "#general".into(), description: "General yard chat".into() },
+        Channel { id: "events".into(), community_id: community_id.into(), name: "#events".into(), description: "Events".into() },
+      ],
+    }
+  }
+
   // ─── Relay Event Methods ────────────────────────────────
 
   pub fn insert_relay_event(&self, event_id: &str, relay_url: &str, kind: i64, pubkey: &str, content: &str, tags: &str, created_at_unix: i64) -> Result<bool> {
@@ -1237,6 +1390,35 @@ impl Database {
       events.push(row?);
     }
     Ok(events)
+  }
+
+  /// List relay events with consensus validation status
+  /// Returns events with additional consensus info: relay_count, consensus_valid
+  pub fn list_relay_events_with_consensus(&self, limit: i64, kind_filter: Option<i64>, min_relays: usize) -> Result<Vec<serde_json::Value>> {
+    let events = self.list_relay_events(limit, kind_filter)?;
+    let mut results = Vec::new();
+    for event in events {
+      let (total, unique, agreement) = self.get_relay_consensus_stats(&event.event_id)?;
+      let consensus_valid = self.validate_relay_consensus(&event.event_id, min_relays).unwrap_or(false);
+      results.push(serde_json::json!({
+        "id": event.id,
+        "eventId": event.event_id,
+        "relayUrl": event.relay_url,
+        "kind": event.kind,
+        "pubkey": event.pubkey,
+        "content": event.content,
+        "tags": event.tags,
+        "createdAtUnix": event.created_at_unix,
+        "firstSeen": event.first_seen,
+        "consensus": {
+          "totalSightings": total,
+          "uniqueHashes": unique,
+          "agreementPercent": agreement,
+          "consensusValid": consensus_valid,
+        }
+      }));
+    }
+    Ok(results)
   }
 
   pub fn upsert_relay_connection(&self, url: &str, name: &str, town: &str, status: &str) -> Result<()> {
@@ -1391,7 +1573,7 @@ impl Database {
   pub fn get_user_posts(&self, handle: &str, current_user: Option<&str>) -> Result<Vec<Post>> {
     let conn = self.conn.lock().unwrap();
     let mut stmt = conn.prepare(
-      "SELECT p.id, p.author_handle, u.display_name, u.avatar_url, p.content, p.town_tag,
+      "SELECT p.id, p.author_handle, u.display_name, u.avatar_url, p.content, p.town_tag, p.channel_id,
               p.replies_count, p.reposts_count, p.likes_count,
               CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END as liked,
               p.media_blobs, COALESCE(p.nostr_event_id, ''), COALESCE(p.relay_url, ''), p.created_at
@@ -1409,14 +1591,15 @@ impl Database {
         author_avatar_url: row.get(3)?,
         content: row.get(4)?,
         town_tag: row.get(5)?,
-        replies_count: row.get(6)?,
-        reposts_count: row.get(7)?,
-        likes_count: row.get(8)?,
-        liked: row.get::<_, i64>(9)? != 0,
-        media_blobs: serde_json::from_str(&row.get::<_, String>(10).unwrap_or_default()).unwrap_or_default(),
-        nostr_event_id: row.get::<_, String>(11).unwrap_or_default(),
-        relay_url: row.get::<_, String>(12).unwrap_or_default(),
-        created_at: row.get(13)?,
+        channel_id: row.get(6).unwrap_or_default(),
+        replies_count: row.get(7)?,
+        reposts_count: row.get(8)?,
+        likes_count: row.get(9)?,
+        liked: row.get::<_, i64>(10)? != 0,
+        media_blobs: serde_json::from_str(&row.get::<_, String>(11).unwrap_or_default()).unwrap_or_default(),
+        nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
+        relay_url: row.get::<_, String>(13).unwrap_or_default(),
+        created_at: row.get(14)?,
       })
     })?;
     let mut posts = Vec::new();
@@ -1428,6 +1611,49 @@ impl Database {
 
   pub fn get_trending_feed(&self, current_user: Option<&str>) -> Result<Vec<Post>> {
     self.list_posts(None, current_user)
+  }
+
+  pub fn list_posts_for_channel(&self, channel_id: &str, current_user: Option<&str>) -> Result<Vec<Post>> {
+    let conn = self.conn.lock().unwrap();
+    let sql = "SELECT p.id, p.author_handle, u.display_name, u.avatar_url, p.content, p.town_tag, p.channel_id,
+              p.replies_count, p.reposts_count, p.likes_count,
+              CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END as liked,
+              p.media_blobs, COALESCE(p.nostr_event_id, ''), COALESCE(p.relay_url, ''), p.created_at
+       FROM posts p
+       JOIN users u ON u.handle = p.author_handle
+       LEFT JOIN likes l ON l.post_id = p.id AND l.user_handle = ?2
+       WHERE p.channel_id = ?1
+       ORDER BY p.created_at DESC";
+
+    fn parse_media_blobs(json: &str) -> Vec<String> {
+      serde_json::from_str(json).unwrap_or_default()
+    }
+
+    let mut stmt = conn.prepare(sql)?;
+    let rows = stmt.query_map(params![channel_id, current_user.unwrap_or("")], |row| {
+      Ok(Post {
+        id: row.get(0)?,
+        author_handle: row.get(1)?,
+        author_display_name: row.get(2)?,
+        author_avatar_url: row.get(3)?,
+        content: row.get(4)?,
+        town_tag: row.get(5)?,
+        channel_id: row.get(6).unwrap_or_default(),
+        replies_count: row.get(7)?,
+        reposts_count: row.get(8)?,
+        likes_count: row.get(9)?,
+        liked: row.get::<_, i64>(10)? != 0,
+        media_blobs: parse_media_blobs(&row.get::<_, String>(11).unwrap_or_default()),
+        nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
+        relay_url: row.get::<_, String>(13).unwrap_or_default(),
+        created_at: row.get(14)?,
+      })
+    })?;
+    let mut posts = Vec::new();
+    for row in rows {
+      posts.push(row?);
+    }
+    Ok(posts)
   }
 
   // ─── Blob Pinning ─────────────────────────────────────
@@ -1710,7 +1936,7 @@ impl Database {
     
     // Get user info
     let user: User = conn.query_row(
-      "SELECT id, handle, display_name, bio, avatar_url, university, town, followers_count, following_count, weix_bucks, pubkey, engagement_quality, created_at FROM users WHERE handle = ?1",
+      "SELECT id, handle, display_name, bio, avatar_url, university, town, followers_count, following_count, weix_bucks, pubkey, engagement_quality, theme_id, music_hash, node_role, created_at FROM users WHERE handle = ?1",
       params![handle],
       |row| {
         Ok(User {
@@ -1726,7 +1952,10 @@ impl Database {
           weix_bucks: row.get(9)?,
           pubkey: row.get(10)?,
           engagement_quality: row.get(11)?,
-          created_at: row.get(12)?,
+          theme_id: row.get(12)?,
+          music_hash: row.get(13)?,
+          node_role: row.get(14)?,
+          created_at: row.get(15)?,
         })
       },
     )?;
@@ -1776,4 +2005,421 @@ impl Database {
       "wallet_tx": tx_list,
     }))
   }
+
+  // ─── Relay Consensus (Cache Poisoning Prevention) ───────
+
+  /// Record a sighting of an event from a specific relay with its content hash
+  pub fn record_relay_consensus(&self, event_id: &str, relay_url: &str, content_hash: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let changed = conn.execute(
+      "INSERT OR IGNORE INTO relay_consensus (event_id, relay_url, content_hash) VALUES (?1, ?2, ?3)",
+      params![event_id, relay_url, content_hash],
+    )?;
+    Ok(changed > 0)
+  }
+
+  /// Get all relay sightings for a given event
+  pub fn get_relay_consensus(&self, event_id: &str) -> Result<Vec<(String, String)>> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT relay_url, content_hash FROM relay_consensus WHERE event_id = ?1"
+    )?;
+    let rows = stmt.query_map(params![event_id], |row| {
+      Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    let mut results = Vec::new();
+    for row in rows {
+      results.push(row?);
+    }
+    Ok(results)
+  }
+
+  /// Check if an event has consensus across at least min_relays with the same content hash
+  pub fn validate_relay_consensus(&self, event_id: &str, min_relays: usize) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let count: i64 = conn.query_row(
+      "SELECT COUNT(DISTINCT relay_url) FROM relay_consensus WHERE event_id = ?1",
+      params![event_id],
+      |r| r.get(0),
+    )?;
+    if (count as usize) < min_relays {
+      return Ok(false);
+    }
+    // Check if all relays agree on the same content hash
+    let distinct_hashes: i64 = conn.query_row(
+      "SELECT COUNT(DISTINCT content_hash) FROM relay_consensus WHERE event_id = ?1",
+      params![event_id],
+      |r| r.get(0),
+    )?;
+    Ok(distinct_hashes == 1)
+  }
+
+  /// Get consensus statistics for an event (relay count, unique hashes, agreement %)
+  pub fn get_relay_consensus_stats(&self, event_id: &str) -> Result<(usize, usize, f64)> {
+    let conn = self.conn.lock().unwrap();
+    let total: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM relay_consensus WHERE event_id = ?1",
+      params![event_id],
+      |r| r.get(0),
+    )?;
+    let unique_hashes: i64 = conn.query_row(
+      "SELECT COUNT(DISTINCT content_hash) FROM relay_consensus WHERE event_id = ?1",
+      params![event_id],
+      |r| r.get(0),
+    )?;
+    let max_count: i64 = conn.query_row(
+      "SELECT MAX(c) FROM (SELECT COUNT(*) as c FROM relay_consensus WHERE event_id = ?1 GROUP BY content_hash)",
+      params![event_id],
+      |r| r.get(0),
+    ).unwrap_or(0);
+    let agreement = if total > 0 {
+      (max_count as f64) / (total as f64)
+    } else {
+      0.0
+    };
+    Ok((total as usize, unique_hashes as usize, agreement))
+  }
+
+  // ─── MIDF Graph-Based Anomaly Detection ─────────────────
+
+  /// Get the follower graph: all followers of a user and their followers
+  pub fn get_follower_graph(&self, handle: &str, depth: usize) -> Result<Vec<(String, String)>> {
+    if depth == 0 {
+      return Ok(Vec::new());
+    }
+    let conn = self.conn.lock().unwrap();
+    let mut edges = Vec::new();
+    // Depth 1: direct followers
+    let mut stmt = conn.prepare(
+      "SELECT follower_handle FROM follows WHERE followed_handle = ?1"
+    )?;
+    let rows = stmt.query_map(params![handle], |row| {
+      Ok(row.get::<_, String>(0)?)
+    })?;
+    let mut direct_followers = Vec::new();
+    for row in rows {
+      let follower = row?;
+      edges.push((follower.clone(), handle.to_string()));
+      direct_followers.push(follower);
+    }
+    // Depth 2: followers of followers
+    if depth > 1 {
+      for follower in direct_followers {
+        let mut stmt2 = conn.prepare(
+          "SELECT follower_handle FROM follows WHERE followed_handle = ?1"
+        )?;
+        let rows2 = stmt2.query_map(params![&follower], |row| {
+          Ok(row.get::<_, String>(0)?)
+        })?;
+        for row in rows2 {
+          let f2 = row?;
+          edges.push((f2, follower.clone()));
+        }
+      }
+    }
+    Ok(edges)
+  }
+
+  /// Detect star pattern: one user followed by many accounts with very few followers themselves
+  /// Returns a score 0.0-1.0 where 1.0 = strong star pattern (likely bot farm)
+  pub fn get_star_pattern_score(&self, handle: &str) -> Result<f64> {
+    let conn = self.conn.lock().unwrap();
+    // Count followers of this user
+    let follower_count: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM follows WHERE followed_handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    if follower_count == 0 {
+      return Ok(0.0);
+    }
+    // Count how many of those followers have < 3 followers themselves (indicator of bot accounts)
+    let mut stmt = conn.prepare(
+      "SELECT f.follower_handle, COUNT(f2.follower_handle) as f2_count
+       FROM follows f
+       LEFT JOIN follows f2 ON f2.followed_handle = f.follower_handle
+       WHERE f.followed_handle = ?1
+       GROUP BY f.follower_handle"
+    )?;
+    let rows = stmt.query_map(params![handle], |row| {
+      Ok(row.get::<_, i64>(1)?)
+    })?;
+    let mut low_follower_count = 0;
+    let mut total = 0;
+    for row in rows {
+      let count = row?;
+      total += 1;
+      if count < 3 {
+        low_follower_count += 1;
+      }
+    }
+    if total == 0 {
+      return Ok(0.0);
+    }
+    let ratio = (low_follower_count as f64) / (total as f64);
+    // Normalize: if >80% of followers have <3 followers, score approaches 1.0
+    let score = (ratio / 0.8).min(1.0);
+    Ok(score)
+  }
+
+  /// Calculate degree centrality (how well-connected a user is in the network)
+  /// Returns a score 0.0-1.0 based on follow connections relative to total users
+  pub fn get_network_centrality(&self, handle: &str) -> Result<f64> {
+    let conn = self.conn.lock().unwrap();
+    let total_users: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM users",
+      [],
+      |r| r.get(0),
+    )?;
+    if total_users <= 1 {
+      return Ok(0.0);
+    }
+    let connections: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM follows WHERE follower_handle = ?1 OR followed_handle = ?1",
+      params![handle, handle],
+      |r| r.get(0),
+    )?;
+    let max_possible = (total_users - 1) * 2; // can follow and be followed by everyone else
+    let score = (connections as f64) / (max_possible as f64);
+    Ok(score.min(1.0))
+  }
+
+  /// Calculate follower velocity: followers gained in the last 7 days vs total followers
+  /// Returns a score 0.0-1.0 where 1.0 = sudden spike (possible Sybil attack)
+  pub fn get_follower_velocity(&self, handle: &str) -> Result<f64> {
+    let conn = self.conn.lock().unwrap();
+    let total_followers: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM follows WHERE followed_handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    if total_followers == 0 {
+      return Ok(0.0);
+    }
+    let recent_followers: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM follows WHERE followed_handle = ?1 AND created_at >= datetime('now', '-7 days')",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    // Score: if >50% of followers arrived in last 7 days, suspicious
+    let ratio = (recent_followers as f64) / (total_followers as f64);
+    let score = (ratio / 0.5).min(1.0);
+    Ok(score)
+  }
+
+  /// Detect self-interaction: likes/replies on own posts
+  /// Returns a score 0.0-1.0 where 1.0 = mostly self-interacting
+  pub fn get_self_interaction_score(&self, handle: &str) -> Result<f64> {
+    let conn = self.conn.lock().unwrap();
+    // Self-likes
+    let self_likes: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM likes l JOIN posts p ON l.post_id = p.id WHERE p.author_handle = ?1 AND l.user_handle = ?1",
+      params![handle, handle],
+      |r| r.get(0),
+    )?;
+    let total_likes: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM likes l JOIN posts p ON l.post_id = p.id WHERE p.author_handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    // Self-replies
+    let self_replies: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM replies r JOIN posts p ON r.post_id = p.id WHERE p.author_handle = ?1 AND r.author_handle = ?1",
+      params![handle, handle],
+      |r| r.get(0),
+    )?;
+    let total_replies: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM replies r JOIN posts p ON r.post_id = p.id WHERE p.author_handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    let like_ratio = if total_likes > 0 { (self_likes as f64) / (total_likes as f64) } else { 0.0 };
+    let reply_ratio = if total_replies > 0 { (self_replies as f64) / (total_replies as f64) } else { 0.0 };
+    let score = ((like_ratio + reply_ratio) / 2.0).min(1.0);
+    Ok(score)
+  }
+
+  /// Detect content similarity: how many posts have very similar content (copy-paste spam)
+  /// Simple heuristic: posts with identical first 50 characters
+  /// Returns a score 0.0-1.0 where 1.0 = all content is identical
+  pub fn get_content_similarity_score(&self, handle: &str) -> Result<f64> {
+    let conn = self.conn.lock().unwrap();
+    let total_posts: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM posts WHERE author_handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    if total_posts <= 1 {
+      return Ok(0.0);
+    }
+    // Count posts with duplicate first 50 chars
+    let mut stmt = conn.prepare(
+      "SELECT SUBSTR(content, 1, 50) as prefix, COUNT(*) as c
+       FROM posts WHERE author_handle = ?1
+       GROUP BY prefix HAVING c > 1"
+    )?;
+    let rows = stmt.query_map(params![handle], |row| {
+      Ok(row.get::<_, i64>(1)?)
+    })?;
+    let mut duplicate_posts = 0;
+    for row in rows {
+      let count = row?;
+      duplicate_posts += count;
+    }
+    let score = (duplicate_posts as f64) / (total_posts as f64);
+    Ok(score.min(1.0))
+  }
+
+  /// Detect temporal pattern: many posts in a very short time window (bot behavior)
+  /// Returns a score 0.0-1.0 where 1.0 = burst posting detected
+  pub fn get_temporal_pattern_score(&self, handle: &str) -> Result<f64> {
+    let conn = self.conn.lock().unwrap();
+    let total_posts: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM posts WHERE author_handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    if total_posts == 0 {
+      return Ok(0.0);
+    }
+    // Count posts within same hour (max 4 posts/hour considered normal)
+    let mut stmt = conn.prepare(
+      "SELECT strftime('%Y-%m-%d %H', created_at) as hour, COUNT(*) as c
+       FROM posts WHERE author_handle = ?1
+       GROUP BY hour HAVING c > 4"
+    )?;
+    let rows = stmt.query_map(params![handle], |row| {
+      Ok(row.get::<_, i64>(1)?)
+    })?;
+    let mut burst_hours = 0;
+    let mut total_burst_posts = 0;
+    for row in rows {
+      let count = row?;
+      burst_hours += 1;
+      total_burst_posts += count - 4; // excess posts
+    }
+    let score = if total_posts > 0 {
+      (total_burst_posts as f64) / (total_posts as f64)
+    } else {
+      0.0
+    };
+    Ok(score.min(1.0))
+  }
+
+  /// Calculate composite Malicious Intent Vector (MIDF) score
+  /// Returns a struct with all dimensions and overall score
+  pub fn calculate_malicious_intent_vector(&self, handle: &str) -> Result<serde_json::Value> {
+    let star = self.get_star_pattern_score(handle)?;
+    let centrality = self.get_network_centrality(handle)?;
+    let velocity = self.get_follower_velocity(handle)?;
+    let self_int = self.get_self_interaction_score(handle)?;
+    let similarity = self.get_content_similarity_score(handle)?;
+    let temporal = self.get_temporal_pattern_score(handle)?;
+
+    // Weighted composite score (weights from MIDF-inspired heuristics)
+    // High star pattern = strong Sybil indicator
+    // High follower velocity = sudden growth attack
+    // High self-interaction = reward farming
+    // High content similarity = spam bot
+    // High temporal pattern = automated posting
+    // Low network centrality + high star pattern = isolated bot farm
+    let overall = (
+      star * 0.30 +           // Star pattern: highest weight for Sybil detection
+      velocity * 0.25 +       // Follower velocity: rapid growth attack
+      self_int * 0.20 +       // Self-interaction: reward farming
+      similarity * 0.15 +     // Content similarity: spam
+      temporal * 0.10         // Temporal pattern: automation
+    ).min(1.0);
+
+    // Store the scores
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "INSERT INTO malicious_intent_scores (handle, overall_score, follower_velocity, network_centrality, content_similarity, temporal_pattern, self_interaction, updated_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'))
+       ON CONFLICT(handle) DO UPDATE SET
+         overall_score = excluded.overall_score,
+         follower_velocity = excluded.follower_velocity,
+         network_centrality = excluded.network_centrality,
+         content_similarity = excluded.content_similarity,
+         temporal_pattern = excluded.temporal_pattern,
+         self_interaction = excluded.self_interaction,
+         updated_at = excluded.updated_at",
+      params![handle, overall, velocity, centrality, similarity, temporal, self_int],
+    )?;
+
+    Ok(serde_json::json!({
+      "handle": handle,
+      "overallScore": overall,
+      "dimensions": {
+        "starPattern": star,
+        "networkCentrality": centrality,
+        "followerVelocity": velocity,
+        "selfInteraction": self_int,
+        "contentSimilarity": similarity,
+        "temporalPattern": temporal,
+      },
+      "riskLevel": if overall > 0.7 { "high" } else if overall > 0.4 { "medium" } else { "low" },
+      "updatedAt": chrono::Utc::now().to_rfc3339(),
+    }))
+  }
+
+  /// Get the stored malicious intent scores for a user
+  pub fn get_malicious_intent_scores(&self, handle: &str) -> Result<Option<serde_json::Value>> {
+    let conn = self.conn.lock().unwrap();
+    let result: rusqlite::Result<(f64, f64, f64, f64, f64, f64, String)> = conn.query_row(
+      "SELECT overall_score, follower_velocity, network_centrality, content_similarity, temporal_pattern, self_interaction, updated_at
+       FROM malicious_intent_scores WHERE handle = ?1",
+      params![handle],
+      |row| {
+        Ok((
+          row.get(0)?,
+          row.get(1)?,
+          row.get(2)?,
+          row.get(3)?,
+          row.get(4)?,
+          row.get(5)?,
+          row.get(6)?,
+        ))
+      },
+    );
+    match result {
+      Ok((overall, velocity, centrality, similarity, temporal, self_int, updated)) => {
+        Ok(Some(serde_json::json!({
+          "handle": handle,
+          "overallScore": overall,
+          "dimensions": {
+            "starPattern": 0.0, // Not stored separately; recalculate if needed
+            "networkCentrality": centrality,
+            "followerVelocity": velocity,
+            "selfInteraction": self_int,
+            "contentSimilarity": similarity,
+            "temporalPattern": temporal,
+          },
+          "riskLevel": if overall > 0.7 { "high" } else if overall > 0.4 { "medium" } else { "low" },
+          "updatedAt": updated,
+        })))
+      }
+      Err(_) => Ok(None),
+    }
+  }
+
+  /// Recalculate malicious intent scores for all users
+  pub fn recalculate_all_malicious_intent_scores(&self) -> Result<usize> {
+    // Collect handles first to avoid holding locks across calls
+    let handles: Vec<String> = {
+      let conn = self.conn.lock().unwrap();
+      let mut stmt = conn.prepare("SELECT handle FROM users")?;
+      let rows = stmt.query_map([], |row| {
+        Ok(row.get::<_, String>(0)?)
+      })?;
+      rows.collect::<Result<Vec<_>, _>>()?
+    };
+    let mut count = 0;
+    for handle in handles {
+      let _ = self.calculate_malicious_intent_vector(&handle)?;
+      count += 1;
+    }
+    Ok(count)
+  }
 }
+

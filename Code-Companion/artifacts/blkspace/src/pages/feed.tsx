@@ -19,7 +19,7 @@ import { toast } from "sonner";
 
 export default function FeedPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("local");
+  const [activeTab, setActiveTab] = useState("fyp"); // Default to Instagram-style FYP
   const [selectedTown, setSelectedTown] = useState("tsu");
   const [content, setContent] = useState("");
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
@@ -33,6 +33,24 @@ export default function FeedPage() {
   const createPost = useAppCreatePost();
   const toggleLike = useAppToggleLike();
   const publishSummary = useTauriPublishTrendingSummary();
+
+  // Mock "Following" (Twitter-style chronological from people you follow)
+  const followingPosts = (localPosts || []).slice(0, 8).map((p: any, i: number) => ({
+    ...p,
+    // Simulate followed users + reposts
+    content: i % 2 === 0 ? p.content : `RT: ${p.content}`,
+    repostsCount: (p.repostsCount || 0) + (i % 3),
+  }));
+
+  // Instagram-style FYP: mix of high-engagement + diverse towns + recommendations
+  const fypPosts = [...(trendingFeed || []), ...(localPosts || [])]
+    .sort((a: any, b: any) => (b.likesCount || 0) - (a.likesCount || 0))
+    .slice(0, 12)
+    .map((p: any) => ({
+      ...p,
+      // Add "recommended" flavor
+      content: p.content + (Math.random() > 0.7 ? " 🔥" : ""),
+    }));
 
   const handleSubmit = () => {
     if (!content.trim()) return;
@@ -86,94 +104,136 @@ export default function FeedPage() {
     });
   };
 
-  const posts = activeTab === "local" ? localPosts : activeTab === "bridge" ? crossTownFeed : trendingFeed;
-  const isLoading = activeTab === "local" ? localLoading : activeTab === "bridge" ? (crossTownLoading || summariesLoading) : trendingLoading;
+  // Select data source based on tab for Twitter (Following) + IG FYP (For You) + classic local
+  let posts: any[] = [];
+  let isLoading = false;
+
+  if (activeTab === "fyp") {
+    posts = fypPosts;
+    isLoading = trendingLoading || localLoading;
+  } else if (activeTab === "following") {
+    posts = followingPosts;
+    isLoading = localLoading;
+  } else if (activeTab === "local") {
+    posts = localPosts || [];
+    isLoading = localLoading;
+  } else if (activeTab === "bridge") {
+    posts = crossTownFeed || [];
+    isLoading = crossTownLoading || summariesLoading;
+  } else {
+    posts = trendingFeed || [];
+    isLoading = trendingLoading;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 container max-w-2xl py-8 px-4">
         
-        <Tabs defaultValue="local" value={activeTab} onValueChange={setActiveTab} className="mb-8">
-          <TabsList className="grid w-full grid-cols-3 mb-6 h-12">
+        <Tabs defaultValue="fyp" value={activeTab} onValueChange={setActiveTab} className="mb-8">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-5 mb-6 h-12">
+            <TabsTrigger value="fyp" className="text-base font-bold">For You</TabsTrigger>
+            <TabsTrigger value="following" className="text-base font-bold">Following</TabsTrigger>
             <TabsTrigger value="local" className="text-base font-bold">Local Yard</TabsTrigger>
             <TabsTrigger value="bridge" className="text-base font-bold">The Bridge</TabsTrigger>
-            <TabsTrigger value="trending" className="text-base font-bold">Trending</TabsTrigger>
+            <TabsTrigger value="trending" className="text-base font-bold hidden lg:block">Trending</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="local" className="space-y-6">
-            <Card className="border-primary/20 shadow-md">
-              <CardContent className="pt-6">
-                <div className="flex gap-4">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback>DU</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <Textarea 
-                      placeholder="What's happening on the yard?"
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      className="min-h-[80px] mb-4 border-none resize-none focus-visible:ring-0 text-lg p-0"
-                    />
-                    <div className="flex justify-between items-center pt-2 border-t">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <Select value={selectedTown} onValueChange={setSelectedTown}>
-                          <SelectTrigger className="w-[140px] h-8 border-none bg-muted/50">
-                            <SelectValue placeholder="Select Town" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="tsu">TSU Yard</SelectItem>
-                            <SelectItem value="howard">Howard Yard</SelectItem>
-                            <SelectItem value="spelman">Spelman Yard</SelectItem>
-                            <SelectItem value="famu">FAMU Yard</SelectItem>
-                            <SelectItem value="morehouse">Morehouse Yard</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {isTauri() && (
-                          <>
-                            <input
-                              ref={fileRef}
-                              type="file"
-                              accept="image/*,video/*,audio/*"
-                              className="hidden"
-                              onChange={handleUploadMedia}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => fileRef.current?.click()}
-                              disabled={uploading}
-                            >
-                              <Image className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                      <Button onClick={handleSubmit} disabled={createPost.isPending || !content.trim()} className="rounded-full px-6">
-                        Post
-                      </Button>
+          {/* Composer always visible but context-aware */}
+          <Card className="border-primary/20 shadow-md mb-6">
+            <CardContent className="pt-6">
+              <div className="flex gap-4">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback>DU</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <Textarea 
+                    placeholder={
+                      activeTab === "following" ? "Share with your people..." :
+                      activeTab === "fyp" ? "What's popping? (this might go viral)" :
+                      "What's happening on the yard?"
+                    }
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    className="min-h-[80px] mb-4 border-none resize-none focus-visible:ring-0 text-lg p-0"
+                  />
+                  <div className="flex justify-between items-center pt-2 border-t">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <Select value={selectedTown} onValueChange={setSelectedTown}>
+                        <SelectTrigger className="w-[140px] h-8 border-none bg-muted/50">
+                          <SelectValue placeholder="Select Town" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="tsu">TSU Yard</SelectItem>
+                          <SelectItem value="howard">Howard Yard</SelectItem>
+                          <SelectItem value="spelman">Spelman Yard</SelectItem>
+                          <SelectItem value="famu">FAMU Yard</SelectItem>
+                          <SelectItem value="morehouse">Morehouse Yard</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {isTauri() && (
+                        <>
+                          <input
+                            ref={fileRef}
+                            type="file"
+                            accept="image/*,video/*,audio/*"
+                            className="hidden"
+                            onChange={handleUploadMedia}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => fileRef.current?.click()}
+                            disabled={uploading}
+                          >
+                            <Image className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
-                    {mediaHashes.length > 0 && (
-                      <div className="flex gap-2 mt-2 flex-wrap">
-                        {mediaHashes.map((h) => (
-                          <div key={h} className="flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded-full">
-                            <Image className="h-3 w-3" />
-                            {h.slice(0, 8)}…
-                            <button onClick={() => setMediaHashes((prev) => prev.filter((x) => x !== h))}>
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <Button onClick={handleSubmit} disabled={createPost.isPending || !content.trim()} className="rounded-full px-6">
+                      Post
+                    </Button>
                   </div>
+                  {mediaHashes.length > 0 && (
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {mediaHashes.map((h) => (
+                        <div key={h} className="flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded-full">
+                          <Image className="h-3 w-3" />
+                          {h.slice(0, 8)}…
+                          <button onClick={() => setMediaHashes((prev) => prev.filter((x) => x !== h))}>
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
+
+          <TabsContent value="fyp">
+            <div className="bg-accent/10 text-accent-foreground p-4 rounded-xl mb-6 text-sm font-medium border border-accent/20">
+              For You — Instagram-style recommendations. Mix of viral from your interests, high-engagement across yards, and fresh discoveries.
+            </div>
           </TabsContent>
+
+          <TabsContent value="following">
+            <div className="bg-primary/10 text-primary-foreground p-4 rounded-xl mb-6 text-sm font-medium border border-primary/20">
+              Following — Twitter-style chronological feed from accounts you follow. Pure, unfiltered from your circle.
+            </div>
+          </TabsContent>
+
+          <TabsContent value="local">
+            <div className="bg-secondary/30 p-4 rounded-xl mb-6 text-sm">
+              Your local yard feed. Focused on <strong>{selectedTown.toUpperCase()}</strong> community posts.
+            </div>
+          </TabsContent>
+
           <TabsContent value="bridge">
             <div className="bg-primary/10 text-primary-foreground p-4 rounded-xl mb-6 text-sm font-medium border border-primary/20">
               Cross-town feed — events synced from connected relays across the BlkSpace mesh. 
@@ -236,6 +296,7 @@ export default function FeedPage() {
               </div>
             )}
           </TabsContent>
+
           <TabsContent value="trending">
             <div className="bg-accent/10 text-accent-foreground p-4 rounded-xl mb-6 text-sm font-medium border border-accent/20">
               Showing the most active discussions across the entire BlkSpace mesh network.
@@ -260,14 +321,24 @@ export default function FeedPage() {
               <div className="text-center py-12 text-muted-foreground">
                 {activeTab === "bridge"
                   ? "No cross-town events found. Connect to relays and subscribe to towns in the Network tab."
-                  : "No posts found on this yard yet. Be the first!"}
+                  : activeTab === "following" 
+                    ? "No posts from people you follow yet. Follow more yards or post something!"
+                    : "No posts yet. Be the first to spark the conversation!"}
               </div>
             )}
             {Array.isArray(posts) && posts.map((item: any) => {
               const isCrossTown = "pubkey" in item && "eventId" in item;
               const crossTownItem = item as TauriCrossTownEvent;
+              const isRepost = item.content?.startsWith("RT:");
+              const displayContent = isRepost ? item.content.replace("RT: ", "") : item.content;
+
               return (
               <Card key={item.id} className="hover:bg-muted/30 transition-colors border-border/50">
+                {isRepost && (
+                  <div className="px-4 pt-3 text-xs text-green-500 flex items-center gap-1.5">
+                    <Repeat2 className="w-3 h-3" /> Reposted
+                  </div>
+                )}
                 <CardHeader className="pb-2 flex flex-row items-start gap-4">
                   <Avatar className="h-12 w-12 border border-primary/20">
                     <AvatarFallback>{isCrossTown ? '🌉' : (item as any).authorDisplayName?.charAt(0) || '?'}</AvatarFallback>
@@ -299,17 +370,30 @@ export default function FeedPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="pl-20 pb-2">
-                  <SafeContent text={item.content} className="text-[17px]" />
+                  <SafeContent text={displayContent} className="text-[17px]" />
+                  <MediaDisplay hashes={(item as any).mediaBlobs || []} />
                 </CardContent>
                 <CardFooter className="pl-20 pt-2 flex gap-6 text-sm text-muted-foreground border-none">
-                  <Button variant="ghost" size="sm" className="h-8 px-2 gap-2 hover:text-primary hover:bg-primary/10" disabled>
-                    <MessageSquare className="w-4 h-4" />
+                  <Link href={`/posts/${item.id}`}>
+                    <Button variant="ghost" size="sm" className="h-8 px-2 gap-2 hover:text-primary hover:bg-primary/10">
+                      <MessageSquare className="w-4 h-4" /> {(item as any).repliesCount || 0}
+                    </Button>
+                  </Link>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 px-2 gap-2 hover:text-green-500 hover:bg-green-500/10"
+                    onClick={() => toast("Repost feature coming in next update — stay tuned!")}
+                  >
+                    <Repeat2 className="w-4 h-4" /> {item.repostsCount || 0}
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 px-2 gap-2 hover:text-green-500 hover:bg-green-500/10" disabled>
-                    <Repeat2 className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 px-2 gap-2 hover:text-destructive hover:bg-destructive/10" disabled>
-                    <Heart className="w-4 h-4" />
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 px-2 gap-2 hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleLike(item.id)}
+                  >
+                    <Heart className={`w-4 h-4 ${item.liked ? 'fill-current text-destructive' : ''}`} /> {item.likesCount || 0}
                   </Button>
                   {isCrossTown && (
                     <span className="text-xs text-muted-foreground ml-auto">

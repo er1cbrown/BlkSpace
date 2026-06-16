@@ -49,16 +49,43 @@ Tag v* → Build all targets → Sign → GitHub Release
 Platform targets:
 - **macOS**: Intel + Apple Silicon (`.dmg`)
 - **Windows**: x64 (`.msi`) — cross-compile or runner
-- **Linux**: AppImage + deb (via Ubuntu runner)
+- **Linux**: AppImage + deb (via Ubuntu runner) + Arch PKGBUILD (community)
 - **iOS / Android**: Manual for now; Tauri Mobile in Phase 2
 
 ## Local Development
 
+### macOS
 ```bash
-# Prerequisites
 brew install rust node
 npm install -g pnpm
+```
 
+### Arch / Omarchy
+```bash
+sudo pacman -S rustup nodejs npm
+rustup default stable
+sudo npm install -g pnpm
+sudo pacman -S webkit2gtk-4.1 libappindicator-gtk3 librsvg base-devel git
+```
+
+### Ubuntu / Debian
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential git
+sudo npm install -g pnpm
+```
+
+### Fedora
+```bash
+sudo dnf install rustup nodejs npm
+rustup default stable
+sudo npm install -g pnpm
+sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel gcc gcc-c++ git
+```
+
+### Common Commands
+```bash
 # Setup
 pnpm install
 pnpm tauri dev          # Desktop dev mode

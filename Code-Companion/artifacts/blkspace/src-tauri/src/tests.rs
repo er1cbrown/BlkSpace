@@ -191,6 +191,31 @@ mod tests {
   }
 
   #[test]
+  fn test_deduct_weix_bucks() {
+    let db = setup_test_db();
+    db.create_user("student", "Student", "").unwrap();
+    
+    // Initial balance should be 100
+    let user = db.get_user("student").unwrap().unwrap();
+    assert_eq!(user.weix_bucks, 100);
+    
+    // Deduct 50 WeixBucks
+    let new_balance = db.deduct_weix_bucks("student", 50, "Withdrawn to Solana").unwrap();
+    assert_eq!(new_balance, 50);
+    
+    // Check wallet transactions
+    let txs = db.get_wallet_tx("student").unwrap();
+    assert_eq!(txs.len(), 1);
+    assert_eq!(txs[0].tx_type, "spend");
+    assert_eq!(txs[0].amount, -50);
+    assert_eq!(txs[0].description, "Withdrawn to Solana");
+    
+    // Try to deduct more than balance
+    let result = db.deduct_weix_bucks("student", 100, "Should fail");
+    assert!(result.is_err());
+  }
+
+  #[test]
   fn test_update_user() {
     let db = setup_test_db();
     db.create_user("user", "Old Name", "").unwrap();
@@ -888,5 +913,283 @@ mod tests {
     // Verify user
     let user = data.get("user").unwrap();
     assert_eq!(user.get("handle").unwrap().as_str().unwrap(), "demo_user");
+  }
+
+  // ─── Relay Consensus Tests ─────────────────────────────
+
+  #[test]
+  fn test_relay_consensus() {
+    let db = setup_test_db();
+    let event_id = "abc123";
+    
+    // Record consensus from multiple relays
+    db.record_relay_consensus(event_id, "wss://relay1.com", "hash_a").unwrap();
+    db.record_relay_consensus(event_id, "wss://relay2.com", "hash_a").unwrap();
+    db.record_relay_consensus(event_id, "wss://relay3.com", "hash_a").unwrap();
+    
+    // Verify all recorded
+    let consensus = db.get_relay_consensus(event_id).unwrap();
+    assert_eq!(consensus.len(), 3);
+    
+    // Validate consensus (3 relays, all agree)
+    assert!(db.validate_relay_consensus(event_id, 2).unwrap());
+    assert!(db.validate_relay_consensus(event_id, 3).unwrap());
+    
+    // Get stats
+    let (total, unique, agreement) = db.get_relay_consensus_stats(event_id).unwrap();
+    assert_eq!(total, 3);
+    assert_eq!(unique, 1);
+    assert!(agreement > 0.99);
+  }
+
+  #[test]
+  fn test_relay_consensus_disagreement() {
+    let db = setup_test_db();
+    let event_id = "def456";
+    
+    // Record conflicting consensus
+    db.record_relay_consensus(event_id, "wss://relay1.com", "hash_a").unwrap();
+    db.record_relay_consensus(event_id, "wss://relay2.com", "hash_b").unwrap();
+    
+    // Should fail validation because hashes disagree
+    assert!(!db.validate_relay_consensus(event_id, 2).unwrap());
+    
+    // Stats should show disagreement
+    let (total, unique, agreement) = db.get_relay_consensus_stats(event_id).unwrap();
+    assert_eq!(total, 2);
+    assert_eq!(unique, 2);
+    assert!(agreement < 0.6);
+  }
+
+  #[test]
+  fn test_relay_consensus_insufficient_relays() {
+    let db = setup_test_db();
+    let event_id = "ghi789";
+    
+    // Only one relay
+    db.record_relay_consensus(event_id, "wss://relay1.com", "hash_a").unwrap();
+    
+    // Should fail with min_relays=2
+    assert!(!db.validate_relay_consensus(event_id, 2).unwrap());
+    
+    // Should pass with min_relays=1
+    assert!(db.validate_relay_consensus(event_id, 1).unwrap());
+  }
+
+  // ─── MIDF Graph Analysis Tests ─────────────────────────
+
+  #[test]
+  fn test_follower_graph() {
+    let db = setup_test_db();
+    
+    // Create users and follows
+    db.create_user("user_a", "User A", "").unwrap();
+    db.create_user("user_b", "User B", "").unwrap();
+    db.create_user("user_c", "User C", "").unwrap();
+    
+    db.toggle_follow("user_b", "user_a").unwrap();
+    db.toggle_follow("user_c", "user_a").unwrap();
+    
+    // Get depth-1 graph
+    let graph = db.get_follower_graph("user_a", 1).unwrap();
+    assert_eq!(graph.len(), 2);
+    assert!(graph.contains(&("user_b".to_string(), "user_a".to_string())));
+    assert!(graph.contains(&("user_c".to_string(), "user_a".to_string())));
+  }
+
+  #[test]
+  fn test_star_pattern_detection() {
+    let db = setup_test_db();
+    
+    // Create a target user and many followers with few connections
+    db.create_user("target", "Target", "").unwrap();
+    for i in 0..10 {
+      let follower = format!("bot_{}", i);
+      db.create_user(&follower, &format!("Bot {}", i), "").unwrap();
+      db.toggle_follow(&follower, "target").unwrap();
+      // Bots don't follow anyone else
+    }
+    
+    // Star pattern should be high
+    let score = db.get_star_pattern_score("target").unwrap();
+    assert!(score > 0.8, "Star pattern score should be high for bot farm, got {}", score);
+    
+    // Create a legitimate user with diverse followers
+    db.create_user("legit", "Legit", "").unwrap();
+    for i in 0..5 {
+      let follower = format!("user_{}", i);
+      db.create_user(&follower, &format!("User {}", i), "").unwrap();
+      db.toggle_follow(&follower, "legit").unwrap();
+      // Legit users follow multiple people
+      db.toggle_follow(&follower, "target").unwrap();
+      db.toggle_follow(&follower, "user_a").unwrap();
+    }
+    
+    let legit_score = db.get_star_pattern_score("legit").unwrap();
+    assert!(legit_score < 0.5, "Legit user should have low star pattern score, got {}", legit_score);
+  }
+
+  #[test]
+  fn test_network_centrality() {
+    let db = setup_test_db();
+    
+    db.create_user("center", "Center", "").unwrap();
+    db.create_user("periph1", "Periph 1", "").unwrap();
+    db.create_user("periph2", "Periph 2", "").unwrap();
+    
+    db.toggle_follow("periph1", "center").unwrap();
+    db.toggle_follow("periph2", "center").unwrap();
+    db.toggle_follow("center", "periph1").unwrap();
+    
+    let centrality = db.get_network_centrality("center").unwrap();
+    assert!(centrality > 0.0, "Center user should have some centrality");
+    
+    let isolated = db.get_network_centrality("periph2").unwrap();
+    assert!(isolated < centrality, "Periph2 should be less central than center");
+  }
+
+  #[test]
+  fn test_follower_velocity() {
+    let db = setup_test_db();
+    
+    db.create_user("viral", "Viral", "").unwrap();
+    
+    // Old followers (more than 7 days ago)
+    // In test DB, we can't easily set timestamps, so this test is basic
+    let velocity = db.get_follower_velocity("viral").unwrap();
+    assert_eq!(velocity, 0.0); // No followers yet
+    
+    // Add some followers
+    for i in 0..5 {
+      let follower = format!("f_{}", i);
+      db.create_user(&follower, &follower, "").unwrap();
+      db.toggle_follow(&follower, "viral").unwrap();
+    }
+    
+    let velocity2 = db.get_follower_velocity("viral").unwrap();
+    // All followers are recent (within 7 days since test DB uses current time)
+    assert!(velocity2 > 0.0);
+  }
+
+  #[test]
+  fn test_self_interaction_detection() {
+    let db = setup_test_db();
+    
+    db.create_user("self_lover", "Self Lover", "").unwrap();
+    db.create_user("other", "Other", "").unwrap();
+    
+    // Create a post
+    let post = db.insert_post("self_lover", "Test", "tsu", None).unwrap();
+    
+    // Self-like
+    db.toggle_like(post.id, "self_lover").unwrap();
+    
+    // Other user also likes
+    db.toggle_like(post.id, "other").unwrap();
+    
+    let score = db.get_self_interaction_score("self_lover").unwrap();
+    assert!(score > 0.0, "Should detect self-like");
+    assert!(score < 1.0, "Not all interactions are self-interactions");
+    
+    // Self-reply
+    db.create_reply(post.id, "self_lover", "Reply").unwrap();
+    
+    let score2 = db.get_self_interaction_score("self_lover").unwrap();
+    assert!(score2 > score, "Self-reply should increase score");
+  }
+
+  #[test]
+  fn test_content_similarity() {
+    let db = setup_test_db();
+    
+    db.create_user("spammer", "Spammer", "").unwrap();
+    
+    // Unique posts
+    db.insert_post("spammer", "Post one", "tsu", None).unwrap();
+    db.insert_post("spammer", "Post two", "tsu", None).unwrap();
+    
+    let score = db.get_content_similarity_score("spammer").unwrap();
+    assert_eq!(score, 0.0, "Different posts should have zero similarity");
+    
+    // Duplicate posts
+    db.insert_post("spammer", "Spam message here", "tsu", None).unwrap();
+    db.insert_post("spammer", "Spam message here", "tsu", None).unwrap();
+    db.insert_post("spammer", "Spam message here", "tsu", None).unwrap();
+    
+    let score2 = db.get_content_similarity_score("spammer").unwrap();
+    assert!(score2 > 0.0, "Duplicate posts should have positive similarity");
+  }
+
+  #[test]
+  fn test_temporal_pattern() {
+    let db = setup_test_db();
+    
+    db.create_user("bot", "Bot", "").unwrap();
+    
+    // Normal posting: 1 post
+    db.insert_post("bot", "Normal", "tsu", None).unwrap();
+    
+    let score = db.get_temporal_pattern_score("bot").unwrap();
+    assert_eq!(score, 0.0, "Single post should have zero temporal pattern score");
+    
+    // In test DB, we can't easily simulate burst posting with timestamps
+    // The test verifies the basic structure works
+  }
+
+  #[test]
+  fn test_malicious_intent_vector() {
+    let db = setup_test_db();
+    
+    db.create_user("suspicious", "Suspicious", "").unwrap();
+    
+    // Calculate vector
+    let vector = db.calculate_malicious_intent_vector("suspicious").unwrap();
+    
+    // Verify structure
+    assert!(vector.get("overallScore").is_some());
+    assert!(vector.get("dimensions").is_some());
+    assert!(vector.get("riskLevel").is_some());
+    
+    // Verify stored scores
+    let stored = db.get_malicious_intent_scores("suspicious").unwrap();
+    assert!(stored.is_some());
+    let stored = stored.unwrap();
+    assert!(stored.get("overallScore").is_some());
+  }
+
+  // ─── Relay Events with Consensus Tests ─────────────────
+
+  #[test]
+  fn test_list_relay_events_with_consensus() {
+    let db = setup_test_db();
+    
+    // Insert relay events
+    db.insert_relay_event("event1", "wss://relay1.com", 1, "pubkey1", "content1", "[]", 1000).unwrap();
+    db.insert_relay_event("event2", "wss://relay2.com", 1, "pubkey2", "content2", "[]", 2000).unwrap();
+    
+    // Record consensus for event1 (multiple relays agree)
+    let hash1 = format!("{:x}", sha2::Sha256::digest("content1"));
+    db.record_relay_consensus("event1", "wss://relay1.com", &hash1).unwrap();
+    db.record_relay_consensus("event1", "wss://relay3.com", &hash1).unwrap();
+    
+    // Record consensus for event2 (single relay)
+    let hash2 = format!("{:x}", sha2::Sha256::digest("content2"));
+    db.record_relay_consensus("event2", "wss://relay2.com", &hash2).unwrap();
+    
+    // List events with consensus, require min 2 relays
+    let events = db.list_relay_events_with_consensus(10, None, 2).unwrap();
+    assert_eq!(events.len(), 2);
+    
+    // Check consensus for event1 (should be valid)
+    let event1 = events.iter().find(|e| e.get("eventId").unwrap().as_str().unwrap() == "event1").unwrap();
+    let consensus1 = event1.get("consensus").unwrap();
+    assert!(consensus1.get("consensusValid").unwrap().as_bool().unwrap());
+    assert_eq!(consensus1.get("totalSightings").unwrap().as_i64().unwrap(), 2);
+    
+    // Check consensus for event2 (should be invalid)
+    let event2 = events.iter().find(|e| e.get("eventId").unwrap().as_str().unwrap() == "event2").unwrap();
+    let consensus2 = event2.get("consensus").unwrap();
+    assert!(!consensus2.get("consensusValid").unwrap().as_bool().unwrap());
+    assert_eq!(consensus2.get("totalSightings").unwrap().as_i64().unwrap(), 1);
   }
 }

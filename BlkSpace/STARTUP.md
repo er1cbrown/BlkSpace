@@ -12,7 +12,7 @@
 4. **Write down** your 12-word recovery phrase on paper
 5. **Start posting** on the Yard
 
-See `INSTALL.md` for detailed platform instructions.
+See `INSTALL.md` for detailed platform instructions (includes Arch, Omarchy, Ubuntu, Debian, Fedora, macOS, Windows).
 
 ---
 
@@ -24,10 +24,12 @@ See `INSTALL.md` for detailed platform instructions.
 - Rust (stable)
 - Tauri CLI
 
-**One-command setup (Mac/Linux):**
+**One-command setup (macOS / Linux):**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/er1cbrown/BlkSpace/main/setup.sh | bash
 ```
+
+**Arch / Omarchy:** Use `pacman` and `yay` — see `INSTALL.md` for exact commands.
 
 **Windows:**
 1. Download `setup.bat` from the repo

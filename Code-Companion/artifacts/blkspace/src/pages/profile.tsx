@@ -3,128 +3,226 @@ import { useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { MapPin, GraduationCap, CalendarDays, Coins, MessageSquare, Heart, Repeat2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MapPin, GraduationCap, CalendarDays, Coins, MessageSquare, Heart, Repeat2, Music, Palette, Users } from "lucide-react";
 import { Link } from "wouter";
 import { useAppGetUser, useAppGetUserPosts } from "@/hooks/use-app-data";
 import { SafeContent } from "@/components/ui/safe-content";
+import { MediaDisplay } from "@/components/ui/media-display";
 import { getCurrentHandle } from "@/lib/auth";
+import { toast } from "sonner";
 
 export default function ProfilePage() {
   const [, params] = useRoute("/profile/:handle");
   const handle = params?.handle || "";
   
   const currentUser = getCurrentHandle();
-  const { data: user, isLoading } = useAppGetUser(handle);
-  const { data: posts, isLoading: postsLoading } = useAppGetUserPosts(handle, currentUser);
+  const isOwnProfile = handle === currentUser || !handle;
+  
+  const { data: user, isLoading } = useAppGetUser(handle || currentUser);
+  const { data: posts, isLoading: postsLoading } = useAppGetUserPosts(handle || currentUser, currentUser);
+
+  // MySpace-style customization (demo state, persists in session)
+  const [profileTheme, setProfileTheme] = useState<"classic" | "pro" | "vibrant" | "myspace">("classic");
+  const [profileSong, setProfileSong] = useState<string | null>(null); // hash for audio
+  const [showCustomize, setShowCustomize] = useState(false);
+
+  const themeClasses = {
+    classic: "border-primary/30 bg-card",
+    pro: "border-slate-700 bg-slate-950 text-slate-100",
+    vibrant: "border-orange-400 bg-orange-50 text-orange-950",
+    myspace: "border-fuchsia-600 bg-gradient-to-br from-purple-900 to-black text-white border-4",
+  };
+
+  const themeLabel = {
+    classic: "Classic HBCU",
+    pro: "Professional Discord",
+    vibrant: "Vibrant Yard",
+    myspace: "MySpace Throwback",
+  };
+
+  const demoSongs = [
+    { hash: "demo-mix-1", name: "Tailgate Mix 2026", artist: "Campus King" },
+    { hash: "demo-mix-2", name: "Library Chill Beats", artist: "Spelman Sound" },
+  ];
+
+  const currentSong = demoSongs.find(s => s.hash === profileSong) || demoSongs[0];
+
+  // Facebook-like wall posts (mock on top of real posts)
+  const wallPosts = (posts || []).slice(0, 3);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      <main className="flex-1 container max-w-3xl py-8 px-4">
+      <main className="flex-1 container max-w-4xl py-8 px-4">
         {isLoading ? (
           <div className="h-64 bg-muted/50 animate-pulse rounded-2xl mb-8"></div>
         ) : user ? (
-          <>
-            <div className="bg-card border rounded-3xl overflow-hidden shadow-sm mb-8">
-              <div className="h-32 bg-primary/20 w-full relative">
-                <div className="absolute -bottom-16 left-8">
-                  <Avatar className="h-32 w-32 border-4 border-card bg-muted">
-                    <AvatarImage src={user.avatarUrl || ""} />
-                    <AvatarFallback className="text-4xl">{user.displayName?.charAt(0) ?? "?"}</AvatarFallback>
-                  </Avatar>
-                </div>
+          <div className={themeClasses[profileTheme] + " rounded-3xl overflow-hidden shadow-xl border mb-8 transition-all"}>
+            {/* Header Banner (MySpace customizable feel) */}
+            <div className="h-40 bg-gradient-to-r from-primary/40 via-primary/10 to-primary/40 relative">
+              <div className="absolute -bottom-14 left-8 flex items-end gap-4">
+                <Avatar className="h-28 w-28 border-4 border-card ring-2 ring-primary/30">
+                  <AvatarImage src={user.avatarUrl || ""} />
+                  <AvatarFallback className="text-4xl bg-primary/80">{user.displayName?.charAt(0) ?? "?"}</AvatarFallback>
+                </Avatar>
+                {profileSong && (
+                  <div className="mb-3 hidden md:block">
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-widest opacity-75 mb-1">
+                      <Music className="w-3 h-3" /> NOW PLAYING ON PROFILE
+                    </div>
+                    <div className="font-mono text-sm">{currentSong.name} — {currentSong.artist}</div>
+                  </div>
+                )}
               </div>
-              <div className="pt-20 px-8 pb-8">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h1 className="text-3xl font-bold tracking-tight">{user.displayName ?? "Unknown"}</h1>
-                    <p className="text-muted-foreground text-lg">@{user.handle ?? "unknown"}</p>
-                  </div>
-                  <Button variant="outline" className="rounded-full">Edit Profile</Button>
-                </div>
-                
-                <p className="text-lg mb-6 max-w-2xl">{user.bio || "No bio yet."}</p>
-                
-                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-6">
-                  <div className="flex items-center gap-1"><GraduationCap className="w-4 h-4" /> {user.university ?? "N/A"}</div>
-                  <div className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {user.town ?? "N/A"}</div>
-                  <div className="flex items-center gap-1"><CalendarDays className="w-4 h-4" /> Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}</div>
-                </div>
-
-                <div className="flex flex-wrap gap-8 py-4 border-t border-b">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-2xl text-foreground">{user.followersCount ?? 0}</span> 
-                    <span className="text-sm text-muted-foreground uppercase tracking-wider">Followers</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-2xl text-foreground">{user.followingCount ?? 0}</span> 
-                    <span className="text-sm text-muted-foreground uppercase tracking-wider">Following</span>
-                  </div>
-                  <div className="flex flex-col ml-auto text-right">
-                    <span className="font-bold text-2xl text-primary flex items-center gap-2 justify-end">
-                      <Coins className="w-6 h-6" /> {user.weixBucks?.toLocaleString()}
-                    </span> 
-                    <span className="text-sm text-muted-foreground uppercase tracking-wider">WeixBucks</span>
-                  </div>
-                </div>
+              <div className="absolute top-4 right-4 flex gap-2">
+                {isOwnProfile && (
+                  <Button variant="secondary" size="sm" className="rounded-full" onClick={() => setShowCustomize(!showCustomize)}>
+                    <Palette className="w-4 h-4 mr-1" /> Customize (MySpace)
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" className="rounded-full">Follow</Button>
               </div>
             </div>
 
-            <h2 className="text-2xl font-bold mb-6">Posts</h2>
-            
-            {postsLoading ? (
-              <div className="space-y-4 animate-pulse">
-                <div className="h-40 bg-muted/50 rounded-xl"></div>
-                <div className="h-40 bg-muted/50 rounded-xl"></div>
+            <div className="pt-16 px-8 pb-8">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h1 className="text-4xl font-bold tracking-tighter">{user.displayName ?? "Unknown"}</h1>
+                  <p className="text-xl text-muted-foreground">@{user.handle ?? "unknown"}</p>
+                </div>
+                <div className="text-right text-sm text-muted-foreground">
+                  <div>{user.university}</div>
+                  <div className="flex items-center gap-1 justify-end"><MapPin className="w-3.5 h-3.5" /> {user.town}</div>
+                </div>
               </div>
-            ) : Array.isArray(posts) && posts.length > 0 ? (
-              <div className="space-y-4">
-                {posts.map(post => (
-                  <Card key={post.id} className="hover:bg-muted/30 transition-colors border-border/50 shadow-sm">
-                    <CardHeader className="pb-2 flex flex-row items-start gap-4">
-                      <Avatar className="h-12 w-12 cursor-pointer">
-                        <AvatarImage src={post.authorAvatarUrl || ""} />
-                        <AvatarFallback>{post.authorDisplayName.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <CardTitle className="text-base flex items-center justify-between">
-                          <span className="font-bold">{post.authorDisplayName}</span>
-                          <Link href={`/posts/${post.id}`}>
-                            <span className="text-xs text-muted-foreground hover:underline">{new Date(post.createdAt).toLocaleDateString()}</span>
-                          </Link>
-                        </CardTitle>
-                        <div className="text-sm text-muted-foreground flex gap-2 items-center mt-1">
-                          <span>@{post.authorHandle}</span>
-                          <span>•</span>
-                          <span className="text-primary font-medium">{post.townTag}</span>
-                        </div>
+
+              <p className="text-lg mb-4 max-w-2xl">{user.bio || "No bio yet. Edit to tell your story."}</p>
+
+              {/* Stats like FB + WeixBucks */}
+              <div className="flex flex-wrap gap-8 py-4 border-t border-b mb-6 text-sm">
+                <div><span className="font-bold text-xl">{user.followersCount ?? 0}</span> <span className="text-muted-foreground">followers</span></div>
+                <div><span className="font-bold text-xl">{user.followingCount ?? 0}</span> <span className="text-muted-foreground">following</span></div>
+                <div className="flex-1" />
+                <div className="font-bold text-primary flex items-center gap-2 text-xl">
+                  <Coins className="w-5 h-5" /> {user.weixBucks?.toLocaleString()} WeixBucks
+                </div>
+              </div>
+
+              {/* Rich Profile Tabs: Wall (FB), Posts (Twitter), Music (MySpace), Customize */}
+              <Tabs defaultValue="wall" className="mt-2">
+                <TabsList className="mb-4 w-full justify-start flex-wrap h-auto">
+                  <TabsTrigger value="wall">Wall (Facebook)</TabsTrigger>
+                  <TabsTrigger value="posts">Posts</TabsTrigger>
+                  <TabsTrigger value="music">Music (MySpace)</TabsTrigger>
+                  {isOwnProfile && <TabsTrigger value="customize">Customize</TabsTrigger>}
+                </TabsList>
+
+                <TabsContent value="wall" className="space-y-4">
+                  <div className="text-sm text-muted-foreground mb-3 flex items-center gap-2"><Users className="w-4 h-4" /> Write on {user.displayName}'s wall (Facebook style)</div>
+                  {wallPosts.length > 0 ? wallPosts.map((post: any) => (
+                    <Card key={post.id} className="border-border/60">
+                      <CardContent className="pt-4">
+                        <SafeContent text={post.content} />
+                        <div className="text-xs text-muted-foreground mt-3">— {post.authorDisplayName} • {new Date(post.createdAt).toLocaleDateString()}</div>
+                      </CardContent>
+                    </Card>
+                  )) : <div className="text-muted-foreground text-sm py-8 text-center border rounded-xl">No wall posts yet. Be the first!</div>}
+                  {isOwnProfile && <div className="text-xs text-center text-muted-foreground mt-4">Visitors can post here in a future update.</div>}
+                </TabsContent>
+
+                <TabsContent value="posts">
+                  <h3 className="font-semibold mb-3">Recent Posts</h3>
+                  {postsLoading ? (
+                    <div className="space-y-3 animate-pulse"><div className="h-24 bg-muted/50 rounded-xl" /></div>
+                  ) : Array.isArray(posts) && posts.length ? (
+                    posts.slice(0, 5).map((post: any) => (
+                      <Card key={post.id} className="border-border/50">
+                        <CardContent className="pt-4">
+                          <SafeContent text={post.content} className="text-[15px]" />
+                          <div className="flex gap-4 text-xs mt-3 text-muted-foreground">
+                            <span>❤️ {post.likesCount}</span>
+                            <span>💬 {post.repliesCount}</span>
+                            <Link href={`/posts/${post.id}`} className="hover:underline">View thread →</Link>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : <div className="text-center py-8 text-muted-foreground border rounded">No posts yet.</div>}
+                </TabsContent>
+
+                <TabsContent value="music">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Music className="w-8 h-8 text-primary" />
+                      <div>
+                        <div className="font-semibold text-xl">Profile Song</div>
+                        <div className="text-sm text-muted-foreground">MySpace classic — visitors hear your vibe</div>
                       </div>
-                    </CardHeader>
-                    <CardContent className="pl-20 pb-2">
-                       <SafeContent text={post.content} className="text-[17px]" />
-                    </CardContent>
-                    <CardFooter className="pl-20 pt-2 flex gap-6 text-sm text-muted-foreground border-none">
-                      <Link href={`/posts/${post.id}`}>
-                        <Button variant="ghost" size="sm" className="h-8 px-2 hover:text-primary hover:bg-primary/10 gap-2">
-                          <MessageSquare className="w-4 h-4" /> {post.repliesCount}
-                        </Button>
-                      </Link>
-                      <Button variant="ghost" size="sm" className="h-8 px-2 hover:text-green-500 hover:bg-green-500/10 gap-2">
-                        <Repeat2 className="w-4 h-4" /> {post.repostsCount}
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-8 px-2 hover:text-destructive hover:bg-destructive/10 gap-2">
-                        <Heart className={`w-4 h-4 ${post.liked ? 'fill-current text-destructive' : ''}`} /> {post.likesCount}
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-muted-foreground border rounded-xl border-dashed">
-                No posts yet.
-              </div>
-            )}
-          </>
+                    </div>
+
+                    <Card className="border-primary/30">
+                      <CardContent className="pt-5 pb-4">
+                        <div className="font-medium mb-1">{currentSong.name}</div>
+                        <div className="text-sm text-muted-foreground mb-3">by {currentSong.artist}</div>
+                        
+                        {/* Use existing audio support */}
+                        <div className="bg-muted/40 p-3 rounded-lg">
+                          <audio controls className="w-full" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3">
+                            Your browser does not support the audio element.
+                          </audio>
+                          <p className="text-[10px] text-center mt-2 text-muted-foreground">Demo track — replace with your uploaded mix in real version</p>
+                        </div>
+
+                        {isOwnProfile && (
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {demoSongs.map(song => (
+                              <Button 
+                                key={song.hash} 
+                                size="sm" 
+                                variant={profileSong === song.hash ? "default" : "outline"}
+                                onClick={() => setProfileSong(song.hash)}
+                              >
+                                Set as profile song: {song.name}
+                              </Button>
+                            ))}
+                            <Button size="sm" variant="ghost" onClick={() => toast("Connect to your Media uploads to pick real audio")}>Browse my media...</Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+
+                {isOwnProfile && (
+                  <TabsContent value="customize">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>MySpace Customization</CardTitle>
+                        <CardDescription>Spend WeixBucks later to unlock more themes & layouts. This is fully client-side for now.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div>
+                          <div className="text-sm font-medium mb-2">Profile Theme</div>
+                          <div className="flex flex-wrap gap-2">
+                            {(["classic", "pro", "vibrant", "myspace"] as const).map(t => (
+                              <Button key={t} variant={profileTheme === t ? "default" : "outline"} size="sm" onClick={() => setProfileTheme(t)}>
+                                {themeLabel[t]}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Real version will store theme + music CID on your Nostr profile (or Iroh blob) and let visitors see your custom page.
+                        </div>
+                        <Button onClick={() => { setProfileTheme("classic"); setProfileSong(null); toast("Customization reset"); }}>Reset to default</Button>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                )}
+              </Tabs>
+            </div>
+          </div>
         ) : (
           <div className="text-center py-20 text-muted-foreground">Profile not found.</div>
         )}

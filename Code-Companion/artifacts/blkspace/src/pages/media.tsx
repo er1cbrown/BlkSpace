@@ -12,7 +12,9 @@ import {
 } from "@/lib/tauri-api";
 import { getSessionToken } from "@/lib/auth";
 import { toast } from "sonner";
-import { Trash2, Upload, Image, Film, Music, File } from "lucide-react";
+import { Trash2, Upload, Image, Film, Music, File, ArrowLeft } from "lucide-react";
+import { Navbar } from "@/components/layout/Navbar";
+import { Link } from "wouter";
 
 function blobIcon(mime: string) {
   if (mime.startsWith("image/")) return <Image className="h-4 w-4" />;
@@ -106,63 +108,74 @@ export default function MediaPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            My Media
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,video/*,audio/*"
-              className="flex-1 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-            {uploading && <span className="text-sm text-muted-foreground">Uploading...</span>}
-          </div>
+    <div className="min-h-screen flex flex-col bg-background">
+      <Navbar />
+      <main className="flex-1 container max-w-4xl py-8 px-4">
+        <div className="flex items-center gap-3 mb-6">
+          <Link href="/feed">
+            <Button variant="ghost" className="pl-0 hover:bg-transparent hover:text-primary gap-2">
+              <ArrowLeft className="w-4 h-4" /> Back to Feed
+            </Button>
+          </Link>
+        </div>
 
-          {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="aspect-square rounded-md" />
-              ))}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              My Media
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,video/*,audio/*"
+                className="flex-1 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                onChange={handleUpload}
+                disabled={uploading}
+              />
+              {uploading && <span className="text-sm text-muted-foreground">Uploading...</span>}
             </div>
-          ) : blobs.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No media uploaded yet.</p>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {blobs.map((blob) => (
-                <Card key={blob.hash} className="overflow-hidden relative group">
-                  <BlobPreview hash={blob.hash} mimeType={blob.mimeType} filename={blob.filename} />
-                  <div className="p-2 space-y-1">
-                    <p className="text-xs truncate flex items-center gap-1">
-                      {blobIcon(blob.mimeType)}
-                      {blob.filename}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {(blob.fileSize / 1024).toFixed(1)} KB
-                    </p>
-                  </div>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7"
-                    onClick={() => handleDelete(blob.hash)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {loading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="aspect-square rounded-md" />
+                ))}
+              </div>
+            ) : blobs.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No media uploaded yet.</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {blobs.map((blob) => (
+                  <Card key={blob.hash} className="overflow-hidden relative group">
+                    <BlobPreview hash={blob.hash} mimeType={blob.mimeType} filename={blob.filename} />
+                    <div className="p-2 space-y-1">
+                      <p className="text-xs truncate flex items-center gap-1">
+                        {blobIcon(blob.mimeType)}
+                        {blob.filename}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {(blob.fileSize / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7"
+                      onClick={() => handleDelete(blob.hash)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </main>
     </div>
   );
 }

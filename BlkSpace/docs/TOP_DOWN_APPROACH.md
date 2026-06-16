@@ -47,10 +47,12 @@ BlkSpace does not replace the internet — it **augmented** the Application and 
 |--------------------|------------------------|------------------|
 | Social feeds, posts | Web (HTTP) | Nostr events (kind 1) |
 | Identity / profiles | DNS | Nostr public keys (self-certifying) |
-| Direct messages | SMTP / email | Nostr DMs (NIP-17, **untrusted** per Kimura et al.) |
+| Direct messages | SMTP / email | **Not implemented** — NIP-04 (legacy, vulnerable CBC) and NIP-17 (modern sealed boxes) both marked **untrusted** per Kimura et al. |
 | Media (photos, video) | HTTP streaming | Iroh blob CIDs + Nostr metadata |
 | Payments / rewards | Banking APIs | Nostr signed events (WeixBucks) + Solana (Phase 4) |
 | Marketplace | E-commerce APIs | Nostr listing events |
+
+> **⚠️ Security Note:** Kimura et al. (EuroS&P 2025) cryptanalyzed **NIP-04** (legacy DMs using AES-256-CBC without MAC) and demonstrated practical attacks via CBC malleability + link previews. BlkSpace does not implement NIP-04. **NIP-17** (modern, using `libsodium` sealed boxes) provides authenticated encryption but is still treated as untrusted for sensitive coordination because relay metadata remains visible. See `docs/security-considerations.md` for full threat model.
 
 **Key Design Decision:**  
 BlkSpace replaces HTTP-based social media with **Nostr protocol** at the application layer. This means:
@@ -342,7 +344,7 @@ BitChat (July 2025, Jack Dorsey/Verse) introduces:
 | BitChat Feature | BlkSpace Equivalent | Status |
 |-----------------|---------------------|--------|
 | BLE mesh (TTL 7) | BLE mesh for dorms/events | 🔮 Phase 2+ |
-| Noise Protocol encryption | Nostr DMs (with Kimura et al. warnings) | ✅ Active |
+| Noise Protocol encryption | **Not implemented** — DMs avoided per Kimura et al.; future Iroh-based encrypted sharing | ❌ Not implemented |
 | Firechat-style flooding | Town-based relay gossip (not global flood) | ✅ Active |
 | No accounts/phone numbers | Nostr keypairs (self-certifying) | ✅ Active |
 | Panic wipe | Settings → Sign Out (deletes local keys) | ✅ Active |

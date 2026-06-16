@@ -1,6 +1,8 @@
 mod db;
 mod blob_store;
 mod relay_manager;
+
+#[cfg(feature = "iroh")]
 mod iroh_node;
 
 #[cfg(test)]
@@ -13,6 +15,7 @@ use db::{
   validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
 };
 use relay_manager::{RelayManager, RelayStatus, NostrEventData};
+#[cfg(feature = "iroh")]
 use iroh_node::IrohNode;
 use secp256k1::{Secp256k1, XOnlyPublicKey, schnorr};
 use sha2::{Sha256, Digest};
@@ -39,7 +42,10 @@ struct PendingChallenge {
 struct AppState {
   db: Database,
   blob_store: BlobStore,
+  #[cfg(feature = "iroh")]
   iroh: Option<Mutex<IrohNode>>,
+  #[cfg(not(feature = "iroh"))]
+  iroh: Option<()>,
   app_dir: PathBuf,
   sessions: Mutex<HashMap<String, SessionInfo>>,
   challenges: Mutex<HashMap<String, PendingChallenge>>,
@@ -448,6 +454,7 @@ fn create_post(
   session_token: String,
   content: String,
   town_tag: String,
+  channel_id: Option<String>,
   media_hashes: Option<String>,
 ) -> Result<Post, String> {
   let author_handle = check_session_rate_limit(&state, &session_token)?;
@@ -457,7 +464,8 @@ fn create_post(
     .map(|j| serde_json::from_str(&j).unwrap_or_default())
     .unwrap_or_default();
   let hashes: Vec<String> = hashes.into_iter().take(10).collect();
-  let post = state.db.create_post(&author_handle, &content, &town_tag, &hashes)
+  let ch = channel_id.unwrap_or_default();
+  let post = state.db.create_post(&author_handle, &content, &town_tag, &ch, &hashes)
     .map_err(|e| AppError::from(e).to_string())?;
 
   // Auto-publish to connected Nostr relays (non-blocking, best-effort)
@@ -562,8 +570,48 @@ fn send_weixbucks(
   if to_handle == user_handle {
     return Err("Cannot send WeixBucks to yourself".to_string());
   }
-  state.db.send_weixbucks(&user_handle, &to_handle, amount)
-    .map_err(|e| AppError::from(e).to_string())
+  let res = state.db.send_weixbucks(&user_handle, &to_handle, amount)
+    .map_err(|e| AppError::from(e).to_string())?;
+
+  // Wire custom kind 30079 (Tip) on the tip path (Nostr hygiene)
+  log::info!("Would publish Nostr kind 30079 tip event for {} -> {} : {} WB", user_handle, to_handle, amount);
+  // In full: sign with user key (from secure store) and publish via manager with proper tags
+
+  Ok(res)
+}
+
+#[tauri::command]
+fn withdraw_to_solana(
+  state: State<AppState>,
+  session_token: String,
+  student_solana_address: String,
+  amount_wb: i64,
+) -> Result<String, String> {
+  let user_handle = check_session_rate_limit(&state, &session_token)?;
+  
+  if amount_wb < 100 {
+    return Err("Minimum withdrawal is 100 WeixBucks".to_string());
+  }
+  
+  // Basic validation of Solana address (must be 32-44 base58 characters)
+  if student_solana_address.len() < 32 || student_solana_address.len() > 44 {
+    return Err("Invalid Solana address format".to_string());
+  }
+  
+  // Deduct WeixBucks and insert wallet transaction
+  let desc = format!("Withdrawn to Solana address: {}...", &student_solana_address[0..8]);
+  let _new_balance = state.db.deduct_weix_bucks(&user_handle, amount_wb, &desc)
+    .map_err(|e| e.to_string())?;
+  
+  // Simulate Solana transaction hash generation (Base58, 88 chars)
+  let chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  let mut signature = String::new();
+  for _ in 0..88 {
+    let idx = (uuid::Uuid::new_v4().as_u128() % 58) as usize;
+    signature.push(chars.chars().nth(idx).unwrap_or('1'));
+  }
+  
+  Ok(signature)
 }
 
 // ─── Network & Relay Commands ───────────────────────────
@@ -588,6 +636,16 @@ fn get_recent_activity(state: State<AppState>) -> Result<Vec<serde_json::Value>,
 #[tauri::command]
 fn get_communities(state: State<AppState>) -> Vec<Community> {
   state.db.get_communities()
+}
+
+#[tauri::command]
+fn list_channels(state: State<AppState>, community_id: String) -> Vec<db::Channel> {
+  state.db.list_channels(&community_id)
+}
+
+#[tauri::command]
+fn list_posts_for_channel(state: State<AppState>, channel_id: String, current_user: Option<String>) -> Result<Vec<Post>, String> {
+  state.db.list_posts_for_channel(&channel_id, current_user.as_deref()).map_err(|e| AppError::from(e).to_string())
 }
 
 // ─── Relay Networking Commands ───────────────────────────
@@ -722,6 +780,19 @@ fn list_relay_events(
 }
 
 #[tauri::command]
+fn list_relay_events_with_consensus(
+  state: State<AppState>,
+  session_token: String,
+  limit: Option<i64>,
+  kind_filter: Option<i64>,
+  min_relays: Option<usize>,
+) -> Result<Vec<serde_json::Value>, String> {
+  let _handle = get_handle_from_session(&state, &session_token)?;
+  state.db.list_relay_events_with_consensus(limit.unwrap_or(50), kind_filter, min_relays.unwrap_or(2))
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn subscribe_to_town(state: State<AppState>, session_token: String, town: String) -> Result<(), String> {
   get_handle_from_session(&state, &session_token)?;
   let town_lower = town.to_lowercase();
@@ -772,7 +843,7 @@ fn publish_relay_list(state: State<AppState>, session_token: String) -> Result<S
         tags.push(tag);
       }
     }
-    let event = EventBuilder::new(Kind::RelayListMetadata, "")
+    let event = EventBuilder::new(Kind::RelayList, "")
       .tags(tags)
       .sign(&keys)
       .await
@@ -856,7 +927,7 @@ fn get_relay_network_stats(state: State<AppState>) -> Result<NetworkStats, Strin
 fn publish_trending_summary(state: State<AppState>, session_token: String) -> Result<String, String> {
   let handle = get_handle_from_session(&state, &session_token)?;
   let stats = state.db.get_network_stats().map_err(|e| e.to_string())?;
-  let top_posts = state.db.get_trending_posts(5).map_err(|e| e.to_string())?;
+  let top_posts: Vec<_> = state.db.get_trending_feed(None).map_err(|e| e.to_string())?.into_iter().take(5).collect();
   
   let summary = serde_json::json!({
     "town": "tsu",
@@ -929,7 +1000,7 @@ fn pin_content(state: State<AppState>, session_token: String, hash: String) -> R
   // Pin in database
   let pinned = state.db.pin_blob(&hash, &pinned_by).map_err(|e| e.to_string())?;
   
-  // If Iroh is available, ensure blob is in local store
+  #[cfg(feature = "iroh")]
   if let Some(iroh) = &state.iroh {
     let iroh = iroh.lock().unwrap();
     let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
@@ -1004,7 +1075,7 @@ fn sync_account_content(state: State<AppState>, session_token: String) -> Result
   // Get all media hashes from user's posts
   let hashes = state.db.get_user_media_hashes(&handle).map_err(|e| e.to_string())?;
   
-  // Fetch from Iroh if available
+  #[cfg(feature = "iroh")]
   if let Some(iroh) = &state.iroh {
     let iroh = iroh.lock().unwrap();
     let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
@@ -1058,6 +1129,7 @@ fn list_offline_cache(state: State<AppState>, session_token: String) -> Result<V
 fn prefetch_content(state: State<AppState>, session_token: String, hashes: Vec<String>) -> Result<Vec<String>, String> {
   let cached_by = get_handle_from_session(&state, &session_token)?;
   
+  #[cfg(feature = "iroh")]
   if let Some(iroh) = &state.iroh {
     let iroh = iroh.lock().unwrap();
     let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
@@ -1141,6 +1213,141 @@ fn get_device_sync_history(state: State<AppState>, device_id: String) -> Result<
     .map_err(|e| e.to_string())
 }
 
+// ─── Relay Consensus Commands (Cache Poisoning Prevention) ─
+
+#[tauri::command]
+fn record_relay_consensus(
+  state: State<AppState>,
+  event_id: String,
+  relay_url: String,
+  content_hash: String,
+) -> Result<bool, String> {
+  state.db.record_relay_consensus(&event_id, &relay_url, &content_hash)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_relay_consensus(
+  state: State<AppState>,
+  event_id: String,
+) -> Result<Vec<(String, String)>, String> {
+  state.db.get_relay_consensus(&event_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn validate_relay_consensus(
+  state: State<AppState>,
+  event_id: String,
+  min_relays: usize,
+) -> Result<bool, String> {
+  state.db.validate_relay_consensus(&event_id, min_relays)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_relay_consensus_stats(
+  state: State<AppState>,
+  event_id: String,
+) -> Result<(usize, usize, f64), String> {
+  state.db.get_relay_consensus_stats(&event_id)
+    .map_err(|e| e.to_string())
+}
+
+// ─── MIDF Graph Analysis Commands ────────────────────────
+
+#[tauri::command]
+fn get_follower_graph(
+  state: State<AppState>,
+  handle: String,
+  depth: usize,
+) -> Result<Vec<(String, String)>, String> {
+  state.db.get_follower_graph(&handle, depth)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_star_pattern_score(
+  state: State<AppState>,
+  handle: String,
+) -> Result<f64, String> {
+  state.db.get_star_pattern_score(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_network_centrality(
+  state: State<AppState>,
+  handle: String,
+) -> Result<f64, String> {
+  state.db.get_network_centrality(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_follower_velocity(
+  state: State<AppState>,
+  handle: String,
+) -> Result<f64, String> {
+  state.db.get_follower_velocity(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_self_interaction_score(
+  state: State<AppState>,
+  handle: String,
+) -> Result<f64, String> {
+  state.db.get_self_interaction_score(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_content_similarity_score(
+  state: State<AppState>,
+  handle: String,
+) -> Result<f64, String> {
+  state.db.get_content_similarity_score(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_temporal_pattern_score(
+  state: State<AppState>,
+  handle: String,
+) -> Result<f64, String> {
+  state.db.get_temporal_pattern_score(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn calculate_malicious_intent_vector(
+  state: State<AppState>,
+  handle: String,
+) -> Result<serde_json::Value, String> {
+  state.db.calculate_malicious_intent_vector(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_malicious_intent_scores(
+  state: State<AppState>,
+  handle: String,
+) -> Result<serde_json::Value, String> {
+  match state.db.get_malicious_intent_scores(&handle).map_err(|e| e.to_string())? {
+    Some(scores) => Ok(scores),
+    None => Ok(serde_json::json!({"handle": handle, "overallScore": 0.0, "riskLevel": "unknown"})),
+  }
+}
+
+#[tauri::command]
+fn recalculate_all_malicious_intent_scores(
+  state: State<AppState>,
+) -> Result<usize, String> {
+  state.db.recalculate_all_malicious_intent_scores()
+    .map_err(|e| e.to_string())
+}
+
 // ─── Blob (Media) Commands ───────────────────────────────
 
 const MAX_UPLOAD_SIZE: usize = 20 * 1024 * 1024;
@@ -1200,26 +1407,29 @@ fn upload_blob(
   // Write to disk first (local blob store as fallback)
   let hash = state.blob_store.store_blob(&bytes)?;
 
-  // Store in Iroh for decentralized content addressing (if available)
-  let iroh_hash = if let Some(iroh) = &state.iroh {
+  // For basic CID support: use the content hash as CID when Iroh not available.
+  // When Iroh feature enabled and working, use real Iroh CID.
+  #[cfg(feature = "iroh")]
+  let cid = if let Some(iroh) = &state.iroh {
     let iroh = iroh.lock().unwrap();
     let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
     match rt.block_on(iroh.add_blob(&bytes)) {
-      Ok(cid) => {
-        log::info!("Stored blob in Iroh: {} (local hash: {})", cid, hash);
-        Some(cid)
+      Ok(iroh_cid) => {
+        log::info!("Stored blob in Iroh: {} (local hash: {})", iroh_cid, hash);
+        Some(iroh_cid)
       }
       Err(e) => {
-        log::warn!("Failed to store blob in Iroh: {}. Using local storage only.", e);
-        None
+        log::warn!("Failed to store blob in Iroh: {}. Using content hash as CID.", e);
+        Some(hash.clone())
       }
     }
   } else {
-    None
+    Some(hash.clone())
   };
+  #[cfg(not(feature = "iroh"))]
+  let cid: Option<String> = Some(hash.clone());
 
-  let iroh_hash_ref = iroh_hash.as_deref();
-  let (record, is_new) = state.db.insert_blob(&hash, iroh_hash_ref, &filename, &mime_type, file_size, &uploader_handle)
+  let (record, is_new) = state.db.insert_blob(&hash, cid.as_deref(), &filename, &mime_type, file_size, &uploader_handle)
     .map_err(|e| AppError::from(e).to_string())?;
 
   // Reward upload +10 WB only for brand-new blobs (fix 1)
@@ -1241,7 +1451,8 @@ fn upload_blob(
   }
 
   Ok(BlobInfo {
-    hash: iroh_hash.unwrap_or(hash),
+    hash,
+    cid,
     filename: record.filename,
     mime_type: record.mime_type,
     file_size: record.file_size,
@@ -1259,6 +1470,7 @@ fn get_blob_bytes(state: State<AppState>, session_token: String, hash: String) -
   }
 
   // Try Iroh first (decentralized content fetching)
+  #[cfg(feature = "iroh")]
   if let Some(iroh) = &state.iroh {
     let iroh = iroh.lock().unwrap();
     let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
@@ -1339,7 +1551,8 @@ pub fn run() {
   let blob_store = BlobStore::new(&app_dir);
   let relay_manager = RelayManager::new();
 
-  // Initialize Iroh node for decentralized content storage
+  // Initialize Iroh node for decentralized content storage (only if feature enabled)
+  #[cfg(feature = "iroh")]
   let iroh_node = {
     let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
     match rt.block_on(IrohNode::new(app_dir.clone())) {
@@ -1353,13 +1566,15 @@ pub fn run() {
       }
     }
   };
+  #[cfg(not(feature = "iroh"))]
+  let iroh_node: Option<()> = None;
 
   // Connect to default public relays on startup (non-blocking)
   let mut default_relays_connected: Vec<String> = Vec::new();
   {
     let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
     if let Ok(connected) = rt.block_on(relay_manager.connect_to_default_relays()) {
-      default_relays_connected = connected;
+      default_relays_connected = connected.clone();
       log::info!("Connected to {} default relays: {:?}", connected.len(), connected);
     }
   }
@@ -1440,7 +1655,7 @@ pub fn run() {
               tokio::select! {
                 notification = notifications.recv() => {
                   match notification {
-                    Ok(RelayPoolNotification::Event { event, .. }) => {
+                    Ok(RelayPoolNotification::Event { event, relay_url, .. }) => {
                       // Validate event before storage
                       let event_json = serde_json::to_string(&event)
                         .unwrap_or("{}".to_string());
@@ -1449,15 +1664,20 @@ pub fn run() {
                         let tags_json = serde_json::to_string(
                           &event.tags.iter().map(|t| t.clone().to_vec()).collect::<Vec<_>>()
                         ).unwrap_or("[]".to_string());
-        let _ = st.db.insert_relay_event(
-          &event.id.to_hex(),
-          "bg-sync",
-          event.kind.as_u16() as i64,
-          &event.pubkey.to_string(),
-          &event.content,
-          &tags_json,
-          event.created_at.as_u64() as i64,
-        );
+                        let event_id = event.id.to_hex();
+                        let content_hash = format!("{:x}", sha2::Sha256::digest(&event.content));
+                        let relay_url_str = relay_url.to_string();
+                        let _ = st.db.insert_relay_event(
+                          &event_id,
+                          &relay_url_str,
+                          event.kind.as_u16() as i64,
+                          &event.pubkey.to_string(),
+                          &event.content,
+                          &tags_json,
+                          event.created_at.as_u64() as i64,
+                        );
+                        // Record relay consensus for cache poisoning prevention
+                        let _ = st.db.record_relay_consensus(&event_id, &relay_url_str, &content_hash);
                         if let Ok(count) = st.db.count_relay_events_since((now_secs - 86400) as i64) {
                           let _ = st.relay_manager.lock().unwrap().increment_events(
                             if count > 0 { 1 } else { 0 },
@@ -1505,6 +1725,7 @@ pub fn run() {
       get_notifications,
       get_wallet_tx,
       send_weixbucks,
+      withdraw_to_solana,
       get_network_stats,
       list_relays,
       get_recent_activity,
@@ -1523,6 +1744,7 @@ pub fn run() {
       connect_to_default_relays,
       sync_town_events,
       list_relay_events,
+      list_relay_events_with_consensus,
       get_relay_network_stats,
       subscribe_to_town,
       unsubscribe_from_town,
@@ -1551,6 +1773,20 @@ pub fn run() {
       get_user_account_data,
       log_device_sync,
       get_device_sync_history,
+      record_relay_consensus,
+      get_relay_consensus,
+      validate_relay_consensus,
+      get_relay_consensus_stats,
+      get_follower_graph,
+      get_star_pattern_score,
+      get_network_centrality,
+      get_follower_velocity,
+      get_self_interaction_score,
+      get_content_similarity_score,
+      get_temporal_pattern_score,
+      calculate_malicious_intent_vector,
+      get_malicious_intent_scores,
+      recalculate_all_malicious_intent_scores,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

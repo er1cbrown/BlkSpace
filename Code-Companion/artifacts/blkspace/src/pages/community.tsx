@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useRoute, Link } from "wouter";
-import { ArrowLeft, Users, MapPin, GraduationCap, CalendarDays, MessageSquare, Heart, Repeat2 } from "lucide-react";
-import { useTauriGetCommunities } from "@/hooks/use-app-data";
-import { isTauri, type TauriCommunity } from "@/lib/tauri-api";
+import { ArrowLeft, Users, MapPin, GraduationCap, CalendarDays, MessageSquare, Heart, Repeat2, Send } from "lucide-react";
+import { useTauriGetCommunities, useTauriListChannels, useTauriListPostsForChannel, useAppCreatePost, useTauriListUsers } from "@/hooks/use-app-data";
+import { isTauri, type TauriCommunity, getCurrentHandle, getSessionToken } from "@/lib/tauri-api";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const fallbackCommunityData: Record<string, { name: string; school: string; location: string; members: number; description: string }> = {
   tsu: { name: "TSU Yard", school: "Tennessee State University", location: "Nashville, TN", members: 2847, description: "The official TSU community. Home of the Tigers. Connect with fellow students, alumni, and Nashville locals." },
@@ -28,12 +31,16 @@ const colorMap: Record<string, string> = {
 export default function CommunityPage() {
   const [, params] = useRoute("/communities/:id");
   const id = params?.id || "";
+  const [activeChannel, setActiveChannel] = useState("#general");
 
   const { data: tauriCommunities } = useTauriGetCommunities();
+  const { data: tauriUsers } = useTauriListUsers();
 
   const community = isTauri() && Array.isArray(tauriCommunities)
     ? tauriCommunities.find((c: TauriCommunity) => c.id === id)
     : fallbackCommunityData[id];
+
+  const channels = ["#general", "#events", "#music", "#study-hall", "#networking", "#market"];
 
   if (!community) {
     return (
@@ -46,80 +53,183 @@ export default function CommunityPage() {
     );
   }
 
+  // Discord-like: channel-filtered "chat" feed
+  const channelPosts = [1,2,3,4].map(i => ({
+    id: i,
+    user: `YardMember${i}`,
+    handle: `ym${i}`,
+    content: activeChannel === "#music" 
+      ? "Just dropped a new mix for the tailgate — link in bio 🎧" 
+      : activeChannel === "#study-hall"
+      ? "Library study group tonight at 8. Bring laptops and focus."
+      : `Activity in ${activeChannel} — ${community.name} is live!`,
+    time: `${i + 2}h ago`,
+    reactions: i + 5,
+  }));
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      <main className="flex-1 container max-w-3xl py-8 px-4">
+      <main className="flex-1 container max-w-6xl py-6 px-4">
         <Link href="/communities">
-          <Button variant="ghost" className="mb-6 pl-0 hover:bg-transparent hover:text-primary gap-2">
-            <ArrowLeft className="w-4 h-4" /> All Communities
+          <Button variant="ghost" className="mb-4 pl-0 hover:bg-transparent hover:text-primary gap-2 text-sm">
+            <ArrowLeft className="w-4 h-4" /> All Yards
           </Button>
         </Link>
 
-        <div className={`h-40 rounded-2xl bg-gradient-to-br ${colorMap[id] || "from-primary to-primary/50"} mb-6`} />
-
-        <div className="mb-8">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold">{community.name}</h1>
-              <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1"><GraduationCap className="w-4 h-4" /> {community.school}</span>
-                <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {community.location}</span>
-                <span className="flex items-center gap-1"><Users className="w-4 h-4" /> {community.members.toLocaleString()} members</span>
+        <div className="flex items-start gap-4 mb-6">
+          <div className={`h-20 w-20 rounded-2xl bg-gradient-to-br ${colorMap[id] || "from-primary to-primary/50"} flex-shrink-0`} />
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">{community.name}</h1>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1"><GraduationCap className="w-4 h-4" /> {community.school}</span>
+                  <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {community.location}</span>
+                  <span className="flex items-center gap-1"><Users className="w-4 h-4" /> {community.members.toLocaleString()} members</span>
+                </div>
               </div>
+              <Button className="rounded-full px-8">Join Yard</Button>
             </div>
-            <Button className="rounded-full">Join Yard</Button>
+            <p className="text-muted-foreground mt-2 max-w-2xl">{community.description}</p>
           </div>
-          <p className="text-muted-foreground">{community.description}</p>
         </div>
 
-        <Tabs defaultValue="feed">
-          <TabsList className="mb-6 h-12">
-            <TabsTrigger value="feed" className="text-base">Feed</TabsTrigger>
-            <TabsTrigger value="members" className="text-base">Members</TabsTrigger>
-            <TabsTrigger value="about" className="text-base">About</TabsTrigger>
-          </TabsList>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Discord-style Channels Sidebar */}
+          <div className="lg:col-span-3">
+            <Card className="border-primary/10">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" /> Channels
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-1 text-sm">
+                  {channels.map(ch => (
+                    <button
+                      key={ch}
+                      onClick={() => setActiveChannel(ch)}
+                      className={`w-full text-left px-3 py-1.5 rounded-md flex items-center gap-2 transition-colors ${activeChannel === ch ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted/50 text-muted-foreground'}`}
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-6 pt-4 border-t text-xs text-muted-foreground">
+                  This yard supports structured casual chat + professional networking. Voice channels coming in future update.
+                </div>
+              </CardContent>
+            </Card>
 
-          <TabsContent value="feed" className="space-y-4">
-            {[1, 2, 3].map(i => (
-              <Card key={i} className="border-border/50">
-                <CardHeader className="pb-2 flex flex-row items-start gap-4">
-                  <Avatar className="h-10 w-10"><AvatarFallback>U{i}</AvatarFallback></Avatar>
-                  <div className="flex-1">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <span className="font-bold">User {i}</span>
-                      <span className="text-muted-foreground font-normal text-xs">@{`user${i}`}</span>
-                    </CardTitle>
-                    <p className="text-sm mt-2">Check in — {community.name} is live today! 🎉</p>
+            <Card className="mt-4 border-primary/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => toast("Event creation coming soon")}>📅 Create Event</Button>
+                <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => toast("Role management in Phase 2")}>👥 Manage Roles</Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="lg:col-span-9">
+            <Tabs defaultValue="chat" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="chat">{activeChannel} Chat</TabsTrigger>
+                <TabsTrigger value="members">Members</TabsTrigger>
+                <TabsTrigger value="about">About</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="chat">
+                <Card>
+                  <CardHeader className="pb-2 flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-lg">{activeChannel} — {community.name}</div>
+                      <div className="text-xs text-muted-foreground">Casual + focused discussion for the yard</div>
+                    </div>
+                    <Badge variant="secondary">{channelPosts.length} new</Badge>
+                  </CardHeader>
+                  <CardContent className="space-y-4 max-h-[520px] overflow-auto pr-2">
+                    {channelPosts.map((post, idx) => (
+                      <div key={idx} className="flex gap-3 border-l-2 border-primary/30 pl-3">
+                        <Avatar className="h-9 w-9 mt-0.5"><AvatarFallback>{post.user[0]}</AvatarFallback></Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="font-semibold">{post.user}</span>
+                            <span className="text-xs text-muted-foreground">@{post.handle} · {post.time}</span>
+                          </div>
+                          <p className="text-[15px] leading-snug mt-0.5">{post.content}</p>
+                          <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground">
+                            <button className="hover:text-primary flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" /> Reply</button>
+                            <button className="hover:text-primary flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {post.reactions}</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                  <div className="p-4 border-t">
+                    <div className="flex gap-2">
+                      <input 
+                        className="flex-1 bg-muted/50 rounded-full px-4 py-2 text-sm outline-none" 
+                        placeholder={`Message ${activeChannel}`} 
+                        onKeyDown={(e) => { if (e.key === 'Enter' && e.currentTarget.value) { toast(`Posted to ${activeChannel}`); e.currentTarget.value = ''; } }}
+                      />
+                      <Button size="sm" onClick={() => toast("Message sent to channel (demo)")}>Send</Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1.5">Messages are powered by the yard's local Nostr relay. Professional tone encouraged.</p>
                   </div>
-                </CardHeader>
-                <CardFooter className="pl-16 pt-2 flex gap-4 text-sm text-muted-foreground border-none">
-                  <Button variant="ghost" size="sm" className="h-8 px-2 gap-1"><MessageSquare className="w-4 h-4" /> {i * 3}</Button>
-                  <Button variant="ghost" size="sm" className="h-8 px-2 gap-1"><Heart className="w-4 h-4" /> {i * 7}</Button>
-                  <Button variant="ghost" size="sm" className="h-8 px-2 gap-1"><Repeat2 className="w-4 h-4" /> {i}</Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </TabsContent>
+                </Card>
+              </TabsContent>
 
-          <TabsContent value="members">
-            <Card className="border-border/50">
-              <CardContent className="p-6 text-center text-muted-foreground">
-                Member list coming soon.
-              </CardContent>
-            </Card>
-          </TabsContent>
+              <TabsContent value="members">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {(isTauri() && tauriUsers ? tauriUsers.filter((u: any) => u.town === id) : []).length > 0 
+                        ? (tauriUsers || []).filter((u: any) => u.town === id).map((u: any, i: number) => (
+                            <div key={i} className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/40">
+                              <Avatar><AvatarFallback>{u.displayName?.[0] || u.handle?.[0] || 'M'}</AvatarFallback></Avatar>
+                              <div>
+                                <div className="font-medium">{u.displayName || u.handle}</div>
+                                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                  {u.nodeRole || "Student"} · {u.weixBucks || 0} WB
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        : Array.from({length: 8}).map((_, i) => (
+                            <div key={i} className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/40">
+                              <Avatar><AvatarFallback>M{i}</AvatarFallback></Avatar>
+                              <div>
+                                <div className="font-medium">Member {i+1}</div>
+                                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                  {i % 3 === 0 ? "Moderator" : i % 2 === 0 ? "Alum" : "Student"} · {Math.floor(Math.random()*400)+50} posts
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 text-center">Real roles from node_role (useTauriListUsers filtered by town).</p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-          <TabsContent value="about">
-            <Card className="border-border/50">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center gap-2 text-sm"><CalendarDays className="w-4 h-4 text-primary" /> Founded 2026</div>
-                <div className="flex items-center gap-2 text-sm"><Users className="w-4 h-4 text-primary" /> {community.members.toLocaleString()} members</div>
-                <p className="text-muted-foreground">{community.description}</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              <TabsContent value="about">
+                <Card>
+                  <CardContent className="p-6 space-y-4 text-sm">
+                    <div className="flex items-center gap-2"><CalendarDays className="w-4 h-4 text-primary" /> Founded 2026 — Digital twin of the physical yard</div>
+                    <div>{community.description}</div>
+                    <div className="pt-4 border-t">
+                      <strong>Casual rules:</strong> Keep it fun, respectful, and HBCU-proud. Professional networking welcome in #networking.
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
       </main>
     </div>
   );

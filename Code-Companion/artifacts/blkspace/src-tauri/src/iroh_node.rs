@@ -1,9 +1,8 @@
-use iroh_blobs::store::fs::FsStore;
-use iroh_blobs::api::Store;
+use iroh_blobs::store::fs::Store;
 use std::path::PathBuf;
 
 pub struct IrohNode {
-    store: FsStore,
+    store: Store,
 }
 
 impl IrohNode {
@@ -70,7 +69,7 @@ impl IrohNode {
         Ok(())
     }
 
-    pub fn store(&self) -> &FsStore {
+    pub fn store(&self) -> &Store {
         &self.store
     }
 }

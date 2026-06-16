@@ -52,6 +52,10 @@ export default function CommunitiesPage() {
         </div>
         <p className="text-muted-foreground text-lg mb-10">Find your yard and connect with your people.</p>
 
+        <div className="mb-6">
+          <p className="text-sm text-muted-foreground">Discord-style college yards. Casual hangouts with professional tools — channels for study, music, events, and networking.</p>
+        </div>
+
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {communities.map(c => (
             <Link key={c.id} href={`/communities/${c.id}`}>
@@ -60,13 +64,13 @@ export default function CommunitiesPage() {
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
                     <div>
-                      <CardTitle className="text-xl">{c.name}</CardTitle>
+                      <CardTitle className="text-xl flex items-center gap-2">{c.name} <span className="text-xs text-muted-foreground">Yard</span></CardTitle>
                       <CardDescription className="flex items-center gap-1 mt-1">
                         <GraduationCap className="w-3.5 h-3.5" /> {c.school}
                       </CardDescription>
                     </div>
                     <Badge variant="outline" className="bg-primary/5 text-primary text-xs">
-                      {c.members.toLocaleString()}
+                      {c.members.toLocaleString()} members
                     </Badge>
                   </div>
                 </CardHeader>
@@ -76,7 +80,9 @@ export default function CommunitiesPage() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-muted-foreground">{c.posts.toLocaleString()} posts today</span>
-                    <ArrowRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="flex items-center text-primary text-xs group-hover:underline">
+                      Enter Yard <ArrowRight className="w-4 h-4 ml-1" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
