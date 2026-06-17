@@ -39,6 +39,9 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             ext: AppImage
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            ext: msi
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -50,6 +53,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
+          cache-dependency-path: Code-Companion/pnpm-lock.yaml
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:

@@ -10,7 +10,7 @@ No technical knowledge required. If you can install Spotify or Discord, you can 
 
 ### For Windows (Tier 0 Laptops)
 1. Go to **https://github.com/er1cbrown/BlkSpace/releases**
-2. Download `BlkSpace-Setup-Windows.exe`
+2. Download `BlkSpace-Setup-Windows.exe` (or `.msi`)
 3. Double-click the file
 4. Click "Install" (no admin rights needed)
 5. BlkSpace opens automatically
@@ -36,67 +36,110 @@ No technical knowledge required. If you can install Spotify or Discord, you can 
 
 ### What You Need
 - A computer with Windows 10+, macOS 12+, or Linux
-- About 2GB of free space
+- About 2GB of free space (more for Rust build cache)
 - Internet connection
 
+### How It Works
+BlkSpace uses **Tauri 2** (Rust backend + React frontend). GitHub Actions CI builds the desktop app for all platforms. You only need to build locally if you're modifying Rust code or testing changes before pushing.
+
+**To just work on the UI**: `pnpm dev` starts a web preview (no Rust build needed).
+**To build the full desktop app**: `pnpm tauri build` (requires Rust).
+
 ### Step 1: Install Prerequisites
+
 **Windows:**
-1. Download Node.js from https://nodejs.org (click the big green button)
-2. Install it (keep all default settings)
-3. Open PowerShell (press Windows key, type "powershell", press Enter)
-4. Run: `npm install -g pnpm`
-5. Download Rust from https://rustup.rs
-6. Run the installer (keep all defaults)
-7. Restart your computer
+1. Install **Node.js 22+** from https://nodejs.org
+2. Open PowerShell and run: `npm install -g pnpm`
+3. Install **Rust** from https://rustup.rs
+4. Install **Visual Studio Build Tools**:
+   - Download from https://visualstudio.microsoft.com/visual-cpp-build-tools/
+   - Select **"Desktop development with C++"** workload
+5. Restart your computer
 
 **Mac:**
-1. Open Terminal (press Cmd+Space, type "terminal", press Enter)
-2. Run: `curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -`
-3. Run: `sudo apt install -y nodejs`
-4. Run: `npm install -g pnpm`
-5. Run: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-6. Follow the prompts (press 1 for default)
-7. Run: `source $HOME/.cargo/env`
+```bash
+# Install Homebrew (if not already)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install dependencies
+brew install rust node pnpm
+```
 
 **Linux (Ubuntu/Debian):**
-1. Open Terminal
-2. Run: `curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -`
-3. Run: `sudo apt install -y nodejs`
-4. Run: `npm install -g pnpm`
-5. Run: `sudo apt install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev`
-6. Run: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-7. Follow the prompts (press 1 for default)
-8. Run: `source $HOME/.cargo/env`
+```bash
+# Node.js 22
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# pnpm
+sudo npm install -g pnpm
+
+# Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+
+# Tauri system deps
+sudo apt install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev libsecret-1-dev
+
+# Build tools
+sudo apt install -y build-essential git
+```
+
+**Linux (Arch / Omarchy):**
+```bash
+sudo pacman -S rustup nodejs npm base-devel git webkit2gtk-4.1 libappindicator-gtk3 librsvg
+rustup default stable
+sudo npm install -g pnpm
+```
 
 ### Step 2: Get the Code
-1. Open Terminal / PowerShell
-2. Run: `git clone git@github.com:er1cbrown/BlkSpace.git`
-3. Run: `cd BlkSpace/Code-Companion`
-4. Run: `pnpm install` (this downloads all needed files — takes 5-10 minutes)
+```bash
+git clone git@github.com:er1cbrown/BlkSpace.git
+cd BlkSpace/Code-Companion
+pnpm install
+```
 
 ### Step 3: Run BlkSpace
-**For testing the web version:**
-- Run: `pnpm dev`
-- Open your browser to `http://localhost:24442`
+**Web preview (UI only, no Rust backend):**
+```bash
+pnpm dev
+```
+Open your browser to `http://localhost:24442`
 
-**For testing the desktop version:**
-- Run: `cd artifacts/blkspace`
-- Run: `pnpm tauri dev`
-- The desktop app opens automatically
+**Desktop app (full Rust backend):**
+```bash
+cd artifacts/blkspace
+pnpm tauri dev
+```
 
 ---
 
 ## Option 3: Automated Setup (For Power Users)
 
-If you have a Mac or Linux, run this one command:
+**Mac/Linux** — one command:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/er1cbrown/BlkSpace/main/setup.sh | bash
 ```
 
-For Windows, download and run:
-```
-https://raw.githubusercontent.com/er1cbrown/BlkSpace/main/setup.bat
-```
+**Windows** — download and run `setup.bat` from the repo.
+
+---
+
+## For Windows / Low-End Machine Users
+
+If your Windows laptop has limited disk space (common on Tier 0 hardware):
+
+1. **Use CI for builds** — push your code to GitHub, and CI builds the `.msi` installer for you. Don't build Tauri locally.
+2. **Frontend-only dev** — `pnpm dev` starts a web preview without compiling Rust. This uses ~200MB instead of ~14GB.
+3. **Reduce Rust parallelism** if you must build locally:
+   ```powershell
+   $env:CARGO_BUILD_JOBS=1
+   pnpm tauri build
+   ```
+4. **Set pnpm store to external drive** (if you have one):
+   ```powershell
+   pnpm config set store-dir D:\.pnpm-store
+   ```
 
 ---
 
@@ -112,6 +155,20 @@ When you first open BlkSpace, you'll see a **Welcome Wizard** that:
 
 ---
 
+## Minimum Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| RAM | 2GB | 4GB |
+| Storage | 500MB (app) / 2GB (build) | 1GB (app) / 16GB (build) |
+| OS | Windows 10+, macOS 12+, Ubuntu 22.04 | Latest version |
+| CPU | Any 64-bit | Intel i3 / AMD equivalent |
+| Internet | 1 Mbps | 5 Mbps |
+
+BlkSpace is designed for **the computers students already own** — old laptops, lab machines, even Chromebooks.
+
+---
+
 ## Troubleshooting
 
 ### "This app is from an unknown developer" (Mac)
@@ -124,23 +181,25 @@ Click "More info" → "Run anyway".
 Restart your computer after installing Node.js.
 
 ### "Tauri build fails"
-Make sure you installed Rust and restarted your terminal.
+- Make sure you installed Rust and restarted your terminal.
+- On Windows, verify you installed "Desktop development with C++" in Visual Studio Build Tools.
+- On Linux, make sure all `libwebkit2gtk` dev packages are installed.
+
+### "Out of memory" during build (Tier 0)
+```bash
+export CARGO_BUILD_JOBS=1    # Linux/Mac
+$env:CARGO_BUILD_JOBS=1      # Windows PowerShell
+```
+
+### "cargo not found" after rustup
+```bash
+source $HOME/.cargo/env
+# Add to your shell profile:
+echo 'source $HOME/.cargo/env' >> ~/.bashrc  # or ~/.zshrc
+```
 
 ### Still stuck?
 Ask in the TSU Yard community or open an issue at https://github.com/er1cbrown/BlkSpace/issues
-
----
-
-## Minimum Requirements
-
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| RAM | 2GB | 4GB |
-| Storage | 500MB | 1GB |
-| OS | Windows 10, macOS 12, Ubuntu 22.04 | Latest version |
-| Internet | 1 Mbps | 5 Mbps |
-
-BlkSpace is designed for **the computers students already own** — old laptops, lab machines, even Chromebooks.
 
 ---
 
