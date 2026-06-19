@@ -25,6 +25,7 @@ use db::{
   YardEvent,
   NetworkStats,
   Notification, Post, Relay, Reply, UploadBlobResult, User, WalletTx, WallPost, WallPostResult,
+  WithdrawEligibility,
   RelayConnectionRecord, RelayEventRecord,
   validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
 };
@@ -1283,6 +1284,19 @@ fn send_weixbucks(
 }
 
 #[tauri::command]
+fn get_withdraw_eligibility(
+  state: State<AppState>,
+  session_token: String,
+  amount_wb: Option<i64>,
+) -> Result<WithdrawEligibility, String> {
+  let user_handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .evaluate_withdraw_eligibility(&user_handle, amount_wb)
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
 fn withdraw_to_solana(
   state: State<AppState>,
   session_token: String,
@@ -1290,17 +1304,27 @@ fn withdraw_to_solana(
   amount_wb: i64,
 ) -> Result<String, String> {
   let user_handle = check_session_rate_limit(&state, &session_token)?;
-  
-  if amount_wb < 100 {
-    return Err("Minimum withdrawal is 100 WeixBucks".to_string());
-  }
-  
+
   // Basic validation of Solana address (must be 32-44 base58 characters)
   if student_solana_address.len() < 32 || student_solana_address.len() > 44 {
     return Err("Invalid Solana address format".to_string());
   }
-  
-  // Deduct WeixBucks and insert wallet transaction
+
+  let eligibility = state
+    .db
+    .evaluate_withdraw_eligibility(&user_handle, Some(amount_wb))
+    .map_err(|e| AppError::from(e).to_string())?;
+  if !eligibility.eligible {
+    return Err(
+      eligibility
+        .reasons
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "Withdrawal not eligible".into()),
+    );
+  }
+
+  // Deduct WeixBucks and insert wallet transaction (simulated on-chain settlement until counsel)
   let desc = format!("Withdrawn to Solana address: {}...", &student_solana_address[0..8]);
   let _new_balance = state.db.deduct_weix_bucks(&user_handle, amount_wb, &desc)
     .map_err(|e| e.to_string())?;
@@ -3135,6 +3159,7 @@ pub fn run() {
       get_notifications,
       get_wallet_tx,
       send_weixbucks,
+      get_withdraw_eligibility,
       withdraw_to_solana,
       get_network_stats,
       list_relays,

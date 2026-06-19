@@ -118,6 +118,26 @@ export interface TauriEarnSummary {
   uploadsCount: number;
 }
 
+export interface TauriWithdrawEligibility {
+  eligible: boolean;
+  reasons: string[];
+  minAmountWb: number;
+  weeklyCapWb: number;
+  weeklyWithdrawnWb: number;
+  weeklyRemainingWb: number;
+  cooldownDays: number;
+  daysUntilNextWithdraw: number;
+  accountAgeDays: number;
+  minAccountAgeDays: number;
+  totalKarma: number;
+  minKarma: number;
+  postCount: number;
+  minPosts: number;
+  balanceWb: number;
+  wbToBlkRatio: number;
+  onChainReady: boolean;
+}
+
 export interface TauriNostrEventVerification {
   valid: boolean;
   status: string;
@@ -542,6 +562,16 @@ export function tauriSendWeixBucks(
   amount: number,
 ): Promise<[number, number]> {
   return invoke("send_weixbucks", { sessionToken, toHandle, amount });
+}
+
+export function tauriGetWithdrawEligibility(
+  sessionToken: string,
+  amountWb?: number | null,
+): Promise<TauriWithdrawEligibility> {
+  return invoke("get_withdraw_eligibility", {
+    sessionToken,
+    amountWb: amountWb ?? null,
+  });
 }
 
 export function tauriWithdrawToSolana(

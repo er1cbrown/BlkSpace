@@ -116,9 +116,28 @@ Per-node daily cap prevents farm scaling.
 
 ---
 
+## Withdrawal eligibility (draft — counsel gate)
+
+**Status:** Implemented in `db.rs` (`evaluate_withdraw_eligibility`) — devnet/simulated only until counsel approves mainnet.
+
+| Rule | Draft value |
+|------|-------------|
+| Minimum withdrawal | 100 WB |
+| Account age | 7 days |
+| Total karma | ≥ 10 (post + comment) |
+| Real posts | ≥ 3 |
+| Weekly cap | 1,000 WB per rolling 7 days |
+| Cooldown | 7 days between withdrawals |
+| Conversion ratio (display) | 1,000 WB = 1 BLK |
+
+**Not live:** Anchor CPI mint, mainnet deployment, or purchasable WB. Wallet UI shows utility-credit disclaimer.
+
+---
+
 ## Open Items
 
 - [x] User approves numeric caps (250 WB/day implemented)
+- [x] Draft withdrawal eligibility in Rust (counsel gate for mainnet)
 - [ ] Define "active engager" precisely
 - [ ] Test formulas on Tier 0 hardware with simulated load
 - [ ] Integrate with `nostr-event-kinds.md` reward event kinds

@@ -685,6 +685,17 @@ export function useAppBuyMarketplaceListing() {
   });
 }
 
+export function useTauriGetWithdrawEligibility(amountWb?: number) {
+  const parsed =
+    amountWb !== undefined && !Number.isNaN(amountWb) ? amountWb : undefined;
+  return useQuery({
+    queryKey: ["tauri", "withdraw-eligibility", parsed ?? null],
+    queryFn: () =>
+      tauri.tauriGetWithdrawEligibility(getSessionToken() || "", parsed),
+    enabled: IS_TAURI && !!getSessionToken(),
+  });
+}
+
 export function useAppWithdrawToSolana() {
   const qc = useQueryClient();
   return useMutation({
@@ -703,6 +714,7 @@ export function useAppWithdrawToSolana() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "wallet"] });
       qc.invalidateQueries({ queryKey: ["tauri", "user"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "withdraw-eligibility"] });
     },
   });
 }

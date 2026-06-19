@@ -3,7 +3,8 @@ mod tests {
   use sha2::{Digest, Sha256};
   use rusqlite;
   use crate::db::{
-    Database, DAILY_WB_EARN_CAP, validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
+    Database, DAILY_WB_EARN_CAP, MIN_WITHDRAW_KARMA, MIN_WITHDRAW_POSTS, MIN_WITHDRAW_WB,
+    WEEKLY_WITHDRAW_CAP_WB, validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
   };
 
   const NO_CHANNEL: &str = "";
@@ -192,6 +193,77 @@ mod tests {
     // Try to send more than balance
     let result = db.send_weixbucks("poor", "rich", 200);
     assert!(result.is_err());
+  }
+
+  fn qualify_user_for_withdraw(db: &Database, handle: &str) {
+    db.test_backdate_user_created_at(handle, 8).unwrap();
+    // 4 feed posts → 12 post karma (min posts = 3, min karma = 10)
+    for i in 0..4 {
+      db.create_post(handle, &format!("Qualify post {i}"), "tsu", NO_CHANNEL, &[])
+        .unwrap();
+    }
+    db.grant_weix_bucks(handle, 500, "test grant").unwrap();
+    let user = db.get_user(handle).unwrap().unwrap();
+    assert!(user.post_karma >= MIN_WITHDRAW_KARMA);
+    assert!(user.post_karma >= MIN_WITHDRAW_POSTS * 3);
+  }
+
+  #[test]
+  fn test_withdraw_eligibility_passes_when_qualified() {
+    let db = setup_test_db();
+    db.create_user("withdraw_ok", "Withdraw OK", "").unwrap();
+    qualify_user_for_withdraw(&db, "withdraw_ok");
+
+    let elig = db
+      .evaluate_withdraw_eligibility("withdraw_ok", Some(MIN_WITHDRAW_WB))
+      .unwrap();
+    assert!(elig.eligible, "expected eligible: {:?}", elig.reasons);
+    assert_eq!(elig.weekly_remaining_wb, WEEKLY_WITHDRAW_CAP_WB);
+  }
+
+  #[test]
+  fn test_withdraw_eligibility_blocks_young_account() {
+    let db = setup_test_db();
+    db.create_user("young", "Young", "").unwrap();
+    qualify_user_for_withdraw(&db, "young");
+    db.test_backdate_user_created_at("young", 2).unwrap();
+
+    let elig = db
+      .evaluate_withdraw_eligibility("young", Some(MIN_WITHDRAW_WB))
+      .unwrap();
+    assert!(!elig.eligible);
+    assert!(elig.reasons.iter().any(|r| r.contains("days old")));
+  }
+
+  #[test]
+  fn test_withdraw_eligibility_blocks_insufficient_karma() {
+    let db = setup_test_db();
+    db.create_user("low_karma", "Low Karma", "").unwrap();
+    db.test_backdate_user_created_at("low_karma", 8).unwrap();
+    db.create_post("low_karma", "Only one", "tsu", NO_CHANNEL, &[]).unwrap();
+
+    let elig = db
+      .evaluate_withdraw_eligibility("low_karma", Some(MIN_WITHDRAW_WB))
+      .unwrap();
+    assert!(!elig.eligible);
+    assert!(elig.total_karma < MIN_WITHDRAW_KARMA);
+  }
+
+  #[test]
+  fn test_withdraw_eligibility_weekly_cap() {
+    let db = setup_test_db();
+    db.create_user("capped", "Capped", "").unwrap();
+    qualify_user_for_withdraw(&db, "capped");
+    db.test_set_weix_bucks("capped", 2000).unwrap();
+
+    db.deduct_weix_bucks("capped", 600, "Withdrawn to Solana address: abc12345...")
+      .unwrap();
+    let elig = db
+      .evaluate_withdraw_eligibility("capped", Some(500))
+      .unwrap();
+    assert!(!elig.eligible);
+    assert_eq!(elig.weekly_remaining_wb, 400);
+    assert!(elig.reasons.iter().any(|r| r.contains("weekly")));
   }
 
   #[test]

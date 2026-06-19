@@ -455,6 +455,50 @@ pub struct RepostFeedItem {
 /// Max WeixBucks earn per user per rolling 24h (see reward-formulas.md).
 pub const DAILY_WB_EARN_CAP: i64 = 250;
 
+/// Draft withdrawal rules — subject to legal counsel before mainnet (reward-formulas.md).
+pub const MIN_WITHDRAW_WB: i64 = 100;
+pub const MIN_ACCOUNT_AGE_DAYS: i64 = 7;
+pub const MIN_WITHDRAW_KARMA: i64 = 10;
+pub const MIN_WITHDRAW_POSTS: i64 = 3;
+pub const WEEKLY_WITHDRAW_CAP_WB: i64 = 1000;
+pub const WITHDRAW_COOLDOWN_DAYS: i64 = 7;
+pub const WB_TO_BLK_RATIO: i64 = 1000;
+const WITHDRAW_TX_PREFIX: &str = "Withdrawn to Solana";
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WithdrawEligibility {
+  pub eligible: bool,
+  pub reasons: Vec<String>,
+  pub min_amount_wb: i64,
+  pub weekly_cap_wb: i64,
+  pub weekly_withdrawn_wb: i64,
+  pub weekly_remaining_wb: i64,
+  pub cooldown_days: i64,
+  pub days_until_next_withdraw: i64,
+  pub account_age_days: i64,
+  pub min_account_age_days: i64,
+  pub total_karma: i64,
+  pub min_karma: i64,
+  pub post_count: i64,
+  pub min_posts: i64,
+  pub balance_wb: i64,
+  pub wb_to_blk_ratio: i64,
+  /// Devnet/simulated only until counsel approves mainnet.
+  pub on_chain_ready: bool,
+}
+
+fn parse_db_timestamp(s: &str) -> Option<chrono::DateTime<chrono::Utc>> {
+  chrono::DateTime::parse_from_rfc3339(s)
+    .ok()
+    .map(|dt| dt.with_timezone(&chrono::Utc))
+    .or_else(|| {
+      chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
+        .ok()
+        .map(|ndt| ndt.and_utc())
+    })
+}
+
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct NetworkStats {
@@ -1831,6 +1875,150 @@ impl Database {
 
     tx.commit()?;
     Ok((sender_new, receiver_new))
+  }
+
+  pub fn evaluate_withdraw_eligibility(
+    &self,
+    handle: &str,
+    amount_wb: Option<i64>,
+  ) -> Result<WithdrawEligibility> {
+    let conn = self.conn.lock().unwrap();
+    let user = conn
+      .query_row(
+        &format!("{USER_SELECT} WHERE handle = ?1"),
+        params![handle],
+        map_user_row,
+      )
+      .map_err(|_| {
+        rusqlite::Error::InvalidParameterName(format!("User not found: {handle}"))
+      })?;
+
+    let account_age_days = parse_db_timestamp(&user.created_at)
+      .map(|created| {
+        let elapsed = chrono::Utc::now().signed_duration_since(created);
+        elapsed.num_days().max(0)
+      })
+      .unwrap_or(0);
+
+    let total_karma = user.post_karma + user.comment_karma;
+
+    let post_count: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM posts WHERE author_handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+
+    let weekly_withdrawn_wb: i64 = conn.query_row(
+      "SELECT COALESCE(SUM(ABS(amount)), 0) FROM wallet_tx
+       WHERE user_handle = ?1
+         AND description LIKE ?2
+         AND datetime(created_at) >= datetime('now', '-7 days')",
+      params![handle, format!("{WITHDRAW_TX_PREFIX}%")],
+      |r| r.get(0),
+    )?;
+
+    let weekly_remaining_wb = (WEEKLY_WITHDRAW_CAP_WB - weekly_withdrawn_wb).max(0);
+
+    let days_until_next_withdraw: i64 = conn
+      .query_row(
+        "SELECT created_at FROM wallet_tx
+         WHERE user_handle = ?1 AND description LIKE ?2
+         ORDER BY datetime(created_at) DESC LIMIT 1",
+        params![handle, format!("{WITHDRAW_TX_PREFIX}%")],
+        |r| r.get::<_, String>(0),
+      )
+      .ok()
+      .and_then(|ts| parse_db_timestamp(&ts))
+      .map(|last| {
+        let elapsed = chrono::Utc::now().signed_duration_since(last);
+        let days_since = elapsed.num_days().max(0);
+        (WITHDRAW_COOLDOWN_DAYS - days_since).max(0)
+      })
+      .unwrap_or(0);
+
+    let mut reasons = Vec::new();
+
+    if account_age_days < MIN_ACCOUNT_AGE_DAYS {
+      reasons.push(format!(
+        "Account must be at least {MIN_ACCOUNT_AGE_DAYS} days old ({account_age_days} days so far)"
+      ));
+    }
+    if total_karma < MIN_WITHDRAW_KARMA {
+      reasons.push(format!(
+        "Need at least {MIN_WITHDRAW_KARMA} total karma ({total_karma} now)"
+      ));
+    }
+    if post_count < MIN_WITHDRAW_POSTS {
+      reasons.push(format!(
+        "Need at least {MIN_WITHDRAW_POSTS} posts ({post_count} now)"
+      ));
+    }
+    if days_until_next_withdraw > 0 {
+      reasons.push(format!(
+        "Withdrawal cooldown: wait {days_until_next_withdraw} more day(s)"
+      ));
+    }
+    if weekly_remaining_wb == 0 {
+      reasons.push(format!(
+        "Weekly withdrawal cap reached ({WEEKLY_WITHDRAW_CAP_WB} WB per 7 days)"
+      ));
+    }
+
+    if let Some(amount) = amount_wb {
+      if amount < MIN_WITHDRAW_WB {
+        reasons.push(format!("Minimum withdrawal is {MIN_WITHDRAW_WB} WB"));
+      }
+      if amount > user.weix_bucks {
+        reasons.push("Insufficient WeixBucks balance".into());
+      }
+      if amount > weekly_remaining_wb {
+        reasons.push(format!(
+          "Amount exceeds weekly remaining allowance ({weekly_remaining_wb} WB left)"
+        ));
+      }
+    }
+
+    let eligible = reasons.is_empty();
+
+    Ok(WithdrawEligibility {
+      eligible,
+      reasons,
+      min_amount_wb: MIN_WITHDRAW_WB,
+      weekly_cap_wb: WEEKLY_WITHDRAW_CAP_WB,
+      weekly_withdrawn_wb,
+      weekly_remaining_wb,
+      cooldown_days: WITHDRAW_COOLDOWN_DAYS,
+      days_until_next_withdraw,
+      account_age_days,
+      min_account_age_days: MIN_ACCOUNT_AGE_DAYS,
+      total_karma,
+      min_karma: MIN_WITHDRAW_KARMA,
+      post_count,
+      min_posts: MIN_WITHDRAW_POSTS,
+      balance_wb: user.weix_bucks,
+      wb_to_blk_ratio: WB_TO_BLK_RATIO,
+      on_chain_ready: false,
+    })
+  }
+
+  #[cfg(test)]
+  pub fn test_backdate_user_created_at(&self, handle: &str, days_ago: i64) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "UPDATE users SET created_at = datetime('now', ?1) WHERE handle = ?2",
+      params![format!("-{days_ago} days"), handle],
+    )?;
+    Ok(())
+  }
+
+  #[cfg(test)]
+  pub fn test_set_weix_bucks(&self, handle: &str, amount: i64) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "UPDATE users SET weix_bucks = ?1 WHERE handle = ?2",
+      params![amount, handle],
+    )?;
+    Ok(())
   }
 
   pub fn deduct_weix_bucks(&self, handle: &str, amount: i64, description: &str) -> Result<i64> {

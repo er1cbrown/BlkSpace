@@ -31,6 +31,7 @@ import {
   useAppSendWeixBucks,
   useAppGetUser,
   useAppWithdrawToSolana,
+  useTauriGetWithdrawEligibility,
   useTauriMarketplace,
   useAppCreateMarketplaceListing,
   useAppBuyMarketplaceListing,
@@ -39,11 +40,13 @@ import {
 import {
   isTauri,
   type TauriWalletTx,
+  type TauriWithdrawEligibility,
   tauriClaimNodeRewards,
   tauriListUserBlobs,
 } from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { EarnRatesPanel } from "@/components/economy/EarnRatesPanel";
+import { WalletDisclaimer } from "@/components/economy/WalletDisclaimer";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
@@ -206,12 +209,80 @@ function SendDialog({ balance }: { balance: number }) {
   );
 }
 
+function WithdrawEligibilityPanel({
+  eligibility,
+}: {
+  eligibility: TauriWithdrawEligibility | undefined;
+}) {
+  if (!eligibility) return null;
+
+  const checks = [
+    {
+      ok: eligibility.accountAgeDays >= eligibility.minAccountAgeDays,
+      label: `Account age: ${eligibility.accountAgeDays}/${eligibility.minAccountAgeDays} days`,
+    },
+    {
+      ok: eligibility.totalKarma >= eligibility.minKarma,
+      label: `Karma: ${eligibility.totalKarma}/${eligibility.minKarma}`,
+    },
+    {
+      ok: eligibility.postCount >= eligibility.minPosts,
+      label: `Posts: ${eligibility.postCount}/${eligibility.minPosts}`,
+    },
+    {
+      ok: eligibility.daysUntilNextWithdraw === 0,
+      label:
+        eligibility.daysUntilNextWithdraw > 0
+          ? `Cooldown: ${eligibility.daysUntilNextWithdraw} day(s) remaining`
+          : `Cooldown: ${eligibility.cooldownDays}-day window clear`,
+    },
+    {
+      ok: eligibility.weeklyRemainingWb > 0,
+      label: `Weekly cap: ${eligibility.weeklyWithdrawnWb}/${eligibility.weeklyCapWb} WB used`,
+    },
+  ];
+
+  return (
+    <div className="rounded-lg border border-primary/10 p-3 space-y-2">
+      <p className="text-xs font-semibold">Withdrawal eligibility (draft rules)</p>
+      <ul className="text-xs space-y-1">
+        {checks.map((c) => (
+          <li
+            key={c.label}
+            className={c.ok ? "text-muted-foreground" : "text-destructive"}
+          >
+            {c.ok ? "✓" : "✗"} {c.label}
+          </li>
+        ))}
+      </ul>
+      {!eligibility.eligible && eligibility.reasons.length > 0 && (
+        <p className="text-xs text-destructive">{eligibility.reasons[0]}</p>
+      )}
+      <p className="text-[10px] text-muted-foreground">
+        Draft ratio: {eligibility.wbToBlkRatio.toLocaleString()} WB = 1 BLK
+        (display only; devnet simulated until counsel).
+      </p>
+    </div>
+  );
+}
+
 function WithdrawDialog({ balance }: { balance: number }) {
   const [solanaAddress, setSolanaAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [txSignature, setTxSignature] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
   const withdrawMut = useAppWithdrawToSolana();
   const { publicKey, signTransaction, connected } = useWallet();
+  const parsedAmount = parseInt(amount, 10);
+  const amountForCheck =
+    !Number.isNaN(parsedAmount) && parsedAmount > 0 ? parsedAmount : undefined;
+  const { data: eligibility } = useTauriGetWithdrawEligibility(amountForCheck);
+  const canSubmit =
+    eligibility?.eligible &&
+    solanaAddress.trim().length >= 32 &&
+    amountForCheck !== undefined &&
+    amountForCheck >= (eligibility?.minAmountWb ?? 100) &&
+    amountForCheck <= balance;
 
   const handleWithdraw = async () => {
     const amt = parseInt(amount, 10);
@@ -268,7 +339,7 @@ function WithdrawDialog({ balance }: { balance: number }) {
         setSolanaAddress("");
         setAmount("");
         toast.success(
-          "On-chain intent submitted via Anchor-style client + proxy (see solana-blueprint for full CPI)",
+          "Devnet intent recorded (simulated settlement — no mainnet mint)",
         );
         return;
       } catch (e) {
@@ -293,7 +364,9 @@ function WithdrawDialog({ balance }: { balance: number }) {
 
   return (
     <Dialog
+      open={dialogOpen}
       onOpenChange={(open) => {
+        setDialogOpen(open);
         if (!open) setTxSignature("");
       }}
     >
@@ -307,9 +380,10 @@ function WithdrawDialog({ balance }: { balance: number }) {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Withdraw to Solana (BLKCOIN)</DialogTitle>
+          <DialogTitle>Withdraw to Solana (draft bridge)</DialogTitle>
           <DialogDescription>
-            Convert your off-chain WeixBucks (WB) into on-chain BLKCOIN tokens.
+            Request conversion of earned WeixBucks to BlkCoin on devnet.
+            Settlement is simulated until legal counsel approves mainnet.
           </DialogDescription>
         </DialogHeader>
 
@@ -318,10 +392,10 @@ function WithdrawDialog({ balance }: { balance: number }) {
             <div className="p-3 bg-green-500/10 rounded-full w-12 h-12 flex items-center justify-center mx-auto text-green-500">
               <Zap className="w-6 h-6 animate-pulse" />
             </div>
-            <h4 className="font-bold text-lg">Withdrawal Successful!</h4>
+            <h4 className="font-bold text-lg">Withdrawal recorded</h4>
             <p className="text-sm text-muted-foreground px-4">
-              Your off-chain WeixBucks have been converted and the BLKCOIN
-              tokens are on the way to your Solana wallet.
+              WeixBucks were debited off-chain. On-chain BlkCoin minting is
+              simulated on devnet — no mainnet tokens until counsel approves.
             </p>
             <div className="bg-muted p-3 rounded-lg text-left">
               <Label className="text-xs text-muted-foreground block mb-1">
@@ -356,18 +430,7 @@ function WithdrawDialog({ balance }: { balance: number }) {
                 max={balance}
               />
             </div>
-            <div className="bg-accent/5 p-3 rounded-lg border border-primary/10 flex items-start gap-3">
-              <Coins className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <div className="text-xs space-y-1">
-                <p className="font-semibold">Hybrid Bridge Rules</p>
-                <p className="text-muted-foreground">
-                  1 WeixBuck (WB) = 1,000,000,000 BLKCOIN on Solana Devnet.
-                </p>
-                <p className="text-muted-foreground">
-                  Standard daily cap is 1,000 WB per student.
-                </p>
-              </div>
-            </div>
+            <WithdrawEligibilityPanel eligibility={eligibility} />
             <p className="text-xs text-muted-foreground">
               Available balance: {balance.toLocaleString()} WB
             </p>
@@ -393,17 +456,13 @@ function WithdrawDialog({ balance }: { balance: number }) {
               </DialogClose>
               <Button
                 onClick={handleWithdraw}
-                disabled={
-                  withdrawMut.isPending ||
-                  !solanaAddress.trim() ||
-                  !amount ||
-                  parseInt(amount, 10) < 100 ||
-                  parseInt(amount, 10) > balance
-                }
+                disabled={withdrawMut.isPending || !canSubmit}
               >
                 {withdrawMut.isPending
-                  ? "Signing CPI Mint..."
-                  : "Confirm & Withdraw"}
+                  ? "Processing..."
+                  : eligibility?.eligible
+                    ? "Confirm withdrawal"
+                    : "Not eligible"}
               </Button>
             </>
           )}
@@ -513,6 +572,8 @@ function WalletPageContent() {
           <WalletIcon className="w-7 h-7 text-primary" />
           <h1 className="text-3xl font-bold">Wallet</h1>
         </div>
+
+        <WalletDisclaimer />
 
         <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20 shadow-lg mb-8">
           <CardContent className="p-8">
