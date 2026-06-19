@@ -78,6 +78,20 @@ export interface TauriRsvpYardEventResult {
   earn: TauriEarnResult;
 }
 
+export interface TauriCommunityRoleEntry {
+  handle: string;
+  role: string;
+}
+
+export const YARD_ROLES = [
+  "Student",
+  "Yard Mod",
+  "Alum",
+  "Admin",
+] as const;
+
+export type YardRole = (typeof YARD_ROLES)[number];
+
 export interface TauriWallPostResult {
   wallPost: TauriWallPost;
   earn: TauriEarnResult;
@@ -1167,6 +1181,18 @@ export function tauriIsYardMember(
   communityId: string,
 ): Promise<boolean> {
   return invoke("is_yard_member", { sessionToken, communityId });
+}
+
+export function tauriListYardMembers(
+  communityId: string,
+): Promise<string[]> {
+  return invoke("list_yard_members", { communityId });
+}
+
+export function tauriListCommunityRoles(
+  communityId: string,
+): Promise<TauriCommunityRoleEntry[]> {
+  return invoke("list_community_roles", { communityId });
 }
 
 export function tauriListYardEvents(

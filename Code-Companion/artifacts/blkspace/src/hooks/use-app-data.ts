@@ -1251,6 +1251,48 @@ export function useTauriIsYardMember(communityId: string) {
   });
 }
 
+export function useTauriListYardMembers(communityId: string) {
+  return useQuery({
+    queryKey: ["tauri", "yardMembers", communityId],
+    queryFn: () => tauri.tauriListYardMembers(communityId),
+    enabled: IS_TAURI && !!communityId,
+  });
+}
+
+export function useTauriListCommunityRoles(communityId: string) {
+  return useQuery({
+    queryKey: ["tauri", "communityRoles", communityId],
+    queryFn: () => tauri.tauriListCommunityRoles(communityId),
+    enabled: IS_TAURI && !!communityId,
+  });
+}
+
+export function useTauriSetCommunityRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: {
+      communityId: string;
+      handle: string;
+      role: string;
+    }) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return tauri.tauriSetCommunityRole(
+        token,
+        args.communityId,
+        args.handle,
+        args.role,
+      );
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({
+        queryKey: ["tauri", "communityRoles", vars.communityId],
+      });
+      qc.invalidateQueries({ queryKey: ["tauri", "users"] });
+    },
+  });
+}
+
 export function useTauriListYardEvents(communityId: string) {
   return useQuery({
     queryKey: ["tauri", "yardEvents", communityId],

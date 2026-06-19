@@ -231,6 +231,13 @@ pub struct YardEvent {
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct CommunityRoleEntry {
+  pub handle: String,
+  pub role: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct RsvpYardEventResult {
   pub rsvped: bool,
   pub status: String,
@@ -2654,16 +2661,21 @@ impl Database {
     Ok(role)
   }
 
-  pub fn list_community_roles(&self, community_id: &str) -> Result<Vec<(String, String)>> {
+  pub fn list_community_roles(&self, community_id: &str) -> Result<Vec<CommunityRoleEntry>> {
     let conn = self.conn.lock().unwrap();
     let mut stmt = conn.prepare(
-      "SELECT handle, role FROM community_roles WHERE community_id = ?1"
+      "SELECT handle, role FROM community_roles WHERE community_id = ?1 ORDER BY role, handle"
     )?;
     let rows = stmt.query_map(params![community_id], |row| {
-      Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+      Ok(CommunityRoleEntry {
+        handle: row.get(0)?,
+        role: row.get(1)?,
+      })
     })?;
     let mut res = vec![];
-    for r in rows { res.push(r?); }
+    for r in rows {
+      res.push(r?);
+    }
     Ok(res)
   }
 

@@ -21,7 +21,7 @@ use key_store::KeyStore;
 use db::{
   AppError, ApproveWallPostResult, BlobRecord, Community, CreatePostResult, CreateReplyResult,
   CrossTownEvent, Database, EarnResult, EarnSummary, JoinYardResult, KarmaLeaderboardEntry,
-  RepostFeedItem, RepostResult, RsvpYardEventResult, YardEvent,
+  CommunityRoleEntry, RepostFeedItem, RepostResult, RsvpYardEventResult, YardEvent,
   NetworkStats,
   Notification, Post, Relay, Reply, UploadBlobResult, User, WalletTx, WallPost, WallPostResult,
   RelayConnectionRecord, RelayEventRecord,
@@ -2687,6 +2687,17 @@ fn list_yard_members(state: State<AppState>, community_id: String) -> Result<Vec
 }
 
 #[tauri::command]
+fn list_community_roles(
+  state: State<AppState>,
+  community_id: String,
+) -> Result<Vec<CommunityRoleEntry>, String> {
+  state
+    .db
+    .list_community_roles(&community_id)
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
 fn list_yard_events(
   state: State<AppState>,
   community_id: String,
@@ -3188,6 +3199,7 @@ pub fn run() {
       leave_yard,
       is_yard_member,
       list_yard_members,
+      list_community_roles,
       list_yard_events,
       create_yard_event,
       rsvp_yard_event,

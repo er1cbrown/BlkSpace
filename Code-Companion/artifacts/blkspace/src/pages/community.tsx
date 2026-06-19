@@ -28,12 +28,12 @@ import {
   useTauriListChannels,
   useTauriListPostsForChannel,
   useAppCreatePost,
-  useTauriListUsers,
   useTauriJoinYard,
   useTauriIsYardMember,
 } from "@/hooks/use-app-data";
 import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { YardEventsPanel } from "@/components/community/YardEventsPanel";
+import { YardMembersPanel } from "@/components/community/YardMembersPanel";
 import { SafeContent } from "@/components/ui/safe-content";
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { SignatureBadge } from "@/components/ui/signature-badge";
@@ -43,9 +43,6 @@ import {
   type TauriCommunity,
   tauriCreateChannel,
   tauriCreateReply,
-  tauriSetNodeRole,
-  tauriSetCommunityRole,
-  tauriGetCommunityRole,
   tauriListReplies,
   type TauriPost,
 } from "@/lib/tauri-api";
@@ -121,11 +118,9 @@ export default function CommunityPage() {
   const [activeTab, setActiveTab] = useState("chat");
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [draft, setDraft] = useState("");
-  const [commRoles, setCommRoles] = useState<Record<string, string>>({});
   const [postReplies, setPostReplies] = useState<Record<number, any[]>>({});
 
   const { data: tauriCommunities } = useTauriGetCommunities();
-  const { data: tauriUsers } = useTauriListUsers();
   const { data: tauriChannelsData } = useTauriListChannels(id);
   const { data: tauriChannelPosts = [] } = useTauriListPostsForChannel(
     activeChannel.replace(/^#/, "").replace(/-hall$/, ""),
@@ -151,36 +146,6 @@ export default function CommunityPage() {
       toast.error(String(e));
     }
   };
-
-  const handleAssignRole = async (targetHandle: string, role: string) => {
-    const token = getSessionToken();
-    if (!token) {
-      toast.error("Sign in to manage roles");
-      return;
-    }
-    try {
-      await tauriSetCommunityRole(token, id, targetHandle, role);
-      setCommRoles((prev) => ({ ...prev, [targetHandle]: role }));
-      qc.invalidateQueries({ queryKey: ["tauri", "users"] });
-      toast.success(`Assigned ${role} to @${targetHandle} in this yard`);
-    } catch (e) {
-      toast.error(String(e));
-    }
-  };
-
-  // Load per-community roles for members
-  useEffect(() => {
-    if (!isTauri() || !tauriUsers) return;
-    const token = getSessionToken();
-    if (!token) return;
-    const members = (tauriUsers || []).filter((u: any) => u.town === id);
-    members.forEach(async (u: any) => {
-      try {
-        const r = await tauriGetCommunityRole(token, id, u.handle);
-        setCommRoles((prev) => ({ ...prev, [u.handle]: r }));
-      } catch {}
-    });
-  }, [tauriUsers, id]);
 
   // Load replies for threaded nesting in channel chat (scoped to these posts)
   useEffect(() => {
@@ -431,7 +396,7 @@ export default function CommunityPage() {
                   variant="outline"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => toast("Role management in Phase 2")}
+                  onClick={() => setActiveTab("members")}
                 >
                   👥 Manage Roles
                 </Button>
@@ -584,92 +549,11 @@ export default function CommunityPage() {
               </TabsContent>
 
               <TabsContent value="members">
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {(isTauri() && tauriUsers
-                        ? tauriUsers.filter((u: any) => u.town === id)
-                        : []
-                      ).length > 0
-                        ? (tauriUsers || [])
-                            .filter((u: any) => u.town === id)
-                            .map((u: any, i: number) => (
-                              <div
-                                key={i}
-                                className="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-muted/40 border"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <Avatar>
-                                    <AvatarFallback>
-                                      {u.displayName?.[0] ||
-                                        u.handle?.[0] ||
-                                        "M"}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <div className="font-medium">
-                                      {u.displayName || u.handle}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                      {commRoles[u.handle] ||
-                                        u.nodeRole ||
-                                        "Student"}{" "}
-                                      · {u.weixBucks || 0} WB
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                      handleAssignRole(u.handle, "Yard Mod")
-                                    }
-                                  >
-                                    Make Mod
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                      handleAssignRole(u.handle, "Student")
-                                    }
-                                  >
-                                    Student
-                                  </Button>
-                                </div>
-                              </div>
-                            ))
-                        : Array.from({ length: 8 }).map((_, i) => (
-                            <div
-                              key={i}
-                              className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/40"
-                            >
-                              <Avatar>
-                                <AvatarFallback>M{i}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="font-medium">
-                                  Member {i + 1}
-                                </div>
-                                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                  {i % 3 === 0
-                                    ? "Moderator"
-                                    : i % 2 === 0
-                                      ? "Alum"
-                                      : "Student"}{" "}
-                                  · {Math.floor(Math.random() * 400) + 50} posts
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2 text-center">
-                      Per-community roles (community_roles table). Assign via
-                      buttons (persisted per yard).
-                    </p>
-                  </CardContent>
-                </Card>
+                <YardMembersPanel
+                  communityId={id}
+                  communityName={community.name}
+                  isMember={isMember}
+                />
               </TabsContent>
 
               <TabsContent value="events">

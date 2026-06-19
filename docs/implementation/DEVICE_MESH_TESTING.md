@@ -18,6 +18,19 @@ Test BlkSpace across multiple devices to verify:
 
 **Terminology:** “Mesh” here means **multi-device hub sync**, not a BLE peer mesh.
 
+### P1 quick start (Device A + Device B)
+
+Minimum path to close the M0 manual gate:
+
+1. **Device A** — dev build or tagged release; create `@test_user`, save mnemonic
+2. **Device B** — install same build; Tier 0 hardware if possible (4 GB / i3)
+3. **Recover** `@test_user` on Device B (§1.4) — same handle + balance
+4. **Sync** — post on A, appears on B within 60s (§1.5)
+5. **Bots** — create local bot accounts on Device B; assign **Yard Mod** (§2.6)
+6. **Offline** — queue + flush on Device B (§3.1)
+7. **Tier 0** — Sync Test → Performance on Device B (§4.1)
+8. **Record** — fill test results template at bottom; update `docs/phase-0-status.md`
+
 ---
 
 ## Test Device Matrix
@@ -159,6 +172,48 @@ pnpm tauri dev
    - [ ] @user_b balance: 92
    - [ ] @user_a balance: 116
    - [ ] Transaction visible in both wallets
+
+### 2.6 Yard mods & bot accounts (Device B pilot prep)
+
+Use this when deepening backend/tests with **Device B + local bot accounts** before a live HBCU pilot.
+
+> **Note:** `community_roles` live in **local SQLite per install** — not Nostr-synced yet. Assign roles on the device where those accounts exist (typically Device B for bot accounts).
+
+**Device B — create bot accounts**
+
+1. Install / open BlkSpace on Device B (see §1.1)
+2. Create 2–3 test accounts (e.g. `@bot_mod`, `@bot_student`, `@bot_alum`) via Welcome Wizard
+3. Each bot: **Join Yard** on TSU (or target yard) — earns +5 WB once
+
+**Device B — assign yard mod (confirms P5 UI)**
+
+1. Sign in as your primary tester (or a bot you promote first)
+2. Go to **Communities → TSU Yard → Members** (or Quick Actions → **Manage Roles**)
+3. Tap **Role** on `@bot_mod` → select **Yard Mod** → **Review assignment** → **Make Yard Mod**
+4. Verify:
+   - [ ] Success toast: `@bot_mod is now Yard Mod`
+   - [ ] **Yard Mod** badge visible on member card immediately
+   - [ ] Pilot banner shows your role + mod count
+   - [ ] Re-open Members tab — badge persists after navigation
+
+**Device B — mod powers smoke (local)**
+
+1. As `@bot_mod`, post in `#general` and create a yard event (Events tab)
+2. As `@bot_student`, RSVP to event — verify +2 WB earn toast
+3. Optional: assign **Alum** / **Student** to other bots and confirm badge updates
+
+**Device A ↔ B (what syncs vs what doesn’t)**
+
+| Data | Cross-device via relays? |
+|------|-------------------------|
+| Posts, replies, likes | ✅ Yes (Nostr) |
+| Wallet earn (WB) | ✅ Per account on each device after sync |
+| Yard membership | Local per install (re-join on each device) |
+| **Yard roles (mod badges)** | ❌ Local SQLite only — re-assign on each install |
+
+**M0 checklist tie-in (run on Device B)**
+
+After §2.6, continue with Phase 1 recovery (§1.4–1.5), Phase 3 offline (§3.1), and Tier 0 bench (§4.1). Check boxes in the test results template at the bottom of this doc.
 
 ---
 
