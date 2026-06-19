@@ -34,6 +34,7 @@ import {
   useTauriMarketplace,
   useAppCreateMarketplaceListing,
   useAppBuyMarketplaceListing,
+  useTauriPublishMix,
 } from "@/hooks/use-app-data";
 import {
   isTauri,
@@ -417,6 +418,7 @@ export default function WalletPage() {
   const { data: listings = [] } = useTauriMarketplace();
   const createListing = useAppCreateMarketplaceListing();
   const buyListing = useAppBuyMarketplaceListing();
+  const publishMix = useTauriPublishMix();
   const { publicKey, signTransaction, connected } = useWallet();
 
   const txHistory =
@@ -440,6 +442,10 @@ export default function WalletPage() {
     price: 10,
     title: "",
     description: "",
+    // mix metadata for 30078
+    bpm: undefined as number | undefined,
+    key: "",
+    tracklist: "",
   });
   const [userMedia, setUserMedia] = useState<any[]>([]);
 
@@ -692,9 +698,8 @@ export default function WalletPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="media">
-                          Media/Mix (from your uploads)
-                        </SelectItem>
+                        <SelectItem value="media">Media (photo/video/audio)</SelectItem>
+                        <SelectItem value="mix">Mix (DJ mix w/ metadata + 30078)</SelectItem>
                         <SelectItem value="service">Service</SelectItem>
                         <SelectItem value="theme">Theme</SelectItem>
                         <SelectItem value="ticket">Event Ticket</SelectItem>
@@ -724,6 +729,57 @@ export default function WalletPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                    )}
+
+                    {newItem.itemType === "mix" && isTauri() && (
+                      <>
+                        <Select
+                          value={newItem.itemRef}
+                          onValueChange={(v) =>
+                            setNewItem({
+                              ...newItem,
+                              itemRef: v,
+                              title:
+                                userMedia.find((m: any) => m.hash === v)
+                                  ?.filename || "",
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select mix audio from uploads (Iroh CID)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {userMedia.map((m: any) => (
+                              <SelectItem key={m.hash} value={m.hash}>
+                                {m.filename} ({(m.fileSize / 1024).toFixed(0)}KB)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            placeholder="BPM (e.g. 140)"
+                            type="number"
+                            value={newItem.bpm ?? ""}
+                            onChange={(e) =>
+                              setNewItem({
+                                ...newItem,
+                                bpm: e.target.value ? parseInt(e.target.value) : undefined,
+                              })
+                            }
+                          />
+                          <Input
+                            placeholder="Key (e.g. Am, C#)"
+                            value={newItem.key}
+                            onChange={(e) => setNewItem({ ...newItem, key: e.target.value })}
+                          />
+                        </div>
+                        <Input
+                          placeholder="Tracklist (comma separated)"
+                          value={newItem.tracklist}
+                          onChange={(e) => setNewItem({ ...newItem, tracklist: e.target.value })}
+                        />
+                      </>
                     )}
                     <Input
                       placeholder="Title"
@@ -758,8 +814,18 @@ export default function WalletPage() {
                           return;
                         }
                         const isNft =
-                          newItem.itemType === "media" && !!newItem.itemRef; // mark media as NFT-ish
+                          (newItem.itemType === "media" || newItem.itemType === "mix") && !!newItem.itemRef;
                         try {
+                          if (newItem.itemType === "mix" && newItem.itemRef) {
+                            // First-class mix: publish 30078 with metadata
+                            await publishMix.mutateAsync({
+                              cid: newItem.itemRef,
+                              title: newItem.title,
+                              bpm: newItem.bpm,
+                              key: newItem.key || undefined,
+                              tracklist: newItem.tracklist || undefined,
+                            });
+                          }
                           await createListing.mutateAsync({
                             itemType: newItem.itemType,
                             itemRef: newItem.itemRef || null,
@@ -775,9 +841,14 @@ export default function WalletPage() {
                             price: 10,
                             title: "",
                             description: "",
+                            bpm: undefined,
+                            key: "",
+                            tracklist: "",
                           });
                           toast.success(
-                            "Listed! Published as Nostr 30081 if NFT.",
+                            newItem.itemType === "mix"
+                              ? "Mix published as 30078 + listed (30081 if NFT). 8 WB credited."
+                              : "Listed! Published as Nostr 30081 if NFT.",
                           );
                         } catch (e) {
                           toast.error(String(e));

@@ -395,6 +395,17 @@ export function tauriBuyMarketplaceListing(
   return invoke("buy_marketplace_listing", { sessionToken, listingId });
 }
 
+export function tauriPublishMix(
+  sessionToken: string,
+  cid: string,
+  title: string,
+  bpm?: number,
+  key?: string,
+  tracklist?: string,
+): Promise<string> {
+  return invoke("publish_mix", { sessionToken, cid, title, bpm, key, tracklist });
+}
+
 export function tauriListPosts(
   town?: string,
   currentUser?: string,

@@ -648,6 +648,30 @@ export function useAppCreateMarketplaceListing() {
   });
 }
 
+export function useTauriPublishMix() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: {
+      cid: string;
+      title: string;
+      bpm?: number;
+      key?: string;
+      tracklist?: string;
+    }) =>
+      tauri.tauriPublishMix(
+        getSessionToken() || "",
+        args.cid,
+        args.title,
+        args.bpm,
+        args.key,
+        args.tracklist,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
+    },
+  });
+}
+
 export function useAppBuyMarketplaceListing() {
   const qc = useQueryClient();
   return useMutation({

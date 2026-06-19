@@ -892,6 +892,62 @@ fn create_marketplace_listing(
 }
 
 #[tauri::command]
+fn publish_mix(
+  state: State<AppState>,
+  session_token: String,
+  cid: String,
+  title: String,
+  bpm: Option<i32>,
+  key: Option<String>,
+  tracklist: Option<String>,
+) -> Result<String, String> {
+  let author = get_handle_from_session(&state, &session_token)?;
+  if state.relay_manager.lock().unwrap().relay_count() == 0 {
+    return Err("No relays connected".to_string());
+  }
+  let keys = match user_nostr_keys_for_publish(&state, &author, "mix publish") {
+    Some(k) => k,
+    None => return Err("No Nostr signing key for user".to_string()),
+  };
+
+  let content = format!("DJ Mix: {}", title);
+  let mut tags: Vec<Vec<String>> = vec![
+    vec!["t".to_string(), "blkspace".to_string()],
+    vec!["cid".to_string(), cid.clone()],
+    vec!["title".to_string(), title.clone()],
+  ];
+  if let Some(b) = bpm {
+    tags.push(vec!["bpm".to_string(), b.to_string()]);
+  }
+  if let Some(k) = key {
+    tags.push(vec!["key".to_string(), k]);
+  }
+  if let Some(tl) = tracklist {
+    tags.push(vec!["tracklist".to_string(), tl]);
+  }
+
+  let client = state.relay_manager.lock().unwrap().client().clone();
+  if let Ok(rt) = tokio::runtime::Runtime::new() {
+    let _ = rt.block_on(async {
+      use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+      let ntags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+      let event = EventBuilder::new(Kind::Custom(30078), &content)
+        .tags(ntags)
+        .sign(&keys)
+        .await
+        .map_err(|e| format!("Nostr sign: {}", e))?;
+      let _ = client.send_event(event).await;
+      Ok::<_, String>(())
+    });
+  }
+
+  // Reward per reward-formulas.md: DJ mix upload 8 WB
+  let _ = state.db.grant_weix_bucks(&author, 8, "DJ mix published");
+
+  Ok(cid)
+}
+
+#[tauri::command]
 fn buy_marketplace_listing(state: State<AppState>, session_token: String, listing_id: i64) -> Result<Option<serde_json::Value>, String> {
   let buyer = get_handle_from_session(&state, &session_token)?;
   let result = state.db.buy_marketplace_listing(listing_id, &buyer).map_err(|e| e.to_string())?;
@@ -2983,6 +3039,7 @@ pub fn run() {
       list_marketplace,
       create_marketplace_listing,
       buy_marketplace_listing,
+      publish_mix,
       list_posts,
       get_post,
       create_post,
