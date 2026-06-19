@@ -6,17 +6,18 @@ export function WalletDisclaimer() {
     <Alert className="mb-6 border-amber-500/30 bg-amber-500/5">
       <Scale className="h-4 w-4 text-amber-600" />
       <AlertTitle className="text-amber-900 dark:text-amber-200">
-        Utility credits — not an investment
+        Kalshi-style settlement — not an investment
       </AlertTitle>
       <AlertDescription className="text-muted-foreground space-y-1.5">
         <p>
-          WeixBucks are in-app utility credits for participating on the yard.
-          They have no promised cash value and cannot be purchased.
+          WeixBucks are earn-only platform credits (like exchange collateral,
+          but not purchasable with real money). Tips and marketplace trades
+          include published platform fees.
         </p>
         <p>
-          BlkCoin withdrawal is a <strong>draft</strong> devnet bridge only —
-          settlement is simulated until legal counsel approves mainnet. No
-          mainnet tokens are minted today.
+          BlkCoin is an optional <strong>settlement receipt</strong> for earned
+          value after eligibility checks — devnet simulated until counsel
+          approves mainnet. No speculative token launch.
         </p>
       </AlertDescription>
     </Alert>

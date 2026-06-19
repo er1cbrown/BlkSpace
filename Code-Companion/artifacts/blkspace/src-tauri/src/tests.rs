@@ -3,8 +3,10 @@ mod tests {
   use sha2::{Digest, Sha256};
   use rusqlite;
   use crate::db::{
-    Database, DAILY_WB_EARN_CAP, MIN_WITHDRAW_KARMA, MIN_WITHDRAW_POSTS, MIN_WITHDRAW_WB,
-    WEEKLY_WITHDRAW_CAP_WB, validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
+    Database, DAILY_WB_EARN_CAP, MARKETPLACE_PLATFORM_FEE_BPS, MIN_WITHDRAW_KARMA,
+    MIN_WITHDRAW_POSTS, MIN_WITHDRAW_WB, TIP_PLATFORM_FEE_BPS, TokenomicsPolicy,
+    WEEKLY_WITHDRAW_CAP_WB, calc_platform_fee, validate_handle, validate_display_name,
+    validate_content, validate_bio, validate_town,
   };
 
   const NO_CHANNEL: &str = "";
@@ -165,11 +167,11 @@ mod tests {
     let sender = db.get_user("sender").unwrap().unwrap();
     assert_eq!(sender.weix_bucks, 100);
     
-    // Send WeixBucks
+    // Send WeixBucks (2% platform fee: 50 sent, 1 fee burned, 49 received)
     let (sender_new, receiver_new) = db.send_weixbucks("sender", "receiver", 50).unwrap();
     
     assert_eq!(sender_new, 50);
-    assert_eq!(receiver_new, 150);
+    assert_eq!(receiver_new, 149);
     
     // Check sender wallet
     let sender_txs = db.get_wallet_tx("sender").unwrap();
@@ -177,11 +179,11 @@ mod tests {
     assert_eq!(sender_txs[0].tx_type, "spend");
     assert_eq!(sender_txs[0].amount, -50);
     
-    // Check receiver wallet
+    // Check receiver wallet (net after 2% platform fee)
     let receiver_txs = db.get_wallet_tx("receiver").unwrap();
     assert_eq!(receiver_txs.len(), 1);
     assert_eq!(receiver_txs[0].tx_type, "earn");
-    assert_eq!(receiver_txs[0].amount, 50);
+    assert_eq!(receiver_txs[0].amount, 49);
   }
 
   #[test]
@@ -264,6 +266,27 @@ mod tests {
     assert!(!elig.eligible);
     assert_eq!(elig.weekly_remaining_wb, 400);
     assert!(elig.reasons.iter().any(|r| r.contains("weekly")));
+  }
+
+  #[test]
+  fn test_platform_fee_on_tip() {
+    let db = setup_test_db();
+    db.create_user("tipper", "Tipper", "").unwrap();
+    db.create_user("creator", "Creator", "").unwrap();
+    let fee = calc_platform_fee(50, TIP_PLATFORM_FEE_BPS);
+    assert_eq!(fee, 1);
+    let (_, receiver_new) = db.send_weixbucks("tipper", "creator", 50).unwrap();
+    assert_eq!(receiver_new, 100 + 50 - fee);
+  }
+
+  #[test]
+  fn test_tokenomics_policy_published() {
+    let policy = TokenomicsPolicy::published();
+    assert_eq!(policy.model, "kalshi-regulated-settlement");
+    assert_eq!(policy.tip_fee_bps, TIP_PLATFORM_FEE_BPS);
+    assert_eq!(policy.marketplace_fee_bps, MARKETPLACE_PLATFORM_FEE_BPS);
+    assert!(!policy.purchasable);
+    assert!(!policy.on_chain_ready);
   }
 
   #[test]

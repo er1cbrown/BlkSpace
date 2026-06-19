@@ -47,8 +47,8 @@ The hub must theoretically support the full amalgamation without central servers
 
 | Token | Tier | Earned via | Spent on |
 |-------|------|------------|----------|
-| **WeixBucks** | Everyday | Uploads, engagement, light node work | Tips, boosts, marketplace fees, profile customizations |
-| **BlkCoin** | Premium meme-coin | Viral/top content, sustained node contributions | NFT tickets, governance, prestige items, future cashout |
+| **WeixBucks** | Platform credits (Kalshi collateral analog) | Uploads, engagement, light node work | Tips, boosts, marketplace (published fees) |
+| **BlkCoin** | Settlement receipt (counsel-gated) | Optional withdrawal of **earned** WB only | On-chain receipt; not daily earn or speculation |
 
 ### Sources (Mint / Earn)
 

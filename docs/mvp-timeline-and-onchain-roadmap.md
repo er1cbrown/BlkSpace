@@ -190,22 +190,22 @@ Earn WB off-chain (free, capped, audited)
 > WeixBucks = credits for creating and participating on the yard.  
 > BlkCoin = optional on-chain receipt of **earned** value — not an investment product.
 
-### Proposed tokenomics policy (ethical default)
+### Tokenomics policy — Kalshi-style regulated settlement
+
+Canonical doc: **`docs/tokenomics-kalshi-model.md`**
 
 ```
-WEIXBUCKS (off-chain)
+WEIXBUCKS (off-chain) — platform credits, not a security
 ├── Earn: creation, engagement, node work (capped 250/day)
-├── Spend: tips, boosts, themes, marketplace (sinks)
-├── Never: purchasable, transferable off-platform, promised USD value
+├── Spend: tips (2% fee), marketplace (5% fee), themes, boosts
+├── Never: purchasable, off-platform transfer, ROI marketing
 └── Audit: signed Nostr events + SQLite
 
-BLKCOIN (on-chain, Phase 4+)
-├── Mint: ONLY via treasury after WB withdrawal + eligibility check
-├── Ratio: fixed (e.g. 1000 WB = 1 BLK) — published, not pump-driven
+BLKCOIN (on-chain, Phase 4+) — settlement receipt, not memecoin
+├── Mint: ONLY via treasury after WB withdrawal + eligibility + 1% settlement fee
+├── Ratio: fixed 1000 WB = 1 BLK (published schedule)
 ├── Cap: max withdrawal per user per week
-├── Supply: hard cap; mint authority revoked at cap
-├── Sinks: NFT tickets, premium themes, burn on settlement
-└── No: presale, insider airdrop, “investment” marketing
+└── No: presale, insider airdrop, prediction-market trading on yard events
 
 KARMA — off-chain forever (ranking only)
 ```

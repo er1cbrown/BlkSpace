@@ -118,6 +118,19 @@ export interface TauriEarnSummary {
   uploadsCount: number;
 }
 
+export interface TauriTokenomicsPolicy {
+  model: string;
+  tipFeeBps: number;
+  marketplaceFeeBps: number;
+  withdrawSettlementFeeBps: number;
+  dailyEarnCapWb: number;
+  minWithdrawWb: number;
+  weeklyWithdrawCapWb: number;
+  wbToBlkRatio: number;
+  purchasable: boolean;
+  onChainReady: boolean;
+}
+
 export interface TauriWithdrawEligibility {
   eligible: boolean;
   reasons: string[];
@@ -562,6 +575,10 @@ export function tauriSendWeixBucks(
   amount: number,
 ): Promise<[number, number]> {
   return invoke("send_weixbucks", { sessionToken, toHandle, amount });
+}
+
+export function tauriGetTokenomicsPolicy(): Promise<TauriTokenomicsPolicy> {
+  return invoke("get_tokenomics_policy");
 }
 
 export function tauriGetWithdrawEligibility(

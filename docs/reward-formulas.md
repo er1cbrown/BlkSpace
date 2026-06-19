@@ -9,9 +9,10 @@
 ## Principles
 
 1. Tier 0 nodes must earn meaningfully
-2. Transparent math published in client
+2. Transparent math published in client (**Kalshi-style** published fee schedule — see `tokenomics-kalshi-model.md`)
 3. Engagement Quality reduces Sybil/forgery impact
 4. All rewards = signed Nostr events + SQLite cache
+5. **No speculative token** — WB = earn-only credits; BlkCoin = optional settlement receipt
 
 ---
 
@@ -66,15 +67,17 @@ final_reward = base_reward × engagement_quality × node_bonus
 
 ---
 
-## BlkCoin — Premium Grants (simulated Phase 3, on-chain Phase 4)
+## BlkCoin — Settlement rail (Kalshi payout analog; Phase 4+)
 
-| Trigger | Grant (draft) |
-|---------|---------------|
-| Top 1% weekly uploads | 1 BC |
-| Top 10% weekly node operators | 0.5 BC |
-| Viral cross-town trending | 2 BC |
+BlkCoin is **not** a daily earn memecoin. It is minted only when eligible users **withdraw** settled WB (counsel-gated).
 
-**Supply policy:** Low issuance; sinks via NFT tickets, boosts, fees.
+| Mechanism | Policy |
+|-----------|--------|
+| Mint path | Treasury after WB debit + eligibility check |
+| Ratio | 1,000 WB → 1 BLK (fixed, published) |
+| Operator bonuses | Deferred until counsel; no viral “grants” marketing |
+
+**Supply policy:** Hard cap; mint authority revoked at cap; sinks via fees and burns.
 
 ---
 
@@ -92,11 +95,21 @@ final_reward = base_reward × engagement_quality × node_bonus
 
 Karma affects visibility ranking and the `/leaderboard` page. WB remains the **only** spendable currency for tips, boosts, and marketplace. Both respect MIDF throttle when `overallScore > 0.7`.
 
+## Platform fees (Kalshi-style — implemented)
+
+| Activity | Fee | Constant |
+|----------|-----|----------|
+| Tip / peer send | 2% | `TIP_PLATFORM_FEE_BPS = 200` |
+| Marketplace purchase | 5% | `MARKETPLACE_PLATFORM_FEE_BPS = 500` |
+| Withdrawal settlement | 1% | `WITHDRAW_SETTLEMENT_FEE_BPS = 100` |
+
+Fee is burned (reduces WB in circulation). Recipient receives net on transfers.
+
 ## Sinks (WeixBucks spend)
 
 | Action | Cost (draft) |
 |--------|--------------|
-| Tip | User-defined |
+| Tip | User-defined + platform fee |
 | Profile theme unlock | 20 WB |
 | Feed boost (24h) | 15 WB |
 | Marketplace listing fee | 5 WB |

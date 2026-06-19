@@ -685,6 +685,15 @@ export function useAppBuyMarketplaceListing() {
   });
 }
 
+export function useTauriGetTokenomicsPolicy() {
+  return useQuery({
+    queryKey: ["tauri", "tokenomics-policy"],
+    queryFn: tauri.tauriGetTokenomicsPolicy,
+    enabled: IS_TAURI,
+    staleTime: 60_000,
+  });
+}
+
 export function useTauriGetWithdrawEligibility(amountWb?: number) {
   const parsed =
     amountWb !== undefined && !Number.isNaN(amountWb) ? amountWb : undefined;

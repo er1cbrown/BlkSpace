@@ -1,11 +1,10 @@
 /**
- * BlkSpace has two separate reputation/economy systems:
+ * Kalshi-style tokenomics (see docs/tokenomics-kalshi-model.md):
  *
- * - **WeixBucks (WB)** — spendable in-app currency (tips, boosts, themes, shop).
- *   Earned from posts, uploads, yard activity. Subject to MIDF throttle + 250 WB/day cap.
+ * - **WeixBucks (WB)** — earn-only platform credits. Tips/marketplace include published fees.
+ *   MIDF throttle + 250 WB/day cap. Withdrawal = optional settlement rail (counsel-gated).
  *
- * - **Karma** — Reddit-style reputation (post karma + comment karma). Not purchasable,
- *   not convertible to WB. Affects visibility ranking and leaderboard standing.
+ * - **Karma** — reputation only. Not purchasable, not convertible to WB.
  */
 
 /** Nominal WB rewards — must match `db.rs` throttle_rewards bases. */

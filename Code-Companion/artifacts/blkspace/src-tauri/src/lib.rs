@@ -25,7 +25,7 @@ use db::{
   YardEvent,
   NetworkStats,
   Notification, Post, Relay, Reply, UploadBlobResult, User, WalletTx, WallPost, WallPostResult,
-  WithdrawEligibility,
+  TokenomicsPolicy, WithdrawEligibility, WITHDRAW_SETTLEMENT_FEE_BPS, calc_platform_fee,
   RelayConnectionRecord, RelayEventRecord,
   validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
 };
@@ -1284,6 +1284,11 @@ fn send_weixbucks(
 }
 
 #[tauri::command]
+fn get_tokenomics_policy() -> TokenomicsPolicy {
+  TokenomicsPolicy::published()
+}
+
+#[tauri::command]
 fn get_withdraw_eligibility(
   state: State<AppState>,
   session_token: String,
@@ -1324,9 +1329,16 @@ fn withdraw_to_solana(
     );
   }
 
-  // Deduct WeixBucks and insert wallet transaction (simulated on-chain settlement until counsel)
-  let desc = format!("Withdrawn to Solana address: {}...", &student_solana_address[0..8]);
-  let _new_balance = state.db.deduct_weix_bucks(&user_handle, amount_wb, &desc)
+  // Kalshi-style settlement: debit principal + published settlement fee (simulated on-chain until counsel)
+  let settlement_fee = calc_platform_fee(amount_wb, WITHDRAW_SETTLEMENT_FEE_BPS);
+  let total_debit = amount_wb + settlement_fee;
+  let desc = format!(
+    "Withdrawn to Solana address: {}... ({} WB settlement + {} WB fee)",
+    &student_solana_address[0..8],
+    amount_wb,
+    settlement_fee,
+  );
+  let _new_balance = state.db.deduct_weix_bucks(&user_handle, total_debit, &desc)
     .map_err(|e| e.to_string())?;
   
   // Simulate Solana transaction hash generation (Base58, 88 chars)
@@ -3159,6 +3171,7 @@ pub fn run() {
       get_notifications,
       get_wallet_tx,
       send_weixbucks,
+      get_tokenomics_policy,
       get_withdraw_eligibility,
       withdraw_to_solana,
       get_network_stats,

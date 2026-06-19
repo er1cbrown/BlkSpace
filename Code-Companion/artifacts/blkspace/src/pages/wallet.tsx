@@ -47,6 +47,8 @@ import {
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { EarnRatesPanel } from "@/components/economy/EarnRatesPanel";
 import { WalletDisclaimer } from "@/components/economy/WalletDisclaimer";
+import { TokenomicsKalshiPanel } from "@/components/economy/TokenomicsKalshiPanel";
+import { formatFeePercent, FEE_BPS } from "@/lib/tokenomics";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
@@ -185,6 +187,17 @@ function SendDialog({ balance }: { balance: number }) {
           <p className="text-xs text-muted-foreground">
             Balance: {balance.toLocaleString()} WB
           </p>
+          {amount && parseInt(amount, 10) > 0 && (
+            <p className="text-[10px] text-muted-foreground">
+              Platform fee ({formatFeePercent(FEE_BPS.tip)}): recipient gets{" "}
+              {Math.max(
+                0,
+                parseInt(amount, 10) -
+                  Math.floor((parseInt(amount, 10) * FEE_BPS.tip) / 10000),
+              )}{" "}
+              WB net
+            </p>
+          )}
           {sendMut.isError && (
             <p className="text-sm text-destructive">
               {sendMut.error instanceof Error
@@ -258,9 +271,10 @@ function WithdrawEligibilityPanel({
       {!eligibility.eligible && eligibility.reasons.length > 0 && (
         <p className="text-xs text-destructive">{eligibility.reasons[0]}</p>
       )}
-      <p className="text-[10px] text-muted-foreground">
-        Draft ratio: {eligibility.wbToBlkRatio.toLocaleString()} WB = 1 BLK
-        (display only; devnet simulated until counsel).
+          <p className="text-[10px] text-muted-foreground">
+        Settlement ratio: {eligibility.wbToBlkRatio.toLocaleString()} WB = 1 BLK.
+        Withdrawal includes a {formatFeePercent(FEE_BPS.withdrawSettlement)}{" "}
+        settlement fee (Kalshi-style published schedule).
       </p>
     </div>
   );
@@ -688,6 +702,7 @@ function WalletPageContent() {
 
           <TabsContent value="earn">
             <EarnRatesPanel />
+            <TokenomicsKalshiPanel />
 
             {/* Real Marketplace for full economy loop */}
             <Card className="border-primary/10 mt-4">

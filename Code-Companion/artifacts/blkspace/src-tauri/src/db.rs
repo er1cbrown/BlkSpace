@@ -455,6 +455,11 @@ pub struct RepostFeedItem {
 /// Max WeixBucks earn per user per rolling 24h (see reward-formulas.md).
 pub const DAILY_WB_EARN_CAP: i64 = 250;
 
+/// Kalshi-style platform fees (published schedule; see docs/tokenomics-kalshi-model.md).
+pub const TIP_PLATFORM_FEE_BPS: i64 = 200;
+pub const MARKETPLACE_PLATFORM_FEE_BPS: i64 = 500;
+pub const WITHDRAW_SETTLEMENT_FEE_BPS: i64 = 100;
+
 /// Draft withdrawal rules — subject to legal counsel before mainnet (reward-formulas.md).
 pub const MIN_WITHDRAW_WB: i64 = 100;
 pub const MIN_ACCOUNT_AGE_DAYS: i64 = 7;
@@ -464,6 +469,46 @@ pub const WEEKLY_WITHDRAW_CAP_WB: i64 = 1000;
 pub const WITHDRAW_COOLDOWN_DAYS: i64 = 7;
 pub const WB_TO_BLK_RATIO: i64 = 1000;
 const WITHDRAW_TX_PREFIX: &str = "Withdrawn to Solana";
+
+/// Published tokenomics policy (Kalshi-style regulated settlement model).
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenomicsPolicy {
+  pub model: String,
+  pub tip_fee_bps: i64,
+  pub marketplace_fee_bps: i64,
+  pub withdraw_settlement_fee_bps: i64,
+  pub daily_earn_cap_wb: i64,
+  pub min_withdraw_wb: i64,
+  pub weekly_withdraw_cap_wb: i64,
+  pub wb_to_blk_ratio: i64,
+  pub purchasable: bool,
+  pub on_chain_ready: bool,
+}
+
+impl TokenomicsPolicy {
+  pub fn published() -> Self {
+    Self {
+      model: "kalshi-regulated-settlement".into(),
+      tip_fee_bps: TIP_PLATFORM_FEE_BPS,
+      marketplace_fee_bps: MARKETPLACE_PLATFORM_FEE_BPS,
+      withdraw_settlement_fee_bps: WITHDRAW_SETTLEMENT_FEE_BPS,
+      daily_earn_cap_wb: DAILY_WB_EARN_CAP,
+      min_withdraw_wb: MIN_WITHDRAW_WB,
+      weekly_withdraw_cap_wb: WEEKLY_WITHDRAW_CAP_WB,
+      wb_to_blk_ratio: WB_TO_BLK_RATIO,
+      purchasable: false,
+      on_chain_ready: false,
+    }
+  }
+}
+
+pub fn calc_platform_fee(amount: i64, fee_bps: i64) -> i64 {
+  if amount <= 0 || fee_bps <= 0 {
+    return 0;
+  }
+  amount * fee_bps / 10000
+}
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -1824,9 +1869,28 @@ impl Database {
   }
 
   pub fn send_weixbucks(&self, from_handle: &str, to_handle: &str, amount: i64) -> Result<(i64, i64)> {
+    self.transfer_weixbucks(from_handle, to_handle, amount, TIP_PLATFORM_FEE_BPS)
+  }
+
+  /// Peer transfer with Kalshi-style platform fee (fee burned; receiver gets net).
+  pub fn transfer_weixbucks(
+    &self,
+    from_handle: &str,
+    to_handle: &str,
+    amount: i64,
+    fee_bps: i64,
+  ) -> Result<(i64, i64)> {
     if amount <= 0 {
       return Err(rusqlite::Error::InvalidParameterName("Amount must be positive".into()));
     }
+    let fee = calc_platform_fee(amount, fee_bps);
+    let net = amount - fee;
+    if net <= 0 {
+      return Err(rusqlite::Error::InvalidParameterName(
+        "Amount too small after platform fee".into(),
+      ));
+    }
+
     let conn = self.conn.lock().unwrap();
     let tx = conn.unchecked_transaction()?;
 
@@ -1854,18 +1918,26 @@ impl Database {
     )?;
     tx.execute(
       "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
-      params![amount, to_handle],
+      params![net, to_handle],
     )?;
 
     tx.execute(
       "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
        SELECT ?1, 'spend', -?2, ?3, weix_bucks FROM users WHERE handle = ?1",
-      params![from_handle, amount, format!("Sent to @{}", to_handle)],
+      params![
+        from_handle,
+        amount,
+        if fee > 0 {
+          format!("Sent to @{to_handle} ({fee} WB platform fee burned)")
+        } else {
+          format!("Sent to @{to_handle}")
+        },
+      ],
     )?;
     tx.execute(
       "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
        SELECT ?1, 'earn', ?2, ?3, weix_bucks FROM users WHERE handle = ?1",
-      params![to_handle, amount, format!("Received from @{}", from_handle)],
+      params![to_handle, net, format!("Received from @{} (net after fee)", from_handle)],
     )?;
 
     let (sender_new, receiver_new): (i64, i64) = (
@@ -1965,11 +2037,19 @@ impl Database {
     }
 
     if let Some(amount) = amount_wb {
+      let settlement_fee = calc_platform_fee(amount, WITHDRAW_SETTLEMENT_FEE_BPS);
+      let total_debit = amount + settlement_fee;
       if amount < MIN_WITHDRAW_WB {
         reasons.push(format!("Minimum withdrawal is {MIN_WITHDRAW_WB} WB"));
       }
-      if amount > user.weix_bucks {
-        reasons.push("Insufficient WeixBucks balance".into());
+      if total_debit > user.weix_bucks {
+        if settlement_fee > 0 {
+          reasons.push(format!(
+            "Insufficient balance (need {total_debit} WB including {settlement_fee} WB settlement fee)"
+          ));
+        } else {
+          reasons.push("Insufficient WeixBucks balance".into());
+        }
       }
       if amount > weekly_remaining_wb {
         reasons.push(format!(
@@ -2972,8 +3052,7 @@ impl Database {
       |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get::<_, i64>(4)? == 1)),
     ).ok();
     if let Some((seller, price, item_type, item_ref, is_nft)) = listing {
-      // Transfer WB
-      self.send_weixbucks(buyer, &seller, price)?;
+      self.transfer_weixbucks(buyer, &seller, price, MARKETPLACE_PLATFORM_FEE_BPS)?;
       // Mark sold
       conn.execute(
         "UPDATE marketplace_listings SET sold_to = ?1 WHERE id = ?2",
