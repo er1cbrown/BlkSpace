@@ -118,17 +118,20 @@ mod tests {
     let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     let post_id = post.id;
     
-    // Like
+    // Like — author earns +1 WB
     let liked = db.toggle_like(post_id, "liker").unwrap();
-    assert!(liked);
-    
+    assert!(liked.liked);
+    assert_eq!(liked.author_earn.wb, 1);
+    let author = db.get_user("author").unwrap().unwrap();
+    assert_eq!(author.weix_bucks, 106);
+
     // Unlike
     let unliked = db.toggle_like(post_id, "liker").unwrap();
-    assert!(!unliked);
-    
+    assert!(!unliked.liked);
+
     // Like again
     let liked_again = db.toggle_like(post_id, "liker").unwrap();
-    assert!(liked_again);
+    assert!(liked_again.liked);
   }
 
   #[test]
@@ -1377,7 +1380,7 @@ mod tests {
       assert_eq!(following, vec!["yard_walker".to_string()]);
 
       // Like
-      assert!(db.toggle_like(post_id, "campus_queen").unwrap());
+      assert!(db.toggle_like(post_id, "campus_queen").unwrap().liked);
 
       // Wallet transfer (author earned +5 post / +1 like rewards before sending)
       let (sender_balance, receiver_balance) =

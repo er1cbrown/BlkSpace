@@ -43,6 +43,7 @@ import {
   tauriListUserBlobs,
 } from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
+import { EarnRatesPanel } from "@/components/economy/EarnRatesPanel";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
@@ -625,46 +626,7 @@ function WalletPageContent() {
           </TabsContent>
 
           <TabsContent value="earn">
-            <Card className="border-primary/10">
-              <CardContent className="p-6 space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-full bg-primary/10">
-                    <Zap className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold mb-1">Create Content</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Earn WeixBucks when your posts get engagement from the
-                      community.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-full bg-green-500/10">
-                    <TrendingUp className="w-5 h-5 text-green-500" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold mb-1">Run a Relay</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Host a node and earn steady rewards for keeping the
-                      network healthy.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-full bg-accent/10">
-                    <Users className="w-5 h-5 text-accent" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold mb-1">Engage Daily</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Maintain your quality score by posting, replying, and
-                      liking every day.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <EarnRatesPanel />
 
             {/* Real Marketplace for full economy loop */}
             <Card className="border-primary/10 mt-4">

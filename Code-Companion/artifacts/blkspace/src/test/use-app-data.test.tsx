@@ -46,7 +46,19 @@ vi.mock("@/lib/tauri-api", () => ({
       post: { id: 1, authorHandle: "test", content: "hi", townTag: "tsu" },
       earn: { wb: 5, wbNominal: 5, karmaPost: 3, karmaComment: 0, throttled: false, dailyCapLimited: false },
     }),
-  tauriToggleLike: () => Promise.resolve(true),
+  tauriToggleLike: () =>
+    Promise.resolve({
+      liked: true,
+      authorHandle: "author",
+      authorEarn: {
+        wb: 1,
+        wbNominal: 1,
+        karmaPost: 1,
+        karmaComment: 0,
+        throttled: false,
+        dailyCapLimited: false,
+      },
+    }),
   tauriCreateReply: () =>
     Promise.resolve({
       reply: { id: 1, postId: 1, authorHandle: "test", content: "reply" },

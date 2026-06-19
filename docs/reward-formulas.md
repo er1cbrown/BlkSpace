@@ -39,6 +39,7 @@
 | Yard channel post | 5 WB + 3 WB | Fizz / Discord engagement bonus |
 | Media upload (new blob) | 10 WB | Bound to account grid |
 | Join yard | 5 WB | Once per yard |
+| Event RSVP (first per event) | 2 WB | Yard events tab |
 | Wall post (approved) | 1 WB | Facebook-style visitor wall |
 | Photo upload | 5 WB | + Iroh CID in event |
 | DJ mix upload | 8 WB | See `features/nft-dj-mixes.md` |

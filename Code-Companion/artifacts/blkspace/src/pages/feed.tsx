@@ -3,6 +3,7 @@ import { PostComposer } from "@/components/social/PostComposer";
 import { StoryStrip } from "@/components/social/StoryStrip";
 import { WatchFeed } from "@/components/feed/WatchFeed";
 import { ReadFeed } from "@/components/feed/ReadFeed";
+import { BridgeFeed } from "@/components/feed/BridgeFeed";
 import { KarmaBadge } from "@/components/economy/KarmaBadge";
 import {
   showEarnFromResult,
@@ -40,8 +41,6 @@ import {
   useAppCreatePost,
   useAppToggleLike,
   useTauriCombinedFeed,
-  useTauriPublishTrendingSummary,
-  useTauriFetchTrendingSummaries,
   useAppSendWeixBucks,
   useTauriGetFollowing,
   useTauriRepostPost,
@@ -59,6 +58,7 @@ export default function FeedPage() {
   const [content, setContent] = useState("");
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
   const [showFlagged, setShowFlagged] = useState(false);
+  const [bridgeTownFilter, setBridgeTownFilter] = useState("all");
   const [localFollowed, setLocalFollowed] = useState<string[]>(() => {
     const saved = localStorage.getItem("blkspace_followed") || "[]";
     return JSON.parse(saved);
@@ -75,14 +75,15 @@ export default function FeedPage() {
   );
   const { data: trendingFeed, isLoading: trendingLoading } =
     useAppGetTrendingFeed(getCurrentHandle());
+  const bridgeTownArg =
+    bridgeTownFilter === "all" ? undefined : bridgeTownFilter;
   const { data: crossTownFeed, isLoading: crossTownLoading } =
-    useTauriCombinedFeed(activeTab === "bridge" ? undefined : selectedTown);
-  const { data: trendingSummaries, isLoading: summariesLoading } =
-    useTauriFetchTrendingSummaries(selectedTown);
+    useTauriCombinedFeed(
+      activeTab === "bridge" ? bridgeTownArg : selectedTown,
+    );
   const createPost = useAppCreatePost();
   const toggleLike = useAppToggleLike();
   const sendWeixBucks = useAppSendWeixBucks();
-  const publishSummary = useTauriPublishTrendingSummary();
   const repostPost = useTauriRepostPost();
   const { data: followingReposts = [] } = useTauriFollowingReposts(
     isTauri() && followedHandles.length > 0,
@@ -126,9 +127,6 @@ export default function FeedPage() {
   }) =>
     p.riskLevel === "high" || (p.maliciousScore ?? 0) > 0.7;
 
-  const isBridgeHighRisk = (e: TauriCrossTownEvent) =>
-    e.riskLevel === "high" || (e.maliciousScore ?? 0) > 0.7;
-
   // FYP: rank by engagement × quality × (1 − MIDF); demote high-risk posts
   const fypPosts = [...(trendingFeed || []), ...(localPosts || [])]
     .filter((p: any) => !isHighRisk(p))
@@ -170,8 +168,15 @@ export default function FeedPage() {
     toggleLike.mutate(
       { postId },
       {
-        onSuccess: () => {
+        onSuccess: (result: any) => {
+          if (result?.liked && result?.authorEarn?.wb > 0 && result?.authorHandle) {
+            showEarnFromResult(
+              result.authorEarn,
+              `@${result.authorHandle} earned from your like`,
+            );
+          }
           queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
+          queryClient.invalidateQueries({ queryKey: ["tauri", "user"] });
           queryClient.invalidateQueries({
             queryKey: getListPostsQueryKey({ town: selectedTown }),
           });
@@ -237,11 +242,8 @@ export default function FeedPage() {
     posts = filterFlagged(localPosts || []);
     isLoading = localLoading;
   } else if (activeTab === "bridge") {
-    const bridge = crossTownFeed || [];
-    posts = showFlagged
-      ? bridge
-      : bridge.filter((e) => !isBridgeHighRisk(e));
-    isLoading = crossTownLoading || summariesLoading;
+    posts = [];
+    isLoading = crossTownLoading;
   } else {
     posts = filterFlagged(trendingFeed || []);
     isLoading = trendingLoading;
@@ -281,7 +283,7 @@ export default function FeedPage() {
           )}
         </div>
 
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 mb-4 h-11">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-6 mb-4 h-11">
           <TabsTrigger value="watch" className="text-xs sm:text-sm font-bold">
             Watch
           </TabsTrigger>
@@ -291,11 +293,11 @@ export default function FeedPage() {
           <TabsTrigger value="following" className="text-xs sm:text-sm font-bold">
             Following
           </TabsTrigger>
+          <TabsTrigger value="bridge" className="text-xs sm:text-sm font-bold">
+            Bridge
+          </TabsTrigger>
           <TabsTrigger value="local" className="text-xs sm:text-sm font-bold hidden sm:flex">
             Local
-          </TabsTrigger>
-          <TabsTrigger value="bridge" className="text-xs sm:text-sm font-bold hidden sm:flex">
-            Bridge
           </TabsTrigger>
           <TabsTrigger
             value="trending"
@@ -307,18 +309,20 @@ export default function FeedPage() {
 
         {(activeTab === "watch" || activeTab === "read") && <StoryStrip />}
 
-        <PostComposer
-          content={content}
-          onContentChange={setContent}
-          selectedTown={selectedTown}
-          onTownChange={setSelectedTown}
-          mediaHashes={mediaHashes}
-          onMediaHashesChange={setMediaHashes}
-          onSubmit={handleSubmit}
-          isSubmitting={createPost.isPending}
-          onUploadSuccess={(earn) => showEarnFromResult(earn, "Media upload")}
-          placeholder={composerPlaceholder}
-        />
+        {activeTab !== "bridge" && (
+          <PostComposer
+            content={content}
+            onContentChange={setContent}
+            selectedTown={selectedTown}
+            onTownChange={setSelectedTown}
+            mediaHashes={mediaHashes}
+            onMediaHashesChange={setMediaHashes}
+            onSubmit={handleSubmit}
+            isSubmitting={createPost.isPending}
+            onUploadSuccess={(earn) => showEarnFromResult(earn, "Media upload")}
+            placeholder={composerPlaceholder}
+          />
+        )}
 
           <TabsContent value="watch">
             <div className="bg-accent/10 text-accent-foreground p-3 rounded-xl mb-4 text-xs font-medium border border-accent/20">
@@ -346,87 +350,7 @@ export default function FeedPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="bridge">
-            <div className="bg-primary/10 text-primary-foreground p-4 rounded-xl mb-6 text-sm font-medium border border-primary/20">
-              Cross-town feed — events synced from connected Nostr relays.
-              Posts from other towns appear here as they are discovered.
-            </div>
-            {isTauri() && (
-              <div className="flex gap-2 mb-4">
-                <Select value={selectedTown} onValueChange={setSelectedTown}>
-                  <SelectTrigger className="w-[180px] h-9">
-                    <SelectValue placeholder="Filter by town" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Towns</SelectItem>
-                    <SelectItem value="tsu">TSU</SelectItem>
-                    <SelectItem value="howard">Howard</SelectItem>
-                    <SelectItem value="spelman">Spelman</SelectItem>
-                    <SelectItem value="famu">FAMU</SelectItem>
-                    <SelectItem value="morehouse">Morehouse</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => publishSummary.mutate()}
-                  disabled={publishSummary.isPending}
-                >
-                  {publishSummary.isPending
-                    ? "Publishing..."
-                    : "Publish Summary"}
-                </Button>
-              </div>
-            )}
-            {isTauri() && trendingSummaries && trendingSummaries.length > 0 && (
-              <div className="mb-6 space-y-3">
-                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                  Trending Summaries
-                </h3>
-                {trendingSummaries.map((summary, idx) => {
-                  const parsed = JSON.parse(summary);
-                  return (
-                    <Card
-                      key={idx}
-                      className="bg-secondary/30 border-secondary/30"
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <Badge variant="outline" className="text-xs">
-                            {parsed.town} Yard
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {parsed.week}
-                          </span>
-                        </div>
-                        <p className="text-sm font-medium mb-2">
-                          {parsed.new_users} users · {parsed.total_events}{" "}
-                          events · {parsed.weix_bucks_circulating} WB
-                        </p>
-                        {parsed.top_posts && parsed.top_posts.length > 0 && (
-                          <div className="space-y-1">
-                            {parsed.top_posts.map((post: any, pidx: number) => (
-                              <div
-                                key={pidx}
-                                className="text-xs text-muted-foreground flex justify-between"
-                              >
-                                <span>
-                                  @{post.author}: {post.content}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Heart className="w-3 h-3" /> {post.likes}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
+          <TabsContent value="bridge" />
 
           <TabsContent value="trending">
             <div className="bg-accent/10 text-accent-foreground p-4 rounded-xl mb-6 text-sm font-medium border border-accent/20">
@@ -436,7 +360,15 @@ export default function FeedPage() {
           </TabsContent>
         </Tabs>
 
-        {isLoading ? (
+        {activeTab === "bridge" ? (
+          <BridgeFeed
+            events={crossTownFeed || []}
+            isLoading={crossTownLoading}
+            townFilter={bridgeTownFilter}
+            onTownFilterChange={setBridgeTownFilter}
+            showFlagged={showFlagged}
+          />
+        ) : isLoading ? (
           <div className="space-y-4 animate-pulse">
             {[1, 2, 3].map((i) => (
               <Card key={i} className="h-40 bg-muted/50"></Card>

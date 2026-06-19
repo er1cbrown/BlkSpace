@@ -498,10 +498,16 @@ export function tauriCreateReply(
   return invoke("create_reply", { sessionToken, postId, content });
 }
 
+export interface TauriToggleLikeResult {
+  liked: boolean;
+  authorHandle?: string | null;
+  authorEarn: TauriEarnResult;
+}
+
 export function tauriToggleLike(
   sessionToken: string,
   postId: number,
-): Promise<boolean> {
+): Promise<TauriToggleLikeResult> {
   return invoke("toggle_like", { sessionToken, postId });
 }
 

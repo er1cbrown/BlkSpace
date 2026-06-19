@@ -21,7 +21,8 @@ use key_store::KeyStore;
 use db::{
   AppError, ApproveWallPostResult, BlobRecord, Community, CreatePostResult, CreateReplyResult,
   CrossTownEvent, Database, EarnResult, EarnSummary, JoinYardResult, KarmaLeaderboardEntry,
-  CommunityRoleEntry, RepostFeedItem, RepostResult, RsvpYardEventResult, YardEvent,
+  CommunityRoleEntry, RepostFeedItem, RepostResult, RsvpYardEventResult, ToggleLikeResult,
+  YardEvent,
   NetworkStats,
   Notification, Post, Relay, Reply, UploadBlobResult, User, WalletTx, WallPost, WallPostResult,
   RelayConnectionRecord, RelayEventRecord,
@@ -1200,11 +1201,16 @@ fn create_reply(state: State<AppState>, session_token: String, post_id: i64, con
 // ─── Like Command ────────────────────────────────────────
 
 #[tauri::command]
-fn toggle_like(state: State<AppState>, session_token: String, post_id: i64) -> Result<bool, String> {
+fn toggle_like(
+  state: State<AppState>,
+  session_token: String,
+  post_id: i64,
+) -> Result<ToggleLikeResult, String> {
   let user_handle = check_session_rate_limit(&state, &session_token)?;
-  let liked = state.db.toggle_like(post_id, &user_handle).map_err(|e| AppError::from(e).to_string())?;
-  // (Nostr kind 7 for reaction can be added; skipped for compile stability in this polish)
-  Ok(liked)
+  state
+    .db
+    .toggle_like(post_id, &user_handle)
+    .map_err(|e| AppError::from(e).to_string())
 }
 
 // ─── Notification Commands ───────────────────────────────

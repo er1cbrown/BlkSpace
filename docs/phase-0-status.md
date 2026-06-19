@@ -9,7 +9,7 @@
 ## Status line
 
 ```
-Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | M1 hub-sync ✅ | P4 events ✅ | P5 roles ✅ | M0 manual ⏳ | Tier 0 Device B ⏳
+Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | M1 hub-sync ✅ | P4–P5 ✅ | P6 earn ✅ | P7 bridge ✅ | M0 manual ⏳
 ```
 
 ---
@@ -108,7 +108,7 @@ When step 7 passes, set **M0 manual ✅** and **Tier 0 Device B ✅** in the sta
 | 0 | Theory, repo, CI | ✅ Complete |
 | 1 | Social, economy, auth, security UI | ✅ Complete |
 | 2 | Iroh, Nostr mesh, offline queue | ~90% — M0 manual open on Device B |
-| 3 | Communities, full rewards, theming | ~65% — events + roles shipped; earn audit + cross-town open |
+| 3 | Communities, full rewards, theming | ~75% — events, roles, earn rates, Bridge polish; pilot open |
 | 4 | Wallet on-chain, NFT, BlkCoin | Not started |
 | 5 | Ops, release | Not started |
 
@@ -132,9 +132,9 @@ When step 7 passes, set **M0 manual ✅** and **Tier 0 Device B ✅** in the sta
 
 1. **P1 Device B** — run [`device-b-m0-results.md`](device-b-m0-results.md) steps 1–7
 2. **P2** — tagged pilot build (`v0.x`)
-3. **P6** — earn path audit
-4. **P7** — cross-town / Bridge polish
-5. ~~**P4 events**~~ · ~~**P5 roles**~~ · ~~**P8 wallet provider**~~ — ✅ 2026-06-19
+3. ~~**P6 earn audit**~~ — ✅ earn-sources + wallet rates + like earn toast
+4. ~~**P7 Bridge polish**~~ — ✅ mobile tab, BridgeFeed, yard links
+5. ~~**P4 events**~~ · ~~**P5 roles**~~ · ~~**P8 wallet**~~ — ✅ 2026-06-19
 
 ---
 

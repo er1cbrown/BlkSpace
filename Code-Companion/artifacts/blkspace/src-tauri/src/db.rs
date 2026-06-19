@@ -208,6 +208,14 @@ pub struct CreateReplyResult {
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct ToggleLikeResult {
+  pub liked: bool,
+  pub author_handle: Option<String>,
+  pub author_earn: EarnResult,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct JoinYardResult {
   pub joined: bool,
   pub earn: EarnResult,
@@ -1615,7 +1623,7 @@ impl Database {
     Ok(CreateReplyResult { reply, earn })
   }
 
-  pub fn toggle_like(&self, post_id: i64, user_handle: &str) -> Result<bool> {
+  pub fn toggle_like(&self, post_id: i64, user_handle: &str) -> Result<ToggleLikeResult> {
     let conn = self.conn.lock().unwrap();
     let existing: Option<i64> = conn
       .query_row(
@@ -1634,7 +1642,11 @@ impl Database {
         "UPDATE posts SET likes_count = MAX(0, likes_count - 1) WHERE id = ?1",
         params![post_id],
       )?;
-      Ok(false)
+      Ok(ToggleLikeResult {
+        liked: false,
+        author_handle: None,
+        author_earn: EarnResult::default(),
+      })
     } else {
       conn.execute(
         "INSERT INTO likes (post_id, user_handle) VALUES (?1, ?2)",
@@ -1645,17 +1657,21 @@ impl Database {
         params![post_id],
       )?;
 
-      // Reward post author +1 WeixBucks
       let author: Option<String> = conn.query_row(
         "SELECT author_handle FROM posts WHERE id = ?1",
         params![post_id],
         |r| r.get(0),
-      ).ok();
+      )
+      .ok();
+      drop(conn);
+
+      let mut author_earn = EarnResult::default();
+      let author_handle = author.clone();
       if let Some(ref author_handle) = author {
         if author_handle != user_handle {
-          drop(conn);
           let quality = self.update_engagement_quality(author_handle)?;
           let reward = self.throttle_rewards(author_handle, 1.0, quality);
+          let throttled = self.rewards_throttled(author_handle);
           let town: String = {
             let conn = self.conn.lock().unwrap();
             conn.query_row(
@@ -1665,12 +1681,19 @@ impl Database {
             )
             .unwrap_or_else(|_| "tsu".to_string())
           };
-          self.grant_weix_bucks(author_handle, reward, "Post liked")?;
-          self.grant_karma(author_handle, &town, 1, 0, "Upvote received")?;
+          let wb_actual = self.grant_weix_bucks(author_handle, reward, "Post liked")?;
+          if !throttled {
+            self.grant_karma(author_handle, &town, 1, 0, "Upvote received")?;
+          }
+          author_earn = EarnResult::build(reward, wb_actual, 1, 0, throttled);
         }
       }
 
-      Ok(true)
+      Ok(ToggleLikeResult {
+        liked: true,
+        author_handle,
+        author_earn,
+      })
     }
   }
 
