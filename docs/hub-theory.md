@@ -36,7 +36,7 @@ The hub must theoretically support the full amalgamation without central servers
 | Communities / chat | Nostr DMs + group kinds | Discord-like |
 | Marketplace / shop | Nostr listings + settlement events | TT Shop pattern |
 | Custom profile themes | Nostr profile + CSS/theme CID | MySpace vibe |
-| Rewards & payments | Signed Nostr economy events | WeixBucks / BlkCoin |
+| Rewards & payments | Signed Nostr economy events | WeixBucks / BKSPC |
 | Node contributions | Nostr node-reward events | Low-end harvest |
 
 ---
@@ -48,7 +48,7 @@ The hub must theoretically support the full amalgamation without central servers
 | Token | Tier | Earned via | Spent on |
 |-------|------|------------|----------|
 | **WeixBucks** | Platform credits (Kalshi collateral analog) | Uploads, engagement, light node work | Tips, boosts, marketplace (published fees) |
-| **BlkCoin** | Settlement receipt (counsel-gated) | Optional withdrawal of **earned** WB only | On-chain receipt; not daily earn or speculation |
+| **BKSPC** | BlkSpace Settlement (counsel-gated) | Optional withdrawal of **earned** WB only | On-chain receipt; not daily earn or speculation |
 
 ### Sources (Mint / Earn)
 
@@ -109,7 +109,7 @@ Designed for **low-end hardware** (old laptops, Raspberry Pi-class).
 
 ### Node Economics (Draft — needs user approval)
 
-| Contribution | WeixBucks/hour (simulated) | BlkCoin trigger |
+| Contribution | WeixBucks/hour (simulated) | BKSPC settlement (Phase 4) |
 |--------------|---------------------------|-----------------|
 | Relay uptime (verified heartbeat) | 1–5 | Weekly top-10% nodes |
 | Pin popular CID (served N times) | 0.1 per serve | Pinning viral content |
@@ -126,7 +126,7 @@ Designed for **low-end hardware** (old laptops, Raspberry Pi-class).
 EB Productions includes:
 
 1. **Hosted media** — videos, DJ mixes, scripture creative, photos pinned on Iroh
-2. **Settled payments** — WeixBucks/BlkCoin flows with transparent history
+2. **Settled payments** — WeixBucks/BKSPC flows with transparent history
 3. **Distributed rewards** — node operators and engagers earn for participation
 4. **Cultural/creative value** — B.L.A.C.K. branding, TSU roots, Liberian heritage, scripture study
 
@@ -161,7 +161,7 @@ A node or user "produces EB Productions" when their participation results in ver
 ## Simulated → On-Chain Migration Path
 
 **Phase 1–3:** SQLite balances + signed Nostr events (fully verifiable, no chain fees).  
-**Phase 4:** Solana integration for BlkCoin meme-coin + NFT ticketing.  
+**Phase 4:** Solana BKSPC settlement + NFT ticketing.
 **Migration:** Export Nostr event history → anchor summaries on-chain; user opt-in wallet connect.
 
 ---
@@ -172,7 +172,7 @@ A node or user "produces EB Productions" when their participation results in ver
 |------|----------|
 | Stack | Nostr + Iroh; skip LBRY |
 | Economy | Simulated first; Solana Phase 4 |
-| Tokens | WeixBucks + BlkCoin two-tier |
+| Tokens | WeixBucks + BKSPC two-tier |
 | Niche | TSU / Black creative circles first |
 | LogosDecks | Full deck UI Phase 5; metadata stub Phase 2 |
 | Settlement | Pure Nostr signed events for Phase 1–3 |

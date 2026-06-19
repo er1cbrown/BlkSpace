@@ -126,7 +126,9 @@ export interface TauriTokenomicsPolicy {
   dailyEarnCapWb: number;
   minWithdrawWb: number;
   weeklyWithdrawCapWb: number;
-  wbToBlkRatio: number;
+  wbToBkspcRatio: number;
+  bkspcSymbol: string;
+  bkspcName: string;
   purchasable: boolean;
   onChainReady: boolean;
 }
@@ -147,7 +149,9 @@ export interface TauriWithdrawEligibility {
   postCount: number;
   minPosts: number;
   balanceWb: number;
-  wbToBlkRatio: number;
+  wbToBkspcRatio: number;
+  bkspcSymbol: string;
+  bkspcName: string;
   onChainReady: boolean;
 }
 

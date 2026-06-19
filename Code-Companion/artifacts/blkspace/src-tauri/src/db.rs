@@ -467,7 +467,9 @@ pub const MIN_WITHDRAW_KARMA: i64 = 10;
 pub const MIN_WITHDRAW_POSTS: i64 = 3;
 pub const WEEKLY_WITHDRAW_CAP_WB: i64 = 1000;
 pub const WITHDRAW_COOLDOWN_DAYS: i64 = 7;
-pub const WB_TO_BLK_RATIO: i64 = 1000;
+pub const BKSPC_SYMBOL: &str = "BKSPC";
+pub const BKSPC_NAME: &str = "BlkSpace Settlement";
+pub const WB_TO_BKSPC_RATIO: i64 = 1000;
 const WITHDRAW_TX_PREFIX: &str = "Withdrawn to Solana";
 
 /// Published tokenomics policy (Kalshi-style regulated settlement model).
@@ -481,7 +483,9 @@ pub struct TokenomicsPolicy {
   pub daily_earn_cap_wb: i64,
   pub min_withdraw_wb: i64,
   pub weekly_withdraw_cap_wb: i64,
-  pub wb_to_blk_ratio: i64,
+  pub wb_to_bkspc_ratio: i64,
+  pub bkspc_symbol: String,
+  pub bkspc_name: String,
   pub purchasable: bool,
   pub on_chain_ready: bool,
 }
@@ -496,7 +500,9 @@ impl TokenomicsPolicy {
       daily_earn_cap_wb: DAILY_WB_EARN_CAP,
       min_withdraw_wb: MIN_WITHDRAW_WB,
       weekly_withdraw_cap_wb: WEEKLY_WITHDRAW_CAP_WB,
-      wb_to_blk_ratio: WB_TO_BLK_RATIO,
+      wb_to_bkspc_ratio: WB_TO_BKSPC_RATIO,
+      bkspc_symbol: BKSPC_SYMBOL.into(),
+      bkspc_name: BKSPC_NAME.into(),
       purchasable: false,
       on_chain_ready: false,
     }
@@ -528,7 +534,9 @@ pub struct WithdrawEligibility {
   pub post_count: i64,
   pub min_posts: i64,
   pub balance_wb: i64,
-  pub wb_to_blk_ratio: i64,
+  pub wb_to_bkspc_ratio: i64,
+  pub bkspc_symbol: String,
+  pub bkspc_name: String,
   /// Devnet/simulated only until counsel approves mainnet.
   pub on_chain_ready: bool,
 }
@@ -2076,7 +2084,9 @@ impl Database {
       post_count,
       min_posts: MIN_WITHDRAW_POSTS,
       balance_wb: user.weix_bucks,
-      wb_to_blk_ratio: WB_TO_BLK_RATIO,
+      wb_to_bkspc_ratio: WB_TO_BKSPC_RATIO,
+      bkspc_symbol: BKSPC_SYMBOL.into(),
+      bkspc_name: BKSPC_NAME.into(),
       on_chain_ready: false,
     })
   }

@@ -109,7 +109,7 @@ When step 7 passes, set **M0 manual ✅** and **Tier 0 Device B ✅** in the sta
 | 1 | Social, economy, auth, security UI | ✅ Complete |
 | 2 | Iroh, Nostr mesh, offline queue | ~90% — M0 manual open on Device B |
 | 3 | Communities, full rewards, theming | ~75% — events, roles, earn rates, Bridge polish; pilot open |
-| 4 | Wallet on-chain, NFT, BlkCoin | Not started |
+| 4 | Wallet on-chain, NFT, BKSPC | Not started |
 | 5 | Ops, release | Not started |
 
 **MVP target:** end of Phase 3 per `plan.md`. **~78–80% to MVP** (automated proof ahead of Device B sign-off).

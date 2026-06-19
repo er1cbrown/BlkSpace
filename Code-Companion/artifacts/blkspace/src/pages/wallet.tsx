@@ -272,7 +272,8 @@ function WithdrawEligibilityPanel({
         <p className="text-xs text-destructive">{eligibility.reasons[0]}</p>
       )}
           <p className="text-[10px] text-muted-foreground">
-        Settlement ratio: {eligibility.wbToBlkRatio.toLocaleString()} WB = 1 BLK.
+        Settlement: {eligibility.wbToBkspcRatio.toLocaleString()} WB = 1{" "}
+        {eligibility.bkspcSymbol}.
         Withdrawal includes a {formatFeePercent(FEE_BPS.withdrawSettlement)}{" "}
         settlement fee (Kalshi-style published schedule).
       </p>
@@ -307,10 +308,10 @@ function WithdrawDialog({ balance }: { balance: number }) {
       try {
         const connection = new Connection("https://api.devnet.solana.com");
         const programId = new PublicKey(
-          "BlkC111111111111111111111111111111111111111",
+          "BkSpC111111111111111111111111111111111111",
         );
         // Full Anchor TS client path (instead of pure proxy/web3 SystemProgram).
-        // Real: load IDL for the deployed blkcoin program, new Program<Idl>(idl, programId, provider),
+        // Real: load IDL for the deployed bkspc program, new Program<Idl>(idl, programId, provider),
         // then await program.methods.mintRewards(new BN(amount * 1e9)).accounts({ mint, studentAta, treasuryAuthority: treasury, tokenProgram, ... }).signers([]).rpc()
         // Here we demonstrate the structure + fall back to a signed tx that proxies the intent (treasury would CPI mint on server side).
         const provider = new AnchorProvider(
@@ -325,7 +326,7 @@ function WithdrawDialog({ balance }: { balance: number }) {
         );
         // Minimal program handle (no full IDL file in this demo tree; in prod ship the generated IDL from anchor build)
         const idl = {
-          /* placeholder IDL matching programs/blkcoin/src/lib.rs mint_rewards */
+          /* placeholder IDL matching programs/bkspc/src/lib.rs mint_rewards */
         } as any;
         const program = new (Program as any)(idl, programId, provider);
         // For demo we still craft a tx (real Anchor would .methods... .rpc() which builds + sends the CPI ix)
@@ -334,7 +335,7 @@ function WithdrawDialog({ balance }: { balance: number }) {
           SystemProgram.transfer({
             fromPubkey: publicKey,
             toPubkey: new PublicKey(solanaAddress),
-            lamports: Math.max(1, amt), // placeholder; real amount in BLK smallest units via mint ix data
+            lamports: Math.max(1, amt), // placeholder; real amount in BKSPC smallest units via mint ix data
           }),
         );
         tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
@@ -396,7 +397,7 @@ function WithdrawDialog({ balance }: { balance: number }) {
         <DialogHeader>
           <DialogTitle>Withdraw to Solana (draft bridge)</DialogTitle>
           <DialogDescription>
-            Request conversion of earned WeixBucks to BlkCoin on devnet.
+            Request conversion of earned WeixBucks to BKSPC on devnet.
             Settlement is simulated until legal counsel approves mainnet.
           </DialogDescription>
         </DialogHeader>
@@ -408,7 +409,7 @@ function WithdrawDialog({ balance }: { balance: number }) {
             </div>
             <h4 className="font-bold text-lg">Withdrawal recorded</h4>
             <p className="text-sm text-muted-foreground px-4">
-              WeixBucks were debited off-chain. On-chain BlkCoin minting is
+              WeixBucks were debited off-chain. On-chain BKSPC minting is
               simulated on devnet — no mainnet tokens until counsel approves.
             </p>
             <div className="bg-muted p-3 rounded-lg text-left">
@@ -545,13 +546,13 @@ function WalletPageContent() {
       const amt = await tauriClaimNodeRewards(token);
       toast.success(`Claimed ${amt} WB node rewards (from pin serves/uptime)`);
 
-      // Solana on-chain for rewards (anchor tie-in: simulate mint_rewards on blkcoin program)
+      // Solana on-chain for rewards (anchor tie-in: simulate mint_rewards on bkspc program)
       if (connected && publicKey && signTransaction) {
         try {
           const connection = new Connection("https://api.devnet.solana.com");
           const tx = new Transaction();
           const programId = new PublicKey(
-            "BlkC111111111111111111111111111111111111111",
+            "BkSpC111111111111111111111111111111111111",
           );
           // Dummy transfer proxy for the CPI mint to treasury-backed rewards (full anchor client would build MintRewards ix)
           tx.add(
@@ -569,7 +570,7 @@ function WalletPageContent() {
           const sig = await connection.sendRawTransaction(signed.serialize());
           await connection.confirmTransaction(sig, "confirmed");
           toast.success(
-            `On-chain BLKCOIN rewards minted via anchor! Sig: ${sig.slice(0, 16)}...`,
+            `On-chain BKSPC rewards minted via anchor! Sig: ${sig.slice(0, 16)}...`,
           );
         } catch (e) {
           toast.info("Solana reward tx failed (off-chain claim only)");
@@ -963,7 +964,7 @@ function WalletPageContent() {
                                   signed.serialize(),
                                 );
                                 toast(
-                                  `On-chain BLKCOIN settlement for purchase: ${sig.slice(0, 16)}...`,
+                                  `On-chain BKSPC settlement for purchase: ${sig.slice(0, 16)}...`,
                                 );
                               } catch {}
                             }

@@ -15,9 +15,9 @@ export function WalletDisclaimer() {
           include published platform fees.
         </p>
         <p>
-          BlkCoin is an optional <strong>settlement receipt</strong> for earned
-          value after eligibility checks — devnet simulated until counsel
-          approves mainnet. No speculative token launch.
+          <strong>BKSPC</strong> (BlkSpace Settlement) is an optional on-chain
+          receipt for earned value after eligibility checks — devnet simulated
+          until counsel approves mainnet. Not a speculative token launch.
         </p>
       </AlertDescription>
     </Alert>

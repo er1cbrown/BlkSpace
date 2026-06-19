@@ -2,7 +2,7 @@
 
 **Document:** Phase 4 Solana Smart Contracts, Wallet Integration, Hybrid Settlement Bridge, and Tier 0 Hardware Impact.  
 **Platform:** Solana Devnet → Mainnet-Beta  
-**Target Token:** BLKCOIN (SPL Token)  
+**Target Token:** BKSPC — BlkSpace Settlement (SPL Token)  
 **Author:** Claude Code (OpenCode)  
 **Date:** 2026-06-15  
 
@@ -10,9 +10,9 @@
 
 ## 1. Smart Contract Architecture (Anchor/Rust)
 
-This program governs the minting, distribution, and burning of BLKCOIN. It is designed to be called by a validated backend authority (the B.L.A.C.K. Treasury PDA) when students withdraw their off-chain WeixBucks.
+This program governs the minting, distribution, and burning of BKSPC. It is designed to be called by a validated backend authority (the B.L.A.C.K. Treasury PDA) when students withdraw their off-chain WeixBucks.
 
-### Anchor Program Code (`programs/blkcoin/src/lib.rs`)
+### Anchor Program Code (`programs/bkspc/src/lib.rs`)
 
 ```rust
 use anchor_lang::prelude::*;
@@ -21,16 +21,16 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, MintTo, Burn};
 declare_id!("BlkC111111111111111111111111111111111111111");
 
 #[program]
-pub mod blkcoin {
+pub mod bkspc {
     use super::*;
 
-    /// Initialize the BLKCOIN Mint with B.L.A.C.K. Treasury as authority
+    /// Initialize the BKSPC Mint with B.L.A.C.K. Treasury as authority
     pub fn initialize_mint(ctx: Context<InitializeMint>, decimals: u8) -> Result<()> {
-        msg!("BLKCOIN Mint Initialized with {} decimals", decimals);
+        msg!("BKSPC Mint Initialized with {} decimals", decimals);
         Ok(())
     }
 
-    /// Mint BLKCOIN directly to a student's Associated Token Account (ATA)
+    /// Mint BKSPC directly to a student's Associated Token Account (ATA)
     /// Gated by the Treasury multisig authority (or backend server PDA)
     pub fn mint_rewards(ctx: Context<MintRewards>, amount: u64) -> Result<()> {
         let cpi_accounts = MintTo {
@@ -42,7 +42,7 @@ pub mod blkcoin {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         
         token::mint_to(cpi_ctx, amount)?;
-        msg!("Successfully minted {} BLKCOIN to student", amount);
+        msg!("Successfully minted {} BKSPC to student", amount);
         Ok(())
     }
 
@@ -57,7 +57,7 @@ pub mod blkcoin {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
 
         token::burn(cpi_ctx, amount)?;
-        msg!("Successfully burned {} BLKCOIN from student wallet", amount);
+        msg!("Successfully burned {} BKSPC from student wallet", amount);
         Ok(())
     }
 }
@@ -383,7 +383,7 @@ When development resumes, you should execute Phase 4 in this precise, step-by-st
 - **Safety Gate:** Run extreme test cases (simulate RPC dropouts, connection failures, duplicate clicks) and verify zero balance leaks.
 
 ### Step 4: Full Devnet Integration Testing
-- **Goal:** Run end-to-end trials: student posts → earns 5 WeixBucks off-chain → clicks withdraw → Phantom wallet pops up → Devnet BLKCOIN lands in wallet.
+- **Goal:** Run end-to-end trials: student posts → earns 5 WeixBucks off-chain → clicks withdraw → Phantom wallet pops up → Devnet BKSPC lands in wallet.
 - **Safety Gate:** Code audits and threat model simulations before moving to Mainnet-Beta.
 
 ---

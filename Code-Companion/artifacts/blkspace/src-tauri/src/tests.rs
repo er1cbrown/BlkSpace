@@ -287,6 +287,8 @@ mod tests {
     assert_eq!(policy.marketplace_fee_bps, MARKETPLACE_PLATFORM_FEE_BPS);
     assert!(!policy.purchasable);
     assert!(!policy.on_chain_ready);
+    assert_eq!(policy.bkspc_symbol, "BKSPC");
+    assert_eq!(policy.bkspc_name, "BlkSpace Settlement");
   }
 
   #[test]

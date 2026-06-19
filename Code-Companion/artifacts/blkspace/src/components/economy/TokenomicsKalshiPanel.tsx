@@ -10,7 +10,9 @@ const FALLBACK_POLICY = {
   dailyEarnCapWb: 250,
   minWithdrawWb: 100,
   weeklyWithdrawCapWb: 1000,
-  wbToBlkRatio: 1000,
+  wbToBkspcRatio: 1000,
+  bkspcSymbol: "BKSPC",
+  bkspcName: "BlkSpace Settlement",
   purchasable: false,
   onChainReady: false,
 };
@@ -63,9 +65,9 @@ export function TokenomicsKalshiPanel() {
           <span className="font-medium text-foreground tabular-nums text-right">
             {p.weeklyWithdrawCapWb} WB
           </span>
-          <span>Settlement ratio (display)</span>
+          <span>Settlement ({p.bkspcSymbol})</span>
           <span className="font-medium text-foreground tabular-nums text-right">
-            {p.wbToBlkRatio.toLocaleString()} WB = 1 BLK
+            {p.wbToBkspcRatio.toLocaleString()} WB = 1 {p.bkspcSymbol}
           </span>
         </div>
         <p className="text-[10px]">

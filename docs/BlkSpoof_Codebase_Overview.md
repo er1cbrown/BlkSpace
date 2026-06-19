@@ -16,7 +16,7 @@ BlkSpace is a **decentralized creator economy platform** for HBCU students:
 - **Backend:** Tauri v2 + Rust + SQLite (2,768 lines of Rust across 5 modules)
 - **Social Layer:** Nostr protocol (events, identity, relay mesh)
 - **Content:** Iroh blob storage (Phase 2)
-- **Economy:** WeixBucks (off-chain) + BlkCoin (Solana Phase 4)
+- **Economy:** WeixBucks (off-chain) + BKSPC (Solana Phase 4 settlement)
 - **Security:** Rate limiting, Schnorr signature verification, BIP39 recovery
 
 **The vision:** Enable HBCU students to share work, monetize fairly, and build sustainable value on hardware they already own (Tier 0 = low-end Windows laptops).

@@ -10,7 +10,7 @@
 
 Solana is planned for **Phase 4** only:
 
-- BlkCoin SPL token and reward claims
+- BKSPC SPL token and reward claims
 - NFT tickets (DJ mixes, events)
 - Optional staking for Tier 2 relay operators
 
@@ -37,7 +37,7 @@ Solana is planned for **Phase 4** only:
 - Economic attackers gaming conversion timing
 - Compromised upgrade authority keys
 
-**Assets:** BlkCoin supply, mint authority, staked collateral, NFT rights.
+**Assets:** BKSPC supply, mint authority, staked collateral, NFT rights.
 
 ---
 
@@ -50,7 +50,7 @@ Solana is planned for **Phase 4** only:
 | Integer overflow | Reward math | `checked_add`, `checked_mul` |
 | Unsafe CPI | SPL Token, Metaplex | Never trust user program IDs |
 | Reinitialization | Stake epochs | `init` + realloc guards |
-| Economic gaming | WeixBucks → BlkCoin | Cooldowns, caps, engagement signals |
+| Economic gaming | WeixBucks → BKSPC | Cooldowns, caps, engagement signals |
 | Centralized upgrade key | All programs | Multisig + timelock |
 
 ---

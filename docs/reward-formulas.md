@@ -12,7 +12,7 @@
 2. Transparent math published in client (**Kalshi-style** published fee schedule — see `tokenomics-kalshi-model.md`)
 3. Engagement Quality reduces Sybil/forgery impact
 4. All rewards = signed Nostr events + SQLite cache
-5. **No speculative token** — WB = earn-only credits; BlkCoin = optional settlement receipt
+5. **No speculative token** — WB = earn-only credits; BKSPC = optional settlement receipt
 
 ---
 
@@ -67,14 +67,14 @@ final_reward = base_reward × engagement_quality × node_bonus
 
 ---
 
-## BlkCoin — Settlement rail (Kalshi payout analog; Phase 4+)
+## BKSPC — BlkSpace Settlement (Kalshi payout analog; Phase 4+)
 
-BlkCoin is **not** a daily earn memecoin. It is minted only when eligible users **withdraw** settled WB (counsel-gated).
+**BKSPC** is **not** a daily earn memecoin. It is minted only when eligible users **withdraw** settled WB (counsel-gated).
 
 | Mechanism | Policy |
 |-----------|--------|
 | Mint path | Treasury after WB debit + eligibility check |
-| Ratio | 1,000 WB → 1 BLK (fixed, published) |
+| Ratio | 1,000 WB → 1 BKSPC (fixed, published) |
 | Operator bonuses | Deferred until counsel; no viral “grants” marketing |
 
 **Supply policy:** Hard cap; mint authority revoked at cap; sinks via fees and burns.
@@ -141,7 +141,7 @@ Per-node daily cap prevents farm scaling.
 | Real posts | ≥ 3 |
 | Weekly cap | 1,000 WB per rolling 7 days |
 | Cooldown | 7 days between withdrawals |
-| Conversion ratio (display) | 1,000 WB = 1 BLK |
+| Conversion ratio (display) | 1,000 WB = 1 BKSPC |
 
 **Not live:** Anchor CPI mint, mainnet deployment, or purchasable WB. Wallet UI shows utility-credit disclaimer.
 

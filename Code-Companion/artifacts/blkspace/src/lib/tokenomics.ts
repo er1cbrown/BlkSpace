@@ -21,8 +21,12 @@ export function calcPlatformFee(amount: number, feeBps: number): number {
   return Math.floor((amount * feeBps) / 10000);
 }
 
+export const BKSPC_SYMBOL = "BKSPC" as const;
+export const BKSPC_NAME = "BlkSpace Settlement" as const;
+export const WB_TO_BKSPC_RATIO = 1000;
+
 export const KALSHI_FRAMING = {
   wbLabel: "Platform credits (collateral)",
-  blkLabel: "Settlement receipt (optional)",
+  bkspcLabel: `${BKSPC_NAME} (${BKSPC_SYMBOL})`,
   karmaLabel: "Reputation index (non-monetary)",
 } as const;

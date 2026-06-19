@@ -5,10 +5,10 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-blkcoin = "BlkC111111111111111111111111111111111111111"
+bkspc = "BkSpC111111111111111111111111111111111111"
 
 [programs.devnet]
-blkcoin = "BlkC111111111111111111111111111111111111111"
+bkspc = "BkSpC111111111111111111111111111111111111"
 
 [registry]
 url = "https://api.apr.dev"

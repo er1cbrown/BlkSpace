@@ -2,6 +2,7 @@
 
 **Status:** Draft policy + partial implementation (`db.rs` fees, withdrawal gates)  
 **Last Updated:** 2026-06-19  
+**On-chain token:** **BKSPC** — full name `BlkSpace Settlement` (replaces retired BlkCoin/BLKCOIN naming)  
 **Gate:** No mainnet / no purchasable WB until legal counsel approves
 
 ---
@@ -16,8 +17,8 @@
 | Event contracts | **Yard events + participation milestones** (RSVP, posts, node work) |
 | Exchange fees on trades | **Platform fees** on tips (2%), marketplace (5%) |
 | Settlement at resolution | **Earn on verified activity**; optional **withdrawal** = settlement rail |
-| CFTC-regulated DCM | **Counsel gate** before mainnet BlkCoin mint |
-| No platform token hype | **BlkCoin** = optional on-chain **receipt** of settled earnings |
+| CFTC-regulated DCM | **Counsel gate** before mainnet BKSPC mint |
+| No platform token hype | **BKSPC** = optional on-chain **receipt** of settled earnings |
 | Published fee schedule | `get_tokenomics_policy` + wallet UI |
 
 **We do not run** a Kalshi-style order book or real-money prediction markets on yard outcomes in Phase 3. Yard events are **community calendars**, not tradable contracts.
@@ -35,9 +36,9 @@
 │    • Spend: tips, boosts, themes, marketplace            │
 │    • Never: purchasable, off-platform transfer, ROI pitch │
 ├─────────────────────────────────────────────────────────┤
-│  BLKCOIN — settlement rail (Phase 4+, counsel-gated)     │
+│  BKSPC — BlkSpace Settlement (Phase 4+, counsel-gated)   │
 │    • Mint: ONLY after WB withdrawal + eligibility        │
-│    • Ratio: fixed 1,000 WB → 1 BLK (display; not speculative)│
+│    • Ratio: fixed 1,000 WB → 1 BKSPC (published)         │
 │    • No: presale, insider airdrop, “moon” marketing      │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -86,7 +87,7 @@ Withdrawal is **opt-in settlement** of earned WB to an on-chain receipt — not 
 ## User-facing copy (required)
 
 > WeixBucks are utility credits for participating on the yard — like Kalshi collateral, but **not purchasable with real money** and **not an investment**.  
-> BlkCoin is an optional settlement receipt for **earned** value after eligibility checks. No mainnet until counsel approves.
+> **BKSPC** (BlkSpace Settlement) is an optional on-chain receipt for **earned** value after eligibility checks. No mainnet until counsel approves.
 
 ---
 
@@ -94,7 +95,7 @@ Withdrawal is **opt-in settlement** of earned WB to an on-chain receipt — not 
 
 1. Whether WB + withdrawal rail triggers money-transmission or securities analysis in target states
 2. Fee disclosure sufficiency (in-app + published schedule)
-3. BlkCoin mint authority (multisig + timelock per `solana-security.md`)
+3. BKSPC mint authority (multisig + timelock per `solana-security.md`)
 4. Marketing guardrails — no ROI, no presale, no “token goes up”
 
 ---

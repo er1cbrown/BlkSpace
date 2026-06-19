@@ -58,7 +58,7 @@ TASKS = [
     },
     {
         "id": "hub-token-flows",
-        "name": "WeixBucks / BlkCoin Flows & Payments (ATM)",
+        "name": "WeixBucks / BKSPC Flows & Payments (ATM)",
         "discipline": "deep",
         "description": "How currencies increment (uploads + engagement + nodes), sinks, payments to users/viewers/marketplace.",
     },
