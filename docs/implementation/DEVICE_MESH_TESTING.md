@@ -18,18 +18,22 @@ Test BlkSpace across multiple devices to verify:
 
 **Terminology:** “Mesh” here means **multi-device hub sync**, not a BLE peer mesh.
 
-### P1 quick start (Device A + Device B)
+### P1 run order (Device B session — canonical)
 
-Minimum path to close the M0 manual gate:
+Use this sequence on Device B. Record results in [`docs/device-b-m0-results.md`](../device-b-m0-results.md).
 
-1. **Device A** — dev build or tagged release; create `@test_user`, save mnemonic
-2. **Device B** — install same build; Tier 0 hardware if possible (4 GB / i3)
-3. **Recover** `@test_user` on Device B (§1.4) — same handle + balance
-4. **Sync** — post on A, appears on B within 60s (§1.5)
-5. **Bots** — create local bot accounts on Device B; assign **Yard Mod** (§2.6)
-6. **Offline** — queue + flush on Device B (§3.1)
-7. **Tier 0** — Sync Test → Performance on Device B (§4.1)
-8. **Record** — fill test results template at bottom; update `docs/phase-0-status.md`
+| Step | Action | Doc ref |
+|------|--------|---------|
+| **0** | Device A: create `@test_user`, save mnemonic (once) | §1.2 |
+| **1** | Install build on Device B (same tag/commit as A) | §1.1 |
+| **2** | Create bot accounts on B; each **Join Yard** | §2.6 |
+| **3** | Assign **Yard Mod** to `@bot_mod`; confirm badge | §2.6 |
+| **4** | Recover `@test_user` on B; cross-device sync <60s | §1.4–1.5 |
+| **5** | Offline queue → reconnect → flush | §3.1 |
+| **6** | **Sync Test → Performance** — Tier 0 benchmark | §4.1 |
+| **7** | Fill results template; update `phase-0-status.md` | P3 |
+
+Why bots before recover: validates yard UI (mods, events) on Device B locally before tying cross-device sync to the primary account.
 
 ---
 

@@ -1,7 +1,7 @@
 # BlkSpace Progress Dashboard
 
 **Project:** BlkSpace on WeixNet  
-**Last updated:** 2026-06-16  
+**Last updated:** 2026-06-19  
 **Repo:** `BlkSpoof/` monorepo
 
 ---
@@ -9,8 +9,26 @@
 ## Status line
 
 ```
-Phase 0 ✅ | Phase 1 ✅ | Phase 2 Iroh auto ✅ | Nostr smoke ✅ (6) | Security hardening ✅ | Hub-sync M1 ✅ | M0 manual ⏳ | Tier 0 Device B ⏳
+Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | M1 hub-sync ✅ | P4 events ✅ | P5 roles ✅ | M0 manual ⏳ | Tier 0 Device B ⏳
 ```
+
+---
+
+## Device B M0 run (in progress)
+
+**Runbook:** [`device-b-m0-results.md`](device-b-m0-results.md) (fill as you go)
+
+| Step | Task | Status |
+|------|------|--------|
+| 1 | Install build on Device B | ⏳ |
+| 2 | Bot accounts + join yard | ⏳ |
+| 3 | Assign Yard Mod — confirm badge (§2.6) | ⏳ |
+| 4 | Recover `@test_user` + sync <60s (§1.4–1.5) | ⏳ |
+| 5 | Offline queue flush (§3.1) | ⏳ |
+| 6 | Sync Test → Performance / Tier 0 (§4.1) | ⏳ |
+| 7 | Results file + this dashboard updated | ⏳ |
+
+When step 7 passes, set **M0 manual ✅** and **Tier 0 Device B ✅** in the status line above.
 
 ---
 
@@ -18,12 +36,12 @@ Phase 0 ✅ | Phase 1 ✅ | Phase 2 Iroh auto ✅ | Nostr smoke ✅ (6) | Securi
 
 | Suite | Command | Last run | Count |
 |-------|---------|----------|-------|
-| Rust unit | `cargo test --lib -- --skip nostr_relay_smoke` | 2026-06-16 ✅ | 98 |
-| Iroh | included in default `--lib` (`iroh` feature) | 2026-06-16 ✅ | 12 |
+| Rust unit | `cargo test --lib -- --skip nostr_relay_smoke` | 2026-06-19 ✅ | 100 |
+| Iroh | included in default `--lib` (`iroh` feature) | 2026-06-19 ✅ | in above |
 | Nostr live | `cargo test nostr_relay_smoke -- --test-threads=1` | 2026-06-16 ✅ | 6 |
 | Tier 0 bench | `cargo test tier0_benchmark` | 2026-06-16 ✅ | 1 |
 
-**Total automated:** 104 lib tests passing (`aa3f63b`, excluding Playwright).
+**Total automated:** 100 lib tests passing (`a1bf52a`, excluding live Nostr smoke).
 
 ---
 
@@ -66,7 +84,7 @@ Phase 0 ✅ | Phase 1 ✅ | Phase 2 Iroh auto ✅ | Nostr smoke ✅ (6) | Securi
 | Tier 0 hardware smooth | ✅ `pnpm test:tier0` dev Mac | ⏳ M0.5 Device B |
 | No data loss on sync | ✅ DB + rate-limit tests | ⏳ M0 stress |
 
-**Score: 6/6 auto · 0/6 manual** (`aa3f63b`). **M1 shipped** — blob announce, reply flush, Sync Test UX. BLE/LAN mesh **deferred**.
+**Score: 6/6 auto · 0/6 manual**. BLE/LAN mesh **deferred**.
 
 ### Security (`docs/security-considerations.md`)
 
@@ -89,12 +107,12 @@ Phase 0 ✅ | Phase 1 ✅ | Phase 2 Iroh auto ✅ | Nostr smoke ✅ (6) | Securi
 |-------|--------|--------|
 | 0 | Theory, repo, CI | ✅ Complete |
 | 1 | Social, economy, auth, security UI | ✅ Complete |
-| 2 | Iroh, Nostr mesh, offline queue | ~90% — M1 hub-sync shipped; live P2P + Tier 0 manual open |
-| 3 | Communities, full rewards, theming | ~55% — yards, Sync Test UI, partial cross-town |
+| 2 | Iroh, Nostr mesh, offline queue | ~90% — M0 manual open on Device B |
+| 3 | Communities, full rewards, theming | ~65% — events + roles shipped; earn audit + cross-town open |
 | 4 | Wallet on-chain, NFT, BlkCoin | Not started |
 | 5 | Ops, release | Not started |
 
-**MVP target:** end of Phase 3 per `plan.md`.
+**MVP target:** end of Phase 3 per `plan.md`. **~78–80% to MVP** (automated proof ahead of Device B sign-off).
 
 ---
 
@@ -102,9 +120,9 @@ Phase 0 ✅ | Phase 1 ✅ | Phase 2 Iroh auto ✅ | Nostr smoke ✅ (6) | Securi
 
 | Check | Where |
 |-------|--------|
+| Yard mod assign + badge | Communities → TSU → Members |
+| Yard event RSVP + earn | Communities → TSU → Events |
 | NIP-65 publish/fetch | Relays → **Publish my relay list** → **Refresh from relays** |
-| Damus visibility | Relays → **Publish visibility test note** |
-| Security UI §2.4 | Post detail, feeds, Settings — dev spot-check ✅ |
 | Tier 0 benchmarks | Sync Test → Performance (Device B for sign-off) |
 | Offline flush | Sync Test → Offline → **Flush Now** |
 
@@ -112,11 +130,11 @@ Phase 0 ✅ | Phase 1 ✅ | Phase 2 Iroh auto ✅ | Nostr smoke ✅ (6) | Securi
 
 ## Open next (priority)
 
-1. **M0 manual matrix** — [`DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) Phases 1–3 + §4.1 on Device B (second desktop)
-2. **Device B** — Tier 0 sign-off (Windows 4GB / i3 ideal); Sync Test → Performance
-3. ~~**M1 hub-sync**~~ — ✅ `aa3f63b` kind 1063 on upload, reply Nostr flush, Sync Test UX
-4. ~~**NIP-65 on profile**~~ — ✅ `ProfileRelayList` on `/profile/:handle`
-5. **M2 LAN assist** — only if dorm offline blob transfer becomes a hard requirement
+1. **P1 Device B** — run [`device-b-m0-results.md`](device-b-m0-results.md) steps 1–7
+2. **P2** — tagged pilot build (`v0.x`)
+3. **P6** — earn path audit
+4. **P7** — cross-town / Bridge polish
+5. ~~**P4 events**~~ · ~~**P5 roles**~~ · ~~**P8 wallet provider**~~ — ✅ 2026-06-19
 
 ---
 
@@ -124,13 +142,11 @@ Phase 0 ✅ | Phase 1 ✅ | Phase 2 Iroh auto ✅ | Nostr smoke ✅ (6) | Securi
 
 | Doc | Use for |
 |-----|---------|
+| [`device-b-m0-results.md`](device-b-m0-results.md) | Fill-in M0 results (step 7) |
+| [`implementation/DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) | Full M0 matrix |
 | [`plan.md`](../plan.md) | Master phase plan |
-| [`docs/security-considerations.md`](security-considerations.md) | Threat model |
-| [`docs/implementation/IROH_INTEGRATION.md`](implementation/IROH_INTEGRATION.md) | Iroh criteria |
-| [`docs/implementation/REAL_NOSTR_RELAYS.md`](implementation/REAL_NOSTR_RELAYS.md) | Nostr criteria |
-| [`docs/implementation/MESH_ARCHITECTURE.md`](implementation/MESH_ARCHITECTURE.md) | Hub-sync mesh plan (Nostr + Iroh + offline) |
-| [`docs/implementation/DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) | M0 manual checklist + Tier 0 |
+| [`mvp-timeline-and-onchain-roadmap.md`](mvp-timeline-and-onchain-roadmap.md) | Priority list P1–P11 |
 
 ---
 
-*Replace the status line and test counts when you re-run the four commands above.*
+*After Device B session: check boxes in `device-b-m0-results.md`, then update the status line and M0 manual column in this file.*
