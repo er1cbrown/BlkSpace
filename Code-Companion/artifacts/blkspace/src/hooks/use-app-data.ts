@@ -1251,6 +1251,84 @@ export function useTauriIsYardMember(communityId: string) {
   });
 }
 
+export function useTauriListYardEvents(communityId: string) {
+  return useQuery({
+    queryKey: ["tauri", "yardEvents", communityId],
+    queryFn: () =>
+      tauri.tauriListYardEvents(communityId, getCurrentHandle() || undefined),
+    enabled: IS_TAURI && !!communityId,
+  });
+}
+
+export function useTauriCreateYardEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: {
+      communityId: string;
+      title: string;
+      description: string;
+      location: string;
+      startsAt: string;
+      endsAt?: string;
+    }) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return tauri.tauriCreateYardEvent(
+        token,
+        args.communityId,
+        args.title,
+        args.description,
+        args.location,
+        args.startsAt,
+        args.endsAt,
+      );
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({
+        queryKey: ["tauri", "yardEvents", vars.communityId],
+      });
+    },
+  });
+}
+
+export function useTauriRsvpYardEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: {
+      communityId: string;
+      eventId: number;
+      status: "going" | "interested";
+    }) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return tauri.tauriRsvpYardEvent(token, args.eventId, args.status);
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({
+        queryKey: ["tauri", "yardEvents", vars.communityId],
+      });
+      qc.invalidateQueries({ queryKey: ["tauri", "user"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "earnSummary"] });
+    },
+  });
+}
+
+export function useTauriCancelYardEventRsvp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { communityId: string; eventId: number }) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return tauri.tauriCancelYardEventRsvp(token, args.eventId);
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({
+        queryKey: ["tauri", "yardEvents", vars.communityId],
+      });
+    },
+  });
+}
+
 export function useTauriGetEarnSummary() {
   return useQuery({
     queryKey: ["tauri", "earnSummary"],

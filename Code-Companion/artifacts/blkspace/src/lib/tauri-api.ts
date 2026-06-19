@@ -58,6 +58,26 @@ export interface TauriJoinYardResult {
   earn: TauriEarnResult;
 }
 
+export interface TauriYardEvent {
+  id: number;
+  communityId: string;
+  title: string;
+  description: string;
+  location: string;
+  startsAt: string;
+  endsAt?: string | null;
+  createdBy: string;
+  createdByDisplayName: string;
+  rsvpCount: number;
+  userRsvp?: string | null;
+}
+
+export interface TauriRsvpYardEventResult {
+  rsvped: boolean;
+  status: string;
+  earn: TauriEarnResult;
+}
+
 export interface TauriWallPostResult {
   wallPost: TauriWallPost;
   earn: TauriEarnResult;
@@ -1147,6 +1167,48 @@ export function tauriIsYardMember(
   communityId: string,
 ): Promise<boolean> {
   return invoke("is_yard_member", { sessionToken, communityId });
+}
+
+export function tauriListYardEvents(
+  communityId: string,
+  currentUser?: string,
+): Promise<TauriYardEvent[]> {
+  return invoke("list_yard_events", { communityId, currentUser });
+}
+
+export function tauriCreateYardEvent(
+  sessionToken: string,
+  communityId: string,
+  title: string,
+  description: string,
+  location: string,
+  startsAt: string,
+  endsAt?: string,
+): Promise<TauriYardEvent> {
+  return invoke("create_yard_event", {
+    sessionToken,
+    communityId,
+    title,
+    description,
+    location,
+    startsAt,
+    endsAt,
+  });
+}
+
+export function tauriRsvpYardEvent(
+  sessionToken: string,
+  eventId: number,
+  status: "going" | "interested",
+): Promise<TauriRsvpYardEventResult> {
+  return invoke("rsvp_yard_event", { sessionToken, eventId, status });
+}
+
+export function tauriCancelYardEventRsvp(
+  sessionToken: string,
+  eventId: number,
+): Promise<boolean> {
+  return invoke("cancel_yard_event_rsvp", { sessionToken, eventId });
 }
 
 export function tauriCreateWallPost(

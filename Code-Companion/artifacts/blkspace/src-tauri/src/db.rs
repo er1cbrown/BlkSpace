@@ -215,6 +215,30 @@ pub struct JoinYardResult {
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct YardEvent {
+  pub id: i64,
+  pub community_id: String,
+  pub title: String,
+  pub description: String,
+  pub location: String,
+  pub starts_at: String,
+  pub ends_at: Option<String>,
+  pub created_by: String,
+  pub created_by_display_name: String,
+  pub rsvp_count: i64,
+  pub user_rsvp: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RsvpYardEventResult {
+  pub rsvped: bool,
+  pub status: String,
+  pub earn: EarnResult,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct WallPostResult {
   pub wall_post: WallPost,
   pub earn: EarnResult,
@@ -719,6 +743,31 @@ impl Database {
         joined_at TEXT DEFAULT (datetime('now')),
         PRIMARY KEY (community_id, handle)
       );
+
+      CREATE TABLE IF NOT EXISTS yard_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        community_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        location TEXT DEFAULT '',
+        starts_at TEXT NOT NULL,
+        ends_at TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now')),
+        FOREIGN KEY (created_by) REFERENCES users(handle)
+      );
+
+      CREATE TABLE IF NOT EXISTS yard_event_rsvps (
+        event_id INTEGER NOT NULL,
+        handle TEXT NOT NULL,
+        status TEXT DEFAULT 'going',
+        created_at TEXT DEFAULT (datetime('now')),
+        PRIMARY KEY (event_id, handle),
+        FOREIGN KEY (event_id) REFERENCES yard_events(id),
+        FOREIGN KEY (handle) REFERENCES users(handle)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_yard_events_community ON yard_events(community_id, starts_at);
 
       CREATE TABLE IF NOT EXISTS wall_posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3278,6 +3327,273 @@ impl Database {
       count += 1;
     }
     Ok(count)
+  }
+
+  // ─── Yard events (RSVP + calendar) ───────────────────────
+
+  pub fn list_yard_events(
+    &self,
+    community_id: &str,
+    current_user: Option<&str>,
+  ) -> Result<Vec<YardEvent>> {
+    let count: i64 = {
+      let conn = self.conn.lock().unwrap();
+      conn.query_row(
+        "SELECT COUNT(*) FROM yard_events WHERE community_id = ?1",
+        params![community_id],
+        |r| r.get(0),
+      )?
+    };
+    if count == 0 {
+      self.seed_yard_events_for_community(community_id)?;
+    }
+    let conn = self.conn.lock().unwrap();
+    let sql = "
+      SELECT e.id, e.community_id, e.title, e.description, e.location, e.starts_at, e.ends_at,
+             e.created_by, COALESCE(u.display_name, e.created_by) AS display_name,
+             (SELECT COUNT(*) FROM yard_event_rsvps r WHERE r.event_id = e.id) AS rsvp_count,
+             ur.status AS user_rsvp
+      FROM yard_events e
+      LEFT JOIN users u ON u.handle = e.created_by
+      LEFT JOIN yard_event_rsvps ur ON ur.event_id = e.id AND ur.handle = ?2
+      WHERE e.community_id = ?1
+      ORDER BY e.starts_at ASC
+    ";
+    let user_key = current_user.unwrap_or("");
+    let mut stmt = conn.prepare(sql)?;
+    let rows = stmt.query_map(params![community_id, user_key], |row| {
+      let user_rsvp: Option<String> = row.get(10)?;
+      Ok(YardEvent {
+        id: row.get(0)?,
+        community_id: row.get(1)?,
+        title: row.get(2)?,
+        description: row.get(3)?,
+        location: row.get(4)?,
+        starts_at: row.get(5)?,
+        ends_at: row.get(6)?,
+        created_by: row.get(7)?,
+        created_by_display_name: row.get(8)?,
+        rsvp_count: row.get(9)?,
+        user_rsvp: user_rsvp.filter(|s| !s.is_empty()),
+      })
+    })?;
+    let mut events = Vec::new();
+    for row in rows {
+      events.push(row?);
+    }
+    Ok(events)
+  }
+
+  pub fn create_yard_event(
+    &self,
+    community_id: &str,
+    created_by: &str,
+    title: &str,
+    description: &str,
+    location: &str,
+    starts_at: &str,
+    ends_at: Option<&str>,
+  ) -> Result<YardEvent> {
+    let title = title.trim();
+    if title.is_empty() || title.len() > 200 {
+      return Err(rusqlite::Error::InvalidParameterName(
+        "Title must be 1-200 characters".into(),
+      ));
+    }
+    if starts_at.trim().is_empty() {
+      return Err(rusqlite::Error::InvalidParameterName(
+        "Start time required".into(),
+      ));
+    }
+    if !self.is_yard_member(created_by, community_id)? {
+      return Err(rusqlite::Error::InvalidParameterName(
+        "Join the yard before creating events".into(),
+      ));
+    }
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "INSERT INTO yard_events (community_id, title, description, location, starts_at, ends_at, created_by)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+      params![
+        community_id,
+        title,
+        description.trim(),
+        location.trim(),
+        starts_at.trim(),
+        ends_at.map(str::trim),
+        created_by
+      ],
+    )?;
+    let id = conn.last_insert_rowid();
+    let display_name: String = conn.query_row(
+      "SELECT display_name FROM users WHERE handle = ?1",
+      params![created_by],
+      |r| r.get(0),
+    )?;
+    Ok(YardEvent {
+      id,
+      community_id: community_id.to_string(),
+      title: title.to_string(),
+      description: description.trim().to_string(),
+      location: location.trim().to_string(),
+      starts_at: starts_at.trim().to_string(),
+      ends_at: ends_at.map(|s| s.trim().to_string()),
+      created_by: created_by.to_string(),
+      created_by_display_name: display_name,
+      rsvp_count: 0,
+      user_rsvp: None,
+    })
+  }
+
+  pub fn rsvp_yard_event(
+    &self,
+    handle: &str,
+    event_id: i64,
+    status: &str,
+  ) -> Result<RsvpYardEventResult> {
+    let status = if status == "interested" {
+      "interested"
+    } else {
+      "going"
+    };
+    let community_id: String = {
+      let conn = self.conn.lock().unwrap();
+      conn.query_row(
+        "SELECT community_id FROM yard_events WHERE id = ?1",
+        params![event_id],
+        |r| r.get(0),
+      )
+      .map_err(|_| {
+        rusqlite::Error::InvalidParameterName("Event not found".into())
+      })?
+    };
+    if !self.is_yard_member(handle, &community_id)? {
+      return Err(rusqlite::Error::InvalidParameterName(
+        "Join the yard before RSVPing".into(),
+      ));
+    }
+    let conn = self.conn.lock().unwrap();
+    let inserted = conn.execute(
+      "INSERT OR IGNORE INTO yard_event_rsvps (event_id, handle, status) VALUES (?1, ?2, ?3)",
+      params![event_id, handle, status],
+    )?;
+    if inserted == 0 {
+      conn.execute(
+        "UPDATE yard_event_rsvps SET status = ?1 WHERE event_id = ?2 AND handle = ?3",
+        params![status, event_id, handle],
+      )?;
+      return Ok(RsvpYardEventResult {
+        rsvped: true,
+        status: status.to_string(),
+        earn: EarnResult::default(),
+      });
+    }
+    drop(conn);
+    let quality = self.update_engagement_quality(handle).unwrap_or(1.0);
+    let wb_nominal = self.throttle_rewards(handle, 2.0, quality);
+    let throttled = self.rewards_throttled(handle);
+    let wb_actual = self.grant_weix_bucks(handle, wb_nominal, "Event RSVP")?;
+    if !throttled {
+      self.grant_karma(handle, &community_id, 0, 2, "Event RSVP")?;
+    }
+    Ok(RsvpYardEventResult {
+      rsvped: true,
+      status: status.to_string(),
+      earn: EarnResult::build(wb_nominal, wb_actual, 0, 2, throttled),
+    })
+  }
+
+  pub fn cancel_yard_event_rsvp(&self, handle: &str, event_id: i64) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let removed = conn.execute(
+      "DELETE FROM yard_event_rsvps WHERE event_id = ?1 AND handle = ?2",
+      params![event_id, handle],
+    )?;
+    Ok(removed > 0)
+  }
+
+  fn seed_yard_events_for_community(&self, community_id: &str) -> Result<()> {
+    let now = chrono::Utc::now();
+    let samples: Vec<(&str, &str, &str, i64, &str)> = match community_id {
+      "tsu" => vec![
+        (
+          "Career Fair Prep & Networking",
+          "Resume reviews, employer booths, and yard connections before the TSU career fair.",
+          "Kean Hall Lobby",
+          2,
+          "demo_user",
+        ),
+        (
+          "Homecoming Watch Party",
+          "Tailgate vibes indoors — music, food trucks nearby, and live game stream.",
+          "Student Center Ballroom",
+          7,
+          "jane_doe",
+        ),
+      ],
+      "howard" => vec![
+        (
+          "Yard Networking Night",
+          "Meet founders, alumni, and creators. Bring your elevator pitch.",
+          "Founders Library Plaza",
+          4,
+          "jane_doe",
+        ),
+        (
+          "Study Hall Power Session",
+          "Quiet hours with accountability partners. Coffee provided.",
+          "Undergraduate Library",
+          1,
+          "hbcustudent",
+        ),
+      ],
+      "famu" => vec![
+        (
+          "Rattler Tailgate Mixer",
+          "Pre-game meetup for FAMU students and alumni.",
+          "Bragg Stadium Lot",
+          5,
+          "campus_king",
+        ),
+      ],
+      "spelman" => vec![
+        (
+          "Spelman Sister Circle",
+          "Open mic, mentorship intros, and community building.",
+          "Manley Hall",
+          3,
+          "hbcustudent",
+        ),
+      ],
+      "morehouse" => vec![
+        (
+          "Morehouse Alumni Panel",
+          "Career paths in tech, finance, and entrepreneurship.",
+          "Sale Hall",
+          6,
+          "alumnus_01",
+        ),
+      ],
+      _ => vec![(
+        "Yard Meetup",
+        "Casual hangout for yard members — all welcome.",
+        "Main Quad",
+        3,
+        "demo_user",
+      )],
+    };
+    let conn = self.conn.lock().unwrap();
+    for (title, desc, location, days_ahead, creator) in samples {
+      let starts = (now + chrono::Duration::days(days_ahead))
+        .format("%Y-%m-%dT%H:00:00Z")
+        .to_string();
+      let _ = conn.execute(
+        "INSERT INTO yard_events (community_id, title, description, location, starts_at, created_by)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![community_id, title, desc, location, starts, creator],
+      );
+    }
+    Ok(())
   }
 
   // ─── Yard membership, wall, profile extensions, karma ───

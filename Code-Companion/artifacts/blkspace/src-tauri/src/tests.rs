@@ -1541,4 +1541,63 @@ mod tests {
     }
     assert!(report.all_pass);
   }
+
+  #[test]
+  fn test_yard_events_create_and_rsvp() {
+    let db = setup_test_db();
+    db.create_user("host_user", "Host User", "").unwrap();
+    db.create_user("guest_user", "Guest User", "").unwrap();
+    db.join_yard("host_user", "tsu").unwrap();
+    db.join_yard("guest_user", "tsu").unwrap();
+
+    let event = db
+      .create_yard_event(
+        "tsu",
+        "host_user",
+        "Study Hall",
+        "Bring laptops",
+        "Library",
+        "2026-07-01T18:00:00Z",
+        None,
+      )
+      .unwrap();
+    assert_eq!(event.title, "Study Hall");
+    assert_eq!(event.rsvp_count, 0);
+
+    let listed = db.list_yard_events("tsu", Some("guest_user")).unwrap();
+    assert!(listed.iter().any(|e| e.id == event.id));
+
+    let wb_before_rsvp = db.get_user("guest_user").unwrap().unwrap().weix_bucks;
+
+    let rsvp = db.rsvp_yard_event("guest_user", event.id, "going").unwrap();
+    assert!(rsvp.rsvped);
+    assert_eq!(rsvp.status, "going");
+    assert_eq!(rsvp.earn.wb, 2);
+
+    let listed_after = db.list_yard_events("tsu", Some("guest_user")).unwrap();
+    let updated = listed_after.iter().find(|e| e.id == event.id).unwrap();
+    assert_eq!(updated.rsvp_count, 1);
+    assert_eq!(updated.user_rsvp.as_deref(), Some("going"));
+
+    let guest = db.get_user("guest_user").unwrap().unwrap();
+    assert_eq!(guest.weix_bucks, wb_before_rsvp + 2);
+  }
+
+  #[test]
+  fn test_yard_event_requires_membership() {
+    let db = setup_test_db();
+    db.create_user("outsider", "Outsider", "").unwrap();
+    let err = db
+      .create_yard_event(
+        "tsu",
+        "outsider",
+        "Blocked Event",
+        "",
+        "",
+        "2026-07-01T18:00:00Z",
+        None,
+      )
+      .unwrap_err();
+    assert!(err.to_string().contains("Join the yard"));
+  }
 }

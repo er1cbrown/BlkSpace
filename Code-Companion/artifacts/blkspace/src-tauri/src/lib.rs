@@ -21,7 +21,7 @@ use key_store::KeyStore;
 use db::{
   AppError, ApproveWallPostResult, BlobRecord, Community, CreatePostResult, CreateReplyResult,
   CrossTownEvent, Database, EarnResult, EarnSummary, JoinYardResult, KarmaLeaderboardEntry,
-  RepostFeedItem, RepostResult,
+  RepostFeedItem, RepostResult, RsvpYardEventResult, YardEvent,
   NetworkStats,
   Notification, Post, Relay, Reply, UploadBlobResult, User, WalletTx, WallPost, WallPostResult,
   RelayConnectionRecord, RelayEventRecord,
@@ -2687,6 +2687,71 @@ fn list_yard_members(state: State<AppState>, community_id: String) -> Result<Vec
 }
 
 #[tauri::command]
+fn list_yard_events(
+  state: State<AppState>,
+  community_id: String,
+  current_user: Option<String>,
+) -> Result<Vec<YardEvent>, String> {
+  state
+    .db
+    .list_yard_events(&community_id, current_user.as_deref())
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn create_yard_event(
+  state: State<AppState>,
+  session_token: String,
+  community_id: String,
+  title: String,
+  description: String,
+  location: String,
+  starts_at: String,
+  ends_at: Option<String>,
+) -> Result<YardEvent, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .create_yard_event(
+      &community_id,
+      &handle,
+      &title,
+      &description,
+      &location,
+      &starts_at,
+      ends_at.as_deref(),
+    )
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn rsvp_yard_event(
+  state: State<AppState>,
+  session_token: String,
+  event_id: i64,
+  status: String,
+) -> Result<RsvpYardEventResult, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .rsvp_yard_event(&handle, event_id, &status)
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn cancel_yard_event_rsvp(
+  state: State<AppState>,
+  session_token: String,
+  event_id: i64,
+) -> Result<bool, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .cancel_yard_event_rsvp(&handle, event_id)
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
 fn create_wall_post(
   state: State<AppState>,
   session_token: String,
@@ -3123,6 +3188,10 @@ pub fn run() {
       leave_yard,
       is_yard_member,
       list_yard_members,
+      list_yard_events,
+      create_yard_event,
+      rsvp_yard_event,
+      cancel_yard_event_rsvp,
       create_wall_post,
       list_wall_posts,
       approve_wall_post,

@@ -33,6 +33,7 @@ import {
   useTauriIsYardMember,
 } from "@/hooks/use-app-data";
 import { showEarnFromResult } from "@/components/economy/EarnToast";
+import { YardEventsPanel } from "@/components/community/YardEventsPanel";
 import { SafeContent } from "@/components/ui/safe-content";
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { SignatureBadge } from "@/components/ui/signature-badge";
@@ -117,6 +118,8 @@ export default function CommunityPage() {
   const [, params] = useRoute("/communities/:id");
   const id = params?.id || "";
   const [activeChannel, setActiveChannel] = useState("#general");
+  const [activeTab, setActiveTab] = useState("chat");
+  const [createEventOpen, setCreateEventOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [commRoles, setCommRoles] = useState<Record<string, string>>({});
   const [postReplies, setPostReplies] = useState<Record<number, any[]>>({});
@@ -417,7 +420,10 @@ export default function CommunityPage() {
                   variant="outline"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => toast("Event creation coming soon")}
+                  onClick={() => {
+                    setActiveTab("events");
+                    setCreateEventOpen(true);
+                  }}
                 >
                   📅 Create Event
                 </Button>
@@ -435,7 +441,11 @@ export default function CommunityPage() {
 
           {/* Main Content Area */}
           <div className="lg:col-span-9">
-            <Tabs defaultValue="chat" className="w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="w-full"
+            >
               <TabsList className="mb-4">
                 <TabsTrigger value="chat">{activeChannel} Chat</TabsTrigger>
                 <TabsTrigger value="members">Members</TabsTrigger>
@@ -663,18 +673,13 @@ export default function CommunityPage() {
               </TabsContent>
 
               <TabsContent value="events">
-                <Card>
-                  <CardContent className="p-6 space-y-3 text-sm">
-                    <p className="font-medium">Yard events (Discord + Facebook)</p>
-                    <p className="text-muted-foreground">
-                      Homecoming watch parties, study halls, networking nights — RSVP
-                      flow coming in Phase 2G. Join the yard to earn WB for showing up.
-                    </p>
-                    <Button size="sm" variant="outline" onClick={() => toast("Event RSVP — next sprint")}>
-                      + Create Event
-                    </Button>
-                  </CardContent>
-                </Card>
+                <YardEventsPanel
+                  communityId={id}
+                  communityName={community.name}
+                  isMember={isMember}
+                  createDialogOpen={createEventOpen}
+                  onCreateDialogOpenChange={setCreateEventOpen}
+                />
               </TabsContent>
 
               <TabsContent value="about">

@@ -60,6 +60,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { WalletContextProvider } from "@/components/WalletContextProvider";
 
 const mockTxHistory = [
   {
@@ -411,7 +412,7 @@ function WithdrawDialog({ balance }: { balance: number }) {
   );
 }
 
-export default function WalletPage() {
+function WalletPageContent() {
   const handle = getCurrentHandle();
   const { data: user } = useAppGetUser(handle);
   const { data: tauriTx } = useTauriGetWalletTx();
@@ -949,5 +950,13 @@ export default function WalletPage() {
           </TabsContent>
         </Tabs>
     </AppShell>
+  );
+}
+
+export default function WalletPage() {
+  return (
+    <WalletContextProvider>
+      <WalletPageContent />
+    </WalletContextProvider>
   );
 }
