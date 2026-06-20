@@ -55,19 +55,29 @@ fn load_keypair(path: &Path) -> Result<Keypair, String> {
     &fs::read_to_string(path).map_err(|e| format!("read keypair {path:?}: {e}"))?,
   )
   .map_err(|e| format!("parse keypair {path:?}: {e}"))?;
-  Keypair::from_bytes(&bytes).map_err(|e| format!("invalid keypair {path:?}: {e}"))
+  Keypair::try_from(&bytes[..]).map_err(|e| format!("invalid keypair {path:?}: {e}"))
 }
 
 fn manifest_path() -> Option<String> {
   if let Ok(path) = std::env::var("BKSPC_DEVNET_MANIFEST") {
     return Some(path);
   }
+  // Devnet fallback paths for local builds (workspace root → Code-Companion/artifacts/solana/devnet).
+  let candidates = [
+    "Code-Companion/artifacts/solana/devnet/bkspc-mint.json",
+    "artifacts/solana/devnet/bkspc-mint.json",
+  ];
+  for c in &candidates {
+    if Path::new(c).is_file() {
+      return Some(c.to_string());
+    }
+  }
   None
 }
 
 fn load_config() -> Result<DevnetSettlementConfig, String> {
   let path = manifest_path().ok_or_else(|| {
-    "BKSPC_DEVNET_MANIFEST not set (path to devnet/bkspc-mint.json)".to_string()
+    "BKSPC devnet manifest not found. Set BKSPC_DEVNET_MANIFEST or place manifest at Code-Companion/artifacts/solana/devnet/bkspc-mint.json".to_string()
   })?;
   let raw = fs::read_to_string(&path)
     .map_err(|e| format!("read manifest {path}: {e}"))?;

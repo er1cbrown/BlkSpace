@@ -1373,25 +1373,23 @@ fn withdraw_to_solana(
 
   #[cfg(feature = "bkspc-devnet")]
   {
-    match bkspc_settlement::mint_settlement_to_recipient(&student_solana_address, amount_wb) {
-      Ok(sig) => return Ok(sig),
-      Err(e) => {
-        return Err(format!(
-          "WB debited off-chain but devnet BKSPC mint failed: {e}. File an economy appeal."
-        ));
-      }
+    return bkspc_settlement::mint_settlement_to_recipient(&student_solana_address, amount_wb)
+      .map_err(|e| format!(
+        "WB debited off-chain but devnet BKSPC mint failed: {e}. File an economy appeal."
+      ));
+  }
+
+  #[cfg(not(feature = "bkspc-devnet"))]
+  {
+    // Simulated signature when bkspc-devnet feature or manifest not configured
+    let chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    let mut signature = String::new();
+    for _ in 0..88 {
+      let idx = (uuid::Uuid::new_v4().as_u128() % 58) as usize;
+      signature.push(chars.chars().nth(idx).unwrap_or('1'));
     }
+    Ok(signature)
   }
-
-  // Simulated signature when bkspc-devnet feature or manifest not configured
-  let chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-  let mut signature = String::new();
-  for _ in 0..88 {
-    let idx = (uuid::Uuid::new_v4().as_u128() % 58) as usize;
-    signature.push(chars.chars().nth(idx).unwrap_or('1'));
-  }
-
-  Ok(signature)
 }
 
 #[tauri::command]

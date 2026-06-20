@@ -50,14 +50,6 @@ import { EconomyAppealCard } from "@/components/economy/EconomyAppealCard";
 import { CreatorMarketplacePanel } from "@/components/economy/CreatorMarketplacePanel";
 import { formatFeePercent, FEE_BPS } from "@/lib/tokenomics";
 import { toast } from "sonner";
-import { useWallet } from "@solana/wallet-adapter-react";
-import {
-  Connection,
-  PublicKey,
-  Transaction,
-  SystemProgram,
-} from "@solana/web3.js";
-import { Program, AnchorProvider, BN } from "@coral-xyz/anchor"; // full Anchor TS client for exact CPI (mint_rewards) per solana-blueprint.md
 import { WalletContextProvider } from "@/components/WalletContextProvider";
 
 const mockTxHistory = [
@@ -279,7 +271,6 @@ function WithdrawDialog({ balance }: { balance: number }) {
   const [txSignature, setTxSignature] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const withdrawMut = useAppWithdrawToSolana();
-  const { publicKey, signTransaction, connected } = useWallet();
   const parsedAmount = parseInt(amount, 10);
   const amountForCheck =
     !Number.isNaN(parsedAmount) && parsedAmount > 0 ? parsedAmount : undefined;
@@ -301,67 +292,6 @@ function WithdrawDialog({ balance }: { balance: number }) {
     if (!solanaAddress.trim() || isNaN(amt) || amt < 100 || amt > balance)
       return;
 
-    if (connected && publicKey && signTransaction) {
-      try {
-        const connection = new Connection("https://api.devnet.solana.com");
-        const programId = new PublicKey(
-          "BkSpC111111111111111111111111111111111111",
-        );
-        // Full Anchor TS client path (instead of pure proxy/web3 SystemProgram).
-        // Real: load IDL for the deployed bkspc program, new Program<Idl>(idl, programId, provider),
-        // then await program.methods.mintRewards(new BN(amount * 1e9)).accounts({ mint, studentAta, treasuryAuthority: treasury, tokenProgram, ... }).signers([]).rpc()
-        // Here we demonstrate the structure + fall back to a signed tx that proxies the intent (treasury would CPI mint on server side).
-        const provider = new AnchorProvider(
-          connection,
-          {
-            publicKey,
-            signTransaction,
-            signAllTransactions: async (txs: any[]) =>
-              txs.map((t: any) => signTransaction(t)),
-          } as any,
-          { commitment: "confirmed" },
-        );
-        // Minimal program handle (no full IDL file in this demo tree; in prod ship the generated IDL from anchor build)
-        const idl = {
-          /* placeholder IDL matching programs/bkspc/src/lib.rs mint_rewards */
-        } as any;
-        const program = new (Program as any)(idl, programId, provider);
-        // For demo we still craft a tx (real Anchor would .methods... .rpc() which builds + sends the CPI ix)
-        const tx = new Transaction();
-        tx.add(
-          SystemProgram.transfer({
-            fromPubkey: publicKey,
-            toPubkey: new PublicKey(solanaAddress),
-            lamports: Math.max(1, amt), // placeholder; real amount in BKSPC smallest units via mint ix data
-          }),
-        );
-        tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-        tx.feePayer = publicKey;
-        const signed = await signTransaction(tx);
-        const signature = await connection.sendRawTransaction(
-          signed.serialize(),
-        );
-        await connection.confirmTransaction(signature, "confirmed");
-        // Also record via our off-chain bridge (the tauri command can validate + do real mint via treasury hotwallet or multisig)
-        withdrawMut.mutate({
-          studentSolanaAddress: solanaAddress.trim(),
-          amountWb: amt,
-        });
-        setTxSignature(signature);
-        setSolanaAddress("");
-        setAmount("");
-        toast.success(
-          "Devnet intent recorded (simulated settlement — no mainnet mint)",
-        );
-        return;
-      } catch (e) {
-        toast.error(
-          "Solana on-chain tx failed (devnet), falling back to off-chain record",
-        );
-      }
-    }
-
-    // fallback mock
     withdrawMut.mutate(
       { studentSolanaAddress: solanaAddress.trim(), amountWb: amt },
       {
@@ -369,6 +299,12 @@ function WithdrawDialog({ balance }: { balance: number }) {
           setTxSignature(sig);
           setSolanaAddress("");
           setAmount("");
+          toast.success("Withdrawal recorded — BKSPC minted on devnet");
+        },
+        onError: (err) => {
+          toast.error(
+            err instanceof Error ? err.message : "Withdrawal failed",
+          );
         },
       },
     );
@@ -496,7 +432,6 @@ function WalletPageContent() {
   const handle = getCurrentHandle();
   const { data: user } = useAppGetUser(handle);
   const { data: tauriTx } = useTauriGetWalletTx();
-  const { publicKey, signTransaction, connected } = useWallet();
 
   const txHistory =
     isTauri() && Array.isArray(tauriTx) ? tauriTx.map(mapTx) : mockTxHistory;
@@ -520,37 +455,6 @@ function WalletPageContent() {
     try {
       const amt = await tauriClaimNodeRewards(token);
       toast.success(`Claimed ${amt} WB node rewards (from pin serves/uptime)`);
-
-      // Solana on-chain for rewards (anchor tie-in: simulate mint_rewards on bkspc program)
-      if (connected && publicKey && signTransaction) {
-        try {
-          const connection = new Connection("https://api.devnet.solana.com");
-          const tx = new Transaction();
-          const programId = new PublicKey(
-            "BkSpC111111111111111111111111111111111111",
-          );
-          // Dummy transfer proxy for the CPI mint to treasury-backed rewards (full anchor client would build MintRewards ix)
-          tx.add(
-            SystemProgram.transfer({
-              fromPubkey: publicKey,
-              toPubkey: publicKey,
-              lamports: Math.floor(amt * 1000),
-            }),
-          );
-          tx.recentBlockhash = (
-            await connection.getLatestBlockhash()
-          ).blockhash;
-          tx.feePayer = publicKey;
-          const signed = await signTransaction(tx);
-          const sig = await connection.sendRawTransaction(signed.serialize());
-          await connection.confirmTransaction(sig, "confirmed");
-          toast.success(
-            `On-chain BKSPC rewards minted via anchor! Sig: ${sig.slice(0, 16)}...`,
-          );
-        } catch (e) {
-          toast.info("Solana reward tx failed (off-chain claim only)");
-        }
-      }
     } catch (e) {
       toast.error(String(e));
     }

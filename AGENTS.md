@@ -61,6 +61,25 @@ BlkSpace/ (cloned root)
 5. Keep dependencies minimal — every byte counts on low-end machines
 6. All blockchain code goes through Anchor framework
 
+## Agent Safety & Destructive Operation Guardrails
+> Bleeding-edge projects often contain untracked state the user may not think to name explicitly. Agents must protect that state.
+
+1. **Confirm before any destructive operation** — including but not limited to:
+   - `rm -rf`, `rm` of files outside obvious caches (`node_modules`, `target`, `dist`)
+   - `git reset`, `git revert`, `git clean`, force-pushes
+   - dropping tables, deleting wallets/keys, deleting `test-ledger/`, `devnet/`, `.local/`, `attached_assets/`
+2. **Explain the risk and recovery path** before asking for confirmation.
+3. **Assume untracked files in these paths are user state**, not disposable cache:
+   - `Code-Companion/artifacts/solana/devnet/`
+   - `Code-Companion/artifacts/solana/test-ledger/`
+   - `Code-Companion/attached_assets/`
+   - `Code-Companion/.local/`
+   - Any `.env`, keypair, manifest, backup, or ledger file
+4. **When the user says "clean up"**, clarify scope explicitly. Do not infer permission to delete files.
+5. **Prefer preservation over cleanup** — if unsure, leave it, add it to `.gitignore`, and ask.
+6. **Document any deletion** in the commit message with rationale and recovery instructions.
+7. **No automated deletion of files >10 MB or outside build artifacts** without explicit, item-by-item user approval.
+
 ## Windows / Low-End Machine Workflow
 - **Frontend-only dev**: `pnpm dev` (from `Code-Companion/`) starts Vite web preview. No Rust needed. Uses ~200MB.
 - **CI builds the desktop app**: Push to GitHub; `ci.yml` builds Tauri for `windows-latest`. Download artifacts.
