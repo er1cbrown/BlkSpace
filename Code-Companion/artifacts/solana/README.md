@@ -2,51 +2,45 @@
 
 Anchor program and devnet tooling for **BKSPC** (`BlkSpace Settlement`).
 
-## BKSPC devnet mint (reserve name on-chain)
+Full runbook: `docs/bkspc-devnet-runbook.md`
 
-Ethical devnet-only step: creates an SPL fungible mint with Metaplex metadata (`name`, `symbol: BKSPC`). No public sale, no liquidity pool.
-
-### Prerequisites
+## Quick setup (all steps 1–2)
 
 ```bash
 solana config set --url devnet
-solana airdrop 2   # fund default keypair if needed
+solana airdrop 2
+
+cd Code-Companion
+pnpm --filter @workspace/solana run setup-bkspc-devnet
 ```
 
-### Initialize mint
+## Individual scripts
 
-From `Code-Companion/`:
+| Script | Purpose |
+|--------|---------|
+| `init-treasury-devnet` | 2-of-2 SPL multisig + signer keypairs |
+| `init-bkspc-devnet` | Metaplex mint + transfer authority to treasury |
+| `setup-bkspc-devnet` | Runs both in order |
+
+## Wire real devnet withdraw (step 3)
 
 ```bash
-pnpm install
-pnpm --filter @workspace/solana run init-bkspc-devnet
+export BKSPC_DEVNET_MANIFEST="/absolute/path/to/artifacts/solana/devnet/bkspc-mint.json"
+cargo build --manifest-path ../blkspace/src-tauri/Cargo.toml --features bkspc-devnet
 ```
 
-Writes `devnet/bkspc-mint.json` (gitignored). See `devnet/bkspc-mint.example.json` for shape.
+## Anchor program
 
-### Environment
+`programs/bkspc/` — treasury-gated `mint_rewards` / `burn_tokens`. Deploy when program id is finalized:
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `ANCHOR_WALLET` | `~/.config/solana/id.json` | Mint authority keypair |
-| `SOLANA_RPC_URL` | `https://api.devnet.solana.com` | Must be devnet unless overridden |
-| `BKSPC_METADATA_URI` | embedded data URI | Optional hosted metadata JSON |
-| `BKSPC_FORCE_INIT` | — | Set `1` to create another mint |
-| `BKSPC_ALLOW_NON_DEVNET` | — | Set `1` to allow mainnet RPC (not recommended) |
+```bash
+anchor build
+anchor deploy --provider.cluster devnet
+```
 
-### Files
+## Ethics / gates
 
-| Path | Role |
-|------|------|
-| `metadata/bkspc-token.json` | Off-chain Metaplex metadata template |
-| `programs/bkspc/` | Anchor settlement program (mint/burn via treasury) |
-| `scripts/init-bkspc-devnet-mint.ts` | Devnet mint + metadata init |
-
-### Ethics / gates
-
-- **Devnet only** until counsel approves mainnet settlement
-- Mint authority stays on your wallet / future treasury multisig
+- Devnet only until counsel (steps 4–5 in runbook)
+- Mint authority on **multisig**, not solo hot wallet
 - No presale, no DEX listing, no ROI marketing
-- WB → BKSPC remains earn-only via `withdraw_to_solana` eligibility in `db.rs`
-
-See `docs/economy-uniform-model.md` and `docs/tokenomics-policy.md`.
+- WB → BKSPC via eligibility in `db.rs` only

@@ -1,0 +1,12 @@
+{
+  "cluster": "devnet",
+  "createdAt": "2026-06-20T00:00:00.000Z",
+  "multisig": "REPLACE_MULTISIG_PUBKEY",
+  "threshold": 2,
+  "signers": ["REPLACE_SIGNER_A", "REPLACE_SIGNER_B"],
+  "signerKeypairPaths": [
+    "devnet/treasury-signer-a.json",
+    "devnet/treasury-signer-b.json"
+  ],
+  "notice": "Devnet 2-of-2 treasury. Mainnet: replace with Squads multisig + timelock before real value."
+}

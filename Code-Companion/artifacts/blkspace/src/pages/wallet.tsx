@@ -33,11 +33,13 @@ import {
   useAppWithdrawToSolana,
   useTauriGetWithdrawEligibility,
 } from "@/hooks/use-app-data";
+import { useQuery } from "@tanstack/react-query";
 import {
   isTauri,
   type TauriWalletTx,
   type TauriWithdrawEligibility,
   tauriClaimNodeRewards,
+  tauriGetBkspcSettlementStatus,
 } from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { EarnRatesPanel } from "@/components/economy/EarnRatesPanel";
@@ -282,6 +284,11 @@ function WithdrawDialog({ balance }: { balance: number }) {
   const amountForCheck =
     !Number.isNaN(parsedAmount) && parsedAmount > 0 ? parsedAmount : undefined;
   const { data: eligibility } = useTauriGetWithdrawEligibility(amountForCheck);
+  const { data: settlementStatus } = useQuery({
+    queryKey: ["tauri", "bkspc-settlement-status"],
+    queryFn: tauriGetBkspcSettlementStatus,
+    enabled: isTauri(),
+  });
   const canSubmit =
     eligibility?.eligible &&
     solanaAddress.trim().length >= 32 &&
@@ -436,6 +443,14 @@ function WithdrawDialog({ balance }: { balance: number }) {
               />
             </div>
             <WithdrawEligibilityPanel eligibility={eligibility} />
+            {settlementStatus && (
+              <p className="text-[10px] text-muted-foreground">
+                On-chain settlement:{" "}
+                {settlementStatus.wired
+                  ? `devnet live (mint ${settlementStatus.mint?.slice(0, 8)}…)`
+                  : settlementStatus.reason ?? "simulated until devnet manifest is configured"}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               Available balance: {balance.toLocaleString()} WB
             </p>

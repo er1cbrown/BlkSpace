@@ -1,27 +1,10 @@
 /**
- * Initialize BKSPC (BlkSpace Settlement) on Solana devnet with Metaplex fungible metadata.
- *
- * Devnet-only by default. Does not list, sell, or airdrop to users.
- *
- * Usage (from Code-Companion/):
- *   pnpm --filter @workspace/solana run init-bkspc-devnet
- *
- * Prerequisites:
- *   solana config set --url devnet
- *   solana airdrop 2   # fund ~/.config/solana/id.json
- *
- * Env:
- *   ANCHOR_WALLET          — keypair path (default ~/.config/solana/id.json)
- *   SOLANA_RPC_URL         — RPC (default devnet; must contain "devnet" unless overridden)
- *   BKSPC_METADATA_URI     — hosted metadata JSON URL (optional; else embedded data URI)
- *   BKSPC_FORCE_INIT=1     — create a new mint even if manifest exists
- *   BKSPC_ALLOW_NON_DEVNET — set to 1 to allow non-devnet RPC (blocked by default)
+ * Initialize BKSPC on devnet + transfer mint authority to 2-of-2 treasury multisig.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import {
   createSignerFromKeypair,
@@ -34,10 +17,19 @@ import {
   mplTokenMetadata,
 } from "@metaplex-foundation/mpl-token-metadata";
 import { fromWeb3JsKeypair } from "@metaplex-foundation/umi-web3js-adapters";
-import { Keypair } from "@solana/web3.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
+import { toWeb3JsPublicKey } from "@metaplex-foundation/umi-web3js-adapters";
+import {
+  setAuthority,
+  AuthorityType,
+  getMint,
+} from "@solana/spl-token";
+import {
+  ROOT,
+  assertDevnetRpc,
+  devnetRpc,
+  loadDeployerKeypair,
+  requireTreasuryManifest,
+} from "./lib/devnet-guards.js";
 
 const BKSPC = {
   name: "BlkSpace Settlement",
@@ -46,13 +38,6 @@ const BKSPC = {
 } as const;
 
 const WB_TO_BKSPC_RATIO = 1000;
-
-function loadKeypair(): Keypair {
-  const walletPath =
-    process.env.ANCHOR_WALLET ?? join(homedir(), ".config/solana/id.json");
-  const secret = JSON.parse(readFileSync(walletPath, "utf8")) as number[];
-  return Keypair.fromSecretKey(Uint8Array.from(secret));
-}
 
 function resolveMetadataUri(): string {
   if (process.env.BKSPC_METADATA_URI) {
@@ -64,31 +49,60 @@ function resolveMetadataUri(): string {
   return `data:application/json;base64,${b64}`;
 }
 
-function assertDevnetRpc(rpc: string): void {
-  if (process.env.BKSPC_ALLOW_NON_DEVNET === "1") return;
-  if (!rpc.includes("devnet")) {
-    throw new Error(
-      `Refusing non-devnet RPC (${rpc}). Set BKSPC_ALLOW_NON_DEVNET=1 to override.`,
-    );
+async function transferMintAuthority(
+  rpc: string,
+  mintAddress: string,
+  treasuryMultisig: string,
+): Promise<string> {
+  const deployer = loadDeployerKeypair();
+  const connection = new Connection(rpc, "confirmed");
+  const mint = new PublicKey(mintAddress);
+  const multisig = new PublicKey(treasuryMultisig);
+
+  const mintInfo = await getMint(connection, mint);
+  const currentAuthority = mintInfo.mintAuthority;
+  if (!currentAuthority) {
+    throw new Error("Mint authority already revoked");
   }
+  if (currentAuthority.equals(multisig)) {
+    console.log("Mint authority already set to treasury multisig.");
+    return "already-transferred";
+  }
+
+  console.log("Transferring mint authority to treasury multisig...");
+  const sig = await setAuthority(
+    connection,
+    deployer,
+    mint,
+    deployer,
+    AuthorityType.MintTokens,
+    multisig,
+  );
+  console.log("  Authority transfer tx:", sig);
+  return sig;
 }
 
 async function main(): Promise<void> {
-  const rpc = process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
+  const rpc = devnetRpc();
   assertDevnetRpc(rpc);
+  const treasury = requireTreasuryManifest();
 
   const manifestPath = join(ROOT, "devnet", "bkspc-mint.json");
   if (existsSync(manifestPath) && process.env.BKSPC_FORCE_INIT !== "1") {
     const existing = JSON.parse(readFileSync(manifestPath, "utf8")) as {
       mint?: string;
+      mintAuthority?: string;
     };
     console.log("BKSPC devnet manifest already exists:", manifestPath);
     if (existing.mint) console.log("  Mint:", existing.mint);
+    if (existing.mint && existing.mintAuthority !== treasury.multisig) {
+      await transferMintAuthority(rpc, existing.mint, treasury.multisig);
+    }
     console.log("Set BKSPC_FORCE_INIT=1 to create another mint.");
     return;
   }
 
-  const web3Keypair = loadKeypair();
+  const web3Keypair = loadDeployerKeypair();
   const metadataUri = resolveMetadataUri();
 
   const umi = createUmi(rpc).use(mplTokenMetadata());
@@ -100,7 +114,8 @@ async function main(): Promise<void> {
   console.log("Creating BKSPC fungible mint on devnet...");
   console.log("  Name:", BKSPC.name);
   console.log("  Symbol:", BKSPC.symbol);
-  console.log("  Authority:", web3Keypair.publicKey.toBase58());
+  console.log("  Deployer:", web3Keypair.publicKey.toBase58());
+  console.log("  Treasury multisig:", treasury.multisig);
   console.log("  RPC:", rpc);
 
   const result = await createFungible(umi, {
@@ -112,6 +127,13 @@ async function main(): Promise<void> {
     decimals: BKSPC.decimals,
   }).sendAndConfirm(umi);
 
+  const mintPubkey = toWeb3JsPublicKey(mint.publicKey).toBase58();
+  const authoritySig = await transferMintAuthority(
+    rpc,
+    mintPubkey,
+    treasury.multisig,
+  );
+
   const manifest = {
     cluster: "devnet" as const,
     rpcUrl: rpc,
@@ -119,26 +141,29 @@ async function main(): Promise<void> {
     name: BKSPC.name,
     symbol: BKSPC.symbol,
     decimals: BKSPC.decimals,
-    mint: mint.publicKey,
-    mintAuthority: web3Keypair.publicKey.toBase58(),
+    mint: mintPubkey,
+    mintAuthority: treasury.multisig,
+    mintAuthorityType: "spl-multisig-2of2" as const,
+    treasuryMultisig: treasury.multisig,
+    treasurySignerPaths: treasury.signerKeypairPaths,
     metadataUri,
     initSignature: result.signature,
+    authorityTransferSignature: authoritySig,
     programIdPlaceholder: "BkSpC111111111111111111111111111111111111",
     notice:
-      "Devnet settlement token only. Not for sale. Mainnet requires counsel approval.",
+      "Devnet settlement token only. Not for sale. Mainnet requires counsel + audit.",
     wbToBkspcRatio: WB_TO_BKSPC_RATIO,
+    onChainReady: true,
   };
 
   mkdirSync(join(ROOT, "devnet"), { recursive: true });
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
   console.log("\nBKSPC devnet mint initialized");
-  console.log("  Mint:", mint.publicKey);
+  console.log("  Mint:", mintPubkey);
+  console.log("  Mint authority:", treasury.multisig);
   console.log("  Manifest:", manifestPath);
-  console.log("  Tx:", result.signature);
-  console.log(
-    "\nNext: anchor deploy (devnet) when program id is finalized; wire mint into withdraw flow.",
-  );
+  console.log("  Init tx:", result.signature);
 }
 
 main().catch((err: unknown) => {

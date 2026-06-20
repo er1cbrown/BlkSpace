@@ -5,11 +5,19 @@
   "name": "BlkSpace Settlement",
   "symbol": "BKSPC",
   "decimals": 9,
-  "mint": "REPLACE_AFTER_INIT",
-  "mintAuthority": "REPLACE_YOUR_WALLET",
+  "mint": "REPLACE_MINT_PUBKEY",
+  "mintAuthority": "REPLACE_MULTISIG_PUBKEY",
+  "mintAuthorityType": "spl-multisig-2of2",
+  "treasuryMultisig": "REPLACE_MULTISIG_PUBKEY",
+  "treasurySignerPaths": [
+    "devnet/treasury-signer-a.json",
+    "devnet/treasury-signer-b.json"
+  ],
   "metadataUri": "data:application/json;base64,...",
-  "initSignature": "REPLACE_TX_SIGNATURE",
+  "initSignature": "REPLACE_INIT_TX",
+  "authorityTransferSignature": "REPLACE_AUTHORITY_TX",
   "programIdPlaceholder": "BkSpC111111111111111111111111111111111111",
-  "notice": "Devnet settlement token only. Not for sale. Mainnet requires counsel approval.",
-  "wbToBkspcRatio": 1000
+  "notice": "Devnet settlement token only. Not for sale. Mainnet requires counsel + audit.",
+  "wbToBkspcRatio": 1000,
+  "onChainReady": true
 }

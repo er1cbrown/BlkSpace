@@ -642,6 +642,18 @@ export function tauriWithdrawToSolana(
   });
 }
 
+export interface TauriBkspcSettlementStatus {
+  wired: boolean;
+  cluster?: string;
+  mint?: string;
+  mintAuthority?: string;
+  reason?: string;
+}
+
+export function tauriGetBkspcSettlementStatus(): Promise<TauriBkspcSettlementStatus> {
+  return invoke("get_bkspc_settlement_status");
+}
+
 export function tauriGetNetworkStats(): Promise<TauriNetworkStats> {
   return invoke("get_network_stats");
 }

@@ -1,0 +1,106 @@
+# BKSPC Devnet Runbook
+
+**Purpose:** Reserve **BKSPC** on-chain, secure mint authority, wire real devnet settlement — without mainnet value or public sale.
+
+---
+
+## Step 1 — Devnet init (mint + metadata)
+
+```bash
+solana config set --url devnet
+solana airdrop 2
+
+cd Code-Companion
+pnpm install
+pnpm --filter @workspace/solana run setup-bkspc-devnet
+```
+
+Creates:
+
+| Output | Location |
+|--------|----------|
+| 2-of-2 treasury multisig | `artifacts/solana/devnet/treasury-manifest.json` |
+| Treasury signer keys | `devnet/treasury-signer-a.json`, `treasury-signer-b.json` |
+| BKSPC mint + Metaplex metadata | `devnet/bkspc-mint.json` |
+
+All key material is **gitignored**. Back up locally (encrypted).
+
+---
+
+## Step 2 — Mint authority on treasury (not solo hot wallet)
+
+`setup-bkspc-devnet` automatically:
+
+1. Creates SPL **2-of-2 multisig** (separate signer keypairs)
+2. Mints BKSPC with deployer wallet
+3. Transfers **mint authority** → multisig
+
+Mainnet: replace with **Squads multisig + timelock** before real value.
+
+---
+
+## Step 3 — Wire withdraw → real devnet mint
+
+Build Tauri with settlement feature and point at your manifest:
+
+```bash
+export BKSPC_DEVNET_MANIFEST="$PWD/artifacts/solana/devnet/bkspc-mint.json"
+
+cd Code-Companion/artifacts/blkspace
+cargo build --manifest-path src-tauri/Cargo.toml --features bkspc-devnet
+# or: pnpm tauri:dev with BKSPc_DEVNET_MANIFEST set
+```
+
+`withdraw_to_solana` flow:
+
+1. Eligibility checks (`db.rs`)
+2. Debit WB + 1% settlement fee
+3. SPL `mint_to` signed by **both** treasury multisig members
+4. Returns real devnet tx signature
+
+Without the feature or manifest → simulated signature (safe default).
+
+Check status in-app via `get_bkspc_settlement_status`.
+
+---
+
+## Step 4 — Audit (before any mainnet value)
+
+From `docs/solana-security.md`:
+
+- [ ] Instruction-level threat model signed off
+- [ ] Anchor tests + fuzzing on `programs/bkspc`
+- [ ] Professional audit (OtterSec / Zellic / Neodyme class)
+- [ ] Bug bounty plan post-mainnet
+- [ ] **No mainnet mint with real economic value until audit complete**
+
+---
+
+## Step 5 — Counsel sign-off (before trading / listings)
+
+- [ ] Settlement disclosures for your jurisdiction
+- [ ] Mainnet deploy approval
+- [ ] DEX / perps / secondary trading = **separate** product review
+- [ ] Update `on_chain_ready` and wallet copy only after written approval
+
+---
+
+## Environment variables
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `BKSPC_DEVNET_MANIFEST` | Yes (for real mint) | Path to `bkspc-mint.json` |
+| `ANCHOR_WALLET` | Setup only | Deployer payer (`~/.config/solana/id.json`) |
+| `SOLANA_RPC_URL` | Optional | Default devnet RPC |
+| `BKSPC_FORCE_INIT` | Optional | Recreate treasury/mint |
+| `BKSPC_ALLOW_NON_DEVNET` | Optional | Blocked by default |
+
+---
+
+## Ethics checklist
+
+- ✅ Devnet only until counsel
+- ✅ Earn-only WB → optional BKSPC settlement
+- ✅ No presale, no DEX, no ROI marketing
+- ✅ Published fees + eligibility in wallet
+- ❌ Do not enable mainnet or trading without steps 4–5

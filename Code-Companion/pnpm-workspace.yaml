@@ -169,6 +169,7 @@ overrides:
 
 allowBuilds:
   '@stellar/stellar-sdk': true
+  bigint-buffer: true
   blake-hash: true
   bufferutil: true
   esbuild: true

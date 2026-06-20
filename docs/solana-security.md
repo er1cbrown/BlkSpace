@@ -93,7 +93,10 @@ Solana is planned for **Phase 4** only:
 
 ## 7. Actionable Next Steps
 
+- [x] Devnet mint + 2-of-2 treasury multisig (`docs/bkspc-devnet-runbook.md`)
+- [x] SPL `mint_to` wired behind `bkspc-devnet` Cargo feature
 - [ ] Finalize what moves on-chain vs stays on Nostr (Phase 3 decision)
 - [ ] Write instruction-level threat model before coding
 - [ ] Budget professional audit in Phase 3 planning
 - [ ] No mainnet value until audit complete
+- [ ] Counsel sign-off before DEX / trading / listings
