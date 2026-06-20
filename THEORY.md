@@ -39,8 +39,8 @@ Existing platforms extract value, require high-end hardware, or offer no real ea
 - **Federated town relays**: `t:hbcu-town:*` tags; selective cross-town sync (not global flood)
 - **Real protocols where they fit**: Nostr for social/events; Iroh for media (Phase 2+)
 - **Security-first**: Nostr DMs untrusted; Anchor on-chain in Phase 4 only
-- **Simulated economy first**: Signed Nostr events + SQLite — verifiable, migratable to on-chain BKSPC (Phase 4)
-- **Two-tier rewards**: WeixBucks (everyday) + BKSPC (BlkSpace Settlement, counsel-gated)
+- **Simulated economy first**: Signed Nostr events + SQLite — verifiable, migratable to on-chain BKSP (Phase 4)
+- **Two-tier rewards**: WeixBucks (everyday) + BKSP (BLKSPACE COIN, counsel-gated)
 - **Cultural core**: TSU / Black creative circles as initial niche
 
 Higher tiers (M1, lab machines) unlock more node earnings — never gatekeep core features.
@@ -98,7 +98,7 @@ Higher tiers (M1, lab machines) unlock more node earnings — never gatekeep cor
 | **1** | Tauri + Nostr identity + stub economy | Blocked until Phase 0 gate |
 | **2** | Iroh uploads, DJ/media rewards | Planned |
 | **3** | Communities, full rewards loop, profile themes | **MVP cutoff** |
-| **4** | Solana BKSPC, NFT tickets, marketplace | Planned |
+| **4** | Solana BKSP, NFT tickets, marketplace | Planned |
 | **5** | LogosDecks, Bible NLP, cross-platform release | Planned |
 
 **Phase 0 gate before code**: backup done, content inventory, reward formulas, node spec on real hardware, user says "ready for Phase 1".
@@ -108,8 +108,8 @@ Higher tiers (M1, lab machines) unlock more node earnings — never gatekeep cor
 ## Agreed Decisions (June 14, 2026)
 
 - Nostr + Iroh hub; skip LBRY
-- Simulated economy → Solana BKSPC in Phase 4
-- WeixBucks + BKSPC two-tier
+- Simulated economy → Solana BKSP in Phase 4
+- WeixBucks + BKSP two-tier
 - TSU / Black creative circles first
 - No custom PoW blockchain
 - Defer heavy devops until hub proven

@@ -26,7 +26,7 @@ Phase 0 ✅ | Phase 1 ✅ | Phase 2 ~90% | Phase 3 ~75% | Phase 4 in progress | 
 MVP target: end of Phase 3 (~78–80% complete)
 ```
 
-Implementation is active. Phase 0–1 are complete and merged; Phase 2 (Iroh, Nostr mesh, offline queue) is code-complete pending Device B manual sign-off; Phase 3 (communities, rewards, theming) is partially implemented; Phase 4 (Solana BKSPC settlement, NFT, marketplace on-chain) is in early development. See `docs/phase-0-status.md` for the living checklist.
+Implementation is active. Phase 0–1 are complete and merged; Phase 2 (Iroh, Nostr mesh, offline queue) is code-complete pending Device B manual sign-off; Phase 3 (communities, rewards, theming) is partially implemented; Phase 4 (Solana BKSP settlement, NFT, marketplace on-chain) is in early development. See `docs/phase-0-status.md` for the living checklist.
 
 ---
 
@@ -273,7 +273,7 @@ External paths (not in repo): `hotencoderpy/`, `Documents/`, `abc_management*`, 
 | Tokens | WeixBucks + BlkCoin |
 | Niche | TSU / Black creative circles first |
 | LogosDecks | Full UI Phase 5; metadata Phase 2 |
-| Settlement | Pure Nostr signed events Phases 1–3; Solana BKSPC Phase 4 |
+| Settlement | Pure Nostr signed events Phases 1–3; Solana BKSP Phase 4 |
 | MVP | End of Phase 3 |
 | Code | **Active** — Phase 1–3 implemented, Phase 4 in progress |
 

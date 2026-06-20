@@ -323,7 +323,7 @@ export function CreatorMarketplacePanel() {
                           signed.serialize(),
                         );
                         toast(
-                          `On-chain BKSPC settlement for purchase: ${sig.slice(0, 16)}...`,
+                          `On-chain BKSP settlement for purchase: ${sig.slice(0, 16)}...`,
                         );
                       } catch {
                         /* optional devnet stub */

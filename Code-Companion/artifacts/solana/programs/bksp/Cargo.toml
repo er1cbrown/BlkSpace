@@ -1,12 +1,12 @@
 [package]
-name = "bkspc"
+name = "bksp"
 version = "0.1.0"
-description = "BlkSpace Settlement (BKSPC) — SPL settlement token"
+description = "BLKSPACE COIN (BKSP) — settlement registry token"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "bkspc"
+name = "bksp"
 
 [features]
 no-entrypoint = []

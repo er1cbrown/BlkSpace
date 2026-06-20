@@ -1,5 +1,6 @@
-//! Devnet BKSPC settlement via SPL `mint_to` + 2-of-2 treasury multisig.
-//! Cargo feature: `bkspc-devnet`. Mainnet value requires counsel + audit (see docs).
+//! Devnet BKSP (BLKSPACE COIN) settlement registry via SPL `mint_to` +
+//! 2-of-2 treasury multisig. Cargo feature: `bksp-devnet`. Mainnet value
+//! requires counsel + audit (see docs).
 
 use serde::{Deserialize, Serialize};
 use solana_client::rpc_client::RpcClient;
@@ -19,7 +20,7 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BkspcSettlementStatus {
+pub struct BkspSettlementStatus {
   pub wired: bool,
   pub cluster: Option<String>,
   pub mint: Option<String>,
@@ -29,13 +30,13 @@ pub struct BkspcSettlementStatus {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct BkspcMintManifest {
+struct BkspMintManifest {
   cluster: String,
   rpc_url: String,
   mint: String,
   mint_authority: String,
   treasury_signer_paths: Option<Vec<String>>,
-  wb_to_bkspc_ratio: i64,
+  wb_to_bksp_ratio: i64,
   decimals: u8,
   on_chain_ready: Option<bool>,
 }
@@ -46,7 +47,7 @@ struct DevnetSettlementConfig {
   multisig_authority: Pubkey,
   signer_a: Keypair,
   signer_b: Keypair,
-  wb_to_bkspc_ratio: i64,
+  wb_to_bksp_ratio: i64,
   decimals: u8,
 }
 
@@ -55,23 +56,33 @@ fn load_keypair(path: &Path) -> Result<Keypair, String> {
     &fs::read_to_string(path).map_err(|e| format!("read keypair {path:?}: {e}"))?,
   )
   .map_err(|e| format!("parse keypair {path:?}: {e}"))?;
-  Keypair::from_bytes(&bytes).map_err(|e| format!("invalid keypair {path:?}: {e}"))
+  Keypair::try_from(&bytes[..]).map_err(|e| format!("invalid keypair {path:?}: {e}"))
 }
 
 fn manifest_path() -> Option<String> {
-  if let Ok(path) = std::env::var("BKSPC_DEVNET_MANIFEST") {
+  if let Ok(path) = std::env::var("BKSP_DEVNET_MANIFEST") {
     return Some(path);
+  }
+  // Devnet fallback paths for local builds (workspace root → Code-Companion/artifacts/solana/devnet).
+  let candidates = [
+    "Code-Companion/artifacts/solana/devnet/bksp-mint.json",
+    "artifacts/solana/devnet/bksp-mint.json",
+  ];
+  for c in &candidates {
+    if Path::new(c).is_file() {
+      return Some(c.to_string());
+    }
   }
   None
 }
 
 fn load_config() -> Result<DevnetSettlementConfig, String> {
   let path = manifest_path().ok_or_else(|| {
-    "BKSPC_DEVNET_MANIFEST not set (path to devnet/bkspc-mint.json)".to_string()
+    "BKSP devnet manifest not found. Set BKSP_DEVNET_MANIFEST or place manifest at Code-Companion/artifacts/solana/devnet/bksp-mint.json".to_string()
   })?;
   let raw = fs::read_to_string(&path)
     .map_err(|e| format!("read manifest {path}: {e}"))?;
-  let manifest: BkspcMintManifest = serde_json::from_str(&raw)
+  let manifest: BkspMintManifest = serde_json::from_str(&raw)
     .map_err(|e| format!("parse manifest {path}: {e}"))?;
 
   if manifest.cluster != "devnet" {
@@ -80,7 +91,7 @@ fn load_config() -> Result<DevnetSettlementConfig, String> {
       manifest.cluster
     ));
   }
-  if !manifest.rpc_url.contains("devnet") && std::env::var("BKSPC_ALLOW_NON_DEVNET").is_err() {
+  if !manifest.rpc_url.contains("devnet") && std::env::var("BKSP_ALLOW_NON_DEVNET").is_err() {
     return Err("Refusing non-devnet RPC in manifest".into());
   }
   if manifest.on_chain_ready == Some(false) {
@@ -103,7 +114,7 @@ fn load_config() -> Result<DevnetSettlementConfig, String> {
     multisig_authority: Pubkey::from_str(&manifest.mint_authority).map_err(|e| e.to_string())?,
     signer_a,
     signer_b,
-    wb_to_bkspc_ratio: manifest.wb_to_bkspc_ratio,
+    wb_to_bksp_ratio: manifest.wb_to_bksp_ratio,
     decimals: manifest.decimals,
   })
 }
@@ -121,22 +132,22 @@ fn wb_to_raw_amount(amount_wb: i64, ratio: i64, decimals: u8) -> Result<u64, Str
   let raw = num / ratio as u128;
   if raw == 0 {
     return Err(format!(
-      "Withdrawal too small for on-chain mint (min {ratio} WB = 1 BKSPC)"
+      "Withdrawal too small for on-chain mint (min {ratio} WB = 1 BKSP)"
     ));
   }
   u64::try_from(raw).map_err(|_| "Mint amount overflow".to_string())
 }
 
-pub fn settlement_status() -> BkspcSettlementStatus {
+pub fn settlement_status() -> BkspSettlementStatus {
   match load_config() {
-    Ok(cfg) => BkspcSettlementStatus {
+    Ok(cfg) => BkspSettlementStatus {
       wired: true,
       cluster: Some("devnet".into()),
       mint: Some(cfg.mint.to_string()),
       mint_authority: Some(cfg.multisig_authority.to_string()),
       reason: None,
     },
-    Err(reason) => BkspcSettlementStatus {
+    Err(reason) => BkspSettlementStatus {
       wired: false,
       cluster: None,
       mint: None,
@@ -146,7 +157,7 @@ pub fn settlement_status() -> BkspcSettlementStatus {
   }
 }
 
-/// Mint BKSPC to recipient ATA after off-chain WB debit. Treasury 2-of-2 must sign.
+/// Mint BKSP to recipient ATA after off-chain WB debit. Treasury 2-of-2 must sign.
 pub fn mint_settlement_to_recipient(
   recipient_address: &str,
   amount_wb: i64,
@@ -154,7 +165,7 @@ pub fn mint_settlement_to_recipient(
   let config = load_config()?;
   let recipient = Pubkey::from_str(recipient_address)
     .map_err(|_| "Invalid Solana recipient address".to_string())?;
-  let raw_amount = wb_to_raw_amount(amount_wb, config.wb_to_bkspc_ratio, config.decimals)?;
+  let raw_amount = wb_to_raw_amount(amount_wb, config.wb_to_bksp_ratio, config.decimals)?;
 
   let client = RpcClient::new(config.rpc_url.clone());
   let ata = get_associated_token_address(&recipient, &config.mint);

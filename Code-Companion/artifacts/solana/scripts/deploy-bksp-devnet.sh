@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy bkspc Anchor program to devnet (requires anchor + solana CLI).
+# Deploy bksp Anchor program to devnet (requires anchor + solana CLI).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -12,4 +12,4 @@ solana config set --url devnet
 anchor build
 anchor deploy --provider.cluster devnet
 
-echo "Deployed. Update program id in Anchor.toml + programs/bkspc/src/lib.rs when using a non-placeholder id."
+echo "Deployed. Update program id in Anchor.toml + programs/bksp/src/lib.rs when using a non-placeholder id."

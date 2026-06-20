@@ -21,20 +21,20 @@ export const SOFT_CURRENCY = {
 } as const;
 
 export const SETTLEMENT_TOKEN = {
-  symbol: "BKSPC",
-  name: "BlkSpace Settlement",
+  symbol: "BKSP",
+  name: "BLKSPACE COIN",
   ratio: 1000,
 } as const;
 
 /** Same pattern as Robux, V-Bucks, Bits — earn in-app, spend in creator shop */
 export const CREATOR_ECONOMY_SUMMARY =
-  "Earn WeixBucks from activity, spend them on tips and the creator marketplace. Optional BKSPC settlement is a separate on-chain layer — same class of economy as Roblox or Fortnite, not a cash shop.";
+  "Earn WeixBucks from activity, spend them on tips and the creator marketplace. Optional BKSP settlement is a separate on-chain layer — same class of economy as Roblox or Fortnite, not a cash shop.";
 
 export const PLATFORM_RULES = [
   "WB is earn-only — not sold for USD",
   "Creators sell in the marketplace for WB; platform fee applies",
   "Karma is reputation only — never spendable",
-  "BKSPC settles earned WB on-chain after eligibility; listings require legal review",
+  "BKSP settles earned WB on-chain after eligibility; listings require legal review",
   "Fees, caps, and throttle rules are always visible in wallet",
 ] as const;
 
@@ -47,6 +47,6 @@ export function calcPlatformFee(amount: number, feeBps: number): number {
   return Math.floor((amount * feeBps) / 10000);
 }
 
-export const BKSPC_SYMBOL = SETTLEMENT_TOKEN.symbol;
-export const BKSPC_NAME = SETTLEMENT_TOKEN.name;
-export const WB_TO_BKSPC_RATIO = SETTLEMENT_TOKEN.ratio;
+export const BKSP_SYMBOL = SETTLEMENT_TOKEN.symbol;
+export const BKSP_NAME = SETTLEMENT_TOKEN.name;
+export const WB_TO_BKSP_RATIO = SETTLEMENT_TOKEN.ratio;

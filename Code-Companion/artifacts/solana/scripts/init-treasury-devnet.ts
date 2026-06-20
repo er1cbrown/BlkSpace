@@ -26,11 +26,11 @@ async function main(): Promise<void> {
   assertDevnetRpc(rpc);
 
   const manifestPath = treasuryManifestPath();
-  if (existsSync(manifestPath) && process.env.BKSPC_FORCE_INIT !== "1") {
+  if (existsSync(manifestPath) && process.env.BKSP_FORCE_INIT !== "1") {
     const existing = JSON.parse(readFileSync(manifestPath, "utf8")) as TreasuryManifest;
     console.log("Treasury manifest already exists:", manifestPath);
     console.log("  Multisig:", existing.multisig);
-    console.log("Set BKSPC_FORCE_INIT=1 to recreate.");
+    console.log("Set BKSP_FORCE_INIT=1 to recreate.");
     return;
   }
 

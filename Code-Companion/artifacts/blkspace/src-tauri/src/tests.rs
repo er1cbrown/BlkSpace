@@ -289,10 +289,10 @@ mod tests {
     assert_eq!(policy.tip_fee_bps, TIP_PLATFORM_FEE_BPS);
     assert_eq!(policy.marketplace_fee_bps, MARKETPLACE_PLATFORM_FEE_BPS);
     assert!(!policy.wb_purchasable);
-    assert!(policy.bkspc_tradable_after_counsel);
+    assert!(policy.bksp_tradable_after_counsel);
     assert!(!policy.on_chain_ready);
-    assert_eq!(policy.bkspc_symbol, "BKSPC");
-    assert_eq!(policy.bkspc_name, "BlkSpace Settlement");
+    assert_eq!(policy.bksp_symbol, "BKSP");
+    assert_eq!(policy.bksp_name, "BLKSPACE COIN");
     assert!(!policy.never_rules.is_empty());
   }
 

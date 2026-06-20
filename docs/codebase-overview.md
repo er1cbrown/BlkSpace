@@ -16,7 +16,7 @@ BlkSpace is a **decentralized creator economy platform** for HBCU students:
 - **Backend:** Tauri v2 + Rust + SQLite (2,768 lines of Rust across 5 modules)
 - **Social Layer:** Nostr protocol (events, identity, relay mesh)
 - **Content:** Iroh blob storage (Phase 2)
-- **Economy:** WeixBucks (off-chain) + BKSPC (Solana Phase 4 settlement)
+- **Economy:** WeixBucks (off-chain) + BKSP (Solana Phase 4 settlement)
 - **Security:** Rate limiting, Schnorr signature verification, BIP39 recovery
 
 **The vision:** Enable HBCU students to share work, monetize fairly, and build sustainable value on hardware they already own (Tier 0 = low-end Windows laptops).
@@ -222,7 +222,7 @@ artifacts/blkspace/
 - Post creation, feeds, replies, likes
 - Community + channel management, yard events, wall posts
 - Wallet/WeixBucks transactions, tips, earn sources, appeals
-- Withdraw eligibility + BKSPC settlement wiring (feature-gated)
+- Withdraw eligibility + BKSP settlement wiring (feature-gated)
 - Relay subscription + health checks + consensus records
 - Cross-town event sync
 - Blob upload/download with SHA256 + CID fallback
@@ -309,7 +309,7 @@ Release pipeline (`.github/workflows/release.yml`):
 | Testing | ⚠️ 50% | 100 Rust unit tests; Vitest configured but hangs on Node 25 |
 | Economy Engine | ✅ 70% | WeixBucks rewards, engagement quality, appeals, withdraw eligibility |
 | Iroh Integration | ✅ 85% | Upload → CID, CID in Nostr imeta, fetch fallback |
-| Solana / BKSPC | ⚠️ 20% | Devnet mint + treasury scripts; Anchor program stub; not wired end-to-end |
+| Solana / BKSP | ⚠️ 20% | Devnet mint + treasury scripts; Anchor program stub; not wired end-to-end |
 
 ### 7.2 What's Working End-to-End
 
@@ -329,7 +329,7 @@ Release pipeline (`.github/workflows/release.yml`):
 
 - ❌ Vitest hangs on Node 25 (project targets Node 22)
 - ❌ Vite production build fails on Node 25
-- ❌ Solana/BKSPC not wired end-to-end (devnet scripts + stub program)
+- ❌ Solana/BKSP not wired end-to-end (devnet scripts + stub program)
 - ❌ Mobile builds not configured (iOS/Android future)
 - ⚠️ Some error handling reduces errors to strings (`map_err`)
 - ⚠️ `Cargo.lock` is gitignored (unusual for an application binary)
@@ -340,7 +340,7 @@ Release pipeline (`.github/workflows/release.yml`):
 
 1. **Node 22 downgrade** — fix Vitest hang and Vite build failure
 2. **Device B M0 sign-off** — run `docs/implementation/DEVICE_MESH_TESTING.md` matrix
-3. **Solana Phase 4** — complete BKSPC Anchor program, wire withdraw to devnet
+3. **Solana Phase 4** — complete BKSP Anchor program, wire withdraw to devnet
 4. **Write frontend tests** — Vitest suite currently empty of assertions beyond auth
 5. **Mobile builds** — Tauri v2 mobile support
 6. **Consider committing `Cargo.lock`** for reproducible Rust builds

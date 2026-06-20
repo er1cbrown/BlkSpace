@@ -1,19 +1,30 @@
+//! BKSP Anchor program placeholder.
+//!
+//! BLKSPACE COIN (BKSP) is implemented as a settlement registry: earned
+//! WeixBucks are debited off-chain, then BKSP is minted on-chain only after
+//! eligibility checks. Current devnet settlement uses direct SPL `mint_to`
+//! instructions signed by a 2-of-2 treasury multisig in
+//! `src-tauri/src/bksp_settlement.rs`. This program is retained as an on-chain
+//! stub for future audited settlement-registry logic (e.g., program-gated mint
+//! with eligibility proofs). Do not deploy to mainnet without legal counsel +
+//! security audit.
+
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, MintTo, Burn};
 
-declare_id!("BkSpC111111111111111111111111111111111111");
+declare_id!("BkSp111111111111111111111111111111111111");
 
 #[program]
-pub mod bkspc {
+pub mod bksp {
     use super::*;
 
-    /// Initialize the BKSPC (BlkSpace Settlement) mint with B.L.A.C.K. Treasury as authority
+    /// Initialize the BKSP (BLKSPACE COIN) mint with B.L.A.C.K. Treasury as authority
     pub fn initialize_mint(ctx: Context<InitializeMint>, decimals: u8) -> Result<()> {
-        msg!("BKSPC (BlkSpace Settlement) mint initialized with {} decimals", decimals);
+        msg!("BKSP (BLKSPACE COIN) mint initialized with {} decimals", decimals);
         Ok(())
     }
 
-    /// Mint BKSPC to a student's ATA after off-chain WB withdrawal + eligibility
+    /// Mint BKSP to a student's ATA after off-chain WB withdrawal + eligibility
     pub fn mint_rewards(ctx: Context<MintRewards>, amount: u64) -> Result<()> {
         let cpi_accounts = MintTo {
             mint: ctx.accounts.mint.to_account_info(),
@@ -24,11 +35,11 @@ pub mod bkspc {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
 
         token::mint_to(cpi_ctx, amount)?;
-        msg!("Successfully minted {} BKSPC to student", amount);
+        msg!("Successfully minted {} BKSP to student", amount);
         Ok(())
     }
 
-    /// Burn BKSPC (marketplace fees, premium sinks)
+    /// Burn BKSP (marketplace fees, premium sinks)
     pub fn burn_tokens(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
         let cpi_accounts = Burn {
             mint: ctx.accounts.mint.to_account_info(),
@@ -39,7 +50,7 @@ pub mod bkspc {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
 
         token::burn(cpi_ctx, amount)?;
-        msg!("Successfully burned {} BKSPC from student wallet", amount);
+        msg!("Successfully burned {} BKSP from student wallet", amount);
         Ok(())
     }
 }

@@ -7,8 +7,8 @@ mod tier0_benchmark;
 #[cfg(feature = "iroh")]
 mod iroh_node;
 
-#[cfg(feature = "bkspc-devnet")]
-mod bkspc_settlement;
+#[cfg(feature = "bksp-devnet")]
+mod bksp_settlement;
 
 #[cfg(test)]
 mod tests;
@@ -1371,41 +1371,39 @@ fn withdraw_to_solana(
   let _new_balance = state.db.deduct_weix_bucks(&user_handle, total_debit, &desc)
     .map_err(|e| e.to_string())?;
 
-  #[cfg(feature = "bkspc-devnet")]
+  #[cfg(feature = "bksp-devnet")]
   {
-    match bkspc_settlement::mint_settlement_to_recipient(&student_solana_address, amount_wb) {
-      Ok(sig) => return Ok(sig),
-      Err(e) => {
-        return Err(format!(
-          "WB debited off-chain but devnet BKSPC mint failed: {e}. File an economy appeal."
-        ));
-      }
+    return bksp_settlement::mint_settlement_to_recipient(&student_solana_address, amount_wb)
+      .map_err(|e| format!(
+        "WB debited off-chain but devnet BKSP mint failed: {e}. File an economy appeal."
+      ));
+  }
+
+  #[cfg(not(feature = "bksp-devnet"))]
+  {
+    // Simulated signature when bksp-devnet feature or manifest not configured
+    let chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    let mut signature = String::new();
+    for _ in 0..88 {
+      let idx = (uuid::Uuid::new_v4().as_u128() % 58) as usize;
+      signature.push(chars.chars().nth(idx).unwrap_or('1'));
     }
+    Ok(signature)
   }
-
-  // Simulated signature when bkspc-devnet feature or manifest not configured
-  let chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-  let mut signature = String::new();
-  for _ in 0..88 {
-    let idx = (uuid::Uuid::new_v4().as_u128() % 58) as usize;
-    signature.push(chars.chars().nth(idx).unwrap_or('1'));
-  }
-
-  Ok(signature)
 }
 
 #[tauri::command]
-fn get_bkspc_settlement_status() -> serde_json::Value {
-  #[cfg(feature = "bkspc-devnet")]
+fn get_bksp_settlement_status() -> serde_json::Value {
+  #[cfg(feature = "bksp-devnet")]
   {
-    let status = bkspc_settlement::settlement_status();
+    let status = bksp_settlement::settlement_status();
     return serde_json::to_value(status).unwrap_or_else(|_| serde_json::json!({ "wired": false }));
   }
-  #[cfg(not(feature = "bkspc-devnet"))]
+  #[cfg(not(feature = "bksp-devnet"))]
   {
     serde_json::json!({
       "wired": false,
-      "reason": "Build without bkspc-devnet feature (cargo build --features bkspc-devnet)"
+      "reason": "Build without bksp-devnet feature (cargo build --features bksp-devnet)"
     })
   }
 }
@@ -3234,7 +3232,7 @@ pub fn run() {
       list_economy_appeals,
       get_withdraw_eligibility,
       withdraw_to_solana,
-      get_bkspc_settlement_status,
+      get_bksp_settlement_status,
       get_network_stats,
       list_relays,
       get_recent_activity,

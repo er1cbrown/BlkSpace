@@ -1,7 +1,7 @@
 /**
- * Full devnet setup: treasury multisig → BKSPC mint → transfer mint authority to treasury.
+ * Full devnet setup: treasury multisig → BKSP mint → transfer mint authority to treasury.
  *
- *   pnpm --filter @workspace/solana run setup-bkspc-devnet
+ *   pnpm --filter @workspace/solana run setup-bksp-devnet
  */
 
 import { execSync } from "node:child_process";
@@ -18,8 +18,8 @@ function run(script: string): void {
 }
 
 run("init-treasury-devnet.ts");
-run("init-bkspc-devnet-mint.ts");
+run("init-bksp-devnet-mint.ts");
 
 console.log("\n--- Next: back up your keys (plain-English script) ---");
-console.log("  pnpm --filter @workspace/solana run backup-bkspc-keys");
+console.log("  pnpm --filter @workspace/solana run backup-bksp-keys");
 console.log("Treasury signers have NO seed phrase — file backup is required.\n");

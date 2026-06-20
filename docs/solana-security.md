@@ -10,7 +10,7 @@
 
 Solana is planned for **Phase 4** only:
 
-- BKSPC SPL token and reward claims
+- BKSP SPL token and reward claims
 - NFT tickets (DJ mixes, events)
 - Optional staking for Tier 2 relay operators
 
@@ -37,7 +37,7 @@ Solana is planned for **Phase 4** only:
 - Economic attackers gaming conversion timing
 - Compromised upgrade authority keys
 
-**Assets:** BKSPC supply, mint authority, staked collateral, NFT rights.
+**Assets:** BKSP supply, mint authority, staked collateral, NFT rights.
 
 ---
 
@@ -50,7 +50,7 @@ Solana is planned for **Phase 4** only:
 | Integer overflow | Reward math | `checked_add`, `checked_mul` |
 | Unsafe CPI | SPL Token, Metaplex | Never trust user program IDs |
 | Reinitialization | Stake epochs | `init` + realloc guards |
-| Economic gaming | WeixBucks → BKSPC | Cooldowns, caps, engagement signals |
+| Economic gaming | WeixBucks → BKSP | Cooldowns, caps, engagement signals |
 | Centralized upgrade key | All programs | Multisig + timelock |
 
 ---
@@ -93,8 +93,8 @@ Solana is planned for **Phase 4** only:
 
 ## 7. Actionable Next Steps
 
-- [x] Devnet mint + 2-of-2 treasury multisig (`docs/bkspc-devnet-runbook.md`)
-- [x] SPL `mint_to` wired behind `bkspc-devnet` Cargo feature
+- [x] Devnet mint + 2-of-2 treasury multisig (`docs/bksp-devnet-runbook.md`)
+- [x] SPL `mint_to` wired behind `bksp-devnet` Cargo feature
 - [ ] Finalize what moves on-chain vs stays on Nostr (Phase 3 decision)
 - [ ] Write instruction-level threat model before coding
 - [ ] Budget professional audit in Phase 3 planning

@@ -23,7 +23,7 @@ Two planning threads were captured here:
 
 **MVP cutoff = end of Phase 3** (`docs/plan.md`, `FLESHTHEORY.md`):
 
-> Working clients + live hub-connected rewards economy (earn from uploads + engagement, spend, transparent history) on the WeixNet foundation — **simulated WeixBucks**, not on-chain BKSPC yet.
+> Working clients + live hub-connected rewards economy (earn from uploads + engagement, spend, transparent history) on the WeixNet foundation — **simulated WeixBucks**, not on-chain BKSP yet.
 
 “Finish the build” in goal terms = **MVP pilot-ready**, not Phase 4/5.
 
@@ -78,7 +78,7 @@ Device B M0 manual → Tagged pilot build → Phase 3 UI gaps → 1-yard pilot �
 
 | Milestone | Extra time (solo, after MVP) | Cumulative from Jun 2026 |
 |-----------|------------------------------|--------------------------|
-| Phase 4 — BKSPC, NFT shop, on-chain wallet | +6–10 weeks | ~3–4 months |
+| Phase 4 — BKSP, NFT shop, on-chain wallet | +6–10 weeks | ~3–4 months |
 | Phase 5 — LogosDecks, scripture NLP, release ops | +8–12 weeks | ~5–7 months |
 | Full amalgamation vision | +6+ months | **9–12+ months** |
 
@@ -110,7 +110,7 @@ Device B M0 manual → Tagged pilot build → Phase 3 UI gaps → 1-yard pilot �
 | P10 | Story / create honesty | 1 hr | Open |
 | P11 | `/architecture` API fallback | 2–4 hrs | Open |
 
-**Defer until MVP ships:** Phase 4 BKSPC depth, NFT marketplace, M2 LAN / BLE mesh, LogosDecks, heritage hub.
+**Defer until MVP ships:** Phase 4 BKSP depth, NFT marketplace, M2 LAN / BLE mesh, LogosDecks, heritage hub.
 
 ### Recommended tracks
 
@@ -125,7 +125,7 @@ Device B M0 manual → Tagged pilot build → Phase 3 UI gaps → 1-yard pilot �
 ### Decision: finish Phase 3 before Phase 4
 
 - **Do:** P8 wallet provider early (foundation for later Solana connect).
-- **Don’t:** Launch or market BKSPC / mainnet before Phase 3 MVP + legal review.
+- **Don’t:** Launch or market BKSP / mainnet before Phase 3 MVP + legal review.
 
 ### Architecture already favors ethical design
 
@@ -133,9 +133,9 @@ Device B M0 manual → Tagged pilot build → Phase 3 UI gaps → 1-yard pilot �
 |-------|------------|----------------------------|
 | **WeixBucks (WB)** | Off-chain utility points — earn from creation, spend in-app | Closer to platform credits than a security |
 | **Karma** | Reputation only — never bought, never sold | Not a currency |
-| **BKSPC** | On-chain SPL — premium **settlement**, not daily earn | Highest risk if marketed as investment |
+| **BKSP** | On-chain SPL — premium **settlement**, not daily earn | Highest risk if marketed as investment |
 
-**Rule:** WB is the economy. BKSPC is **optional withdrawal of earned value**, not a hyped memecoin launch.
+**Rule:** WB is the economy. BKSP is **optional withdrawal of earned value**, not a hyped memecoin launch.
 
 Aligns with `docs/solana-blueprint.md` — **lazy settlement (pull-based)**:
 
@@ -143,7 +143,7 @@ Aligns with `docs/solana-blueprint.md` — **lazy settlement (pull-based)**:
 Earn WB off-chain (free, capped, audited)
   → user opts in (connect Phantom)
   → backend validates eligibility
-  → treasury mints BKSPC (capped, logged)
+  → treasury mints BKSP (capped, logged)
 ```
 
 ### Why typical memecoins get into legal / ethical trouble
@@ -157,7 +157,7 @@ Earn WB off-chain (free, capped, audited)
 | Mint-only, no sinks | Farm-and-dump |
 | WB purchasable with real money | Money transmission / MSB issues |
 
-**Fix:** Treat BKSPC as **settlement rail for verified platform earnings**, not a speculative asset.
+**Fix:** Treat BKSP as **settlement rail for verified platform earnings**, not a speculative asset.
 
 ### Abuse prevention
 
@@ -179,7 +179,7 @@ Earn WB off-chain (free, capped, audited)
 | Conversion ratio + cap | e.g. 1000 WB → 1 BLK, max 1 BLK/week per pubkey |
 | Cooldown | e.g. 7 days between withdrawals |
 | Treasury mint authority | Multisig + timelock (`solana-security.md`) |
-| Vesting | Large BKSPC grants vest on-chain (e.g. 30 days) |
+| Vesting | Large BKSP grants vest on-chain (e.g. 30 days) |
 | Fixed supply | Hard cap; revoke mint authority after distribution phase |
 | Burn sinks | Marketplace fees, boosts; on-chain burns for premium items |
 | Published math | `reward-formulas.md` + in-app “how earn works” |
@@ -188,7 +188,7 @@ Earn WB off-chain (free, capped, audited)
 **User-facing framing**
 
 > WeixBucks = credits for creating and participating on the yard.  
-> BKSPC = optional on-chain receipt of **earned** value — not an investment product.
+> BKSP = optional on-chain receipt of **earned** value — not an investment product.
 
 ### Tokenomics policy — published BlkSpace economy
 
@@ -201,7 +201,7 @@ WEIXBUCKS (off-chain) — platform credits, not a security
 ├── Never: purchasable, off-platform transfer, ROI marketing
 └── Audit: signed Nostr events + SQLite
 
-BKSPC (on-chain, Phase 4+) — settlement receipt, not memecoin
+BKSP (on-chain, Phase 4+) — settlement receipt, not memecoin
 ├── Mint: ONLY via treasury after WB withdrawal + eligibility + 1% settlement fee
 ├── Ratio: fixed 1000 WB = 1 BLK (published schedule)
 ├── Cap: max withdrawal per user per week
@@ -238,7 +238,7 @@ Phase 4c — Legal gate
 | 6 | Legal review | 2–4 weeks external | Counsel |
 | 7 | Mainnet | After step 6 | — |
 
-**Do not mainnet or publicly “launch BKSPC” before step 6.**
+**Do not mainnet or publicly “launch BKSP” before step 6.**
 
 ### On-chain timeline (from Jun 2026)
 
@@ -267,7 +267,7 @@ Phase 4c — Legal gate
 2. Add wallet disclaimer + “How earn works” in-app copy.
 3. Implement withdraw **eligibility** in Rust (before devnet mint).
 4. Phantom connect button on wallet (read-only devnet).
-5. Extend `reward-formulas.md` with BKSPC conversion rules for counsel.
+5. Extend `reward-formulas.md` with BKSP conversion rules for counsel.
 
 ---
 
@@ -277,7 +277,7 @@ Phase 4c — Legal gate
 |----------|--------|
 | How long to MVP? | **3–4 weeks** full-time · **4–6 weeks** at ~20 hrs/week |
 | What blocks MVP most? | Device B manual matrix + Phase 3 community UI |
-| How to do on-chain ethically? | WB = earn-only utility; BKSPC = gated treasury mint, not memecoin hype |
+| How to do on-chain ethically? | WB = earn-only utility; BKSP = gated treasury mint, not memecoin hype |
 | What was fixed immediately? | **P8** — `WalletContextProvider` mounted on wallet page |
 | When mainnet? | After Phase 3 MVP + devnet bridge + **legal review** |
 
@@ -289,4 +289,4 @@ When progress moves:
 
 1. Update P8–P11 status in this doc or mark items done in `phase-0-status.md`.
 2. Sync phase % with `docs/phase-0-status.md`.
-3. Add BKSPC conversion numbers to `reward-formulas.md` when approved (not before counsel).
+3. Add BKSP conversion numbers to `reward-formulas.md` when approved (not before counsel).

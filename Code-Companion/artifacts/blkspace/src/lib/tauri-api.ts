@@ -130,12 +130,12 @@ export interface TauriTokenomicsPolicy {
   dailyEarnCapWb: number;
   minWithdrawWb: number;
   weeklyWithdrawCapWb: number;
-  wbToBkspcRatio: number;
-  bkspcSymbol: string;
-  bkspcName: string;
+  wbToBkspRatio: number;
+  bkspSymbol: string;
+  bkspName: string;
   midfThrottleThreshold: number;
   wbPurchasable: boolean;
-  bkspcTradableAfterCounsel: boolean;
+  bkspTradableAfterCounsel: boolean;
   treasuryMintOnly: boolean;
   onChainReady: boolean;
   neverRules: string[];
@@ -166,9 +166,9 @@ export interface TauriWithdrawEligibility {
   postCount: number;
   minPosts: number;
   balanceWb: number;
-  wbToBkspcRatio: number;
-  bkspcSymbol: string;
-  bkspcName: string;
+  wbToBkspRatio: number;
+  bkspSymbol: string;
+  bkspName: string;
   onChainReady: boolean;
 }
 
@@ -642,7 +642,7 @@ export function tauriWithdrawToSolana(
   });
 }
 
-export interface TauriBkspcSettlementStatus {
+export interface TauriBkspSettlementStatus {
   wired: boolean;
   cluster?: string;
   mint?: string;
@@ -650,8 +650,8 @@ export interface TauriBkspcSettlementStatus {
   reason?: string;
 }
 
-export function tauriGetBkspcSettlementStatus(): Promise<TauriBkspcSettlementStatus> {
-  return invoke("get_bkspc_settlement_status");
+export function tauriGetBkspSettlementStatus(): Promise<TauriBkspSettlementStatus> {
+  return invoke("get_bksp_settlement_status");
 }
 
 export function tauriGetNetworkStats(): Promise<TauriNetworkStats> {
