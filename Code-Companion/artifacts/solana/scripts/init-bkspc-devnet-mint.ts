@@ -39,14 +39,40 @@ const BKSPC = {
 
 const WB_TO_BKSPC_RATIO = 1000;
 
+function signatureToBase58(signature: Uint8Array | string): string {
+  if (typeof signature === "string") return signature;
+  const alphabet =
+    "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  let zeros = 0;
+  while (zeros < signature.length && signature[zeros] === 0) zeros++;
+  const digits: number[] = [];
+  for (let i = zeros; i < signature.length; i++) {
+    let carry = signature[i];
+    for (let j = 0; j < digits.length; j++) {
+      carry += digits[j] << 8;
+      digits[j] = carry % 58;
+      carry = Math.floor(carry / 58);
+    }
+    while (carry > 0) {
+      digits.push(carry % 58);
+      carry = Math.floor(carry / 58);
+    }
+  }
+  return (
+    alphabet[0].repeat(zeros) +
+    digits
+      .reverse()
+      .map((d) => alphabet[d])
+      .join("")
+  );
+}
+
 function resolveMetadataUri(): string {
   if (process.env.BKSPC_METADATA_URI) {
     return process.env.BKSPC_METADATA_URI;
   }
-  const metaPath = join(ROOT, "metadata", "bkspc-token.json");
-  const meta = JSON.parse(readFileSync(metaPath, "utf8"));
-  const b64 = Buffer.from(JSON.stringify(meta)).toString("base64");
-  return `data:application/json;base64,${b64}`;
+  // Short off-chain URI — data: URIs bloat Metaplex txs past Solana size limits.
+  return "https://raw.githubusercontent.com/er1cbrown/BlkSpace/main/Code-Companion/artifacts/solana/metadata/bkspc-token.json";
 }
 
 async function transferMintAuthority(
@@ -134,8 +160,13 @@ async function main(): Promise<void> {
     treasury.multisig,
   );
 
+  const cluster =
+    rpc.includes("127.0.0.1") || rpc.includes("localhost")
+      ? ("localnet" as const)
+      : ("devnet" as const);
+
   const manifest = {
-    cluster: "devnet" as const,
+    cluster,
     rpcUrl: rpc,
     createdAt: new Date().toISOString(),
     name: BKSPC.name,
@@ -147,7 +178,7 @@ async function main(): Promise<void> {
     treasuryMultisig: treasury.multisig,
     treasurySignerPaths: treasury.signerKeypairPaths,
     metadataUri,
-    initSignature: result.signature,
+    initSignature: signatureToBase58(result.signature),
     authorityTransferSignature: authoritySig,
     programIdPlaceholder: "BkSpC111111111111111111111111111111111111",
     notice:
