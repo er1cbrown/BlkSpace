@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Back up BKSP / Solana dev keyfiles with a password you choose.
+# Back up BKSPC / Solana dev keyfiles with a password you choose.
 # No GPG required — uses openssl (built into macOS).
 #
-#   pnpm --filter @workspace/solana run backup-bksp-keys
+#   pnpm --filter @workspace/solana run backup-bkspc-keys
 
 set -euo pipefail
 
@@ -10,12 +10,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEVNET_DIR="$ROOT/devnet"
 
-DEFAULT_OUT="${BKSP_BACKUP_DIR:-$HOME/BlkSpace-key-backups}"
+DEFAULT_OUT="${BKSPC_BACKUP_DIR:-$HOME/BlkSpace-key-backups}"
 OUT_DIR="${1:-$DEFAULT_OUT}"
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
-echo "  BlkSpace — back up your Solana / BKSP key files"
+echo "  BlkSpace — back up your Solana / BKSPC key files"
 echo "═══════════════════════════════════════════════════════════════"
 echo ""
 echo "WHY: setup created secret .json files on this computer."
@@ -50,17 +50,17 @@ add_if_exists "$HOME/.config/solana/id.json"
 add_if_exists "$DEVNET_DIR/treasury-signer-a.json"
 add_if_exists "$DEVNET_DIR/treasury-signer-b.json"
 add_if_exists "$DEVNET_DIR/treasury-manifest.json"
-add_if_exists "$DEVNET_DIR/bksp-mint.json"
+add_if_exists "$DEVNET_DIR/bkspc-mint.json"
 
 if [[ ${#FILES[@]} -eq 0 ]]; then
   echo ""
   echo "Nothing to back up yet. Run setup first:"
-  echo "  pnpm --filter @workspace/solana run setup-bksp-devnet"
+  echo "  pnpm --filter @workspace/solana run setup-bkspc-devnet"
   exit 1
 fi
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
-ARCHIVE="$OUT_DIR/bksp-keys-$STAMP.tar.gz"
+ARCHIVE="$OUT_DIR/bkspc-keys-$STAMP.tar.gz"
 ENCRYPTED="$ARCHIVE.enc"
 
 echo ""

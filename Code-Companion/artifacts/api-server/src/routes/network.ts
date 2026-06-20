@@ -94,7 +94,7 @@ router.get("/architecture", async (req, res) => {
       },
       {
         title: "Economic Security",
-        description: "Incentives (WeixBucks and BKSP settlement) are first-class architectural concerns. The design actively mitigates reward farming, Sybil attacks, and collusion.",
+        description: "Incentives (WeixBucks and BKSPC settlement) are first-class architectural concerns. The design actively mitigates reward farming, Sybil attacks, and collusion.",
       },
     ],
     securityLayers: [

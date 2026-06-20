@@ -13,10 +13,10 @@ const LIB_DIR = dirname(fileURLToPath(import.meta.url));
 export const ROOT = join(LIB_DIR, "../..");
 
 export function assertDevnetRpc(rpc: string): void {
-  if (process.env.BKSP_ALLOW_NON_DEVNET === "1") return;
+  if (process.env.BKSPC_ALLOW_NON_DEVNET === "1") return;
   if (!rpc.includes("devnet")) {
     throw new Error(
-      `Refusing non-devnet RPC (${rpc}). Set BKSP_ALLOW_NON_DEVNET=1 to override.`,
+      `Refusing non-devnet RPC (${rpc}). Set BKSPC_ALLOW_NON_DEVNET=1 to override.`,
     );
   }
 }

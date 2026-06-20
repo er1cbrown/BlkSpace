@@ -1,5 +1,5 @@
 /**
- * Initialize BKSP on devnet + transfer mint authority to 2-of-2 treasury multisig.
+ * Initialize BKSPC on devnet + transfer mint authority to 2-of-2 treasury multisig.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
@@ -31,13 +31,13 @@ import {
   requireTreasuryManifest,
 } from "./lib/devnet-guards.js";
 
-const BKSP = {
-  name: "BLKSPACE COIN",
-  symbol: "BKSP",
+const BKSPC = {
+  name: "BlkSpace Settlement",
+  symbol: "BKSPC",
   decimals: 9,
 } as const;
 
-const WB_TO_BKSP_RATIO = 1000;
+const WB_TO_BKSPC_RATIO = 1000;
 
 function signatureToBase58(signature: Uint8Array | string): string {
   if (typeof signature === "string") return signature;
@@ -68,11 +68,11 @@ function signatureToBase58(signature: Uint8Array | string): string {
 }
 
 function resolveMetadataUri(): string {
-  if (process.env.BKSP_METADATA_URI) {
-    return process.env.BKSP_METADATA_URI;
+  if (process.env.BKSPC_METADATA_URI) {
+    return process.env.BKSPC_METADATA_URI;
   }
   // Short off-chain URI — data: URIs bloat Metaplex txs past Solana size limits.
-  return "https://raw.githubusercontent.com/er1cbrown/BlkSpace/main/Code-Companion/artifacts/solana/metadata/bksp-token.json";
+  return "https://raw.githubusercontent.com/er1cbrown/BlkSpace/main/Code-Companion/artifacts/solana/metadata/bkspc-token.json";
 }
 
 async function transferMintAuthority(
@@ -113,18 +113,18 @@ async function main(): Promise<void> {
   assertDevnetRpc(rpc);
   const treasury = requireTreasuryManifest();
 
-  const manifestPath = join(ROOT, "devnet", "bksp-mint.json");
-  if (existsSync(manifestPath) && process.env.BKSP_FORCE_INIT !== "1") {
+  const manifestPath = join(ROOT, "devnet", "bkspc-mint.json");
+  if (existsSync(manifestPath) && process.env.BKSPC_FORCE_INIT !== "1") {
     const existing = JSON.parse(readFileSync(manifestPath, "utf8")) as {
       mint?: string;
       mintAuthority?: string;
     };
-    console.log("BKSP devnet manifest already exists:", manifestPath);
+    console.log("BKSPC devnet manifest already exists:", manifestPath);
     if (existing.mint) console.log("  Mint:", existing.mint);
     if (existing.mint && existing.mintAuthority !== treasury.multisig) {
       await transferMintAuthority(rpc, existing.mint, treasury.multisig);
     }
-    console.log("Set BKSP_FORCE_INIT=1 to create another mint.");
+    console.log("Set BKSPC_FORCE_INIT=1 to create another mint.");
     return;
   }
 
@@ -137,20 +137,20 @@ async function main(): Promise<void> {
 
   const mint = generateSigner(umi);
 
-  console.log("Creating BKSP fungible mint on devnet...");
-  console.log("  Name:", BKSP.name);
-  console.log("  Symbol:", BKSP.symbol);
+  console.log("Creating BKSPC fungible mint on devnet...");
+  console.log("  Name:", BKSPC.name);
+  console.log("  Symbol:", BKSPC.symbol);
   console.log("  Deployer:", web3Keypair.publicKey.toBase58());
   console.log("  Treasury multisig:", treasury.multisig);
   console.log("  RPC:", rpc);
 
   const result = await createFungible(umi, {
     mint,
-    name: BKSP.name,
-    symbol: BKSP.symbol,
+    name: BKSPC.name,
+    symbol: BKSPC.symbol,
     uri: metadataUri,
     sellerFeeBasisPoints: percentAmount(0),
-    decimals: BKSP.decimals,
+    decimals: BKSPC.decimals,
   }).sendAndConfirm(umi);
 
   const mintPubkey = toWeb3JsPublicKey(mint.publicKey).toBase58();
@@ -169,9 +169,9 @@ async function main(): Promise<void> {
     cluster,
     rpcUrl: rpc,
     createdAt: new Date().toISOString(),
-    name: BKSP.name,
-    symbol: BKSP.symbol,
-    decimals: BKSP.decimals,
+    name: BKSPC.name,
+    symbol: BKSPC.symbol,
+    decimals: BKSPC.decimals,
     mint: mintPubkey,
     mintAuthority: treasury.multisig,
     mintAuthorityType: "spl-multisig-2of2" as const,
@@ -180,17 +180,17 @@ async function main(): Promise<void> {
     metadataUri,
     initSignature: signatureToBase58(result.signature),
     authorityTransferSignature: authoritySig,
-    programIdPlaceholder: "BkSp111111111111111111111111111111111111",
+    programIdPlaceholder: "BkSpC111111111111111111111111111111111111",
     notice:
       "Devnet settlement token only. Not for sale. Mainnet requires counsel + audit.",
-    wbToBkspRatio: WB_TO_BKSP_RATIO,
+    wbToBkspcRatio: WB_TO_BKSPC_RATIO,
     onChainReady: true,
   };
 
   mkdirSync(join(ROOT, "devnet"), { recursive: true });
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
-  console.log("\nBKSP devnet mint initialized");
+  console.log("\nBKSPC devnet mint initialized");
   console.log("  Mint:", mintPubkey);
   console.log("  Mint authority:", treasury.multisig);
   console.log("  Manifest:", manifestPath);

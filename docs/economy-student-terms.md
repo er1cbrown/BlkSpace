@@ -2,7 +2,7 @@
 
 **Read this before you earn, spend, or sell on the yard.**
 
-BlkSpace uses the **same creator-economy pattern** as Roblox, Fortnite, and other apps: earn soft currency from activity, spend it in the creator shop. Optional BKSP settlement is a separate on-chain layer.
+BlkSpace uses the **same creator-economy pattern** as Roblox, Fortnite, and other apps: earn soft currency from activity, spend it in the creator shop. Optional BKSPC settlement is a separate on-chain layer.
 
 ---
 
@@ -32,12 +32,12 @@ BlkSpace uses the **same creator-economy pattern** as Roblox, Fortnite, and othe
 - Sending WB includes a **published platform fee** (2%).
 - The recipient gets the **net** amount after the fee.
 
-## BKSP (BLKSPACE COIN)
+## BKSPC (BlkSpace Settlement)
 
 - **What:** Optional **on-chain** token on Solana when you withdraw earned WB (after eligibility checks). Comparable to Roblox DevEx — settlement of earned credits, not buying WB with cash.
 - **Today:** Devnet / simulated — not real mainnet money.
 - **Future:** May be **tradable** on exchanges only if legal review approves — not guaranteed today.
-- **One-way:** No BKSP → WB conversion.
+- **One-way:** No BKSPC → WB conversion.
 
 ## If earn stops or withdraw is denied
 

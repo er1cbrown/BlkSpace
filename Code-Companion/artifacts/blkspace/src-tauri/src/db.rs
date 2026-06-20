@@ -469,9 +469,9 @@ pub const MIN_WITHDRAW_KARMA: i64 = 10;
 pub const MIN_WITHDRAW_POSTS: i64 = 3;
 pub const WEEKLY_WITHDRAW_CAP_WB: i64 = 1000;
 pub const WITHDRAW_COOLDOWN_DAYS: i64 = 7;
-pub const BKSP_SYMBOL: &str = "BKSP";
-pub const BKSP_NAME: &str = "BLKSPACE COIN";
-pub const WB_TO_BKSP_RATIO: i64 = 1000;
+pub const BKSPC_SYMBOL: &str = "BKSPC";
+pub const BKSPC_NAME: &str = "BlkSpace Settlement";
+pub const WB_TO_BKSPC_RATIO: i64 = 1000;
 const WITHDRAW_TX_PREFIX: &str = "Withdrawn to Solana";
 
 /// Published economy policy — see docs/economy-uniform-model.md.
@@ -489,12 +489,12 @@ pub struct TokenomicsPolicy {
   pub daily_earn_cap_wb: i64,
   pub min_withdraw_wb: i64,
   pub weekly_withdraw_cap_wb: i64,
-  pub wb_to_bksp_ratio: i64,
-  pub bksp_symbol: String,
-  pub bksp_name: String,
+  pub wb_to_bkspc_ratio: i64,
+  pub bkspc_symbol: String,
+  pub bkspc_name: String,
   pub midf_throttle_threshold: f64,
   pub wb_purchasable: bool,
-  pub bksp_tradable_after_counsel: bool,
+  pub bkspc_tradable_after_counsel: bool,
   pub treasury_mint_only: bool,
   pub on_chain_ready: bool,
   pub never_rules: Vec<String>,
@@ -514,19 +514,19 @@ impl TokenomicsPolicy {
       daily_earn_cap_wb: DAILY_WB_EARN_CAP,
       min_withdraw_wb: MIN_WITHDRAW_WB,
       weekly_withdraw_cap_wb: WEEKLY_WITHDRAW_CAP_WB,
-      wb_to_bksp_ratio: WB_TO_BKSP_RATIO,
-      bksp_symbol: BKSP_SYMBOL.into(),
-      bksp_name: BKSP_NAME.into(),
+      wb_to_bkspc_ratio: WB_TO_BKSPC_RATIO,
+      bkspc_symbol: BKSPC_SYMBOL.into(),
+      bkspc_name: BKSPC_NAME.into(),
       midf_throttle_threshold: MIDF_EARN_THROTTLE_THRESHOLD,
       wb_purchasable: false,
-      bksp_tradable_after_counsel: true,
+      bkspc_tradable_after_counsel: true,
       treasury_mint_only: true,
       on_chain_ready: false,
       never_rules: vec![
         "WB is earn-only — not sold for USD".into(),
         "Creators sell in the marketplace for WB; platform fee applies".into(),
         "Karma is reputation only — never spendable".into(),
-        "BKSP settles earned WB on-chain after eligibility; listings require legal review".into(),
+        "BKSPC settles earned WB on-chain after eligibility; listings require legal review".into(),
         "Fees, caps, and throttle rules are always visible in wallet".into(),
       ],
     }
@@ -569,9 +569,9 @@ pub struct WithdrawEligibility {
   pub post_count: i64,
   pub min_posts: i64,
   pub balance_wb: i64,
-  pub wb_to_bksp_ratio: i64,
-  pub bksp_symbol: String,
-  pub bksp_name: String,
+  pub wb_to_bkspc_ratio: i64,
+  pub bkspc_symbol: String,
+  pub bkspc_name: String,
   /// Devnet/simulated only until counsel approves mainnet.
   pub on_chain_ready: bool,
 }
@@ -2186,9 +2186,9 @@ impl Database {
       post_count,
       min_posts: MIN_WITHDRAW_POSTS,
       balance_wb: user.weix_bucks,
-      wb_to_bksp_ratio: WB_TO_BKSP_RATIO,
-      bksp_symbol: BKSP_SYMBOL.into(),
-      bksp_name: BKSP_NAME.into(),
+      wb_to_bkspc_ratio: WB_TO_BKSPC_RATIO,
+      bkspc_symbol: BKSPC_SYMBOL.into(),
+      bkspc_name: BKSPC_NAME.into(),
       on_chain_ready: false,
     })
   }

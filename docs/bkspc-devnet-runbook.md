@@ -1,7 +1,6 @@
-# BKSP Devnet Runbook
+# BKSPC Devnet Runbook
 
-**Purpose:** Reserve **BLKSPACE COIN (BKSP)** on-chain as a settlement registry,
-secure mint authority, and wire real devnet settlement — without mainnet value or public sale.
+**Purpose:** Reserve **BKSPC** on-chain, secure mint authority, wire real devnet settlement — without mainnet value or public sale.
 
 ---
 
@@ -13,7 +12,7 @@ solana airdrop 2
 
 cd Code-Companion
 pnpm install
-pnpm --filter @workspace/solana run setup-bksp-devnet
+pnpm --filter @workspace/solana run setup-bkspc-devnet
 ```
 
 Creates:
@@ -22,13 +21,13 @@ Creates:
 |--------|----------|
 | 2-of-2 treasury multisig | `artifacts/solana/devnet/treasury-manifest.json` |
 | Treasury signer keys | `devnet/treasury-signer-a.json`, `treasury-signer-b.json` |
-| BKSP mint + Metaplex metadata | `devnet/bksp-mint.json` |
+| BKSPC mint + Metaplex metadata | `devnet/bkspc-mint.json` |
 
 All key material is **gitignored**. Back up locally (encrypted).
 
 ### Backup (plain English)
 
-**What happened:** setup wrote secret key files to your computer. Git ignores them on purpose. If the laptop dies, those files are gone — and so is control of the BKSP mint.
+**What happened:** setup wrote secret key files to your computer. Git ignores them on purpose. If the laptop dies, those files are gone — and so is control of the BKSPC mint.
 
 **Two kinds of keys:**
 
@@ -41,10 +40,10 @@ All key material is **gitignored**. Back up locally (encrypted).
 
 ```bash
 cd Code-Companion
-pnpm --filter @workspace/solana run backup-bksp-keys
+pnpm --filter @workspace/solana run backup-bkspc-keys
 ```
 
-Creates `~/BlkSpace-key-backups/bksp-keys-*.enc`. Copy that `.enc` file to USB or cloud. Do not commit it.
+Creates `~/BlkSpace-key-backups/bkspc-keys-*.enc`. Copy that `.enc` file to USB or cloud. Do not commit it.
 
 **Minimum if you skip encryption:** write deployer seed words on paper **and** copy `treasury-signer-a.json` + `treasury-signer-b.json` to a USB stick.
 
@@ -52,10 +51,10 @@ Creates `~/BlkSpace-key-backups/bksp-keys-*.enc`. Copy that `.enc` file to USB o
 
 ## Step 2 — Mint authority on treasury (not solo hot wallet)
 
-`setup-bksp-devnet` automatically:
+`setup-bkspc-devnet` automatically:
 
 1. Creates SPL **2-of-2 multisig** (separate signer keypairs)
-2. Mints BKSP with deployer wallet
+2. Mints BKSPC with deployer wallet
 3. Transfers **mint authority** → multisig
 
 Mainnet: replace with **Squads multisig + timelock** before real value.
@@ -64,26 +63,17 @@ Mainnet: replace with **Squads multisig + timelock** before real value.
 
 ## Step 3 — Wire withdraw → real devnet mint
 
-Build Tauri with the settlement feature:
+Build Tauri with settlement feature and point at your manifest:
 
 ```bash
+export BKSPC_DEVNET_MANIFEST="$PWD/artifacts/solana/devnet/bkspc-mint.json"
+
 cd Code-Companion/artifacts/blkspace
-cargo build --manifest-path src-tauri/Cargo.toml --features bksp-devnet
-# or: pnpm tauri:dev --features bksp-devnet
+cargo build --manifest-path src-tauri/Cargo.toml --features bkspc-devnet
+# or: pnpm tauri:dev with BKSPc_DEVNET_MANIFEST set
 ```
 
-The backend auto-discovers the manifest at:
-
-- `Code-Companion/artifacts/solana/devnet/bksp-mint.json`
-- `artifacts/solana/devnet/bksp-mint.json`
-
-Or set it explicitly:
-
-```bash
-export BKSP_DEVNET_MANIFEST="$PWD/artifacts/solana/devnet/bksp-mint.json"
-```
-
-`withdraw_to_solana` flow (called from Wallet → Withdraw to Solana):
+`withdraw_to_solana` flow:
 
 1. Eligibility checks (`db.rs`)
 2. Debit WB + 1% settlement fee
@@ -92,7 +82,7 @@ export BKSP_DEVNET_MANIFEST="$PWD/artifacts/solana/devnet/bksp-mint.json"
 
 Without the feature or manifest → simulated signature (safe default).
 
-Check status in-app via `get_bksp_settlement_status`.
+Check status in-app via `get_bkspc_settlement_status`.
 
 ---
 
@@ -101,7 +91,7 @@ Check status in-app via `get_bksp_settlement_status`.
 From `docs/solana-security.md`:
 
 - [ ] Instruction-level threat model signed off
-- [ ] Anchor tests + fuzzing on `programs/bksp`
+- [ ] Anchor tests + fuzzing on `programs/bkspc`
 - [ ] Professional audit (OtterSec / Zellic / Neodyme class)
 - [ ] Bug bounty plan post-mainnet
 - [ ] **No mainnet mint with real economic value until audit complete**
@@ -121,18 +111,18 @@ From `docs/solana-security.md`:
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `BKSP_DEVNET_MANIFEST` | Optional | Path to `bksp-mint.json`; auto-detected in default workspace locations |
+| `BKSPC_DEVNET_MANIFEST` | Yes (for real mint) | Path to `bkspc-mint.json` |
 | `ANCHOR_WALLET` | Setup only | Deployer payer (`~/.config/solana/id.json`) |
 | `SOLANA_RPC_URL` | Optional | Default devnet RPC |
-| `BKSP_FORCE_INIT` | Optional | Recreate treasury/mint |
-| `BKSP_ALLOW_NON_DEVNET` | Optional | Blocked by default |
+| `BKSPC_FORCE_INIT` | Optional | Recreate treasury/mint |
+| `BKSPC_ALLOW_NON_DEVNET` | Optional | Blocked by default |
 
 ---
 
 ## Ethics checklist
 
 - ✅ Devnet only until counsel
-- ✅ Earn-only WB → optional BKSP settlement
+- ✅ Earn-only WB → optional BKSPC settlement
 - ✅ No presale, no DEX, no ROI marketing
 - ✅ Published fees + eligibility in wallet
 - ❌ Do not enable mainnet or trading without steps 4–5

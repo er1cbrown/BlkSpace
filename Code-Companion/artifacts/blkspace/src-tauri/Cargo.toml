@@ -52,7 +52,7 @@ spl-associated-token-account = { version = "6.0", features = ["no-entrypoint"], 
 [features]
 default = ["iroh"]
 iroh = ["dep:iroh-blobs"]
-bksp-devnet = [
+bkspc-devnet = [
   "dep:solana-client",
   "dep:solana-sdk",
   "dep:spl-token",

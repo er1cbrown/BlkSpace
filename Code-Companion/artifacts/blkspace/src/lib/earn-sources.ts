@@ -2,7 +2,7 @@
  * BlkSpace economy (see docs/tokenomics-policy.md):
  *
  * - **WeixBucks (WB)** — earn-only platform credits. Published fees + 250 WB/day cap.
- * - **BKSP** — optional Solana settlement; tradable only after counsel approves.
+ * - **BKSPC** — optional Solana settlement; tradable only after counsel approves.
  * - **Karma** — reputation only. Not purchasable, not convertible to WB.
  */
 

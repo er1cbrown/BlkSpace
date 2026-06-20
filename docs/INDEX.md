@@ -45,7 +45,7 @@
 | [implementation/MESH_ARCHITECTURE.md](./implementation/MESH_ARCHITECTURE.md) | Cross-device mesh sync |
 | [implementation/DEVICE_MESH_TESTING.md](./implementation/DEVICE_MESH_TESTING.md) | Device B M0 test matrix |
 | [device-b-m0-results.md](./device-b-m0-results.md) | M0 results template |
-| [bksp-devnet-runbook.md](./bksp-devnet-runbook.md) | BKSP devnet mint + treasury setup |
+| [bkspc-devnet-runbook.md](./bkspc-devnet-runbook.md) | BKSPC devnet mint + treasury setup |
 
 ## Design & Planning
 

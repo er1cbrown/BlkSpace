@@ -15,12 +15,12 @@ const FALLBACK_POLICY = {
   dailyEarnCapWb: 250,
   minWithdrawWb: 100,
   weeklyWithdrawCapWb: 1000,
-  wbToBkspRatio: 1000,
-  bkspSymbol: "BKSP",
-  bkspName: "BLKSPACE COIN",
+  wbToBkspcRatio: 1000,
+  bkspcSymbol: "BKSPC",
+  bkspcName: "BlkSpace Settlement",
   midfThrottleThreshold: 0.7,
   wbPurchasable: false,
-  bkspTradableAfterCounsel: true,
+  bkspcTradableAfterCounsel: true,
   treasuryMintOnly: true,
   onChainReady: false,
   neverRules: [] as string[],
@@ -41,7 +41,7 @@ export function EconomyPolicyPanel() {
       <CardContent className="text-xs space-y-3 text-muted-foreground">
         <p>
           <strong className="text-foreground">Creator marketplace</strong> model — earn{" "}
-          {p.softCurrencySymbol}, spend in the shop, optional {p.bkspSymbol} settlement
+          {p.softCurrencySymbol}, spend in the shop, optional {p.bkspcSymbol} settlement
           after eligibility. Same class of economy as Roblox or Fortnite; fees and caps
           are published below.
         </p>
@@ -74,9 +74,9 @@ export function EconomyPolicyPanel() {
           <span className="font-medium text-foreground tabular-nums text-right">
             score &gt; {p.midfThrottleThreshold}
           </span>
-          <span>Settlement ({p.bkspSymbol})</span>
+          <span>Settlement ({p.bkspcSymbol})</span>
           <span className="font-medium text-foreground tabular-nums text-right">
-            {p.wbToBkspRatio.toLocaleString()} {p.softCurrencySymbol} = 1 {p.bkspSymbol}
+            {p.wbToBkspcRatio.toLocaleString()} {p.softCurrencySymbol} = 1 {p.bkspcSymbol}
           </span>
           <span>Treasury mint</span>
           <span className="font-medium text-foreground text-right">

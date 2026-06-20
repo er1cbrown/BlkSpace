@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "init-treasury-devnet": "tsx scripts/init-treasury-devnet.ts",
-    "init-bksp-devnet": "tsx scripts/init-bksp-devnet-mint.ts",
-    "setup-bksp-devnet": "tsx scripts/setup-bksp-devnet.ts",
-    "backup-bksp-keys": "bash scripts/backup-bksp-keys.sh",
+    "init-bkspc-devnet": "tsx scripts/init-bkspc-devnet-mint.ts",
+    "setup-bkspc-devnet": "tsx scripts/setup-bkspc-devnet.ts",
+    "backup-bkspc-keys": "bash scripts/backup-bkspc-keys.sh",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
