@@ -2,7 +2,7 @@
 
 **Status:** Implemented in `db.rs` + wallet UI  
 **Uniform model:** `creator-marketplace` — see `docs/economy-uniform-model.md`  
-**On-chain token:** **BKSPC** (`BlkSpace Settlement`)
+**On-chain token:** **BKSPC** (`BLKSPACE COIN`)
 
 ---
 
@@ -15,7 +15,7 @@ BlkSpace runs a **creator marketplace economy** — the same class as Roblox (Ro
 | **WeixBucks (WB)** | Soft currency | Earn from posts, yards, node work. Spend on tips and **creator marketplace**. **Not purchasable with USD.** |
 | **Creator marketplace** | UGC shop | List media, mixes, themes, services, tickets. Buyers pay WB; sellers get net after 5% fee. |
 | **Karma** | Reputation | Leaderboard / visibility only. **Never spendable, never convertible to WB.** |
-| **BKSPC** | Settlement token (Phase 4+) | Optional on-chain settlement of **earned** WB after eligibility. Tradable on Solana only after legal review — not promised today. |
+| **BKSPC** | Solana community token (Phase 4+) | The on-chain layer of BlkSpace on Solana. Launched as a community token; also the optional settlement path for **earned** WB after eligibility. |
 
 ---
 
@@ -44,12 +44,14 @@ Fees are burned (reduce WB in circulation). Recipients receive **net** after fee
 
 ---
 
-## Treasury / mint (planned mainnet)
+## Treasury / mint
 
-- Mint path: **treasury multisig + timelock** only after WB debit + eligibility (`solana-security.md`)
+- **Mainnet launch:** pump.fun community launch (see `docs/bkspc-pumpfun-launch.md`)
+- **WB settlement mint path:** treasury multisig + timelock, only after WB debit + eligibility (`solana-security.md`)
 - No insider presale mint
 - Mint logs: SQLite + Nostr audit trail
 - Ratio: **1,000 WB → 1 BKSPC** (fixed until counsel approves change)
+- BKSPC and WB are separate products; BKSPC has no guaranteed utility, value, or conversion back to WB
 
 ---
 

@@ -1,16 +1,14 @@
 {
-  "name": "BlkSpace Settlement",
+  "name": "BLKSPACE COIN",
   "symbol": "BKSPC",
-  "description": "Settlement token for earned WeixBucks on BlkSpace (weixblack.net). Devnet only until legal review. Not sold for USD. Minted only from eligible WB withdrawals at 1,000 WB = 1 BKSPC.",
+  "description": "BLKSPACE COIN (BKSPC) — the Solana token for the BlkSpace community. BKSPC is the on-chain layer of BlkSpace (weixblack.net), the amalgamation social network for HBCU creators. Use BKSPC to participate in the ecosystem, support creators, and access community features. Always DYOR.",
   "image": "",
   "external_url": "https://weixblack.net",
   "attributes": [
     { "trait_type": "Platform", "value": "BlkSpace" },
-    { "trait_type": "Type", "value": "Settlement" },
-    { "trait_type": "Soft Currency", "value": "WeixBucks (WB)" },
-    { "trait_type": "WB to BKSPC Ratio", "value": "1000:1" },
-    { "trait_type": "Cluster", "value": "devnet" },
-    { "trait_type": "Purchasable", "value": "false" }
+    { "trait_type": "Type", "value": "Community Token" },
+    { "trait_type": "Network", "value": "Solana" },
+    { "trait_type": "Cluster", "value": "mainnet" }
   ],
   "properties": {
     "category": "fungible",

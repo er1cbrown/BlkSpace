@@ -14,7 +14,7 @@ BlkSpace uses the **same three-layer pattern** as Roblox, Fortnite, Twitch bits,
 | **WeixBucks (WB)** | Robux | V-Bucks | Bits (earned/gifted) | Soft currency — earn from activity, spend in-app |
 | **Creator shop** | UGC catalog | Item shop | Extensions | Creators list; buyers pay WB; platform fee |
 | **Karma** | — | — | Channel points (non-cash) | Reputation / visibility only |
-| **BKSPC** | DevEx (fiat payout) | — | — | Optional on-chain settlement of **earned** WB |
+| **BKSPC** | — | — | — | Solana community token for BlkSpace; optional settlement of **earned** WB |
 
 **What is uniform:** earn soft currency → tip creators → buy from creator marketplace → platform takes a published fee.
 
@@ -41,9 +41,10 @@ BlkSpace uses the **same three-layer pattern** as Roblox, Fortnite, Twitch bits,
 ### 3. Optional settlement — BKSPC
 
 - **1,000 WB → 1 BKSPC** after withdraw eligibility
-- Devnet simulated until legal review approves mainnet
+- Launched on Solana via pump.fun as a community token
 - Future DEX/perps listing = **new compliance gate**, not promised today
 - One-way: no BKSPC → WB
+- See `docs/bkspc-pumpfun-launch.md` for the mainnet launch steps
 
 ---
 
@@ -76,6 +77,7 @@ BlkSpace uses the **same three-layer pattern** as Roblox, Fortnite, Twitch bits,
 | Wallet UI | `WalletDisclaimer`, `EconomyPolicyPanel`, `CreatorMarketplacePanel` |
 | Devnet mint init | `artifacts/solana/scripts/init-bkspc-devnet-mint.ts` |
 | On-chain metadata | `artifacts/solana/metadata/bkspc-token.json` |
+| pump.fun launch runbook | `docs/bkspc-pumpfun-launch.md` |
 | Student terms | `docs/economy-student-terms.md` |
 
 ### Reserve BKSPC on devnet (ethical, no sale)
