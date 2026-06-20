@@ -22,27 +22,22 @@ import {
   Gift,
   Zap,
   TrendingUp,
-  Users,
+  Store,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   useTauriGetWalletTx,
   useAppSendWeixBucks,
   useAppGetUser,
   useAppWithdrawToSolana,
   useTauriGetWithdrawEligibility,
-  useTauriMarketplace,
-  useAppCreateMarketplaceListing,
-  useAppBuyMarketplaceListing,
-  useTauriPublishMix,
 } from "@/hooks/use-app-data";
 import {
   isTauri,
   type TauriWalletTx,
   type TauriWithdrawEligibility,
   tauriClaimNodeRewards,
-  tauriListUserBlobs,
 } from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { EarnRatesPanel } from "@/components/economy/EarnRatesPanel";
@@ -50,6 +45,7 @@ import { WalletDisclaimer } from "@/components/economy/WalletDisclaimer";
 import { EconomyPolicyPanel } from "@/components/economy/EconomyPolicyPanel";
 import { EconomyTermsCard } from "@/components/economy/EconomyTermsCard";
 import { EconomyAppealCard } from "@/components/economy/EconomyAppealCard";
+import { CreatorMarketplacePanel } from "@/components/economy/CreatorMarketplacePanel";
 import { formatFeePercent, FEE_BPS } from "@/lib/tokenomics";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -60,14 +56,6 @@ import {
   SystemProgram,
 } from "@solana/web3.js";
 import { Program, AnchorProvider, BN } from "@coral-xyz/anchor"; // full Anchor TS client for exact CPI (mint_rewards) per solana-blueprint.md
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { WalletContextProvider } from "@/components/WalletContextProvider";
 
 const mockTxHistory = [
@@ -493,10 +481,6 @@ function WalletPageContent() {
   const handle = getCurrentHandle();
   const { data: user } = useAppGetUser(handle);
   const { data: tauriTx } = useTauriGetWalletTx();
-  const { data: listings = [] } = useTauriMarketplace();
-  const createListing = useAppCreateMarketplaceListing();
-  const buyListing = useAppBuyMarketplaceListing();
-  const publishMix = useTauriPublishMix();
   const { publicKey, signTransaction, connected } = useWallet();
 
   const txHistory =
@@ -511,32 +495,6 @@ function WalletPageContent() {
           .filter((tx) => tx.txType === "earn")
           .reduce((s: number, tx) => s + tx.amount, 0)
       : 50;
-
-  // Marketplace form state
-  const [showListForm, setShowListForm] = useState(false);
-  const [newItem, setNewItem] = useState({
-    itemType: "media",
-    itemRef: "",
-    price: 10,
-    title: "",
-    description: "",
-    // mix metadata for 30078
-    bpm: undefined as number | undefined,
-    key: "",
-    tracklist: "",
-  });
-  const [userMedia, setUserMedia] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (isTauri()) {
-      const token = getSessionToken();
-      if (token) {
-        tauriListUserBlobs(token)
-          .then(setUserMedia)
-          .catch(() => {});
-      }
-    }
-  }, []);
 
   const handleClaimRewards = async () => {
     const token = getSessionToken();
@@ -661,6 +619,10 @@ function WalletPageContent() {
           <TabsList className="mb-6">
             <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="earn">How to Earn</TabsTrigger>
+            <TabsTrigger value="marketplace" className="gap-1.5">
+              <Store className="w-3.5 h-3.5" />
+              Marketplace
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="history" className="space-y-1">
@@ -708,288 +670,10 @@ function WalletPageContent() {
             <EconomyTermsCard />
             <EconomyPolicyPanel />
             <EconomyAppealCard />
+          </TabsContent>
 
-            {/* Real Marketplace for full economy loop */}
-            <Card className="border-primary/10 mt-4">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-5 h-5 text-primary" />
-                  <h4 className="font-bold">Marketplace</h4>
-                </div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Sell your media/mixes (from Iroh CIDs), art, services for WB.
-                  Buy themes, boosts, tickets. NFT mixes deliver via Iroh.
-                </p>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowListForm(!showListForm)}
-                  className="mb-3"
-                >
-                  {showListForm ? "Cancel" : "List New Item"}
-                </Button>
-
-                {showListForm && (
-                  <div className="space-y-2 mb-4 p-3 border rounded">
-                    <Select
-                      value={newItem.itemType}
-                      onValueChange={(v) =>
-                        setNewItem({ ...newItem, itemType: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="media">Media (photo/video/audio)</SelectItem>
-                        <SelectItem value="mix">Mix (DJ mix w/ metadata + 30078)</SelectItem>
-                        <SelectItem value="service">Service</SelectItem>
-                        <SelectItem value="theme">Theme</SelectItem>
-                        <SelectItem value="ticket">Event Ticket</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {newItem.itemType === "media" && isTauri() && (
-                      <Select
-                        value={newItem.itemRef}
-                        onValueChange={(v) =>
-                          setNewItem({
-                            ...newItem,
-                            itemRef: v,
-                            title:
-                              userMedia.find((m: any) => m.hash === v)
-                                ?.filename || "",
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select your media" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {userMedia.map((m: any) => (
-                            <SelectItem key={m.hash} value={m.hash}>
-                              {m.filename} ({(m.fileSize / 1024).toFixed(0)}KB)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-
-                    {newItem.itemType === "mix" && isTauri() && (
-                      <>
-                        <Select
-                          value={newItem.itemRef}
-                          onValueChange={(v) =>
-                            setNewItem({
-                              ...newItem,
-                              itemRef: v,
-                              title:
-                                userMedia.find((m: any) => m.hash === v)
-                                  ?.filename || "",
-                            })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select mix audio from uploads (Iroh CID)" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {userMedia.map((m: any) => (
-                              <SelectItem key={m.hash} value={m.hash}>
-                                {m.filename} ({(m.fileSize / 1024).toFixed(0)}KB)
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input
-                            placeholder="BPM (e.g. 140)"
-                            type="number"
-                            value={newItem.bpm ?? ""}
-                            onChange={(e) =>
-                              setNewItem({
-                                ...newItem,
-                                bpm: e.target.value ? parseInt(e.target.value) : undefined,
-                              })
-                            }
-                          />
-                          <Input
-                            placeholder="Key (e.g. Am, C#)"
-                            value={newItem.key}
-                            onChange={(e) => setNewItem({ ...newItem, key: e.target.value })}
-                          />
-                        </div>
-                        <Input
-                          placeholder="Tracklist (comma separated)"
-                          value={newItem.tracklist}
-                          onChange={(e) => setNewItem({ ...newItem, tracklist: e.target.value })}
-                        />
-                      </>
-                    )}
-                    <Input
-                      placeholder="Title"
-                      value={newItem.title}
-                      onChange={(e) =>
-                        setNewItem({ ...newItem, title: e.target.value })
-                      }
-                    />
-                    <Input
-                      placeholder="Price (WB)"
-                      type="number"
-                      value={newItem.price}
-                      onChange={(e) =>
-                        setNewItem({
-                          ...newItem,
-                          price: parseInt(e.target.value) || 10,
-                        })
-                      }
-                    />
-                    <Textarea
-                      placeholder="Description"
-                      value={newItem.description}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                        setNewItem({ ...newItem, description: e.target.value })
-                      }
-                    />
-                    <Button
-                      size="sm"
-                      onClick={async () => {
-                        if (!newItem.title || newItem.price <= 0) {
-                          toast.error("Title and positive price required");
-                          return;
-                        }
-                        const isNft =
-                          (newItem.itemType === "media" || newItem.itemType === "mix") && !!newItem.itemRef;
-                        try {
-                          if (newItem.itemType === "mix" && newItem.itemRef) {
-                            // First-class mix: publish 30078 with metadata
-                            await publishMix.mutateAsync({
-                              cid: newItem.itemRef,
-                              title: newItem.title,
-                              bpm: newItem.bpm,
-                              key: newItem.key || undefined,
-                              tracklist: newItem.tracklist || undefined,
-                            });
-                          }
-                          await createListing.mutateAsync({
-                            itemType: newItem.itemType,
-                            itemRef: newItem.itemRef || null,
-                            price: newItem.price,
-                            title: newItem.title,
-                            description: newItem.description || null,
-                            isNft,
-                          });
-                          setShowListForm(false);
-                          setNewItem({
-                            itemType: "media",
-                            itemRef: "",
-                            price: 10,
-                            title: "",
-                            description: "",
-                            bpm: undefined,
-                            key: "",
-                            tracklist: "",
-                          });
-                          toast.success(
-                            newItem.itemType === "mix"
-                              ? "Mix published as 30078 + listed (30081 if NFT). 8 WB credited."
-                              : "Listed! Published as Nostr 30081 if NFT.",
-                          );
-                        } catch (e) {
-                          toast.error(String(e));
-                        }
-                      }}
-                    >
-                      List for Sale
-                    </Button>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  {listings.length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      No listings yet. Be the first!
-                    </p>
-                  )}
-                  {listings.map((item: any) => (
-                    <div
-                      key={item.id}
-                      className="flex justify-between items-center p-2 border rounded text-sm"
-                    >
-                      <div>
-                        <div className="font-medium">
-                          {item.title}{" "}
-                          <span className="text-xs text-muted-foreground">
-                            ({item.itemType}
-                            {item.isNft ? ", NFT" : ""})
-                          </span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          by @{item.sellerHandle} • {item.price} WB
-                        </div>
-                        {item.description && (
-                          <div className="text-xs">{item.description}</div>
-                        )}
-                        {item.itemRef && (
-                          <div className="text-[10px] font-mono">
-                            Ref: {item.itemRef.slice(0, 16)}… (Iroh CID for
-                            delivery)
-                          </div>
-                        )}
-                      </div>
-                      <Button
-                        size="sm"
-                        disabled={item.sellerHandle === (user as any)?.handle}
-                        onClick={async () => {
-                          try {
-                            const res = await buyListing.mutateAsync(item.id);
-                            toast.success(
-                              `Bought for ${item.price} WB! ${item.isNft && item.itemRef ? "NFT/Iroh delivery CID: " + item.itemRef + " (fetch in media or via Iroh)" : "WB transferred to seller."}`,
-                            );
-
-                            if (connected && publicKey && signTransaction) {
-                              try {
-                                const connection = new Connection(
-                                  "https://api.devnet.solana.com",
-                                );
-                                const tx = new Transaction().add(
-                                  SystemProgram.transfer({
-                                    fromPubkey: publicKey,
-                                    toPubkey: publicKey,
-                                    lamports: 1,
-                                  }),
-                                );
-                                // Anchor tie-in for on-chain purchase settlement (proxy for program burn/transfer)
-                                tx.recentBlockhash = (
-                                  await connection.getLatestBlockhash()
-                                ).blockhash;
-                                tx.feePayer = publicKey;
-                                const signed = await signTransaction(tx);
-                                const sig = await connection.sendRawTransaction(
-                                  signed.serialize(),
-                                );
-                                toast(
-                                  `On-chain BKSPC settlement for purchase: ${sig.slice(0, 16)}...`,
-                                );
-                              } catch {}
-                            }
-
-                            if (item.itemType === "theme") {
-                              toast(
-                                "Theme unlocked on-chain (Solana NFT stub + Nostr kind 0 for profile persistence)! Go to profile customize.",
-                              );
-                            }
-                          } catch (e) {
-                            toast.error(String(e));
-                          }
-                        }}
-                      >
-                        Buy
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="marketplace">
+            <CreatorMarketplacePanel />
           </TabsContent>
         </Tabs>
     </AppShell>

@@ -120,6 +120,10 @@ export interface TauriEarnSummary {
 
 export interface TauriTokenomicsPolicy {
   model: string;
+  uniformModel: string;
+  softCurrencySymbol: string;
+  softCurrencyName: string;
+  marketplaceEnabled: boolean;
   tipFeeBps: number;
   marketplaceFeeBps: number;
   withdrawSettlementFeeBps: number;

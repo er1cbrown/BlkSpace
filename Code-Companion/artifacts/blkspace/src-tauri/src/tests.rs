@@ -283,6 +283,9 @@ mod tests {
   fn test_tokenomics_policy_published() {
     let policy = TokenomicsPolicy::published();
     assert_eq!(policy.model, "blkspace-published");
+    assert_eq!(policy.uniform_model, "creator-marketplace");
+    assert_eq!(policy.soft_currency_symbol, "WB");
+    assert!(policy.marketplace_enabled);
     assert_eq!(policy.tip_fee_bps, TIP_PLATFORM_FEE_BPS);
     assert_eq!(policy.marketplace_fee_bps, MARKETPLACE_PLATFORM_FEE_BPS);
     assert!(!policy.wb_purchasable);

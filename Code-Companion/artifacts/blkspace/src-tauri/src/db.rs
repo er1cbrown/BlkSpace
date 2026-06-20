@@ -474,11 +474,15 @@ pub const BKSPC_NAME: &str = "BlkSpace Settlement";
 pub const WB_TO_BKSPC_RATIO: i64 = 1000;
 const WITHDRAW_TX_PREFIX: &str = "Withdrawn to Solana";
 
-/// Published economy policy — see docs/tokenomics-policy.md.
+/// Published economy policy — see docs/economy-uniform-model.md.
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenomicsPolicy {
   pub model: String,
+  pub uniform_model: String,
+  pub soft_currency_symbol: String,
+  pub soft_currency_name: String,
+  pub marketplace_enabled: bool,
   pub tip_fee_bps: i64,
   pub marketplace_fee_bps: i64,
   pub withdraw_settlement_fee_bps: i64,
@@ -500,6 +504,10 @@ impl TokenomicsPolicy {
   pub fn published() -> Self {
     Self {
       model: "blkspace-published".into(),
+      uniform_model: "creator-marketplace".into(),
+      soft_currency_symbol: "WB".into(),
+      soft_currency_name: "WeixBucks".into(),
+      marketplace_enabled: true,
       tip_fee_bps: TIP_PLATFORM_FEE_BPS,
       marketplace_fee_bps: MARKETPLACE_PLATFORM_FEE_BPS,
       withdraw_settlement_fee_bps: WITHDRAW_SETTLEMENT_FEE_BPS,
@@ -515,10 +523,11 @@ impl TokenomicsPolicy {
       treasury_mint_only: true,
       on_chain_ready: false,
       never_rules: vec![
-        "Never sell WB for USD without counsel approval".into(),
-        "Never market BKSPC with ROI or guaranteed profit language".into(),
-        "Never mint BKSPC to insiders before public eligibility rules".into(),
-        "Never hide fees or throttle rules from the wallet UI".into(),
+        "WB is earn-only — not sold for USD".into(),
+        "Creators sell in the marketplace for WB; platform fee applies".into(),
+        "Karma is reputation only — never spendable".into(),
+        "BKSPC settles earned WB on-chain after eligibility; listings require legal review".into(),
+        "Fees, caps, and throttle rules are always visible in wallet".into(),
       ],
     }
   }

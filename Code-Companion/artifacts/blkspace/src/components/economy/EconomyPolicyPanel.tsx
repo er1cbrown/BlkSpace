@@ -5,6 +5,10 @@ import { BookOpen } from "lucide-react";
 
 const FALLBACK_POLICY = {
   model: "blkspace-published",
+  uniformModel: "creator-marketplace",
+  softCurrencySymbol: "WB",
+  softCurrencyName: "WeixBucks",
+  marketplaceEnabled: true,
   tipFeeBps: 200,
   marketplaceFeeBps: 500,
   withdrawSettlementFeeBps: 100,
@@ -36,13 +40,20 @@ export function EconomyPolicyPanel() {
       </CardHeader>
       <CardContent className="text-xs space-y-3 text-muted-foreground">
         <p>
-          BlkSpace runs a <strong className="text-foreground">published</strong>{" "}
-          earn-and-spend economy on the yard. WB is not sold for cash. BKSPC is
-          minted only from earned WB after eligibility — tradable on Solana only
-          if counsel approves (DEX / perps are a separate gate, not promised
-          today).
+          <strong className="text-foreground">Creator marketplace</strong> model — earn{" "}
+          {p.softCurrencySymbol}, spend in the shop, optional {p.bkspcSymbol} settlement
+          after eligibility. Same class of economy as Roblox or Fortnite; fees and caps
+          are published below.
         </p>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+          <span>Model</span>
+          <span className="font-medium text-foreground text-right">
+            {p.uniformModel}
+          </span>
+          <span>Creator shop</span>
+          <span className="font-medium text-foreground text-right">
+            {p.marketplaceEnabled ? "Enabled" : "Off"}
+          </span>
           <span>Tip / send fee</span>
           <span className="font-medium text-foreground tabular-nums text-right">
             {formatFeePercent(p.tipFeeBps)}
@@ -57,7 +68,7 @@ export function EconomyPolicyPanel() {
           </span>
           <span>Daily earn cap</span>
           <span className="font-medium text-foreground tabular-nums text-right">
-            {p.dailyEarnCapWb} WB
+            {p.dailyEarnCapWb} {p.softCurrencySymbol}
           </span>
           <span>MIDF earn pause</span>
           <span className="font-medium text-foreground tabular-nums text-right">
@@ -65,7 +76,7 @@ export function EconomyPolicyPanel() {
           </span>
           <span>Settlement ({p.bkspcSymbol})</span>
           <span className="font-medium text-foreground tabular-nums text-right">
-            {p.wbToBkspcRatio.toLocaleString()} WB = 1 {p.bkspcSymbol}
+            {p.wbToBkspcRatio.toLocaleString()} {p.softCurrencySymbol} = 1 {p.bkspcSymbol}
           </span>
           <span>Treasury mint</span>
           <span className="font-medium text-foreground text-right">
@@ -73,15 +84,18 @@ export function EconomyPolicyPanel() {
           </span>
         </div>
         {p.neverRules && p.neverRules.length > 0 && (
-          <ul className="text-[10px] space-y-0.5 list-disc pl-4">
-            {p.neverRules.map((rule) => (
-              <li key={rule}>{rule}</li>
-            ))}
-          </ul>
+          <div>
+            <p className="text-[10px] font-medium text-foreground mb-1">Platform rules</p>
+            <ul className="text-[10px] space-y-0.5 list-disc pl-4">
+              {p.neverRules.map((rule) => (
+                <li key={rule}>{rule}</li>
+              ))}
+            </ul>
+          </div>
         )}
         <p className="text-[10px]">
-          WB {p.wbPurchasable ? "purchasable" : "not purchasable"} · On-chain{" "}
-          {p.onChainReady ? "live" : "devnet simulated until counsel"}
+          {p.softCurrencyName} {p.wbPurchasable ? "purchasable" : "earn-only"} · On-chain{" "}
+          {p.onChainReady ? "live" : "devnet until legal review"}
         </p>
       </CardContent>
     </Card>

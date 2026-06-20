@@ -1,22 +1,21 @@
 # BlkSpace Economy Policy (Published)
 
 **Status:** Implemented in `db.rs` + wallet UI  
-**On-chain token:** **BKSPC** (`BlkSpace Settlement`)  
-**Gate:** Devnet simulated until counsel approves mainnet listing/trading rules
+**Uniform model:** `creator-marketplace` — see `docs/economy-uniform-model.md`  
+**On-chain token:** **BKSPC** (`BlkSpace Settlement`)
 
 ---
 
-## What this is (honest)
+## What this is
 
-BlkSpace is a **creator economy for the yard** — not a prediction market, not a copy of any exchange brand.
+BlkSpace runs a **creator marketplace economy** — the same class as Roblox (Robux + UGC shop), Fortnite (V-Bucks + item shop), and similar platforms.
 
 | Layer | Name | Role |
 |-------|------|------|
-| **WeixBucks (WB)** | Off-chain credits | Earn from posts, yards, node work. Spend in-app. **Never purchasable with real money.** |
+| **WeixBucks (WB)** | Soft currency | Earn from posts, yards, node work. Spend on tips and **creator marketplace**. **Not purchasable with USD.** |
+| **Creator marketplace** | UGC shop | List media, mixes, themes, services, tickets. Buyers pay WB; sellers get net after 5% fee. |
 | **Karma** | Reputation | Leaderboard / visibility only. **Never spendable, never convertible to WB.** |
-| **BKSPC** | Solana SPL (Phase 4+) | On-chain settlement of **earned** WB after eligibility. **May become tradable** (DEX, perps, etc.) **only after** counsel + compliance — not promised today. |
-
-HBCU cultural grounding is **community context**, not a reason to hide economics. Same transparency rules apply to every user.
+| **BKSPC** | Settlement token (Phase 4+) | Optional on-chain settlement of **earned** WB after eligibility. Tradable on Solana only after legal review — not promised today. |
 
 ---
 
@@ -54,13 +53,13 @@ Fees are burned (reduce WB in circulation). Recipients receive **net** after fee
 
 ---
 
-## We will never (pre-counsel defaults)
+## Platform rules
 
-1. Sell WB for USD or card payments  
-2. Market BKSPC with ROI / “moon” / guaranteed profit language  
-3. Mint BKSPC to team wallets before public eligibility rules ship  
-4. Run yard **prediction markets** for real money without separate regulatory review  
-5. Hide fee or throttle rules from the wallet UI  
+1. WB is earn-only — not sold for USD without a new reviewed product  
+2. Creators sell in the marketplace for WB; fees are published  
+3. Karma is reputation only — never spendable or convertible  
+4. BKSPC mints only from earned WB after eligibility; on-chain listings require legal review  
+5. Fees, caps, and throttle rules are never hidden from the wallet UI  
 
 Counsel may approve **additional** products (e.g. compliant BKSPC secondary trading). That is a **new** gate, not a silent pivot.
 
@@ -76,6 +75,8 @@ See in-app **Economy terms** on `/wallet` and `docs/economy-student-terms.md`.
 
 | Piece | Location |
 |-------|----------|
+| Uniform model doc | `docs/economy-uniform-model.md` |
 | Policy constants | `db.rs` → `TokenomicsPolicy::published()` |
+| Labels | `lib/tokenomics.ts` |
 | Appeals | `economy_appeals` table, `submit_economy_appeal` |
-| UI | `EconomyPolicyPanel`, `EconomyTermsCard`, `EconomyAppealCard` |
+| UI | `WalletDisclaimer`, `EconomyPolicyPanel`, `CreatorMarketplacePanel` |
