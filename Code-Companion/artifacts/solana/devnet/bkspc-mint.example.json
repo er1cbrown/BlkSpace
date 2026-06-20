@@ -1,0 +1,15 @@
+{
+  "cluster": "devnet",
+  "rpcUrl": "https://api.devnet.solana.com",
+  "createdAt": "2026-06-20T00:00:00.000Z",
+  "name": "BlkSpace Settlement",
+  "symbol": "BKSPC",
+  "decimals": 9,
+  "mint": "REPLACE_AFTER_INIT",
+  "mintAuthority": "REPLACE_YOUR_WALLET",
+  "metadataUri": "data:application/json;base64,...",
+  "initSignature": "REPLACE_TX_SIGNATURE",
+  "programIdPlaceholder": "BkSpC111111111111111111111111111111111111",
+  "notice": "Devnet settlement token only. Not for sale. Mainnet requires counsel approval.",
+  "wbToBkspcRatio": 1000
+}

@@ -74,4 +74,16 @@ BlkSpace uses the **same three-layer pattern** as Roblox, Fortnite, Twitch bits,
 | Policy | `db.rs` → `TokenomicsPolicy::published()` |
 | Labels | `lib/tokenomics.ts` |
 | Wallet UI | `WalletDisclaimer`, `EconomyPolicyPanel`, `CreatorMarketplacePanel` |
+| Devnet mint init | `artifacts/solana/scripts/init-bkspc-devnet-mint.ts` |
+| On-chain metadata | `artifacts/solana/metadata/bkspc-token.json` |
 | Student terms | `docs/economy-student-terms.md` |
+
+### Reserve BKSPC on devnet (ethical, no sale)
+
+```bash
+cd Code-Companion
+solana config set --url devnet && solana airdrop 2
+pnpm --filter @workspace/solana run init-bkspc-devnet
+```
+
+Writes `artifacts/solana/devnet/bkspc-mint.json` with mint address + Metaplex `BKSPC` symbol. Devnet only until counsel approves mainnet.

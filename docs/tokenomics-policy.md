@@ -78,5 +78,6 @@ See in-app **Economy terms** on `/wallet` and `docs/economy-student-terms.md`.
 | Uniform model doc | `docs/economy-uniform-model.md` |
 | Policy constants | `db.rs` → `TokenomicsPolicy::published()` |
 | Labels | `lib/tokenomics.ts` |
+| Devnet mint init | `artifacts/solana/` → `pnpm --filter @workspace/solana run init-bkspc-devnet` |
 | Appeals | `economy_appeals` table, `submit_economy_appeal` |
 | UI | `WalletDisclaimer`, `EconomyPolicyPanel`, `CreatorMarketplacePanel` |
