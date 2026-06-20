@@ -1,40 +1,45 @@
-.PHONY: dev build lint typecheck test format clean setup
+.PHONY: dev build lint typecheck test format clean setup ci
+
+# The pnpm workspace root is ./Code-Companion; all node/pnpm commands run from there.
+CC := Code-Companion
 
 dev:
-	pnpm tauri dev
+	cd $(CC) && pnpm tauri dev
 
 dev-web:
-	pnpm dev
+	cd $(CC) && pnpm dev
 
 build:
-	pnpm build
+	cd $(CC) && pnpm build
 
 build-tauri:
-	pnpm tauri build
+	cd $(CC)/artifacts/blkspace && pnpm tauri build
 
 lint:
-	pnpm lint
+	cd $(CC) && pnpm lint
 
 typecheck:
-	pnpm typecheck
+	cd $(CC) && pnpm typecheck
 
 test:
-	pnpm test
+	cd $(CC) && pnpm test
 
 test-watch:
-	pnpm test -- --watch
+	cd $(CC) && pnpm test -- --watch
 
 format:
-	pnpm format
+	cd $(CC) && pnpm format
 
 format-check:
-	pnpm format:check
+	cd $(CC) && pnpm format:check
 
 clean:
-	rm -rf dist src-tauri/target node_modules
+	rm -rf $(CC)/artifacts/*/dist $(CC)/artifacts/*/node_modules
+	rm -rf $(CC)/artifacts/blkspace/src-tauri/target
+	rm -rf $(CC)/node_modules $(CC)/lib/*/node_modules $(CC)/lib/*/dist
 
 setup:
-	pnpm install
+	cd $(CC) && pnpm install
 	cargo install tauri-cli --version "^2"
 
 ci: lint typecheck test build

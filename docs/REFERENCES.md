@@ -127,7 +127,7 @@ Bitcoin curve; used in Nostr for Schnorr signatures (BIP340).
 | `weixinfo/` corpus (98 files) | Internal research archive | Skills transfer, creative vision, cultural grounding |
 | `myBibleNLP` (external) | NLP project | LogosDecks tagging, scripture metadata |
 | `hotencoderpy/` (external) | Design assets | B.L.A.C.K. branding, profile themes |
-| `Grok-Computer Networking Top-Down Approach Overview.json` | Export | Architecture layer mapping |
+| [`archive/Grok-Computer Networking Top-Down Approach Overview.json`](./archive/Grok-Computer%20Networking%20Top-Down%20Approach%20Overview.json) | Export | Architecture layer mapping |
 
 ---
 

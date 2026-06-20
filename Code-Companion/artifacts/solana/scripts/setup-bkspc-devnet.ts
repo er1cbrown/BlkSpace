@@ -19,3 +19,7 @@ function run(script: string): void {
 
 run("init-treasury-devnet.ts");
 run("init-bkspc-devnet-mint.ts");
+
+console.log("\n--- Next: back up your keys (plain-English script) ---");
+console.log("  pnpm --filter @workspace/solana run backup-bkspc-keys");
+console.log("Treasury signers have NO seed phrase — file backup is required.\n");

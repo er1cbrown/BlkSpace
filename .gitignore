@@ -117,6 +117,17 @@ playwright-report/
 test-results/
 
 # ============================================================================
+# Solana / Anchor
+# ============================================================================
+test-ledger/
+target/
+*.key
+*.enc
+# Devnet key material (keep .example.json templates tracked)
+Code-Companion/artifacts/solana/devnet/*.json
+!Code-Companion/artifacts/solana/devnet/*.example.json
+
+# ============================================================================
 # Mobile (future)
 # ============================================================================
 *.apk

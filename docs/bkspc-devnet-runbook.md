@@ -25,6 +25,28 @@ Creates:
 
 All key material is **gitignored**. Back up locally (encrypted).
 
+### Backup (plain English)
+
+**What happened:** setup wrote secret key files to your computer. Git ignores them on purpose. If the laptop dies, those files are gone — and so is control of the BKSPC mint.
+
+**Two kinds of keys:**
+
+| Key | File | Recovery |
+|-----|------|----------|
+| Deployer wallet | `~/.config/solana/id.json` | 12-word seed phrase on **paper** (best) |
+| Treasury signers A & B | `devnet/treasury-signer-a.json`, `treasury-signer-b.json` | **No seed phrase** — you must copy or encrypt these files |
+
+**One command** (password you choose; no GPG required):
+
+```bash
+cd Code-Companion
+pnpm --filter @workspace/solana run backup-bkspc-keys
+```
+
+Creates `~/BlkSpace-key-backups/bkspc-keys-*.enc`. Copy that `.enc` file to USB or cloud. Do not commit it.
+
+**Minimum if you skip encryption:** write deployer seed words on paper **and** copy `treasury-signer-a.json` + `treasury-signer-b.json` to a USB stick.
+
 ---
 
 ## Step 2 — Mint authority on treasury (not solo hot wallet)

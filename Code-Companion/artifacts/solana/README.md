@@ -21,6 +21,7 @@ pnpm --filter @workspace/solana run setup-bkspc-devnet
 | `init-treasury-devnet` | 2-of-2 SPL multisig + signer keypairs |
 | `init-bkspc-devnet` | Metaplex mint + transfer authority to treasury |
 | `setup-bkspc-devnet` | Runs both in order |
+| `backup-bkspc-keys` | Password-locked backup of wallet + treasury keys |
 
 ## Wire real devnet withdraw (step 3)
 

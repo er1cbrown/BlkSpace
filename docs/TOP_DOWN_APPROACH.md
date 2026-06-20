@@ -3,7 +3,7 @@
 **Mapping Kurose & Ross's Computer Networking layers to BlkSpace's decentralized architecture.**
 
 **Reference:** Kurose & Ross, *Computer Networking: A Top-Down Approach*, 8th ed. (Pearson, 2021)  
-**Source:** Grok-Computer Networking Top-Down Approach Overview.json (TSU COMP-3310 coursework)  
+**Source:** [`archive/Grok-Computer Networking Top-Down Approach Overview.json`](./archive/Grok-Computer%20Networking%20Top-Down%20Approach%20Overview.json) (TSU COMP-3310 coursework)
 **Date:** 2026-06-15
 
 ---

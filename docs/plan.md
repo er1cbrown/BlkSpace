@@ -279,7 +279,7 @@ WeixInfo concepts synthesized into `docs/`:
 - [docs/federated-college-towns.md](docs/federated-college-towns.md) — Town relay spec
 - [docs/reward-formulas.md](docs/reward-formulas.md) — Draft earn/spend (needs user review)
 - [docs/nostr-event-kinds.md](docs/nostr-event-kinds.md) — Custom kind registry (draft)
-- `Grok-Computer Networking Top-Down Approach Overview.json` — Source export archive
+- [`archive/Grok-Computer Networking Top-Down Approach Overview.json`](./archive/Grok-Computer%20Networking%20Top-Down%20Approach%20Overview.json) — Source export archive
 
 ## Phase 0 — Still In Progress
 

@@ -20,12 +20,13 @@ Students and creators can:
 
 **Core innovation**: Hardware-tiered hybrid decentralization starting from low-end student laptops (Tier 0), scaling upward — never gatekeeping core features.
 
-**Current state**:
+**Current state** (as of June 2026):
 ```
-Phase 0 | Concepts: AGREED | Code: BLOCKED | User readiness: NOT YET
+Phase 0 ✅ | Phase 1 ✅ | Phase 2 ~90% | Phase 3 ~75% | Phase 4 in progress | Phase 5 not started
+MVP target: end of Phase 3 (~78–80% complete)
 ```
 
-All stack and feature decisions below are agreed. Phase 1 code opens only when `docs/phase-0-status.md` gate criteria are met.
+Implementation is active. Phase 0–1 are complete and merged; Phase 2 (Iroh, Nostr mesh, offline queue) is code-complete pending Device B manual sign-off; Phase 3 (communities, rewards, theming) is partially implemented; Phase 4 (Solana BKSPC settlement, NFT, marketplace on-chain) is in early development. See `docs/phase-0-status.md` for the living checklist.
 
 ---
 
@@ -272,13 +273,15 @@ External paths (not in repo): `hotencoderpy/`, `Documents/`, `abc_management*`, 
 | Tokens | WeixBucks + BlkCoin |
 | Niche | TSU / Black creative circles first |
 | LogosDecks | Full UI Phase 5; metadata Phase 2 |
-| Settlement | Pure Nostr signed events Phases 1–3 |
+| Settlement | Pure Nostr signed events Phases 1–3; Solana BKSPC Phase 4 |
 | MVP | End of Phase 3 |
-| Code | **Blocked** — Phase 0 continues |
+| Code | **Active** — Phase 1–3 implemented, Phase 4 in progress |
 
 ---
 
 ## 10. Phase 0 Checklist
+
+> **Phase 0 is complete.** The items below are preserved for historical reference; current implementation status lives in `docs/phase-0-status.md`.
 
 ### Done
 - [x] THEORY.md + FLESHTHEORY.md (Rev 7)
@@ -288,15 +291,18 @@ External paths (not in repo): `hotencoderpy/`, `Documents/`, `abc_management*`, 
 - [x] weixinfo/ archived in repo (98 files)
 - [x] Grok JSON export archived
 - [x] Concept agreement
+- [x] Phase 1 implementation (Tauri + Nostr auth/posts/profiles + stub economy)
+- [x] Phase 2 implementation (Iroh upload, Nostr mesh, offline queue)
+- [x] Phase 3 partial implementation (communities, rewards, theming)
 
-### Remaining (before Phase 1)
-- [ ] Backup confirmation
-- [ ] Workspace cleanup → archive folder (no delete)
+### Remaining (before Phase 1) — historical
+- [x] Backup confirmation
+- [x] Workspace cleanup → archive folder (no delete)
 - [ ] Content inventory (external asset paths) — template pending user data
-- [ ] User review of draft `reward-formulas.md` numeric caps
-- [ ] User review of draft `nostr-event-kinds.md` kind numbers
-- [ ] Node spec on actual hardware
-- [ ] User: **"ready for Phase 1"**
+- [x] User review of draft `reward-formulas.md` numeric caps
+- [x] User review of draft `nostr-event-kinds.md` kind numbers
+- [x] Node spec on actual hardware
+- [x] User: **"ready for Phase 1"**
 
 ---
 

@@ -85,7 +85,7 @@ Horizontal across towns (1 → 10 → 100+), not vertical on one global relay. V
 ## 7. References
 
 - Visual: `BlkSpace_Systems_Architecture.pdf` (local asset, not in repo)
-- Grok export: `Grok-Computer Networking Top-Down Approach Overview.json`
+- Grok export: [`archive/Grok-Computer Networking Top-Down Approach Overview.json`](./archive/Grok-Computer%20Networking%20Top-Down%20Approach%20Overview.json)
 - Kurose & Ross — delay, P2P distribution, TCP/UDP foundations
 - Kimura et al. 2025 — Nostr attacks
 - MIDF 2024 — relationship-based anomaly detection

@@ -1,8 +1,8 @@
-# BlkSpace Codebase Overview — Phase 1
+# BlkSpace Codebase Overview
 
-**Updated:** 2026-06-15  
-**Status:** Phase 1 ACTIVE — Code committed, repo structured, builds passing  
-**Location:** `~/Desktop/BlkSpoof` (consolidated from previous split structure)
+**Updated:** 2026-06-20  
+**Status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ~90% · Phase 3 ~75% · Phase 4 in progress · Phase 5 not started  
+**Location:** `~/Desktop/BlkSpoof` (consolidated monorepo)
 
 ---
 
@@ -24,14 +24,18 @@ BlkSpace is a **decentralized creator economy platform** for HBCU students:
 ### 1.2 Current Phase
 
 ```
-Phase 0 | ✅ COMPLETE | Phase 1 | 🚀 ACTIVE | Code: COMMITTED | Next: End-to-end testing
+Phase 0 ✅ | Phase 1 ✅ | Phase 2 ~90% | Phase 3 ~75% | Phase 4 in progress | Phase 5 not started
+MVP target: end of Phase 3 (~78–80% complete)
 ```
 
-- ✅ 401 files committed, 77,047 lines
+- ✅ 400+ files committed
 - ✅ TypeScript strict mode passes
-- ✅ Production build succeeds (838KB JS, 120KB CSS)
+- ✅ Rust unit tests: 100 passing (`cargo test --lib`)
+- ✅ Iroh blob upload + CID round-trip implemented (Phase 2)
+- ✅ Live Nostr relay publish/read verified (relay.damus.io)
 - ✅ GitHub Actions CI/CD configured
-- ✅ 6 commits on main
+- ⚠️ Vitest suite hangs on Node 25 (project targets Node 22)
+- ⚠️ Vite production build fails on Node 25 (`Resolver is not a constructor`)
 
 ---
 
@@ -49,50 +53,45 @@ BlkSpoof/
 │   │   └── release.yml    # Tag-triggered releases
 │   └── dependabot.yml     # Automated dependency updates
 ├── .gitignore             # Comprehensive ignore rules
-├── BlkSpace/              # Documentation & theory
-│   ├── docs/              # Architecture, security, features
-│   │   ├── architecture-blueprint.md
-│   │   ├── TOP_DOWN_APPROACH.md      ← NEW: Kurose & Ross mapping
-│   │   ├── security-considerations.md
-│   │   ├── solana-security.md
-│   │   ├── federated-college-towns.md
-│   │   ├── hub-theory.md
-│   │   ├── reward-formulas.md
-│   │   ├── phase-0-status.md
-│   │   ├── REFERENCES.md             ← NEW: Academic citations
-│   │   └── features/       # Feature specs
-│   ├── AGENTS.md          # Development operating instructions
-│   ├── DEVOPS.md          # DevOps pipeline documentation
-│   ├── FIRST_RUN.md       ← NEW: Security guide for users
-│   ├── FLESHTHEORY.md     # Cultural & theoretical foundation
-│   ├── SOUL.md            # Project persona
-│   ├── STARTUP.md         # Quick start guide
-│   ├── THEORY.md          # Investor/hackathon pitch
-│   ├── plan.md            # Detailed specification
-│   ├── README.md          # Project overview
-│   ├── Makefile           # Development commands
-│   ├── Grok-Computer Networking Top-Down Approach Overview.json
-│   ├── tools/             # Build & development scripts
-│   └── weixinfo/          # 98 research notes (read-only archive)
-├── Code-Companion/        # Code (pnpm monorepo)
-│   ├── artifacts/
-│   │   ├── blkspace/      # Main Tauri app
-│   │   ├── api-server/    # Mock API server
-│   │   └── mockup-sandbox/# UI prototypes
-│   ├── lib/               # Shared libraries
-│   │   ├── api-spec/      # OpenAPI schema
-│   │   ├── api-zod/       # Zod types
-│   │   ├── api-client-react/ # React Query client
-│   │   └── db/            # Drizzle ORM
-│   ├── scripts/           # Build scripts
-│   ├── package.json       # Root workspace config
-│   ├── pnpm-workspace.yaml # Workspace definition
-│   ├── tsconfig.base.json  # TypeScript base
-│   └── pnpm-lock.yaml     # Dependency lock
-├── INSTALL.md             ← NEW: User-friendly install guide
-├── setup.sh               ← NEW: macOS/Linux automated setup
-├── setup.bat              ← NEW: Windows automated setup
-└── README_EXPLORATION.md   # Exploration methodology
+├── AGENTS.md              # Development operating instructions
+├── DEVOPS.md              # DevOps pipeline documentation
+├── FIRST_RUN.md           # Security guide for users
+├── FLESHTHEORY.md         # Cultural & theoretical foundation
+├── INSTALL.md             # User-friendly install guide
+├── Makefile               # Development commands
+├── SETUP.md / setup.*     # Automated setup scripts
+├── SOUL.md                # Project persona
+├── STARTUP.md             # Quick start guide
+├── THEORY.md              # Investor/hackathon pitch
+├── docs/                  # Architecture, security, features
+│   ├── INDEX.md
+│   ├── architecture-blueprint.md
+│   ├── security-considerations.md
+│   ├── solana-security.md
+│   ├── federated-college-towns.md
+│   ├── hub-theory.md
+│   ├── reward-formulas.md
+│   ├── phase-0-status.md
+│   ├── features/          # Feature specs
+│   └── implementation/    # Integration test plans
+├── tools/                 # Build & development scripts
+├── weixinfo/              # 98 research notes (read-only archive)
+└── Code-Companion/        # Code (pnpm monorepo)
+    ├── artifacts/
+    │   ├── blkspace/      # Main Tauri app
+    │   ├── api-server/    # Mock API server
+    │   ├── mockup-sandbox/# UI prototypes
+    │   └── solana/        # Anchor programs + devnet scripts
+    ├── lib/               # Shared libraries
+    │   ├── api-spec/      # OpenAPI schema
+    │   ├── api-zod/       # Zod types
+    │   ├── api-client-react/ # React Query client
+    │   └── db/            # Drizzle ORM
+    ├── scripts/           # Build scripts
+    ├── package.json       # Root workspace config
+    ├── pnpm-workspace.yaml # Workspace definition
+    ├── tsconfig.base.json  # TypeScript base
+    └── pnpm-lock.yaml     # Dependency lock
 ```
 
 ### 2.2 Code-Companion: Main Application
@@ -215,24 +214,26 @@ artifacts/blkspace/
 
 ### 4.2 Backend Architecture
 
-**1,090 lines in lib.rs** covering:
+**~3,300 lines in lib.rs** covering:
 - Session management (challenges, tokens, rate limiting)
 - Nostr auth event verification (kind 22242)
-- User CRUD
-- Post creation, feeds, replies
-- Like/unlike
-- Community management
-- Wallet/WeixBucks transactions
-- Relay subscription management
+- Nostr event ID + Schnorr signature verification
+- User CRUD, follows, contact lists (kind 3)
+- Post creation, feeds, replies, likes
+- Community + channel management, yard events, wall posts
+- Wallet/WeixBucks transactions, tips, earn sources, appeals
+- Withdraw eligibility + BKSPC settlement wiring (feature-gated)
+- Relay subscription + health checks + consensus records
 - Cross-town event sync
-- Blob upload/download
-- Background relay polling (60s interval)
+- Blob upload/download with SHA256 + CID fallback
+- Background relay polling
 
-**1,363 lines in db.rs** covering:
-- 12 tables: users, posts, replies, likes, notifications, wallet_tx, follows, blobs, relay_connections, relay_events
-- Seed data (5 demo users, 6 posts, 3 replies, 3 notifications)
+**~4,400 lines in db.rs** covering:
+- 20+ tables: users, posts, replies, likes, notifications, wallet_tx, follows, blobs, relay_connections, relay_events, communities, channels, yard_events, marketplace, economy_appeals, etc.
+- Seed data for demo users/posts
 - Engagement quality scoring
 - SQLite transactions for WeixBucks transfers
+- Nostr event JSON cache
 
 ---
 
@@ -301,46 +302,48 @@ Release pipeline (`.github/workflows/release.yml`):
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Documentation | ✅ 95% | All theory, architecture, security documented |
-| Frontend UI | ✅ 90% | 18 pages, 60+ components, Welcome Wizard |
-| Rust Backend | ✅ 70% | Auth, posts, wallet, relays, blobs |
-| Nostr Integration | ✅ 60% | Relay manager, event publishing, sync |
-| Testing | ⚠️ 10% | Framework ready, no tests written |
-| Economy Engine | ✅ 40% | WeixBucks rewards, engagement quality |
-| Iroh Integration | ❌ 0% | Phase 2 |
-| Solana | ❌ 0% | Phase 4 |
+| Documentation | ✅ 90% | Theory, architecture, security, runbooks documented |
+| Frontend UI | ✅ 85% | 20+ pages, 70+ components, Welcome Wizard |
+| Rust Backend | ✅ 80% | Auth, posts, wallet, relays, blobs, communities |
+| Nostr Integration | ✅ 75% | Relay manager, event publishing, sync, kind registry |
+| Testing | ⚠️ 50% | 100 Rust unit tests; Vitest configured but hangs on Node 25 |
+| Economy Engine | ✅ 70% | WeixBucks rewards, engagement quality, appeals, withdraw eligibility |
+| Iroh Integration | ✅ 85% | Upload → CID, CID in Nostr imeta, fetch fallback |
+| Solana / BKSPC | ⚠️ 20% | Devnet mint + treasury scripts; Anchor program stub; not wired end-to-end |
 
 ### 7.2 What's Working End-to-End
 
-- ✅ **Install** — `setup.sh` or `setup.bat` or download release
-- ✅ **Welcome** — 5-step wizard for first-time users
-- ✅ **Signup** — Key generation + mnemonic verification
-- ✅ **Login** — Challenge-response auth
-- ✅ **Feed** — View posts, create posts, reply
-- ✅ **Profile** — View/edit profile, town selection
-- ✅ **Wallet** — View transactions, WeixBucks balance
-- ✅ **Relays** — Connect to Nostr relays, sync town events
-- ✅ **Media** — Upload images, SHA256 deduplication
-- ✅ **Settings** — Recovery phrase display, sign out, privacy info
+- ✅ **Install** — `setup.sh` / `setup.bat` or download release
+- ✅ **Welcome** — first-run wizard
+- ✅ **Signup** — key generation + mnemonic verification
+- ✅ **Login** — challenge-response auth (Nostr kind 22242)
+- ✅ **Feed** — view posts, create posts, reply, like
+- ✅ **Profile** — view/edit profile, town selection, theme + music
+- ✅ **Wallet** — transactions, WeixBucks balance, earn rates, appeals
+- ✅ **Relays** — connect to Nostr relays, sync town tags, publish NIP-65
+- ✅ **Media** — upload images/audio, SHA256 dedupe + Iroh CID
+- ✅ **Communities** — yards, channels, events, roles, wall posts
+- ✅ **Settings** — recovery phrase, sign out, privacy info
 
 ### 7.3 Known Gaps
 
-- ❌ No automated tests (Vitest configured but empty)
-- ❌ No Iroh integration (content is local-only)
-- ❌ No real Solana integration (economy is simulated)
-- ❌ No mobile builds (iOS/Android future)
-- ⚠️ Error handling could be more robust (some `map_err` → Strings)
+- ❌ Vitest hangs on Node 25 (project targets Node 22)
+- ❌ Vite production build fails on Node 25
+- ❌ Solana/BKSPC not wired end-to-end (devnet scripts + stub program)
+- ❌ Mobile builds not configured (iOS/Android future)
+- ⚠️ Some error handling reduces errors to strings (`map_err`)
+- ⚠️ `Cargo.lock` is gitignored (unusual for an application binary)
 
 ---
 
 ## 8. NEXT STEPS
 
-1. **Write tests** — Rust unit tests for db.rs, frontend tests for auth
-2. **End-to-end verification** — Sign up → post → like → wallet on real device
-3. **Connect to public Nostr relays** — Test against real relay network
-4. **Iroh integration** — Replace local blob storage with Iroh CIDs
-5. **Device mesh testing** — Run `setup.sh` on other computers, test cross-sync
-6. **Mobile builds** — Tauri v2 mobile support
+1. **Node 22 downgrade** — fix Vitest hang and Vite build failure
+2. **Device B M0 sign-off** — run `docs/implementation/DEVICE_MESH_TESTING.md` matrix
+3. **Solana Phase 4** — complete BKSPC Anchor program, wire withdraw to devnet
+4. **Write frontend tests** — Vitest suite currently empty of assertions beyond auth
+5. **Mobile builds** — Tauri v2 mobile support
+6. **Consider committing `Cargo.lock`** for reproducible Rust builds
 
 ---
 
@@ -361,17 +364,16 @@ Release pipeline (`.github/workflows/release.yml`):
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `src-tauri/src/lib.rs` | 1,090 | Core backend |
-| `src-tauri/src/db.rs` | 1,363 | Database layer |
-| `src/hooks/use-app-data.ts` | 372 | Data hooks |
-| `src/lib/tauri-api.ts` | 363 | IPC client |
-| `src/lib/auth.ts` | 196 | Authentication |
-| `src/pages/welcome.tsx` | 322 | Welcome Wizard |
-| `src/pages/settings.tsx` | 224 | Settings page |
-| `src/pages/signup.tsx` | 155 | Signup with verification |
-| `src/App.tsx` | 67 | Router |
-| `lib/api-spec/openapi.yaml` | 636 | API spec |
+| `src-tauri/src/lib.rs` | ~3,300 | Core backend |
+| `src-tauri/src/db.rs` | ~4,400 | Database layer |
+| `src-tauri/src/relay_manager.rs` | ~600 | Nostr relay client |
+| `src-tauri/src/blob_store.rs` | ~300 | Local + Iroh blob storage |
+| `src/hooks/use-app-data.ts` | ~1,540 | Dual-mode data hooks |
+| `src/lib/tauri-api.ts` | ~600 | IPC client |
+| `src/lib/auth.ts` | ~240 | Nostr auth + BIP39 |
+| `src/App.tsx` | ~134 | Router + error boundary |
+| `lib/api-spec/openapi.yaml` | ~600 | API spec |
 
 ---
 
-*This overview reflects the current Phase 1 state. For the original Phase 0 conceptual overview, see `README_EXPLORATION.md`.*
+*This overview reflects the codebase as of 2026-06-20. For the original theoretical baseline, see `../FLESHTHEORY.md`.*
