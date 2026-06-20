@@ -694,6 +694,35 @@ export function useTauriGetTokenomicsPolicy() {
   });
 }
 
+export function useAppSubmitEconomyAppeal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      appealType,
+      reason,
+    }: {
+      appealType: string;
+      reason: string;
+    }) =>
+      tauri.tauriSubmitEconomyAppeal(
+        getSessionToken() || "",
+        appealType,
+        reason,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "economy-appeals"] });
+    },
+  });
+}
+
+export function useTauriListEconomyAppeals() {
+  return useQuery({
+    queryKey: ["tauri", "economy-appeals"],
+    queryFn: () => tauri.tauriListEconomyAppeals(getSessionToken() || ""),
+    enabled: IS_TAURI && !!getSessionToken(),
+  });
+}
+
 export function useTauriGetWithdrawEligibility(amountWb?: number) {
   const parsed =
     amountWb !== undefined && !Number.isNaN(amountWb) ? amountWb : undefined;

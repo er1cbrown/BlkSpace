@@ -9,7 +9,7 @@
 ## Principles
 
 1. Tier 0 nodes must earn meaningfully
-2. Transparent math published in client (**Kalshi-style** published fee schedule — see `tokenomics-kalshi-model.md`)
+2. Transparent math published in client (see `docs/tokenomics-policy.md`)
 3. Engagement Quality reduces Sybil/forgery impact
 4. All rewards = signed Nostr events + SQLite cache
 5. **No speculative token** — WB = earn-only credits; BKSPC = optional settlement receipt
@@ -67,7 +67,7 @@ final_reward = base_reward × engagement_quality × node_bonus
 
 ---
 
-## BKSPC — BlkSpace Settlement (Kalshi payout analog; Phase 4+)
+## BKSPC — BlkSpace Settlement (Phase 4+)
 
 **BKSPC** is **not** a daily earn memecoin. It is minted only when eligible users **withdraw** settled WB (counsel-gated).
 
@@ -95,7 +95,7 @@ final_reward = base_reward × engagement_quality × node_bonus
 
 Karma affects visibility ranking and the `/leaderboard` page. WB remains the **only** spendable currency for tips, boosts, and marketplace. Both respect MIDF throttle when `overallScore > 0.7`.
 
-## Platform fees (Kalshi-style — implemented)
+## Platform fees (implemented)
 
 | Activity | Fee | Constant |
 |----------|-----|----------|

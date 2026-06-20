@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTauriGetTokenomicsPolicy } from "@/hooks/use-app-data";
 import { formatFeePercent } from "@/lib/tokenomics";
-import { Scale } from "lucide-react";
+import { BookOpen } from "lucide-react";
+
 const FALLBACK_POLICY = {
-  model: "kalshi-regulated-settlement",
+  model: "blkspace-published",
   tipFeeBps: 200,
   marketplaceFeeBps: 500,
   withdrawSettlementFeeBps: 100,
@@ -13,11 +14,15 @@ const FALLBACK_POLICY = {
   wbToBkspcRatio: 1000,
   bkspcSymbol: "BKSPC",
   bkspcName: "BlkSpace Settlement",
-  purchasable: false,
+  midfThrottleThreshold: 0.7,
+  wbPurchasable: false,
+  bkspcTradableAfterCounsel: true,
+  treasuryMintOnly: true,
   onChainReady: false,
+  neverRules: [] as string[],
 };
 
-export function TokenomicsKalshiPanel() {
+export function EconomyPolicyPanel() {
   const { data: policy } = useTauriGetTokenomicsPolicy();
   const p = policy ?? FALLBACK_POLICY;
 
@@ -25,24 +30,17 @@ export function TokenomicsKalshiPanel() {
     <Card className="border-primary/10 mt-4">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Scale className="w-4 h-4 text-primary" />
-          Tokenomics (Kalshi-style settlement)
+          <BookOpen className="w-4 h-4 text-primary" />
+          Published economy policy
         </CardTitle>
       </CardHeader>
       <CardContent className="text-xs space-y-3 text-muted-foreground">
         <p>
-          Like{" "}
-          <a
-            href="https://kalshi.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary underline-offset-2 hover:underline"
-          >
-            Kalshi
-          </a>
-          : published fees, earn-only credits, settlement at withdrawal — not a
-          speculative token launch. Yard events are community calendars, not
-          tradable prediction contracts.
+          BlkSpace runs a <strong className="text-foreground">published</strong>{" "}
+          earn-and-spend economy on the yard. WB is not sold for cash. BKSPC is
+          minted only from earned WB after eligibility — tradable on Solana only
+          if counsel approves (DEX / perps are a separate gate, not promised
+          today).
         </p>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
           <span>Tip / send fee</span>
@@ -61,17 +59,28 @@ export function TokenomicsKalshiPanel() {
           <span className="font-medium text-foreground tabular-nums text-right">
             {p.dailyEarnCapWb} WB
           </span>
-          <span>Weekly withdraw cap</span>
+          <span>MIDF earn pause</span>
           <span className="font-medium text-foreground tabular-nums text-right">
-            {p.weeklyWithdrawCapWb} WB
+            score &gt; {p.midfThrottleThreshold}
           </span>
           <span>Settlement ({p.bkspcSymbol})</span>
           <span className="font-medium text-foreground tabular-nums text-right">
             {p.wbToBkspcRatio.toLocaleString()} WB = 1 {p.bkspcSymbol}
           </span>
+          <span>Treasury mint</span>
+          <span className="font-medium text-foreground text-right">
+            {p.treasuryMintOnly ? "Only after WB debit" : "—"}
+          </span>
         </div>
+        {p.neverRules && p.neverRules.length > 0 && (
+          <ul className="text-[10px] space-y-0.5 list-disc pl-4">
+            {p.neverRules.map((rule) => (
+              <li key={rule}>{rule}</li>
+            ))}
+          </ul>
+        )}
         <p className="text-[10px]">
-          WB {p.purchasable ? "purchasable" : "not purchasable"} · On-chain{" "}
+          WB {p.wbPurchasable ? "purchasable" : "not purchasable"} · On-chain{" "}
           {p.onChainReady ? "live" : "devnet simulated until counsel"}
         </p>
       </CardContent>

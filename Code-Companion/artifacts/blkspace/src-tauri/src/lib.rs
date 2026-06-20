@@ -25,7 +25,8 @@ use db::{
   YardEvent,
   NetworkStats,
   Notification, Post, Relay, Reply, UploadBlobResult, User, WalletTx, WallPost, WallPostResult,
-  TokenomicsPolicy, WithdrawEligibility, WITHDRAW_SETTLEMENT_FEE_BPS, calc_platform_fee,
+  EconomyAppeal, TokenomicsPolicy, WithdrawEligibility, WITHDRAW_SETTLEMENT_FEE_BPS,
+  calc_platform_fee,
   RelayConnectionRecord, RelayEventRecord,
   validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
 };
@@ -1289,6 +1290,32 @@ fn get_tokenomics_policy() -> TokenomicsPolicy {
 }
 
 #[tauri::command]
+fn submit_economy_appeal(
+  state: State<AppState>,
+  session_token: String,
+  appeal_type: String,
+  reason: String,
+) -> Result<EconomyAppeal, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .submit_economy_appeal(&handle, &appeal_type, &reason)
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
+fn list_economy_appeals(
+  state: State<AppState>,
+  session_token: String,
+) -> Result<Vec<EconomyAppeal>, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .list_economy_appeals(&handle, 20)
+    .map_err(|e| AppError::from(e).to_string())
+}
+
+#[tauri::command]
 fn get_withdraw_eligibility(
   state: State<AppState>,
   session_token: String,
@@ -1329,7 +1356,7 @@ fn withdraw_to_solana(
     );
   }
 
-  // Kalshi-style settlement: debit principal + published settlement fee (simulated on-chain until counsel)
+  // Settlement: debit principal + published fee (simulated on-chain until counsel)
   let settlement_fee = calc_platform_fee(amount_wb, WITHDRAW_SETTLEMENT_FEE_BPS);
   let total_debit = amount_wb + settlement_fee;
   let desc = format!(
@@ -3172,6 +3199,8 @@ pub fn run() {
       get_wallet_tx,
       send_weixbucks,
       get_tokenomics_policy,
+      submit_economy_appeal,
+      list_economy_appeals,
       get_withdraw_eligibility,
       withdraw_to_solana,
       get_network_stats,

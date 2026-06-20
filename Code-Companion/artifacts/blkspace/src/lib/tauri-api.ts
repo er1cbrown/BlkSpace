@@ -129,8 +129,21 @@ export interface TauriTokenomicsPolicy {
   wbToBkspcRatio: number;
   bkspcSymbol: string;
   bkspcName: string;
-  purchasable: boolean;
+  midfThrottleThreshold: number;
+  wbPurchasable: boolean;
+  bkspcTradableAfterCounsel: boolean;
+  treasuryMintOnly: boolean;
   onChainReady: boolean;
+  neverRules: string[];
+}
+
+export interface TauriEconomyAppeal {
+  id: number;
+  handle: string;
+  appealType: string;
+  reason: string;
+  status: string;
+  createdAt: string;
 }
 
 export interface TauriWithdrawEligibility {
@@ -583,6 +596,24 @@ export function tauriSendWeixBucks(
 
 export function tauriGetTokenomicsPolicy(): Promise<TauriTokenomicsPolicy> {
   return invoke("get_tokenomics_policy");
+}
+
+export function tauriSubmitEconomyAppeal(
+  sessionToken: string,
+  appealType: string,
+  reason: string,
+): Promise<TauriEconomyAppeal> {
+  return invoke("submit_economy_appeal", {
+    sessionToken,
+    appealType,
+    reason,
+  });
+}
+
+export function tauriListEconomyAppeals(
+  sessionToken: string,
+): Promise<TauriEconomyAppeal[]> {
+  return invoke("list_economy_appeals", { sessionToken });
 }
 
 export function tauriGetWithdrawEligibility(

@@ -1,23 +1,23 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Scale } from "lucide-react";
+import { BookOpen } from "lucide-react";
 
 export function WalletDisclaimer() {
   return (
-    <Alert className="mb-6 border-amber-500/30 bg-amber-500/5">
-      <Scale className="h-4 w-4 text-amber-600" />
-      <AlertTitle className="text-amber-900 dark:text-amber-200">
-        Kalshi-style settlement — not an investment
+    <Alert className="mb-6 border-primary/20 bg-muted/30">
+      <BookOpen className="h-4 w-4 text-primary" />
+      <AlertTitle className="text-foreground">
+        Published yard economy
       </AlertTitle>
       <AlertDescription className="text-muted-foreground space-y-1.5">
         <p>
-          WeixBucks are earn-only platform credits (like exchange collateral,
-          but not purchasable with real money). Tips and marketplace trades
-          include published platform fees.
+          <strong>WeixBucks</strong> are earn-only platform credits — not sold
+          for cash, not investment advice. Fees and caps are listed below.
         </p>
         <p>
-          <strong>BKSPC</strong> (BlkSpace Settlement) is an optional on-chain
-          receipt for earned value after eligibility checks — devnet simulated
-          until counsel approves mainnet. Not a speculative token launch.
+          <strong>BKSPC</strong> settles earned WB on Solana after eligibility
+          (devnet until counsel). Future trading (DEX, perps) is a{" "}
+          <strong>separate legal gate</strong> — we do not promise listings or
+          profit.
         </p>
       </AlertDescription>
     </Alert>

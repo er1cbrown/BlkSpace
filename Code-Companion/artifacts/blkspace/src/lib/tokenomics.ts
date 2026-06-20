@@ -1,9 +1,8 @@
 /**
- * Kalshi-style tokenomics — mirrors `db.rs` published policy.
- * See docs/tokenomics-kalshi-model.md
+ * BlkSpace published economy — mirrors `db.rs` / docs/tokenomics-policy.md
  */
 
-export const TOKENOMICS_MODEL = "kalshi-regulated-settlement" as const;
+export const TOKENOMICS_MODEL = "blkspace-published" as const;
 
 /** Basis points (1 bps = 0.01%) */
 export const FEE_BPS = {
@@ -11,6 +10,8 @@ export const FEE_BPS = {
   marketplace: 500,
   withdrawSettlement: 100,
 } as const;
+
+export const MIDF_EARN_THROTTLE_THRESHOLD = 0.7;
 
 export function formatFeePercent(bps: number): string {
   return `${(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%`;
@@ -24,9 +25,3 @@ export function calcPlatformFee(amount: number, feeBps: number): number {
 export const BKSPC_SYMBOL = "BKSPC" as const;
 export const BKSPC_NAME = "BlkSpace Settlement" as const;
 export const WB_TO_BKSPC_RATIO = 1000;
-
-export const KALSHI_FRAMING = {
-  wbLabel: "Platform credits (collateral)",
-  bkspcLabel: `${BKSPC_NAME} (${BKSPC_SYMBOL})`,
-  karmaLabel: "Reputation index (non-monetary)",
-} as const;

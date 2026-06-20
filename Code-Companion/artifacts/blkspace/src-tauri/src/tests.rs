@@ -282,13 +282,27 @@ mod tests {
   #[test]
   fn test_tokenomics_policy_published() {
     let policy = TokenomicsPolicy::published();
-    assert_eq!(policy.model, "kalshi-regulated-settlement");
+    assert_eq!(policy.model, "blkspace-published");
     assert_eq!(policy.tip_fee_bps, TIP_PLATFORM_FEE_BPS);
     assert_eq!(policy.marketplace_fee_bps, MARKETPLACE_PLATFORM_FEE_BPS);
-    assert!(!policy.purchasable);
+    assert!(!policy.wb_purchasable);
+    assert!(policy.bkspc_tradable_after_counsel);
     assert!(!policy.on_chain_ready);
     assert_eq!(policy.bkspc_symbol, "BKSPC");
     assert_eq!(policy.bkspc_name, "BlkSpace Settlement");
+    assert!(!policy.never_rules.is_empty());
+  }
+
+  #[test]
+  fn test_economy_appeal_submit() {
+    let db = setup_test_db();
+    db.create_user("appealer", "Appealer", "").unwrap();
+    let appeal = db
+      .submit_economy_appeal("appealer", "earn_throttle", "I think MIDF score is wrong")
+      .unwrap();
+    assert_eq!(appeal.status, "pending");
+    let list = db.list_economy_appeals("appealer", 10).unwrap();
+    assert_eq!(list.len(), 1);
   }
 
   #[test]

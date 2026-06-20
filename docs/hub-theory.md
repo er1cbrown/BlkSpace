@@ -47,7 +47,7 @@ The hub must theoretically support the full amalgamation without central servers
 
 | Token | Tier | Earned via | Spent on |
 |-------|------|------------|----------|
-| **WeixBucks** | Platform credits (Kalshi collateral analog) | Uploads, engagement, light node work | Tips, boosts, marketplace (published fees) |
+| **WeixBucks** | Platform credits (earn-only) | Uploads, engagement, light node work | Tips, boosts, marketplace (published fees) |
 | **BKSPC** | BlkSpace Settlement (counsel-gated) | Optional withdrawal of **earned** WB only | On-chain receipt; not daily earn or speculation |
 
 ### Sources (Mint / Earn)

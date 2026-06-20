@@ -455,8 +455,10 @@ pub struct RepostFeedItem {
 /// Max WeixBucks earn per user per rolling 24h (see reward-formulas.md).
 pub const DAILY_WB_EARN_CAP: i64 = 250;
 
-/// Kalshi-style platform fees (published schedule; see docs/tokenomics-kalshi-model.md).
+/// Published platform fees — see docs/tokenomics-policy.md.
 pub const TIP_PLATFORM_FEE_BPS: i64 = 200;
+/// MIDF overall_score above this → 0 WB earn (appeal path in-app).
+pub const MIDF_EARN_THROTTLE_THRESHOLD: f64 = 0.7;
 pub const MARKETPLACE_PLATFORM_FEE_BPS: i64 = 500;
 pub const WITHDRAW_SETTLEMENT_FEE_BPS: i64 = 100;
 
@@ -472,7 +474,7 @@ pub const BKSPC_NAME: &str = "BlkSpace Settlement";
 pub const WB_TO_BKSPC_RATIO: i64 = 1000;
 const WITHDRAW_TX_PREFIX: &str = "Withdrawn to Solana";
 
-/// Published tokenomics policy (Kalshi-style regulated settlement model).
+/// Published economy policy — see docs/tokenomics-policy.md.
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenomicsPolicy {
@@ -486,14 +488,18 @@ pub struct TokenomicsPolicy {
   pub wb_to_bkspc_ratio: i64,
   pub bkspc_symbol: String,
   pub bkspc_name: String,
-  pub purchasable: bool,
+  pub midf_throttle_threshold: f64,
+  pub wb_purchasable: bool,
+  pub bkspc_tradable_after_counsel: bool,
+  pub treasury_mint_only: bool,
   pub on_chain_ready: bool,
+  pub never_rules: Vec<String>,
 }
 
 impl TokenomicsPolicy {
   pub fn published() -> Self {
     Self {
-      model: "kalshi-regulated-settlement".into(),
+      model: "blkspace-published".into(),
       tip_fee_bps: TIP_PLATFORM_FEE_BPS,
       marketplace_fee_bps: MARKETPLACE_PLATFORM_FEE_BPS,
       withdraw_settlement_fee_bps: WITHDRAW_SETTLEMENT_FEE_BPS,
@@ -503,10 +509,30 @@ impl TokenomicsPolicy {
       wb_to_bkspc_ratio: WB_TO_BKSPC_RATIO,
       bkspc_symbol: BKSPC_SYMBOL.into(),
       bkspc_name: BKSPC_NAME.into(),
-      purchasable: false,
+      midf_throttle_threshold: MIDF_EARN_THROTTLE_THRESHOLD,
+      wb_purchasable: false,
+      bkspc_tradable_after_counsel: true,
+      treasury_mint_only: true,
       on_chain_ready: false,
+      never_rules: vec![
+        "Never sell WB for USD without counsel approval".into(),
+        "Never market BKSPC with ROI or guaranteed profit language".into(),
+        "Never mint BKSPC to insiders before public eligibility rules".into(),
+        "Never hide fees or throttle rules from the wallet UI".into(),
+      ],
     }
   }
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct EconomyAppeal {
+  pub id: i64,
+  pub handle: String,
+  pub appeal_type: String,
+  pub reason: String,
+  pub status: String,
+  pub created_at: String,
 }
 
 pub fn calc_platform_fee(amount: i64, fee_bps: i64) -> i64 {
@@ -901,6 +927,18 @@ impl Database {
         FOREIGN KEY (user_handle) REFERENCES users(handle),
         FOREIGN KEY (post_id) REFERENCES posts(id)
       );
+
+      CREATE TABLE IF NOT EXISTS economy_appeals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        handle TEXT NOT NULL,
+        appeal_type TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        created_at TEXT DEFAULT (datetime('now')),
+        FOREIGN KEY (handle) REFERENCES users(handle)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_economy_appeals_handle ON economy_appeals(handle);
       "
     )?;
 
@@ -1503,8 +1541,63 @@ impl Database {
         params![handle],
         |r| r.get::<_, f64>(0),
       )
-      .map(|score| score > 0.7)
+      .map(|score| score > MIDF_EARN_THROTTLE_THRESHOLD)
       .unwrap_or(false)
+  }
+
+  pub fn submit_economy_appeal(
+    &self,
+    handle: &str,
+    appeal_type: &str,
+    reason: &str,
+  ) -> Result<EconomyAppeal> {
+    if let Err(e) = validate_content(reason) {
+      return Err(rusqlite::Error::InvalidParameterName(e.to_string()));
+    }
+    let allowed = ["earn_throttle", "withdraw_denied", "midf_score", "other"];
+    if !allowed.contains(&appeal_type) {
+      return Err(rusqlite::Error::InvalidParameterName(
+        "Invalid appeal type".into(),
+      ));
+    }
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "INSERT INTO economy_appeals (handle, appeal_type, reason) VALUES (?1, ?2, ?3)",
+      params![handle, appeal_type, reason.trim()],
+    )?;
+    let id = conn.last_insert_rowid();
+    Ok(EconomyAppeal {
+      id,
+      handle: handle.to_string(),
+      appeal_type: appeal_type.to_string(),
+      reason: reason.trim().to_string(),
+      status: "pending".into(),
+      created_at: chrono::Utc::now().to_rfc3339(),
+    })
+  }
+
+  pub fn list_economy_appeals(&self, handle: &str, limit: i64) -> Result<Vec<EconomyAppeal>> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT id, handle, appeal_type, reason, status, created_at
+       FROM economy_appeals WHERE handle = ?1
+       ORDER BY created_at DESC LIMIT ?2",
+    )?;
+    let rows = stmt.query_map(params![handle, limit], |row| {
+      Ok(EconomyAppeal {
+        id: row.get(0)?,
+        handle: row.get(1)?,
+        appeal_type: row.get(2)?,
+        reason: row.get(3)?,
+        status: row.get(4)?,
+        created_at: row.get(5)?,
+      })
+    })?;
+    let mut out = Vec::new();
+    for r in rows {
+      out.push(r?);
+    }
+    Ok(out)
   }
 
   pub fn throttle_rewards(&self, handle: &str, base: f64, quality: f64) -> i64 {
@@ -1880,7 +1973,7 @@ impl Database {
     self.transfer_weixbucks(from_handle, to_handle, amount, TIP_PLATFORM_FEE_BPS)
   }
 
-  /// Peer transfer with Kalshi-style platform fee (fee burned; receiver gets net).
+  /// Peer transfer with published platform fee (fee burned; receiver gets net).
   pub fn transfer_weixbucks(
     &self,
     from_handle: &str,

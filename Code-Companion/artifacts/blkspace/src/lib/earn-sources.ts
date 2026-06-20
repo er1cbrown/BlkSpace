@@ -1,9 +1,8 @@
 /**
- * Kalshi-style tokenomics (see docs/tokenomics-kalshi-model.md):
+ * BlkSpace economy (see docs/tokenomics-policy.md):
  *
- * - **WeixBucks (WB)** — earn-only platform credits. Tips/marketplace include published fees.
- *   MIDF throttle + 250 WB/day cap. Withdrawal = optional settlement rail (counsel-gated).
- *
+ * - **WeixBucks (WB)** — earn-only platform credits. Published fees + 250 WB/day cap.
+ * - **BKSPC** — optional Solana settlement; tradable only after counsel approves.
  * - **Karma** — reputation only. Not purchasable, not convertible to WB.
  */
 

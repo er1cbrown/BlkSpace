@@ -190,9 +190,9 @@ Earn WB off-chain (free, capped, audited)
 > WeixBucks = credits for creating and participating on the yard.  
 > BKSPC = optional on-chain receipt of **earned** value — not an investment product.
 
-### Tokenomics policy — Kalshi-style regulated settlement
+### Tokenomics policy — published BlkSpace economy
 
-Canonical doc: **`docs/tokenomics-kalshi-model.md`**
+Canonical doc: **`docs/tokenomics-policy.md`** · Student terms: **`docs/economy-student-terms.md`**
 
 ```
 WEIXBUCKS (off-chain) — platform credits, not a security

@@ -47,7 +47,9 @@ import {
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { EarnRatesPanel } from "@/components/economy/EarnRatesPanel";
 import { WalletDisclaimer } from "@/components/economy/WalletDisclaimer";
-import { TokenomicsKalshiPanel } from "@/components/economy/TokenomicsKalshiPanel";
+import { EconomyPolicyPanel } from "@/components/economy/EconomyPolicyPanel";
+import { EconomyTermsCard } from "@/components/economy/EconomyTermsCard";
+import { EconomyAppealCard } from "@/components/economy/EconomyAppealCard";
 import { formatFeePercent, FEE_BPS } from "@/lib/tokenomics";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -275,7 +277,7 @@ function WithdrawEligibilityPanel({
         Settlement: {eligibility.wbToBkspcRatio.toLocaleString()} WB = 1{" "}
         {eligibility.bkspcSymbol}.
         Withdrawal includes a {formatFeePercent(FEE_BPS.withdrawSettlement)}{" "}
-        settlement fee (Kalshi-style published schedule).
+        settlement fee (published schedule).
       </p>
     </div>
   );
@@ -703,7 +705,9 @@ function WalletPageContent() {
 
           <TabsContent value="earn">
             <EarnRatesPanel />
-            <TokenomicsKalshiPanel />
+            <EconomyTermsCard />
+            <EconomyPolicyPanel />
+            <EconomyAppealCard />
 
             {/* Real Marketplace for full economy loop */}
             <Card className="border-primary/10 mt-4">
