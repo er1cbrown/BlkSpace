@@ -108,3 +108,53 @@ BlkSpace is the federated social platform for HBCU college-town communities — 
 5. **Ship guest-mode beta on Device 2** — verify browse-first UX on Tier 0 (see [`phase-0-status.md`](phase-0-status.md) Anonymous Mode checklist)
 
 The research shows BlkSpace has a unique opportunity to fill the gap between decentralized tech and HBCU community needs, especially for low-end hardware users — and browse-first freemium is the wedge that gets them in the door.
+
+---
+
+## Decentralized Social Network Competitive Rating (scored)
+
+Scored 1–5 (5 = best). Full methodology + onboarding audit in [`onboarding-and-competitive-review.md`](onboarding-and-competitive-review.md).
+
+| Platform | Protocol | Decentralization | Hardware accessibility | Creator economy | HBCU / cultural fit | Browse-first (no account) | Mobile | Active user base | Momentum |
+|----------|----------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| **BlkSpace** | Nostr + Iroh + Solana | 5 | **5** (4GB laptops) | 4 (WB + BlkCoin) | **5** (HBCU-native) | **5** (guest mode) | 3 (web-ready, native TBD) | 1 (pre-launch) | 3 |
+| **Bluesky** | AT Protocol | 4 | 3 | 2 | 1 | 4 | 5 | 5 (~30M) | 5 |
+| **Mastodon** | ActivityPub | 5 | 3 | 1 | 1 | 3 | 4 | 4 (~10M) | 3 |
+| **Nostr / Damus** | Nostr | 5 | 3 | 2 (Zaps) | 1 | 3 | 4 | 2 (niche) | 3 |
+| **Farcaster** | Farcaster | 3 | 2 (ETH-gated) | 4 (Frames) | 1 | 2 | 4 | 3 (~500K) | 4 |
+| **Lens Protocol** | Lens (Polygon) | 3 | 2 (wallet-gated) | 5 (NFT graph) | 1 | 1 | 3 | 2 (~150K) | 3 |
+| **Spill** | Centralized + chain | 2 | 3 | 3 | 3 (Black) | 1 | 5 | 3 | 3 |
+| **Fanbase** | Hybrid (equity) | 2 | 3 | 4 | 3 (HBCU) | 1 | 5 | 2 | 3 |
+| **BlkFocus** | DESO | 4 | 3 | 3 | 3 | 1 | 4 | 1 | 2 |
+| **Our Social** | Web3 + light | 4 | **5** (feature phones) | 2 | 2 | 4 | 5 | 1 | 2 |
+| **MeWe** | DSNP | 3 | 3 | 1 | 1 | 3 | 4 | 2 | 2 |
+| **Steemit** | Steem | 4 | 3 | 3 | 1 | 2 | 3 | 2 (declining) | 1 |
+| **Minds** | Minds chain | 3 | 3 | 3 | 1 | 3 | 3 | 2 | 2 |
+
+### BlkSpace's defensible wedge (the only combination nobody else has)
+
+1. **4 GB hardware floor** — unique in decentralized social. Farcaster/Lens are wallet-gated; Mastodon/Nostr assume a normal phone or server.
+2. **HBCU-native, town-federated** — Spill/Fanbase/BlkFocus are "Black community" broadly; none are HBCU-town federated.
+3. **Browse-first, no wallet** — Farcaster, Lens, BlkFocus, Spill, Fanbase all force account/wallet before content.
+
+### Where BlkSpace is weakest
+
+Active user base (pre-launch) + momentum. Every decentralized social network lives or dies on network effects — the beta's job is to convert the HBCU + hardware wedge into a real yard with real students.
+
+### Mainstream landscape (amalgamation targets)
+
+BlkSpace is **not** trying to beat TikTok at scale. It borrows surfaces from all of these and wins on **ownership + economics + hardware access**, not DAU:
+
+| Mainstream app | What BlkSpace borrows | How it differentiates |
+|----------------|----------------------|----------------------|
+| TikTok | Watch FYP, vertical video, shop | Transparent FYP ranking (no opaque algorithm) |
+| YouTube | Long-form video uploads | Iroh decentralized hosting, creator-owned CIDs, no ad model |
+| Twitter / X | Read feed, threads, follows | Nostr events, self-certifying identity, no rate-limit paywalls |
+| Myspace | Profile themes, top friends, music | Built-in revival (4 themes, top friends, wall, music embed) |
+| Newgrounds | Creative uploads, ratings | Creator-first economics (85% model), no ads |
+| Discord | Communities, channels, chat | Yards = servers; Nostr DMs marked untrusted (Kimura et al.) |
+| LinkedIn | Pro profile, networking | `ProProfileTab` + HBCU alumni networking (under-leveraged wedge) |
+| Handshake | Decentralized naming | Nostr pubkeys are self-certifying — no naming market needed |
+| Reddit | Karma, subreddits, upvotes | Karma built (not purchasable, MIDF-throttled); yards ≠ subreddits |
+| Facebook | Social graph, wall, groups | Wall posts + yards; no ad targeting, no surveillance |
+| Instagram | Grid profile, media-first | `ProfileGrid` + Iroh media display |
