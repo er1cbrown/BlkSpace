@@ -9,6 +9,12 @@ import {
   Globe,
   Users,
   Zap,
+  GraduationCap,
+  Briefcase,
+  TrendingUp,
+  Vote,
+  Music,
+  Store,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -207,6 +213,167 @@ export default function LandingPage() {
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* USE CASES — STUDENTS + CREATORS */}
+        <section className="py-24">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-center mb-4">
+              For everyone on the yard
+            </h2>
+            <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
+              Whether you're a freshman scrolling between classes or a founder
+              recruiting talent, BlkSpace has a path for you.
+            </p>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-card p-6 rounded-2xl border shadow-sm">
+                <Users className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">Students</h3>
+                <p className="text-sm text-muted-foreground">
+                  Post, upload, join your yard. Earn WeixBucks from every
+                  action. Customize your profile MySpace-style. Cash out to
+                  BKSPC on Solana when ready.
+                </p>
+              </div>
+              <div className="bg-card p-6 rounded-2xl border shadow-sm">
+                <Music className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">Creators</h3>
+                <p className="text-sm text-muted-foreground">
+                  Sell mixes, videos, and art in the marketplace. Mint NFT
+                  tickets. Keep 85% of every sale. Build a subscriber-only
+                  yard with BKSPC gating.
+                </p>
+              </div>
+              <div className="bg-card p-6 rounded-2xl border shadow-sm">
+                <GraduationCap className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">Alumni & Faculty</h3>
+                <p className="text-sm text-muted-foreground">
+                  Mentor students from your yard. Sponsor events. Post jobs.
+                  Get a verified alumni badge. Governance votes on yard rules.
+                </p>
+              </div>
+              <div className="bg-card p-6 rounded-2xl border shadow-sm">
+                <Briefcase className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">Professionals</h3>
+                <p className="text-sm text-muted-foreground">
+                  Build a pro profile + portfolio. Recruit HBCU talent. Post
+                  job listings to targeted yards. Verified professional badge
+                  with BKSPC.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ECONOMY FLOW */}
+        <section className="py-24 bg-card border-y">
+          <div className="container mx-auto px-4 max-w-4xl">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-center mb-4">
+              How the economy works
+            </h2>
+            <p className="text-center text-muted-foreground mb-12">
+              Three layers. Simple for users. Powerful for the community.
+            </p>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="text-center p-6 rounded-2xl border border-primary/20 bg-primary/5">
+                <Coins className="w-10 h-10 text-primary mx-auto mb-4" />
+                <h3 className="font-bold mb-2">WeixBucks (WB)</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Off-chain credits. Earn from posts, uploads, yard
+                  participation. Capped at 250/day.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Never purchasable. Never a security.
+                </p>
+              </div>
+              <div className="text-center p-6 rounded-2xl border border-accent/20 bg-accent/5">
+                <Zap className="w-10 h-10 text-accent mx-auto mb-4" />
+                <h3 className="font-bold mb-2">Karma</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Reputation score from community engagement. Affects feed
+                  ranking and withdrawal eligibility.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Never spendable. Earned, not bought.
+                </p>
+              </div>
+              <div className="text-center p-6 rounded-2xl border border-secondary/20 bg-secondary/5">
+                <TrendingUp className="w-10 h-10 text-secondary-foreground mx-auto mb-4" />
+                <h3 className="font-bold mb-2">BKSPC (Solana)</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  On-chain token. Mint from earned WB (1,000:1). Use for
+                  events, NFTs, governance, premium yards.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Fair launch. Burn deflation. Utility-driven.
+                </p>
+              </div>
+            </div>
+            <div className="mt-8 p-4 rounded-xl bg-muted/50 text-center text-sm text-muted-foreground">
+              <strong className="text-foreground">The flow:</strong> Post →
+              earn WB → spend in marketplace or withdraw to BKSPC → sell on
+              DEX or spend on premium features. A % of every BKSPC transaction
+              is burned — supply shrinks as the yard grows.
+            </div>
+          </div>
+        </section>
+
+        {/* FOR INVESTORS */}
+        <section className="py-24">
+          <div className="container mx-auto px-4 max-w-4xl">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-center mb-4">
+              For investors & reviewers
+            </h2>
+            <p className="text-center text-muted-foreground mb-12">
+              BKSPC is a utility token, not a security. Here's the thesis.
+            </p>
+            <div className="grid md:grid-cols-3 gap-6 mb-12">
+              <div className="bg-card p-6 rounded-2xl border shadow-sm">
+                <TrendingUp className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">Growth thesis</h3>
+                <p className="text-sm text-muted-foreground">
+                  100+ HBCUs × ~3,000 students = 300K+ addressable users per
+                  cohort. As adoption grows, BKSPC utility demand increases.
+                  Burn mechanism shrinks supply. Price discovers naturally.
+                </p>
+              </div>
+              <div className="bg-card p-6 rounded-2xl border shadow-sm">
+                <Vote className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">Utility drives value</h3>
+                <p className="text-sm text-muted-foreground">
+                  BKSPC is spent on events, NFT tickets, marketplace listings,
+                  boosted posts, job posts, verified badges, governance, and
+                  exclusive yards. Real demand, not speculation.
+                </p>
+              </div>
+              <div className="bg-card p-6 rounded-2xl border shadow-sm">
+                <Shield className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">Fair & defensible</h3>
+                <p className="text-sm text-muted-foreground">
+                  No presale. No insider allocation. Earn-only WB. Eligibility
+                  gates prevent farming. Published fees. Treasury multisig +
+                  timelock. Hard cap with mint authority revocation.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <a href="https://github.com/er1cbrown/BlkSpace" target="_blank" rel="noopener noreferrer">
+                <Button size="lg" variant="outline" className="rounded-full">
+                  View code & CI proof <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+              </a>
+              <Link href="/architecture">
+                <Button size="lg" variant="outline" className="rounded-full">
+                  Read the architecture <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+              </Link>
+              <Link href="/feed">
+                <Button size="lg" className="rounded-full">
+                  Try the app <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+              </Link>
             </div>
           </div>
         </section>

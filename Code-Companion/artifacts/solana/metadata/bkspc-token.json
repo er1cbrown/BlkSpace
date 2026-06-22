@@ -3,7 +3,7 @@
   "symbol": "BKSPC",
   "description": "BLKSPACE COIN (BKSPC) — the Solana token for the BlkSpace community. BKSPC is the on-chain layer of BlkSpace (weixblack.net), the amalgamation social network for HBCU creators. Use BKSPC to participate in the ecosystem, support creators, and access community features. Always DYOR.",
   "image": "",
-  "external_url": "https://weixblack.net",
+  "external_url": "https://er1cbrown.github.io/BlkSpace",
   "attributes": [
     { "trait_type": "Platform", "value": "BlkSpace" },
     { "trait_type": "Type", "value": "Community Token" },

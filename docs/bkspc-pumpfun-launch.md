@@ -2,7 +2,7 @@
 
 **Token:** BKSPC (BLKSPACE COIN)  
 **Platform:** pump.fun (Solana mainnet)  
-**Project:** BlkSpace — https://weixblack.net
+**Project:** BlkSpace — https://er1cbrown.github.io/BlkSpace (stopgap until weixblack.net is registered)
 
 ---
 
@@ -46,7 +46,7 @@ Expected output:
 Name:        BLKSPACE COIN
 Symbol:      BKSPC
 Description: BLKSPACE COIN (BKSPC) — the Solana token for the BlkSpace community...
-Website:     https://weixblack.net
+Website:     https://er1cbrown.github.io/BlkSpace
 Image:       Upload the BlkSpace logo
 ```
 
