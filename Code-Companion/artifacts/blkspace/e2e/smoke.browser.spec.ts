@@ -19,7 +19,7 @@ test.describe("web preview smoke", () => {
     await page
       .getByPlaceholder("Search users, posts, communities...")
       .fill("nina");
-    await expect(page.getByText("Nina J.")).toBeVisible();
+    await expect(page.getByText("Nina J.").first()).toBeVisible();
     await expect(page.getByText("Users (1)")).toBeVisible();
   });
 });

@@ -35,8 +35,7 @@ export default defineConfig({
   webServer: {
     // Serve production build — avoids Vite/esbuild dev-server hangs on low-RAM Macs.
     // CI e2e job runs `pnpm build` before `e2e:browser` (see .github/workflows/ci.yml).
-    command:
-      "python3 -m http.server 24442 --bind 127.0.0.1 --directory dist/public",
+    command: "node scripts/spa-server.mjs",
     url: "http://127.0.0.1:24442",
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
