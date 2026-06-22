@@ -1,7 +1,7 @@
 # BlkSpace / WeixNet Documentation Index
 
 **Status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ~90% · Phase 3 ~75% · Phase 4 in progress · Phase 5 not started  
-**Date:** 2026-06-20
+**Date:** 2026-06-22
 
 ---
 
@@ -46,6 +46,16 @@
 | [implementation/DEVICE_MESH_TESTING.md](./implementation/DEVICE_MESH_TESTING.md) | Device B M0 test matrix |
 | [device-b-m0-results.md](./device-b-m0-results.md) | M0 results template |
 | [bkspc-devnet-runbook.md](./bkspc-devnet-runbook.md) | BKSPC devnet mint + treasury setup |
+
+## Launch & Pitch
+
+| Document | Purpose |
+|----------|---------|
+| [pitch-concerns-and-investor-use-cases.md](./pitch-concerns-and-investor-use-cases.md) | Honest investor objections, persona use cases, evidence ladder |
+| [beta-launch-research.md](./beta-launch-research.md) | Research-backed optimal beta launch plan |
+| [beta-tokenomics-and-launch-strategy.md](./beta-tokenomics-and-launch-strategy.md) | Domain, hosting, tokenomics, landing page |
+| [onboarding-and-competitive-review.md](./onboarding-and-competitive-review.md) | Onboarding ladder + competitive positioning |
+| [optimal-ui-exploration.md](./optimal-ui-exploration.md) | User-optimal UI audit + fixes |
 
 ## Design & Planning
 
