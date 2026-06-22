@@ -9,6 +9,8 @@ import LandingPage from "@/pages/landing";
 import WelcomePage from "@/pages/welcome";
 import { isFirstRun } from "@/lib/auth";
 import { OfflineSyncProvider } from "@/lib/offline-sync";
+import { GuestModeProvider, useGuestMode } from "@/lib/guest-mode";
+import { GuestCTA } from "@/components/social/GuestCTA";
 import React from "react";
 
 // Lazy load non-initial pages so a bad import/module in one of them
@@ -95,21 +97,28 @@ function Router() {
         <Route path="/architecture" component={ArchitecturePage} />
         <Route path="/login" component={LoginPage} />
         <Route path="/signup" component={SignupPage} />
-        <Route path="/settings" component={SettingsPage} />
+        <Route path="/settings" component={() => <GuestRoute component={SettingsPage} />} />
         <Route path="/recover" component={RecoverPage} />
         <Route path="/notifications" component={NotificationsPage} />
         <Route path="/communities" component={CommunitiesPage} />
         <Route path="/communities/:id" component={CommunityPage} />
         <Route path="/search" component={SearchPage} />
-        <Route path="/wallet" component={WalletPage} />
-        <Route path="/create" component={CreatePage} />
+        <Route path="/wallet" component={() => <GuestRoute component={WalletPage} />} />
+        <Route path="/create" component={() => <GuestRoute component={CreatePage} />} />
         <Route path="/leaderboard" component={LeaderboardPage} />
         <Route path="/media" component={MediaPage} />
-        <Route path="/mesh-test" component={MeshTestPage} />
+        <Route path="/mesh-test" component={() => <GuestRoute component={MeshTestPage} />} />
         <Route component={NotFound} />
       </Switch>
     </React.Suspense>
   );
+}
+
+/** Route wrapper that shows a "Create free account" prompt to guests. */
+function GuestRoute({ component: Comp }: { component: React.ComponentType }) {
+  const { isGuest } = useGuestMode();
+  if (isGuest) return <GuestCTA fullPage />;
+  return <Comp />;
 }
 
 function App() {
@@ -118,12 +127,14 @@ function App() {
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <QueryClientProvider client={queryClient}>
           <OfflineSyncProvider>
-            <TooltipProvider>
-              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                <Router />
-              </WouterRouter>
-              <Toaster />
-            </TooltipProvider>
+            <GuestModeProvider>
+              <TooltipProvider>
+                <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                  <Router />
+                </WouterRouter>
+                <Toaster />
+              </TooltipProvider>
+            </GuestModeProvider>
           </OfflineSyncProvider>
         </QueryClientProvider>
       </ThemeProvider>

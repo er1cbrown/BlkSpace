@@ -27,6 +27,7 @@ import {
   nsecToMnemonic,
   storeIdentity,
   authenticateWithNostr,
+  enterGuestMode,
 } from "@/lib/auth";
 import { isTauri, tauriCreateUser } from "@/lib/tauri-api";
 import { markFirstRunComplete } from "@/lib/auth";
@@ -366,16 +367,30 @@ export default function WelcomePage() {
             </div>
 
             {step === 0 && (
-              <p className="text-center text-sm text-muted-foreground">
-                Already have an account?{" "}
-                <Link href="/login" className="text-primary hover:underline">
-                  Sign In
-                </Link>
-                {" · "}
-                <Link href="/recover" className="text-primary hover:underline">
-                  Recover
-                </Link>
-              </p>
+              <div className="space-y-3">
+                <p className="text-center text-sm text-muted-foreground">
+                  Already have an account?{" "}
+                  <Link href="/login" className="text-primary hover:underline">
+                    Sign In
+                  </Link>
+                  {" · "}
+                  <Link href="/recover" className="text-primary hover:underline">
+                    Recover
+                  </Link>
+                </p>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      enterGuestMode();
+                      navigate("/feed");
+                    }}
+                    className="text-xs text-muted-foreground/70 hover:text-muted-foreground underline underline-offset-4"
+                  >
+                    Just browse the yard as a guest
+                  </button>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

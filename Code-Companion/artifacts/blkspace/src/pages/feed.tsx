@@ -47,12 +47,17 @@ import {
   useTauriFollowingReposts,
 } from "@/hooks/use-app-data";
 import { getCurrentHandle } from "@/lib/auth";
+import { useGuestMode } from "@/lib/guest-mode";
+import { useRequiresWallet } from "@/hooks/use-requires-wallet";
+import { GuestCTA } from "@/components/social/GuestCTA";
 import { isTauri, type TauriCrossTownEvent } from "@/lib/tauri-api";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export default function FeedPage() {
   const queryClient = useQueryClient();
+  const { isGuest } = useGuestMode();
+  const { requireWallet } = useRequiresWallet();
   const [activeTab, setActiveTab] = useState("watch");
   const [selectedTown, setSelectedTown] = useState("tsu");
   const [content, setContent] = useState("");
@@ -137,6 +142,7 @@ export default function FeedPage() {
     .map((p: any) => ({ ...p }));
 
   const handleSubmit = () => {
+    if (!requireWallet("post")) return;
     if (!content.trim()) return;
     const offline = isTauri() && !navigator.onLine;
     createPost.mutate(
@@ -165,6 +171,7 @@ export default function FeedPage() {
   };
 
   const handleLike = (postId: number) => {
+    if (!requireWallet("like posts")) return;
     toggleLike.mutate(
       { postId },
       {
@@ -186,6 +193,7 @@ export default function FeedPage() {
   };
 
   const handleRepost = (postId: number) => {
+    if (!requireWallet("repost")) return;
     if (!isTauri()) {
       toast("Repost requires the Tauri app");
       return;
@@ -204,6 +212,7 @@ export default function FeedPage() {
   };
 
   const handleBoost = (item: any) => {
+    if (!requireWallet("boost posts")) return;
     if (!item?.authorHandle) {
       toast.error("Cannot boost this post");
       return;
@@ -309,20 +318,26 @@ export default function FeedPage() {
 
         {(activeTab === "watch" || activeTab === "read") && <StoryStrip />}
 
-        {activeTab !== "bridge" && (
-          <PostComposer
-            content={content}
-            onContentChange={setContent}
-            selectedTown={selectedTown}
-            onTownChange={setSelectedTown}
-            mediaHashes={mediaHashes}
-            onMediaHashesChange={setMediaHashes}
-            onSubmit={handleSubmit}
-            isSubmitting={createPost.isPending}
-            onUploadSuccess={(earn) => showEarnFromResult(earn, "Media upload")}
-            placeholder={composerPlaceholder}
-          />
-        )}
+        {activeTab !== "bridge" &&
+          (isGuest ? (
+            <GuestCTA
+              compact
+              message="Create a free account to post, share media, and start earning WeixBucks on your yard."
+            />
+          ) : (
+            <PostComposer
+              content={content}
+              onContentChange={setContent}
+              selectedTown={selectedTown}
+              onTownChange={setSelectedTown}
+              mediaHashes={mediaHashes}
+              onMediaHashesChange={setMediaHashes}
+              onSubmit={handleSubmit}
+              isSubmitting={createPost.isPending}
+              onUploadSuccess={(earn) => showEarnFromResult(earn, "Media upload")}
+              placeholder={composerPlaceholder}
+            />
+          ))}
 
           <TabsContent value="watch">
             <div className="bg-accent/10 text-accent-foreground p-3 rounded-xl mb-4 text-xs font-medium border border-accent/20">

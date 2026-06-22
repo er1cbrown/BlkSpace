@@ -37,6 +37,8 @@ import {
 import { SafeContent } from "@/components/ui/safe-content";
 import { MediaDisplay } from "@/components/ui/media-display";
 import { getCurrentHandle, getSessionToken, getStoredPubkey } from "@/lib/auth";
+import { useGuestMode } from "@/lib/guest-mode";
+import { useRequiresWallet } from "@/hooks/use-requires-wallet";
 import {
   isTauri,
   tauriGetBlobBytes,
@@ -72,8 +74,10 @@ export default function ProfilePage() {
   const [, params] = useRoute("/profile/:handle");
   const handle = params?.handle || "";
 
+  const { isGuest } = useGuestMode();
+  const { requireWallet } = useRequiresWallet();
   const currentUser = getCurrentHandle();
-  const isOwnProfile = handle === currentUser || !handle;
+  const isOwnProfile = !isGuest && (handle === currentUser || !handle);
 
   const { data: user, isLoading } = useAppGetUser(handle || currentUser);
   const { data: posts, isLoading: postsLoading } = useAppGetUserPosts(
@@ -260,6 +264,7 @@ export default function ProfilePage() {
                     size="sm"
                     className="rounded-full"
                     onClick={() => {
+                      if (!requireWallet("follow creators")) return;
                       const target = handle || currentUser;
                       const syncLocalFollow = (nowFollowing: boolean) => {
                         const saved =
@@ -486,7 +491,7 @@ export default function ProfilePage() {
                   )}
 
                   {/* Visitor wall composer (real chat feel on profile) */}
-                  {!isOwnProfile && (
+                  {!isOwnProfile && !isGuest && (
                     <div className="mt-4 border-t pt-4">
                       <div className="text-xs text-muted-foreground mb-2">
                         Write on {user.displayName}'s wall — posts await owner

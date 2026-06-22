@@ -16,9 +16,11 @@ import {
   Moon,
   Plus,
   Compass,
+  ArrowRight,
 } from "lucide-react";
 import { getCurrentHandle } from "@/lib/auth";
 import { useAppGetUser } from "@/hooks/use-app-data";
+import { useGuestMode } from "@/lib/guest-mode";
 import { YardSidebar } from "@/components/layout/YardSidebar";
 import { cn } from "@/lib/utils";
 
@@ -83,9 +85,17 @@ export function AppShell({
 }: AppShellProps) {
   const [location] = useLocation();
   const { theme, setTheme } = useTheme();
+  const { isGuest } = useGuestMode();
   const handle = getCurrentHandle();
   const { data: user } = useAppGetUser(handle);
   const profileHref = `/profile/${handle}`;
+
+  const primaryNav = isGuest
+    ? PRIMARY_NAV.filter((item) => item.href !== "/create" && item.href !== "/wallet")
+    : PRIMARY_NAV;
+  const mobileNav: readonly (typeof MOBILE_NAV)[number][] = isGuest
+    ? MOBILE_NAV.filter((item) => item.href !== "/create")
+    : MOBILE_NAV;
 
   const isActive = (href: string) => {
     if (href === "/feed") return location === "/feed" || location.startsWith("/posts/");
@@ -125,7 +135,7 @@ export function AppShell({
           </Link>
 
           <nav className="space-y-1 flex-1">
-            {PRIMARY_NAV.map((item) => (
+            {primaryNav.map((item) => (
               <NavItem
                 key={item.href}
                 {...item}
@@ -133,7 +143,7 @@ export function AppShell({
               />
             ))}
             <NavItem
-              href={profileHref}
+              href={isGuest ? "/welcome" : profileHref}
               label="Profile"
               icon={User}
               active={isActive("/profile")}
@@ -167,27 +177,43 @@ export function AppShell({
             </button>
           </div>
 
-          <Link href={profileHref} className="mt-4">
-            <div className="flex items-center gap-3 rounded-xl p-3 hover:bg-muted/50 transition-colors cursor-pointer">
-              <Avatar className="h-10 w-10 border border-primary/20">
-                <AvatarImage src={user?.avatarUrl} />
-                <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                  {user?.displayName?.charAt(0) ?? handle.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold truncate">
-                  {user?.displayName ?? handle}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">@{handle}</p>
-              </div>
-              {user && (
-                <Badge variant="outline" className="shrink-0 text-[10px]">
-                  {user.weixBucks} WB
-                </Badge>
-              )}
+          {isGuest ? (
+            <div className="mt-4 space-y-2">
+              <Link href="/welcome">
+                <span className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer">
+                  Create free account
+                  <ArrowRight className="w-4 h-4" />
+                </span>
+              </Link>
+              <Link href="/login">
+                <span className="flex items-center justify-center rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground cursor-pointer">
+                  Sign in
+                </span>
+              </Link>
             </div>
-          </Link>
+          ) : (
+            <Link href={profileHref} className="mt-4">
+              <div className="flex items-center gap-3 rounded-xl p-3 hover:bg-muted/50 transition-colors cursor-pointer">
+                <Avatar className="h-10 w-10 border border-primary/20">
+                  <AvatarImage src={user?.avatarUrl} />
+                  <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                    {user?.displayName?.charAt(0) ?? handle.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">
+                    {user?.displayName ?? handle}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">@{handle}</p>
+                </div>
+                {user && (
+                  <Badge variant="outline" className="shrink-0 text-[10px]">
+                    {user.weixBucks} WB
+                  </Badge>
+                )}
+              </div>
+            </Link>
+          )}
         </aside>
 
         {/* Center feed */}
@@ -215,16 +241,21 @@ export function AppShell({
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t bg-background/95 backdrop-blur safe-area-pb">
         <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
-          {MOBILE_NAV.map((item) => {
+          {mobileNav.map((item) => {
             const href =
-              "profile" in item && item.profile ? profileHref : item.href;
+              "profile" in item && item.profile
+                ? isGuest
+                  ? "/welcome"
+                  : profileHref
+                : item.href;
             const active = isActive(
               "profile" in item && item.profile ? "/profile" : item.href,
             );
             const Icon = item.icon;
             if ("accent" in item && item.accent) {
+              const accentHref = isGuest ? "/welcome" : "/feed";
               return (
-                <Link key={item.label} href="/feed">
+                <Link key={item.label} href={accentHref}>
                   <span className="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg -mt-4">
                     <Icon className="h-6 w-6" />
                   </span>
@@ -240,7 +271,7 @@ export function AppShell({
                   )}
                 >
                   <Icon className="h-5 w-5" />
-                  {item.label}
+                  {isGuest && "profile" in item && item.profile ? "Sign in" : item.label}
                 </span>
               </Link>
             );

@@ -72,6 +72,14 @@
 - [ ] Record metrics below
 - [ ] Task Manager: memory **< 500 MB**, CPU **< 50%** during feed use (manual spot-check)
 
+**Anonymous (guest) mode — browse-first smoke:**
+
+- [ ] From Welcome step 0, tap **"Just browse the yard as a guest"** → lands on read-only `/feed`
+- [ ] Scroll **Watch** + **Read** tabs; feed loads < 2 s, no crash
+- [ ] Search a handle; profile loads read-only (no Follow error)
+- [ ] Click **Like** / **Follow** / **Join Yard** → "Create free account" prompt (no error toast)
+- [ ] Tier 0 benchmark still passes in guest mode
+
 | Metric | Target | Actual | Pass |
 |--------|--------|--------|------|
 | App startup | < 5 s | | ☐ |

@@ -12,11 +12,16 @@ import {
   storeSession,
   clearSession,
   clearIdentity,
+  hasIdentity,
+  isGuest,
+  enterGuestMode,
+  exitGuestMode,
   HANDLE_KEY,
   DISPLAY_KEY,
   SESSION_KEY,
   PUBKEY_KEY,
   FIRST_RUN_KEY,
+  GUEST_KEY,
 } from "@/lib/auth";
 
 describe("auth.ts", () => {
@@ -158,6 +163,45 @@ describe("auth.ts", () => {
       expect(localStorage.getItem("blkspace_nsec")).toBeNull();
       expect(localStorage.getItem(SESSION_KEY)).toBeNull();
       expect(localStorage.getItem(PUBKEY_KEY)).toBeNull();
+    });
+  });
+
+  describe("hasIdentity / isGuest (guest mode)", () => {
+    it("is a guest with no session token", () => {
+      expect(hasIdentity()).toBe(false);
+      expect(isGuest()).toBe(true);
+    });
+
+    it("has identity after storeSession", () => {
+      storeSession("token_123", "pubkey_456");
+      expect(hasIdentity()).toBe(true);
+      expect(isGuest()).toBe(false);
+      // guest flag is cleared on login
+      expect(localStorage.getItem(GUEST_KEY)).toBeNull();
+    });
+
+    it("is a guest again after clearSession", () => {
+      storeSession("token_123", "pubkey_456");
+      clearSession();
+      expect(hasIdentity()).toBe(false);
+      expect(isGuest()).toBe(true);
+    });
+  });
+
+  describe("enterGuestMode / exitGuestMode", () => {
+    it("marks first-run complete and sets guest flag without a session", () => {
+      enterGuestMode();
+      expect(isFirstRun()).toBe(false);
+      expect(localStorage.getItem(GUEST_KEY)).toBe("true");
+      // still a guest — no Nostr identity was created
+      expect(hasIdentity()).toBe(false);
+      expect(isGuest()).toBe(true);
+    });
+
+    it("exitGuestMode clears the guest flag", () => {
+      enterGuestMode();
+      exitGuestMode();
+      expect(localStorage.getItem(GUEST_KEY)).toBeNull();
     });
   });
 });

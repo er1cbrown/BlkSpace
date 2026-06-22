@@ -35,8 +35,18 @@ export const DISPLAY_KEY = "blkspace_display_name";
 export const SESSION_KEY = "blkspace_session";
 export const PUBKEY_KEY = "blkspace_pubkey";
 export const FIRST_RUN_KEY = "blkspace_first_run_complete";
+export const GUEST_KEY = "blkspace_guest_mode";
 const SECRET_KEY = "blkspace_nsec";
 const LEGACY_SECRET_KEY = "blkspace_key";
+
+/** Dispatch so GuestModeProvider can react to login/logout without re-mounting. */
+function notifyIdentityChange() {
+  try {
+    window.dispatchEvent(new CustomEvent("blkspace:identity"));
+  } catch {
+    // jsdom / non-browser — no-op
+  }
+}
 
 /** Web preview only — sessionStorage clears when the tab closes. Tauri uses Rust key store. */
 function webSecretStorage(): Storage {
@@ -148,6 +158,8 @@ export async function storeIdentity(
 export function storeSession(token: string, pubkey: string) {
   localStorage.setItem(SESSION_KEY, token);
   localStorage.setItem(PUBKEY_KEY, pubkey);
+  localStorage.removeItem(GUEST_KEY);
+  notifyIdentityChange();
 }
 
 export function getSessionToken(): string | null {
@@ -165,6 +177,7 @@ export function clearSession() {
   }
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(PUBKEY_KEY);
+  notifyIdentityChange();
 }
 
 // ─── Login Flow ─────────────────────────────────────────
@@ -237,4 +250,35 @@ export function clearIdentity() {
   purgeLegacyWebSecrets();
   localStorage.removeItem(HANDLE_KEY);
   localStorage.removeItem(DISPLAY_KEY);
+  notifyIdentityChange();
+}
+
+// ─── Guest Mode (anonymous browse) ──────────────────────
+
+/**
+ * A user "has an identity" when a session token exists from the welcome wizard
+ * or login. Guests (no token) can browse but not write.
+ */
+export function hasIdentity(): boolean {
+  return !!getSessionToken();
+}
+
+export function isGuest(): boolean {
+  return !hasIdentity();
+}
+
+/**
+ * Mark first-run complete and flag guest mode so the app routes to /feed
+ * without requiring key generation. Does NOT create a Nostr identity.
+ */
+export function enterGuestMode() {
+  markFirstRunComplete();
+  localStorage.setItem(GUEST_KEY, "true");
+  notifyIdentityChange();
+}
+
+/** Clear the guest flag (called when the user creates an account or signs in). */
+export function exitGuestMode() {
+  localStorage.removeItem(GUEST_KEY);
+  notifyIdentityChange();
 }

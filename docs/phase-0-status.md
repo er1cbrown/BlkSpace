@@ -1,7 +1,7 @@
 # BlkSpace Progress Dashboard
 
 **Project:** BlkSpace on WeixNet  
-**Last updated:** 2026-06-19  
+**Last updated:** 2026-06-22  
 **Repo:** `BlkSpoof/` monorepo
 
 ---
@@ -9,7 +9,7 @@
 ## Status line
 
 ```
-Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | M1 hub-sync ✅ | P4–P5 ✅ | P6 earn ✅ | P7 bridge ✅ | M0 manual ⏳
+Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | M1 hub-sync ✅ | P4–P5 ✅ | P6 earn ✅ | P7 bridge ✅ | Guest mode ✅ | M0 manual ⏳
 ```
 
 ---
@@ -29,6 +29,47 @@ Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | M1 hub-sync ✅ | P4–P5 ✅ | P
 | 7 | Results file + this dashboard updated | ⏳ |
 
 When step 7 passes, set **M0 manual ✅** and **Tier 0 Device B ✅** in the status line above.
+
+---
+
+## Anonymous Mode (guest browse) — ✅ Phase 0 shipped
+
+**Plan:** [`tier0-freemium-wallet-gating-plan.md`](tier0-freemium-wallet-gating-plan.md)  
+**Goal:** A Tier 0 user can open BlkSpace and consume FYP / search / profiles / yards
+without creating a Nostr identity. Write actions are gated behind a "Create free
+account" prompt. Protects the weakest machines and matches TikTok/YouTube/X browse-first UX.
+
+### Implementation (landed 2026-06-22)
+
+| Surface | Guest behavior | File |
+|---------|----------------|------|
+| Identity detection | `hasIdentity()` = session token present; `isGuest` = !hasIdentity | `src/lib/auth.ts`, `src/lib/guest-mode.tsx` |
+| First-run entry | Welcome step 0 has "Just browse the yard as a guest" → `enterGuestMode()` → `/feed` | `src/pages/welcome.tsx` |
+| Feed FYP / Watch / Read | Read-only; composer replaced by `GuestCTA` | `src/pages/feed.tsx` |
+| Like / Repost / Boost | Prompt "Create a free account to …" via `useRequiresWallet` | `src/pages/feed.tsx` |
+| Profile view | Read-only; Follow prompts; wall composer hidden for guests; `isOwnProfile` false | `src/pages/profile.tsx` |
+| Search | Read-only (unchanged) | `src/pages/search.tsx` |
+| Yards list / detail | Read-only; Join Yard / channel post / reply / create event prompt | `src/pages/community.tsx` |
+| Gated routes | `/wallet`, `/create`, `/settings`, `/mesh-test` show full-page `GuestCTA` via `GuestRoute` | `src/App.tsx` |
+| Nav chrome | Desktop/mobile hide Create + Wallet; show "Create free account" + "Sign in" | `src/components/layout/AppShell.tsx` |
+
+### Automated proof
+
+| Check | Command | Status |
+|-------|---------|--------|
+| Typecheck | `pnpm typecheck` | ✅ 2026-06-22 |
+| Frontend tests | `pnpm test:run` | ✅ 27/27 (5 new guest-mode tests) |
+
+### Device 2 beta (pending)
+
+- [ ] Launch app on Device 2 (Tier 0 Windows 4GB/i3)
+- [ ] Tap "Just browse the yard as a guest" → lands on read-only `/feed`
+- [ ] Scroll Watch + Read tabs; feed loads < 2 s, no crash
+- [ ] Search a handle; profile loads read-only
+- [ ] Click Like / Follow / Join Yard → "Create free account" prompt (no error)
+- [ ] Sync Test → Performance: Tier 0 benchmark passes in guest mode
+- [ ] Task Manager: memory < 500 MB, CPU < 50 %
+- [ ] Create account → composer + actions unlock; regression-check post/upload/join
 
 ---
 
@@ -130,11 +171,12 @@ When step 7 passes, set **M0 manual ✅** and **Tier 0 Device B ✅** in the sta
 
 ## Open next (priority)
 
-1. **P1 Device B** — run [`device-b-m0-results.md`](device-b-m0-results.md) steps 1–7
-2. **P2** — tagged pilot build (`v0.x`)
-3. ~~**P6 earn audit**~~ — ✅ earn-sources + wallet rates + like earn toast
-4. ~~**P7 Bridge polish**~~ — ✅ mobile tab, BridgeFeed, yard links
-5. ~~**P4 events**~~ · ~~**P5 roles**~~ · ~~**P8 wallet**~~ — ✅ 2026-06-19
+1. **P1 Device 2 guest-mode beta** — run the "Device 2 beta" checklist in the Anonymous Mode section above (Tier 0 Windows 4GB/i3)
+2. **P2 Device B M0 matrix** — run [`device-b-m0-results.md`](device-b-m0-results.md) steps 1–7
+3. **P3** — tagged pilot build (`v0.x`)
+4. ~~**P6 earn audit**~~ — ✅ earn-sources + wallet rates + like earn toast
+5. ~~**P7 Bridge polish**~~ — ✅ mobile tab, BridgeFeed, yard links
+6. ~~**P4 events**~~ · ~~**P5 roles**~~ · ~~**P8 wallet**~~ — ✅ 2026-06-19
 
 ---
 

@@ -47,6 +47,7 @@ import {
   type TauriPost,
 } from "@/lib/tauri-api";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
+import { useRequiresWallet } from "@/hooks/use-requires-wallet";
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -127,6 +128,7 @@ export default function CommunityPage() {
   ); // id e.g. "general" or "study" from channel name
   const createPost = useAppCreatePost();
   const joinYard = useTauriJoinYard();
+  const { requireWallet } = useRequiresWallet();
   const { data: isMember = false } = useTauriIsYardMember(id);
   const qc = useQueryClient();
 
@@ -167,6 +169,7 @@ export default function CommunityPage() {
   }, [tauriChannelPosts]);
 
   const submitChannelPost = (text: string) => {
+    if (!requireWallet("post in yard channels")) return;
     const channelId = activeChannel.replace(/^#/, "").replace(/-hall$/, "");
     createPost.mutate(
       {
@@ -192,6 +195,7 @@ export default function CommunityPage() {
   };
 
   const handleReply = async (postId: number) => {
+    if (!requireWallet("reply in yard channels")) return;
     const text = prompt("Reply text:");
     if (!text || !text.trim()) return;
     const token = getSessionToken();
@@ -320,6 +324,7 @@ export default function CommunityPage() {
                 variant={isMember ? "secondary" : "default"}
                 disabled={joinYard.isPending || isMember}
                 onClick={() => {
+                  if (!requireWallet("join yards")) return;
                   joinYard.mutate(id, {
                     onSuccess: (result) => {
                       if (result.joined && result.earn) {
@@ -386,6 +391,7 @@ export default function CommunityPage() {
                   size="sm"
                   className="w-full justify-start"
                   onClick={() => {
+                    if (!requireWallet("create yard events")) return;
                     setActiveTab("events");
                     setCreateEventOpen(true);
                   }}
