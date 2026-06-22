@@ -34,7 +34,15 @@ const CreatePage = React.lazy(() => import("@/pages/create"));
 const LeaderboardPage = React.lazy(() => import("@/pages/leaderboard"));
 const MeshTestPage = React.lazy(() => import("@/pages/mesh-test"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },

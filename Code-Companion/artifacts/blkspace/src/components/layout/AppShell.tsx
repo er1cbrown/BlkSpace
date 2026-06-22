@@ -39,7 +39,7 @@ const PRIMARY_NAV = [
   { href: "/feed", label: "Home", icon: Home },
   { href: "/create", label: "Create", icon: Clapperboard },
   { href: "/communities", label: "Yards", icon: Users },
-  { href: "/wallet", label: "Wallet", icon: Wallet },
+  { href: "/wallet", label: "Earnings", icon: Wallet },
 ] as const;
 
 const MOBILE_NAV = [
@@ -229,7 +229,7 @@ export function AppShell({
 
         {/* Right rail — desktop xl */}
         {!hideRightRail && (
-          <aside className="hidden xl:block w-[320px] shrink-0 py-6 pl-2">
+          <aside className="hidden lg:block w-[280px] xl:w-[320px] shrink-0 py-6 pl-2">
             <YardSidebar />
           </aside>
         )}
@@ -263,7 +263,7 @@ export function AppShell({
               <Link key={item.label} href={href}>
                 <span
                   className={cn(
-                    "flex flex-col items-center gap-0.5 text-[10px] font-medium px-2",
+                    "flex flex-col items-center gap-0.5 text-xs font-medium px-2",
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 >

@@ -62,6 +62,7 @@ import { GuestCTA } from "@/components/social/GuestCTA";
 import { isTauri, type TauriCrossTownEvent } from "@/lib/tauri-api";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { BETA_FEATURES } from "@/lib/beta-features";
 
 export default function FeedPage() {
   const queryClient = useQueryClient();
@@ -272,10 +273,13 @@ export default function FeedPage() {
     activeTab === "following"
       ? "Share with your people..."
       : activeTab === "watch"
-        ? "Caption your reel — TikTok FYP"
+        ? "Caption your video..."
         : activeTab === "read"
-          ? "Short thread — Twitter / Threads style"
+          ? "What's on your mind?"
           : "What's happening on the yard?";
+
+  const showBridge = BETA_FEATURES.showBridgeTab();
+  const showTrending = BETA_FEATURES.showTrendingTab();
 
   return (
     <AppShell>
@@ -302,7 +306,13 @@ export default function FeedPage() {
           )}
         </div>
 
-        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-6 mb-4 h-11">
+        <TabsList
+          className={`grid w-full mb-4 h-11 ${
+            showBridge && showTrending
+              ? "grid-cols-4 sm:grid-cols-6"
+              : "grid-cols-4"
+          }`}
+        >
           <TabsTrigger value="watch" className="text-xs sm:text-sm font-bold">
             Watch
           </TabsTrigger>
@@ -312,18 +322,22 @@ export default function FeedPage() {
           <TabsTrigger value="following" className="text-xs sm:text-sm font-bold">
             Following
           </TabsTrigger>
-          <TabsTrigger value="bridge" className="text-xs sm:text-sm font-bold">
-            Bridge
+          <TabsTrigger value="local" className="text-xs sm:text-sm font-bold">
+            My Yard
           </TabsTrigger>
-          <TabsTrigger value="local" className="text-xs sm:text-sm font-bold hidden sm:flex">
-            Local
-          </TabsTrigger>
-          <TabsTrigger
-            value="trending"
-            className="text-xs sm:text-sm font-bold hidden lg:flex"
-          >
-            Trending
-          </TabsTrigger>
+          {showBridge && (
+            <TabsTrigger value="bridge" className="text-xs sm:text-sm font-bold hidden sm:flex">
+              Bridge
+            </TabsTrigger>
+          )}
+          {showTrending && (
+            <TabsTrigger
+              value="trending"
+              className="text-xs sm:text-sm font-bold hidden lg:flex"
+            >
+              Trending
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {(activeTab === "watch" || activeTab === "read") && <StoryStrip />}
@@ -384,40 +398,12 @@ export default function FeedPage() {
             </>
           ))}
 
-          <TabsContent value="watch">
-            <div className="bg-accent/10 text-accent-foreground p-3 rounded-xl mb-4 text-xs font-medium border border-accent/20">
-              TikTok Watch — vertical FYP ranked by engagement × quality
-            </div>
-          </TabsContent>
-
-          <TabsContent value="read">
-            <div className="bg-primary/10 text-primary p-3 rounded-xl mb-4 text-xs font-medium border border-primary/20">
-              Threads / Twitter Read — text-first discovery feed
-            </div>
-          </TabsContent>
-
-          <TabsContent value="following">
-            <div className="bg-primary/10 text-primary-foreground p-4 rounded-xl mb-6 text-sm font-medium border border-primary/20">
-              Following — Twitter-style chronological feed from accounts you
-              follow. Pure, unfiltered from your circle.
-            </div>
-          </TabsContent>
-
-          <TabsContent value="local">
-            <div className="bg-secondary/30 p-4 rounded-xl mb-6 text-sm">
-              Your local yard feed. Focused on{" "}
-              <strong>{selectedTown.toUpperCase()}</strong> community posts.
-            </div>
-          </TabsContent>
-
-          <TabsContent value="bridge" />
-
-          <TabsContent value="trending">
-            <div className="bg-accent/10 text-accent-foreground p-4 rounded-xl mb-6 text-sm font-medium border border-accent/20">
-              Showing the most active discussions across all connected yards and
-              relays.
-            </div>
-          </TabsContent>
+          <TabsContent value="watch" />
+          <TabsContent value="read" />
+          <TabsContent value="following" />
+          <TabsContent value="local" />
+          {showBridge && <TabsContent value="bridge" />}
+          {showTrending && <TabsContent value="trending" />}
         </Tabs>
 
         {activeTab === "bridge" ? (
@@ -450,12 +436,24 @@ export default function FeedPage() {
               </div>
             )}
             {Array.isArray(posts) && posts.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">
-                {activeTab === "bridge"
-                  ? "No cross-town events found. Connect to relays and subscribe to towns in the Network tab."
-                  : activeTab === "following"
-                    ? "No posts from people you follow yet. Follow more yards or post something!"
-                    : "No posts yet. Be the first to spark the conversation!"}
+              <div className="text-center py-14 px-6 rounded-2xl border border-dashed border-border/60 bg-muted/20">
+                <p className="text-lg font-semibold text-foreground mb-2">
+                  {activeTab === "following"
+                    ? "Your circle is quiet"
+                    : "The yard is quiet"}
+                </p>
+                <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
+                  {activeTab === "following"
+                    ? "Follow people from Search or Yards — their posts show up here."
+                    : "Be the first to post today. Students earn WeixBucks for showing up."}
+                </p>
+                {isGuest ? (
+                  <Link href="/welcome">
+                    <Button>Create free account</Button>
+                  </Link>
+                ) : (
+                  <Button onClick={() => setActiveTab("local")}>Post to my yard</Button>
+                )}
               </div>
             )}
             {Array.isArray(posts) &&

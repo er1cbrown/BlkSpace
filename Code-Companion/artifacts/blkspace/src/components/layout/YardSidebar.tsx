@@ -22,6 +22,7 @@ import { getCurrentHandle } from "@/lib/auth";
 import { useAppGetUser, useAppGetTrendingFeed } from "@/hooks/use-app-data";
 import { townGradient, townLabel } from "@/lib/towns";
 import { isTauri } from "@/lib/tauri-api";
+import { BETA_FEATURES } from "@/lib/beta-features";
 
 import { SEED_SUGGESTED_PEOPLE } from "@/lib/seed-content";
 
@@ -66,7 +67,7 @@ export function YardSidebar() {
           </div>
           <Link href="/wallet">
             <Button variant="outline" size="sm" className="w-full">
-              Open Wallet
+              My Earnings
             </Button>
           </Link>
         </CardContent>
@@ -146,19 +147,21 @@ export function YardSidebar() {
         </CardContent>
       </Card>
 
-      <Card className="border-border/60 bg-secondary/20">
-        <CardContent className="p-4 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-sm">
-            <Radio className="w-4 h-4 text-primary" />
-            <span>Relay network</span>
-          </div>
-          <Link href="/relays">
-            <Button size="sm" variant="secondary">
-              {isTauri() ? "Relays" : "Preview"}
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
+      {BETA_FEATURES.showRelayPanel() && (
+        <Card className="border-border/60 bg-secondary/20">
+          <CardContent className="p-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Radio className="w-4 h-4 text-primary" />
+              <span>Relay network</span>
+            </div>
+            <Link href="/relays">
+              <Button size="sm" variant="secondary">
+                Relays
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="border-orange-500/20">
         <CardContent className="p-4">
@@ -179,14 +182,18 @@ export function YardSidebar() {
           <Settings className="w-3.5 h-3.5" />
           Settings
         </Link>
-        <Link href="/architecture" className="flex items-center gap-2 hover:text-foreground">
-          <Code2 className="w-3.5 h-3.5" />
-          Stack (dev)
-        </Link>
-        <Link href="/mesh-test" className="flex items-center gap-2 hover:text-foreground">
-          <Code2 className="w-3.5 h-3.5" />
-          Sync test (dev)
-        </Link>
+        {BETA_FEATURES.showDevTools && (
+          <>
+            <Link href="/architecture" className="flex items-center gap-2 hover:text-foreground">
+              <Code2 className="w-3.5 h-3.5" />
+              Stack (dev)
+            </Link>
+            <Link href="/mesh-test" className="flex items-center gap-2 hover:text-foreground">
+              <Code2 className="w-3.5 h-3.5" />
+              Sync test (dev)
+            </Link>
+          </>
+        )}
       </div>
     </aside>
   );

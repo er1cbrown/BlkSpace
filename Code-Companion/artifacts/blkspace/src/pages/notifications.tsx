@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Heart, MessageSquare, Repeat2, UserPlus, Bell } from "lucide-react";
 import { useTauriGetNotifications } from "@/hooks/use-app-data";
 import { isTauri, type TauriNotification } from "@/lib/tauri-api";
+import { BETA_FEATURES } from "@/lib/beta-features";
 
 const mockNotifications = [
   {
@@ -98,14 +99,17 @@ const typeToIcon: Record<string, string> = {
 export default function NotificationsPage() {
   const { data: tauriData } = useTauriGetNotifications();
 
+  const isWebPreview = BETA_FEATURES.isWebPreview();
   const items =
     isTauri() && Array.isArray(tauriData)
       ? tauriData.map(mapTauriNotification)
-      : mockNotifications;
+      : isWebPreview
+        ? []
+        : mockNotifications;
 
   return (
     <AppShell>
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-8 flex-wrap">
           <Bell className="w-7 h-7 text-primary" />
           <h1 className="text-3xl font-bold">Notifications</h1>
         </div>
@@ -117,6 +121,15 @@ export default function NotificationsPage() {
           </TabsList>
 
           <TabsContent value="all" className="space-y-1">
+            {items.length === 0 && (
+              <div className="text-center py-16 px-6 text-muted-foreground">
+                <Bell className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                <p className="font-medium text-foreground">No notifications yet</p>
+                <p className="text-sm mt-1">
+                  Likes, replies, and follows show up here when you have an account.
+                </p>
+              </div>
+            )}
             {items.map((n) => {
               const Icon = iconMap[n.type] || Bell;
               const style =

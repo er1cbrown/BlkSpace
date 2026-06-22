@@ -12,6 +12,7 @@ import { Link } from "wouter";
 import { Users, MapPin, GraduationCap, ArrowRight } from "lucide-react";
 import { useTauriGetCommunities } from "@/hooks/use-app-data";
 import { isTauri, type TauriCommunity } from "@/lib/tauri-api";
+import { BETA_FEATURES } from "@/lib/beta-features";
 
 const fallbackCommunities = [
   {
@@ -91,9 +92,14 @@ export default function CommunitiesPage() {
 
   return (
     <AppShell wide hideRightRail>
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-2 flex-wrap">
           <Users className="w-7 h-7 text-primary" />
-          <h1 className="text-3xl font-bold">Communities</h1>
+          <h1 className="text-3xl font-bold">Yards</h1>
+          {BETA_FEATURES.isWebPreview() && (
+            <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+              Sample campuses
+            </Badge>
+          )}
         </div>
         <p className="text-muted-foreground text-lg mb-10">
           Find your yard and connect with your people.
