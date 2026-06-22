@@ -49,7 +49,7 @@ export default function LoginPage() {
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-3xl font-serif">Welcome Back</CardTitle>
             <CardDescription className="text-base">
-              Sign in with your Nostr secret key
+              Sign in with your backup code from Settings
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -69,11 +69,11 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="nsec">Nostr Secret Key (nsec...)</Label>
+              <Label htmlFor="nsec">Backup code</Label>
               <Input
                 id="nsec"
                 type="password"
-                placeholder="nsec1..."
+                placeholder="Paste your backup code"
                 value={nsec}
                 onChange={(e) => setNsec(e.target.value)}
                 className="font-mono"
@@ -87,19 +87,19 @@ export default function LoginPage() {
               {saving ? "Signing in..." : "Sign In"}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
-              Don't have a key?{" "}
+              New here?{" "}
               <Link
-                href="/signup"
+                href="/welcome"
                 className="text-primary font-medium hover:underline"
               >
-                Create one
+                Join the yard
               </Link>
               {" · "}
               <Link
                 href="/recover"
                 className="text-primary font-medium hover:underline"
               >
-                Recover with seed
+                Recover with backup code
               </Link>
             </p>
           </CardContent>

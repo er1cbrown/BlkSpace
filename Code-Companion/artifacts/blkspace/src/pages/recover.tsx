@@ -62,7 +62,7 @@ export default function RecoverPage() {
               Recover Account
             </CardTitle>
             <CardDescription className="text-base">
-              Enter your 12-word recovery phrase
+              Enter your 12-word backup code
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">

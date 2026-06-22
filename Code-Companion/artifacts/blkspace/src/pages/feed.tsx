@@ -6,6 +6,7 @@ import { ReadFeed } from "@/components/feed/ReadFeed";
 import { BridgeFeed } from "@/components/feed/BridgeFeed";
 import { KarmaBadge } from "@/components/economy/KarmaBadge";
 import {
+  showPostEarnCelebration,
   showEarnFromResult,
 } from "@/components/economy/EarnToast";
 import {
@@ -167,7 +168,7 @@ export default function FeedPage() {
           if (offline) {
             toast.success("Post queued — will sync when you're back online");
           } else if (result?.earn) {
-            showEarnFromResult(result.earn, "Post created");
+            showPostEarnCelebration(result.earn);
           }
           queryClient.invalidateQueries({ queryKey: ["tauri", "user"] });
           queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
@@ -210,7 +211,7 @@ export default function FeedPage() {
     repostPost.mutate(postId, {
       onSuccess: (result) => {
         if (result.reposted) {
-          toast.success("Reposted to your followers (Nostr kind 6)");
+          toast.success("Reposted to your followers");
         } else {
           toast.info("You already reposted this");
         }

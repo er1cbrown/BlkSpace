@@ -7,7 +7,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Clapperboard, Image, MessageCircle, Film } from "lucide-react";
 import { useAppCreatePost } from "@/hooks/use-app-data";
 import { getCurrentHandle } from "@/lib/auth";
-import { showEarnFromResult } from "@/components/economy/EarnToast";
+import {
+  showEarnFromResult,
+  showPostEarnCelebration,
+} from "@/components/economy/EarnToast";
 import { WB_EARN, KARMA_EARN } from "@/lib/earn-sources";
 import { getListPostsQueryKey } from "@workspace/api-client-react";
 
@@ -33,10 +36,16 @@ export default function CreatePage() {
           setContent("");
           setMediaHashes([]);
           if (result?.earn) {
-            showEarnFromResult(
-              result.earn,
-              mode === "reel" ? "Reel posted to your grid" : "Posted to your profile",
-            );
+            if (mode === "post") {
+              showPostEarnCelebration(result.earn);
+            } else {
+              showEarnFromResult(
+                result.earn,
+                mode === "reel"
+                  ? "Reel posted to your grid"
+                  : "Posted to your profile",
+              );
+            }
           }
           queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
           queryClient.invalidateQueries({

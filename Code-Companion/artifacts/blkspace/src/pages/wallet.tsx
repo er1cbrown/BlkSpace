@@ -242,7 +242,7 @@ function WithdrawEligibilityPanel({
 
   return (
     <div className="rounded-lg border border-primary/10 p-3 space-y-2">
-      <p className="text-xs font-semibold">Withdrawal eligibility (draft rules)</p>
+      <p className="text-xs font-semibold">Cash out requirements</p>
       <ul className="text-xs space-y-1">
         {checks.map((c) => (
           <li
@@ -300,7 +300,7 @@ function WithdrawDialog({ balance }: { balance: number }) {
           setTxSignature(sig);
           setSolanaAddress("");
           setAmount("");
-          toast.success("Withdrawal recorded — BKSPC minted on devnet");
+          toast.success("Cash out recorded — check your wallet");
         },
         onError: (err) => {
           toast.error(
@@ -324,15 +324,15 @@ function WithdrawDialog({ balance }: { balance: number }) {
           variant="outline"
           className="rounded-full gap-2 flex-1 h-12 font-bold border-primary/20 hover:bg-primary/5"
         >
-          <ArrowDownLeft className="w-5 h-5 text-primary" /> Withdraw to Solana
+          <ArrowDownLeft className="w-5 h-5 text-primary" /> Cash Out
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Withdraw to Solana (draft bridge)</DialogTitle>
+          <DialogTitle>Cash out your earnings</DialogTitle>
           <DialogDescription>
-            Request conversion of earned WeixBucks to BKSPC on devnet.
-            Settlement is simulated until legal counsel approves mainnet.
+            Convert earned WeixBucks to cash-out credits. Connect your wallet
+            address when you&apos;re ready to claim.
           </DialogDescription>
         </DialogHeader>
 
@@ -341,14 +341,14 @@ function WithdrawDialog({ balance }: { balance: number }) {
             <div className="p-3 bg-green-500/10 rounded-full w-12 h-12 flex items-center justify-center mx-auto text-green-500">
               <Zap className="w-6 h-6 animate-pulse" />
             </div>
-            <h4 className="font-bold text-lg">Withdrawal recorded</h4>
+            <h4 className="font-bold text-lg">Cash out recorded</h4>
             <p className="text-sm text-muted-foreground px-4">
-              WeixBucks were debited off-chain. On-chain BKSPC minting is
-              simulated on devnet — no mainnet tokens until counsel approves.
+              Your WeixBucks were converted. Check your connected wallet for the
+              transfer.
             </p>
             <div className="bg-muted p-3 rounded-lg text-left">
               <Label className="text-xs text-muted-foreground block mb-1">
-                Solana Transaction Signature
+                Transaction reference
               </Label>
               <p className="font-mono text-xs break-all text-primary font-semibold select-all">
                 {txSignature}
@@ -358,10 +358,10 @@ function WithdrawDialog({ balance }: { balance: number }) {
         ) : (
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="solana">Solana Recipient Address</Label>
+              <Label htmlFor="solana">Wallet address to receive payout</Label>
               <Input
                 id="solana"
-                placeholder="Solana Wallet Address (e.g. 5tzq...)"
+                placeholder="Your wallet address"
                 value={solanaAddress}
                 onChange={(e) => setSolanaAddress(e.target.value)}
                 className="font-mono text-sm"
@@ -465,7 +465,7 @@ function WalletPageContent() {
     <AppShell wide>
         <div className="flex items-center gap-3 mb-8">
           <WalletIcon className="w-7 h-7 text-primary" />
-          <h1 className="text-3xl font-bold">Wallet</h1>
+          <h1 className="text-3xl font-bold">My Earnings</h1>
         </div>
 
         <WalletDisclaimer />

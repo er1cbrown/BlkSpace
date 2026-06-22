@@ -25,76 +25,15 @@ import {
 } from "@workspace/api-client-react";
 import * as tauri from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
+import { getSeedPosts } from "@/lib/seed-content";
 
 export const IS_TAURI =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-// Simple mock data so web/preview mode (no backend) shows content instead of perpetual loading spinners.
-const MOCK_POSTS = [
-  {
-    id: 1,
-    authorHandle: "demo_user",
-    authorDisplayName: "Demo User",
-    authorAvatarUrl: "",
-    content:
-      "Just stepped on the yard for the first time. This place is incredible! 🏆",
-    townTag: "tsu",
-    repliesCount: 12,
-    repostsCount: 5,
-    likesCount: 47,
-    liked: false,
-    mediaBlobs: [],
-    nostrEventId: "",
-    relayUrl: "",
-    createdAt: "2026-06-14T09:00:00Z",
-    engagementQuality: 1.0,
-    maliciousScore: 0.0,
-    riskLevel: "low" as const,
-  },
-  {
-    id: 2,
-    authorHandle: "jane_doe",
-    authorDisplayName: "Jane Doe",
-    authorAvatarUrl: "",
-    content: "Hot take: the best HBCU homecoming is... (drop yours below) 👇",
-    townTag: "howard",
-    repliesCount: 34,
-    repostsCount: 18,
-    likesCount: 89,
-    liked: false,
-    mediaBlobs: [],
-    nostrEventId: "",
-    relayUrl: "",
-    createdAt: "2026-06-14T10:30:00Z",
-    engagementQuality: 1.0,
-    maliciousScore: 0.0,
-    riskLevel: "low" as const,
-  },
-  {
-    id: 3,
-    authorHandle: "campus_king",
-    authorDisplayName: "Campus King",
-    authorAvatarUrl: "",
-    content:
-      "New mix just dropped. Link in bio. Who's bumping this at the next tailgate? 🎧",
-    townTag: "famu",
-    repliesCount: 8,
-    repostsCount: 23,
-    likesCount: 156,
-    liked: true,
-    mediaBlobs: [],
-    nostrEventId: "",
-    relayUrl: "",
-    createdAt: "2026-06-14T11:15:00Z",
-    engagementQuality: 1.2,
-    maliciousScore: 0.0,
-    riskLevel: "low" as const,
-  },
-];
+const MOCK_POSTS = getSeedPosts();
 
 function getMockPosts(town?: string) {
-  if (!town) return MOCK_POSTS;
-  return MOCK_POSTS.filter((p) => p.townTag === town || town === "tsu");
+  return getSeedPosts(town);
 }
 
 function getMockUser(handle: string) {

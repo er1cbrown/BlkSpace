@@ -1,5 +1,7 @@
 import { toast } from "sonner";
-import { Coins, ArrowBigUp, ShieldAlert, Gauge } from "lucide-react";
+import { Coins, ArrowBigUp, ShieldAlert, Gauge, PartyPopper } from "lucide-react";
+
+const FIRST_POST_KEY = "blkspace_first_post_done";
 
 export interface EarnToastInput {
   wb?: number;
@@ -78,4 +80,33 @@ export function showEarnFromResult(
     dailyCapLimited: earn.dailyCapLimited,
     reason,
   });
+}
+
+/** First-post dopamine hit — beta onboarding celebration. */
+export function showPostEarnCelebration(
+  earn: {
+    wb: number;
+    wbNominal?: number;
+    karmaPost: number;
+    karmaComment: number;
+    throttled: boolean;
+    dailyCapLimited?: boolean;
+  },
+) {
+  const isFirst =
+    typeof window !== "undefined" && !localStorage.getItem(FIRST_POST_KEY);
+
+  if (isFirst) {
+    localStorage.setItem(FIRST_POST_KEY, "true");
+    const wb = earn.wb > 0 ? earn.wb : 50;
+    const karma = earn.karmaPost + earn.karmaComment;
+    toast.success("Welcome to the yard! 🎉", {
+      description: `You earned ${wb} WeixBucks${karma > 0 ? ` · +${karma} karma` : ""} · You're on the TSU leaderboard`,
+      icon: <PartyPopper className="h-4 w-4 text-primary" />,
+      duration: 8000,
+    });
+    return;
+  }
+
+  showEarnFromResult(earn, "Post created");
 }

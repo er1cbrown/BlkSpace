@@ -23,11 +23,7 @@ import { useAppGetUser, useAppGetTrendingFeed } from "@/hooks/use-app-data";
 import { townGradient, townLabel } from "@/lib/towns";
 import { isTauri } from "@/lib/tauri-api";
 
-const SUGGESTED_PEOPLE = [
-  { handle: "jane_doe", name: "Jane Doe", town: "howard" },
-  { handle: "campus_king", name: "Campus King", town: "famu" },
-  { handle: "hbcustudent", name: "HBCU Student", town: "spelman" },
-];
+import { SEED_SUGGESTED_PEOPLE } from "@/lib/seed-content";
 
 export function YardSidebar() {
   const handle = getCurrentHandle();
@@ -89,7 +85,7 @@ export function YardSidebar() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {SUGGESTED_PEOPLE.filter((p) => p.handle !== handle)
+          {SEED_SUGGESTED_PEOPLE.filter((p) => p.handle !== handle)
             .slice(0, 3)
             .map((p) => (
               <Link key={p.handle} href={`/profile/${p.handle}`}>

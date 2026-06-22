@@ -14,65 +14,22 @@ import {
 } from "@/hooks/use-app-data";
 import { isTauri, type TauriUser, type TauriPost } from "@/lib/tauri-api";
 import { MediaDisplay } from "@/components/ui/media-display";
+import {
+  SEED_USERS,
+  SEED_POSTS,
+  SEED_COMMUNITIES,
+} from "@/lib/seed-content";
 
-const mockUsers = [
-  { handle: "jane_doe", display: "Jane Doe", town: "TSU", followers: 342 },
-  {
-    handle: "campus_king",
-    display: "Campus King",
-    town: "Howard",
-    followers: 1287,
-  },
-  {
-    handle: "hbcustudent",
-    display: "HBCU Student",
-    town: "Spelman",
-    followers: 891,
-  },
-  { handle: "alumnus_01", display: "Alumnus 01", town: "FAMU", followers: 563 },
-  {
-    handle: "grad_student",
-    display: "Grad Student",
-    town: "Morehouse",
-    followers: 234,
-  },
-];
-
-const mockPosts = [
-  {
-    id: 1,
-    authorHandle: "jane_doe",
-    authorDisplayName: "Jane Doe",
-    content: "TSU homecoming was incredible this year!",
-    townTag: "tsu",
-    mediaBlobs: [] as string[],
-  },
-  {
-    id: 2,
-    authorHandle: "campus_king",
-    authorDisplayName: "Campus King",
-    content: "Howard Yard networking event tonight — pull up!",
-    townTag: "howard",
-    mediaBlobs: [] as string[],
-  },
-];
-
-const mockCommunities = [
-  {
-    id: "tsu",
-    name: "TSU Yard",
-    school: "Tennessee State University",
-    location: "Nashville, TN",
-    members: 2847,
-  },
-  {
-    id: "howard",
-    name: "Howard Yard",
-    school: "Howard University",
-    location: "Washington, DC",
-    members: 4521,
-  },
-];
+const mockUsers = SEED_USERS;
+const mockPosts = SEED_POSTS.map((p) => ({
+  id: p.id,
+  authorHandle: p.authorHandle,
+  authorDisplayName: p.authorDisplayName,
+  content: p.content,
+  townTag: p.townTag,
+  mediaBlobs: p.mediaBlobs,
+}));
+const mockCommunities = SEED_COMMUNITIES;
 
 function mapUser(u: TauriUser) {
   return {
