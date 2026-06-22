@@ -1717,4 +1717,103 @@ mod tests {
       .unwrap_err();
     assert!(err.to_string().contains("Join the yard"));
   }
+
+  // ─── Role authorization ─────────────────────────────────
+
+  use crate::{authorize_set_community_role, authorize_set_node_role};
+
+  #[test]
+  fn test_node_role_self_service_allowed() {
+    let db = setup_test_db();
+    db.create_user("alice", "Alice", "").unwrap();
+    assert!(authorize_set_node_role(&db, "alice", "alice", "relay").is_ok());
+    db.set_node_role("alice", "relay").unwrap();
+    assert_eq!(db.get_node_role("alice").unwrap(), "relay");
+  }
+
+  #[test]
+  fn test_node_role_other_user_denied_for_non_admin() {
+    let db = setup_test_db();
+    db.create_user("alice", "Alice", "").unwrap();
+    db.create_user("bob", "Bob", "").unwrap();
+    let err = authorize_set_node_role(&db, "alice", "bob", "relay").unwrap_err();
+    assert!(err.contains("platform admins"));
+  }
+
+  #[test]
+  fn test_node_role_other_user_allowed_for_admin() {
+    let db = setup_test_db();
+    db.create_user("admin", "Admin", "").unwrap();
+    db.create_user("bob", "Bob", "").unwrap();
+    db.set_node_role("admin", "admin").unwrap();
+    assert!(authorize_set_node_role(&db, "admin", "bob", "relay").is_ok());
+  }
+
+  #[test]
+  fn test_node_role_self_assign_admin_denied() {
+    let db = setup_test_db();
+    db.create_user("alice", "Alice", "").unwrap();
+    let err = authorize_set_node_role(&db, "alice", "alice", "admin").unwrap_err();
+    assert!(err.contains("self-assign"));
+  }
+
+  #[test]
+  fn test_community_role_student_cannot_assign() {
+    let db = setup_test_db();
+    db.create_user("alice", "Alice", "").unwrap();
+    db.create_user("bob", "Bob", "").unwrap();
+    db.join_yard("alice", "tsu").unwrap();
+    db.join_yard("bob", "tsu").unwrap();
+    let err = authorize_set_community_role(&db, "alice", "tsu", "bob", "Yard Mod").unwrap_err();
+    assert!(err.contains("owners and moderators"));
+  }
+
+  #[test]
+  fn test_community_role_bootstrap_owner() {
+    let db = setup_test_db();
+    db.create_user("alice", "Alice", "").unwrap();
+    db.join_yard("alice", "tsu").unwrap();
+    assert!(authorize_set_community_role(&db, "alice", "tsu", "alice", "Admin").is_ok());
+  }
+
+  #[test]
+  fn test_community_role_owner_can_assign() {
+    let db = setup_test_db();
+    db.create_user("owner", "Owner", "").unwrap();
+    db.create_user("bob", "Bob", "").unwrap();
+    db.join_yard("owner", "tsu").unwrap();
+    db.join_yard("bob", "tsu").unwrap();
+    db.set_community_role("tsu", "owner", "Admin").unwrap();
+    assert!(authorize_set_community_role(&db, "owner", "tsu", "bob", "Yard Mod").is_ok());
+  }
+
+  #[test]
+  fn test_community_role_moderator_cannot_assign_admin() {
+    let db = setup_test_db();
+    db.create_user("owner", "Owner", "").unwrap();
+    db.create_user("mod_user", "Mod", "").unwrap();
+    db.create_user("bob", "Bob", "").unwrap();
+    db.join_yard("owner", "tsu").unwrap();
+    db.join_yard("mod_user", "tsu").unwrap();
+    db.join_yard("bob", "tsu").unwrap();
+    db.set_community_role("tsu", "owner", "Admin").unwrap();
+    db.set_community_role("tsu", "mod_user", "Yard Mod").unwrap();
+    let err =
+      authorize_set_community_role(&db, "mod_user", "tsu", "bob", "Admin").unwrap_err();
+    assert!(err.contains("yard owners"));
+  }
+
+  #[test]
+  fn test_community_role_moderator_cannot_change_owner() {
+    let db = setup_test_db();
+    db.create_user("owner", "Owner", "").unwrap();
+    db.create_user("mod_user", "Mod", "").unwrap();
+    db.join_yard("owner", "tsu").unwrap();
+    db.join_yard("mod_user", "tsu").unwrap();
+    db.set_community_role("tsu", "owner", "Admin").unwrap();
+    db.set_community_role("tsu", "mod_user", "Yard Mod").unwrap();
+    let err =
+      authorize_set_community_role(&db, "mod_user", "tsu", "owner", "Student").unwrap_err();
+    assert!(err.contains("Moderators cannot change an owner"));
+  }
 }

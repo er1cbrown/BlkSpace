@@ -603,6 +603,95 @@ fn check_session_rate_limit(state: &AppState, session_token: &str) -> Result<Str
   Ok(handle)
 }
 
+// ─── Role authorization ──────────────────────────────────
+
+const NODE_ROLE_ADMIN: &str = "admin";
+const COMMUNITY_OWNER_ROLE: &str = "Admin";
+const COMMUNITY_MODERATOR_ROLE: &str = "Yard Mod";
+const COMMUNITY_ROLES: &[&str] = &["Student", "Yard Mod", "Alum", "Admin"];
+
+fn is_node_admin(db: &Database, handle: &str) -> Result<bool, String> {
+  let role = db.get_node_role(handle).map_err(|e| e.to_string())?;
+  Ok(role.eq_ignore_ascii_case(NODE_ROLE_ADMIN))
+}
+
+/// Caller may set their own node role; changing another user's role requires platform admin.
+fn authorize_set_node_role(
+  db: &Database,
+  caller: &str,
+  target: &str,
+  role: &str,
+) -> Result<(), String> {
+  validate_handle(target).map_err(map_err)?;
+  let role = role.trim();
+  if caller != target && !is_node_admin(db, caller)? {
+    return Err("Only platform admins can change another user's node role".to_string());
+  }
+  if caller == target && !is_node_admin(db, caller)? && role.eq_ignore_ascii_case(NODE_ROLE_ADMIN) {
+    return Err("Cannot self-assign platform admin node role".to_string());
+  }
+  Ok(())
+}
+
+fn community_has_owner(db: &Database, community_id: &str) -> Result<bool, String> {
+  let roles = db.list_community_roles(community_id).map_err(|e| e.to_string())?;
+  Ok(roles.iter().any(|e| e.role == COMMUNITY_OWNER_ROLE))
+}
+
+fn is_community_moderator_or_owner(role: &str) -> bool {
+  role == COMMUNITY_OWNER_ROLE || role == COMMUNITY_MODERATOR_ROLE
+}
+
+/// Only yard owners (Admin) and moderators (Yard Mod) may assign community roles.
+fn authorize_set_community_role(
+  db: &Database,
+  caller: &str,
+  community_id: &str,
+  target: &str,
+  new_role: &str,
+) -> Result<(), String> {
+  let community_id = community_id.trim();
+  if community_id.is_empty() {
+    return Err("Community ID required".to_string());
+  }
+  validate_handle(target).map_err(map_err)?;
+  if !COMMUNITY_ROLES.contains(&new_role) {
+    return Err("Invalid community role".to_string());
+  }
+  if !db.is_yard_member(caller, community_id).map_err(|e| e.to_string())? {
+    return Err("Join the yard before assigning roles".to_string());
+  }
+
+  // Bootstrap: first owner claims Admin for themselves when the yard has none yet.
+  if !community_has_owner(db, community_id)?
+    && caller == target
+    && new_role == COMMUNITY_OWNER_ROLE
+  {
+    return Ok(());
+  }
+
+  let caller_role = db
+    .get_community_role(community_id, caller)
+    .map_err(|e| e.to_string())?;
+  if !is_community_moderator_or_owner(&caller_role) {
+    return Err("Only yard owners and moderators can assign community roles".to_string());
+  }
+
+  if caller_role == COMMUNITY_MODERATOR_ROLE {
+    if new_role == COMMUNITY_OWNER_ROLE {
+      return Err("Only yard owners can assign the Admin role".to_string());
+    }
+    let target_role = db
+      .get_community_role(community_id, target)
+      .map_err(|e| e.to_string())?;
+    if target_role == COMMUNITY_OWNER_ROLE {
+      return Err("Moderators cannot change an owner's role".to_string());
+    }
+  }
+
+  Ok(())
+}
+
 // ─── User Commands ───────────────────────────────────────
 
 #[tauri::command]
@@ -783,14 +872,15 @@ fn update_profile_customization(
 
 #[tauri::command]
 fn set_node_role(state: State<AppState>, session_token: String, handle: String, role: String) -> Result<(), String> {
-  let _caller = get_handle_from_session(&state, &session_token)?;
-  // Assign yard/community role (node_role used in context of the town).
-  state.db.set_node_role(&handle, &role).map_err(|e| e.to_string())
+  let caller = check_session_rate_limit(&state, &session_token)?;
+  authorize_set_node_role(&state.db, &caller, &handle, &role)?;
+  state.db.set_node_role(&handle, role.trim()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn set_community_role(state: State<AppState>, session_token: String, community_id: String, handle: String, role: String) -> Result<(), String> {
-  let _caller = get_handle_from_session(&state, &session_token)?;
+  let caller = check_session_rate_limit(&state, &session_token)?;
+  authorize_set_community_role(&state.db, &caller, &community_id, &handle, &role)?;
   state.db.set_community_role(&community_id, &handle, &role).map_err(|e| e.to_string())
 }
 

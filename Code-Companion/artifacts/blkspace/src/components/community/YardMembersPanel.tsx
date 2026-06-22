@@ -254,6 +254,7 @@ export function YardMembersPanel({
   const myRole = currentHandle
     ? roleMap[currentHandle] || (isMember ? "Student" : "")
     : "";
+  const canAssignRoles = myRole === "Admin" || myRole === "Yard Mod";
   const modCount = members.filter(
     (m) => m.role === "Yard Mod" || m.role === "Admin",
   ).length;
@@ -313,7 +314,7 @@ export function YardMembersPanel({
                   </div>
                 </div>
               </div>
-              {m.handle !== currentHandle && (
+              {m.handle !== currentHandle && canAssignRoles && (
                 <Button
                   size="sm"
                   variant="outline"
