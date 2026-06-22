@@ -117,9 +117,8 @@ export function AppShell({
             </Button>
           </Link>
           <Link href="/notifications">
-            <Button variant="ghost" size="icon" className="rounded-full relative">
+            <Button variant="ghost" size="icon" className="rounded-full">
               <Bell className="h-5 w-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full" />
             </Button>
           </Link>
         </div>
@@ -161,9 +160,6 @@ export function AppShell({
               <span className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground cursor-pointer">
                 <Bell className="h-5 w-5" />
                 Notifications
-                <Badge variant="destructive" className="ml-auto h-5 px-1.5 text-[10px]">
-                  3
-                </Badge>
               </span>
             </Link>
             <button

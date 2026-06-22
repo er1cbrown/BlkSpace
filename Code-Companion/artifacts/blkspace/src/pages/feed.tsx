@@ -26,9 +26,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Heart, MessageSquare, Repeat2 } from "lucide-react";
+import { Heart, MessageSquare, Repeat2, MoreHorizontal, BadgeCheck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SafeContent } from "@/components/ui/safe-content";
 import { SignatureBadge } from "@/components/ui/signature-badge";
 import { RiskBadge } from "@/components/ui/risk-badge";
@@ -64,6 +72,7 @@ export default function FeedPage() {
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
   const [showFlagged, setShowFlagged] = useState(false);
   const [bridgeTownFilter, setBridgeTownFilter] = useState("all");
+  const [expandedBadges, setExpandedBadges] = useState<Record<number | string, boolean>>({});
   const [localFollowed, setLocalFollowed] = useState<string[]>(() => {
     const saved = localStorage.getItem("blkspace_followed") || "[]";
     return JSON.parse(saved);
@@ -325,18 +334,53 @@ export default function FeedPage() {
               message="Create a free account to post, share media, and start earning WeixBucks on your yard."
             />
           ) : (
-            <PostComposer
-              content={content}
-              onContentChange={setContent}
-              selectedTown={selectedTown}
-              onTownChange={setSelectedTown}
-              mediaHashes={mediaHashes}
-              onMediaHashesChange={setMediaHashes}
-              onSubmit={handleSubmit}
-              isSubmitting={createPost.isPending}
-              onUploadSuccess={(earn) => showEarnFromResult(earn, "Media upload")}
-              placeholder={composerPlaceholder}
-            />
+            <>
+              {/* Desktop: inline composer */}
+              <div className="hidden md:block">
+                <PostComposer
+                  content={content}
+                  onContentChange={setContent}
+                  selectedTown={selectedTown}
+                  onTownChange={setSelectedTown}
+                  mediaHashes={mediaHashes}
+                  onMediaHashesChange={setMediaHashes}
+                  onSubmit={handleSubmit}
+                  isSubmitting={createPost.isPending}
+                  onUploadSuccess={(earn) => showEarnFromResult(earn, "Media upload")}
+                  placeholder={composerPlaceholder}
+                />
+              </div>
+              {/* Mobile: FAB → modal composer */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button
+                    type="button"
+                    className="md:hidden fixed right-4 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl flex items-center justify-center"
+                    style={{ bottom: "5.5rem" }}
+                    aria-label="Create post"
+                  >
+                    <Heart className="w-6 h-6 rotate-45" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>New post</DialogTitle>
+                  </DialogHeader>
+                  <PostComposer
+                    content={content}
+                    onContentChange={setContent}
+                    selectedTown={selectedTown}
+                    onTownChange={setSelectedTown}
+                    mediaHashes={mediaHashes}
+                    onMediaHashesChange={setMediaHashes}
+                    onSubmit={handleSubmit}
+                    isSubmitting={createPost.isPending}
+                    onUploadSuccess={(earn) => showEarnFromResult(earn, "Media upload")}
+                    placeholder={composerPlaceholder}
+                  />
+                </DialogContent>
+              </Dialog>
+            </>
           ))}
 
           <TabsContent value="watch">
@@ -424,6 +468,7 @@ export default function FeedPage() {
                   <Card
                     key={item.id}
                     className="hover:bg-muted/30 transition-colors border-border/50"
+                    style={{ contentVisibility: "auto", containIntrinsicSize: "180px" }}
                   >
                     {isRepost && (
                       <div className="px-4 pt-3 text-xs text-green-500 flex items-center gap-1.5">
@@ -449,30 +494,49 @@ export default function FeedPage() {
                               : (item as any).authorDisplayName}
                           </span>
                           <div className="flex items-center gap-1.5 ml-auto">
-                            {!isCrossTown && (
-                              <RiskBadge
-                                riskLevel={(item as any).riskLevel}
-                                maliciousScore={(item as any).maliciousScore}
-                              />
+                            {(isCrossTown || (!isCrossTown && (item as any).nostrEventId)) && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedBadges((p) => ({
+                                    ...p,
+                                    [item.id]: !p[item.id],
+                                  }))
+                                }
+                                className="text-muted-foreground hover:text-primary transition-colors"
+                                aria-label="Security verification"
+                              >
+                                <BadgeCheck className="w-4 h-4" />
+                              </button>
                             )}
-                            {isCrossTown && (
-                              <>
-                                <RiskBadge
-                                  riskLevel={crossTownItem.riskLevel}
-                                  maliciousScore={crossTownItem.maliciousScore}
-                                />
-                                <ConsensusBadge
-                                  consensusValid={crossTownItem.consensusValid}
-                                  consensusAgreement={
-                                    crossTownItem.consensusAgreement
-                                  }
-                                />
-                              </>
-                            )}
-                            {!isCrossTown && (item as any).nostrEventId && (
-                              <SignatureBadge
-                                eventId={(item as any).nostrEventId}
-                              />
+                            {expandedBadges[item.id] && (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {!isCrossTown && (
+                                  <RiskBadge
+                                    riskLevel={(item as any).riskLevel}
+                                    maliciousScore={(item as any).maliciousScore}
+                                  />
+                                )}
+                                {isCrossTown && (
+                                  <>
+                                    <RiskBadge
+                                      riskLevel={crossTownItem.riskLevel}
+                                      maliciousScore={crossTownItem.maliciousScore}
+                                    />
+                                    <ConsensusBadge
+                                      consensusValid={crossTownItem.consensusValid}
+                                      consensusAgreement={
+                                        crossTownItem.consensusAgreement
+                                      }
+                                    />
+                                  </>
+                                )}
+                                {!isCrossTown && (item as any).nostrEventId && (
+                                  <SignatureBadge
+                                    eventId={(item as any).nostrEventId}
+                                  />
+                                )}
+                              </div>
                             )}
                             <span className="text-xs text-muted-foreground">
                               {new Date(
@@ -543,15 +607,27 @@ export default function FeedPage() {
                         />{" "}
                         {item.likesCount || 0}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 gap-2 hover:text-amber-500 hover:bg-amber-500/10"
-                        onClick={() => handleBoost(item)}
-                        title="Boost this post with 5 WB"
-                      >
-                        <Repeat2 className="w-4 h-4" /> Boost
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 hover:text-foreground"
+                            aria-label="More actions"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleBoost(item)}
+                            disabled={isCrossTown}
+                          >
+                            <Repeat2 className="w-3.5 h-3.5 mr-2" />
+                            Boost (5 WB)
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       {isCrossTown && (
                         <span className="text-xs text-muted-foreground ml-auto">
                           Synced from relay

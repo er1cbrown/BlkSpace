@@ -81,6 +81,11 @@ export function YardSidebar() {
           <CardTitle className="text-sm flex items-center gap-2">
             <UserPlus className="w-4 h-4 text-primary" />
             People on the yard
+            {!isTauri() && (
+              <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                Sample
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
