@@ -19,8 +19,8 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:build:no-iroh": "tauri build -- --no-default-features",
-    "e2e": "playwright test --project=browser",
-    "e2e:browser": "playwright test --project=browser",
+    "e2e": "node ./node_modules/@playwright/test/cli.js test --project=browser",
+    "e2e:browser": "node ./node_modules/@playwright/test/cli.js test --project=browser",
     "e2e:tauri": "node e2e/run-tauri-e2e.mjs",
     "e2e:install": "playwright install chromium"
   },

@@ -135,6 +135,8 @@ jobs:
           cache-dependency-path: Code-Companion/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
         working-directory: ./Code-Companion
+      - run: pnpm --filter @workspace/blkspace run build
+        working-directory: ./Code-Companion
       - run: pnpm --filter @workspace/blkspace run e2e:install
         working-directory: ./Code-Companion
       - run: pnpm --filter @workspace/blkspace run e2e:browser

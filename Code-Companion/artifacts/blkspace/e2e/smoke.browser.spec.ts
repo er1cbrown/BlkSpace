@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect } from "@playwright/test";
 
 test.describe("web preview smoke", () => {
   test("landing page loads", async ({ page }) => {
@@ -14,12 +14,12 @@ test.describe("web preview smoke", () => {
     ).toBeVisible();
   });
 
-  test("search shows mock users in web preview", async ({ page }) => {
+  test("search shows seed users in web preview", async ({ page }) => {
     await page.goto("/search");
     await page
       .getByPlaceholder("Search users, posts, communities...")
-      .fill("jane");
-    await expect(page.getByText("Jane Doe")).toBeVisible();
+      .fill("nina");
+    await expect(page.getByText("Nina J.")).toBeVisible();
     await expect(page.getByText("Users (1)")).toBeVisible();
   });
 });
