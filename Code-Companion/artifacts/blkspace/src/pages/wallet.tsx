@@ -43,6 +43,7 @@ import {
 } from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { EarnRatesPanel } from "@/components/economy/EarnRatesPanel";
+import { EarnDashboard } from "@/components/economy/EarnDashboard";
 import { WalletDisclaimer } from "@/components/economy/WalletDisclaimer";
 import { EconomyPolicyPanel } from "@/components/economy/EconomyPolicyPanel";
 import { EconomyTermsCard } from "@/components/economy/EconomyTermsCard";
@@ -532,6 +533,13 @@ function WalletPageContent() {
               <p className="text-xs text-muted-foreground">Transactions</p>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="mb-8">
+          <EarnDashboard
+            transactions={isTauri() && Array.isArray(tauriTx) ? tauriTx : []}
+            earnedToday={earnedToday}
+          />
         </div>
 
         <Tabs defaultValue="history">

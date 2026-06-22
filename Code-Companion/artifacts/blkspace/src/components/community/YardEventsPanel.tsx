@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { getSessionToken } from "@/lib/auth";
+import { useGuestMode } from "@/lib/guest-mode";
 import { isTauri, type TauriYardEvent } from "@/lib/tauri-api";
 import {
   useTauriListYardEvents,
@@ -288,8 +289,15 @@ function EventCard({
 }) {
   const rsvp = useTauriRsvpYardEvent();
   const cancelRsvp = useTauriCancelYardEventRsvp();
+  const { isGuest } = useGuestMode();
 
   const handleRsvp = (status: "going" | "interested") => {
+    if (isGuest) {
+      toast("Create a free account to RSVP and earn WB.", {
+        action: { label: "Sign up", onClick: () => (window.location.hash = "/welcome") },
+      });
+      return;
+    }
     if (!isTauri()) {
       toast.success(
         status === "going"
@@ -442,6 +450,23 @@ export function YardEventsPanel({
     }
   });
 
+  const now = new Date();
+  const endOfWeek = new Date(now);
+  endOfWeek.setDate(now.getDate() + 7);
+  const buckets: { label: string; items: YardEventView[] }[] = [
+    { label: "Today", items: [] },
+    { label: "This week", items: [] },
+    { label: "Later", items: [] },
+  ];
+  for (const e of upcoming) {
+    const d = new Date(e.startsAt);
+    const dayStart = new Date(now);
+    dayStart.setHours(0, 0, 0, 0);
+    if (d < new Date(dayStart.getTime() + 86400000)) buckets[0].items.push(e);
+    else if (d < endOfWeek) buckets[1].items.push(e);
+    else buckets[2].items.push(e);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -472,15 +497,27 @@ export function YardEventsPanel({
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {upcoming.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              communityId={communityId}
-              isMember={isMember}
-            />
-          ))}
+        <div className="space-y-5">
+          {buckets.map(
+            (bucket) =>
+              bucket.items.length > 0 && (
+                <div key={bucket.label} className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-1">
+                    {bucket.label}
+                  </h4>
+                  <div className="space-y-3">
+                    {bucket.items.map((event) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        communityId={communityId}
+                        isMember={isMember}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ),
+          )}
         </div>
       )}
     </div>

@@ -50,6 +50,7 @@ import { ProfileGrid } from "@/components/profile/ProfileGrid";
 import { ProfileRelayList } from "@/components/profile/ProfileRelayList";
 import { TopFriends, type TopFriend } from "@/components/profile/TopFriends";
 import { ProProfileTab } from "@/components/profile/ProProfileTab";
+import { ProfileMusicPlayer } from "@/components/profile/ProfileMusicPlayer";
 import { KarmaBadge } from "@/components/economy/KarmaBadge";
 import {
   useTauriUpdateProProfile,
@@ -232,18 +233,16 @@ export default function ProfilePage() {
                 </Avatar>
                 {profileSong && (
                   <div className="mb-3 hidden md:block">
-                    <div className="flex items-center gap-2 text-xs uppercase tracking-widest opacity-75 mb-1">
-                      <Music className="w-3 h-3" /> NOW PLAYING ON PROFILE
-                    </div>
-                    <div className="font-mono text-sm">
-                      {currentSongBlob?.filename ||
-                        (profileSong
-                          ? `${profileSong.slice(0, 8)}…`
-                          : "Profile song")}
-                    </div>
-                    {audioSrc && (
-                      <audio controls src={audioSrc} className="mt-1 w-48" />
-                    )}
+                    <ProfileMusicPlayer
+                      hash={profileSong}
+                      src={audioSrc}
+                      trackName={
+                        currentSongBlob?.filename ||
+                        (profileSong ? `${profileSong.slice(0, 8)}…` : "Profile song")
+                      }
+                      subtitle="Now playing"
+                      compact
+                    />
                   </div>
                 )}
               </div>
@@ -617,19 +616,20 @@ export default function ProfilePage() {
 
                         {/* Real Iroh audio if set, else demo */}
                         <div className="bg-muted/40 p-3 rounded-lg">
-                          {audioSrc ? (
-                            <audio controls className="w-full" src={audioSrc}>
-                              Your browser does not support the audio element.
-                            </audio>
-                          ) : (
-                            <audio
-                              controls
-                              className="w-full"
-                              src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
-                            >
-                              Your browser does not support the audio element.
-                            </audio>
-                          )}
+                          <ProfileMusicPlayer
+                            hash={profileSong}
+                            src={audioSrc}
+                            trackName={
+                              currentSongBlob?.filename ||
+                              (profileSong ? "Uploaded track" : null) ||
+                              "Demo track"
+                            }
+                            subtitle={
+                              profileSong
+                                ? "Your profile song"
+                                : "Demo — upload to set yours"
+                            }
+                          />
                           <p className="text-[10px] text-center mt-2 text-muted-foreground">
                             Profile song — powered by Iroh blobs when uploaded
                           </p>
