@@ -16,6 +16,7 @@ import {
   Music,
   Store,
 } from "lucide-react";
+import { BRAND } from "@/lib/brand";
 
 export default function LandingPage() {
   return (
@@ -27,17 +28,15 @@ export default function LandingPage() {
           <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_top_right,var(--color-primary),transparent_50%)] opacity-10"></div>
           <div className="container relative z-10 mx-auto px-4 text-center">
             <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
-              <h1 className="text-5xl md:text-8xl font-black tracking-tighter mb-6 text-foreground font-serif">
-                The social network that{" "}
-                <span className="text-primary italic">pays you to post.</span>
+              <h1 className="text-6xl md:text-9xl font-black tracking-tighter mb-4 text-foreground">
+                {BRAND.name}
               </h1>
-              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-2 font-sans font-medium">
-                Scroll the yard for free. Earn when you&apos;re ready. Built for
-                HBCU — works on the laptop you already own.
+              <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-2 font-medium">
+                {BRAND.tagline}
               </p>
-              <p className="text-sm text-muted-foreground/60 max-w-2xl mx-auto mb-10">
-                Your account. Your content. Your earnings — nobody can take it
-                down.
+              <p className="text-sm text-muted-foreground/70 max-w-2xl mx-auto mb-10">
+                Scroll for free. Earn WeixBucks. Cash out to {BRAND.symbol} on
+                Solana. Your account, your content, your earnings.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <Link href="/feed">
@@ -102,7 +101,7 @@ export default function LandingPage() {
                 <h3 className="text-xl font-bold mb-4">Get paid to post</h3>
                 <p className="text-muted-foreground">
                   Earn WeixBucks for posts, uploads, and yard activity. TikTok
-                  keeps 50–70%. BlkSpace keeps 85% with you.
+                  keeps 50–70%. {BRAND.name} keeps 85% with you.
                 </p>
               </div>
               <div className="bg-card p-8 rounded-2xl border shadow-sm hover:shadow-md transition-shadow">
@@ -115,10 +114,10 @@ export default function LandingPage() {
               </div>
               <div className="bg-card p-8 rounded-2xl border shadow-sm hover:shadow-md transition-shadow">
                 <Globe className="w-12 h-12 text-primary mb-6" />
-                <h3 className="text-xl font-bold mb-4">Your yard, your feed</h3>
+                <h3 className="text-xl font-bold mb-4">Your community, your feed</h3>
                 <p className="text-muted-foreground">
-                  TSU, Howard, FAMU, Spelman — each campus has its own digital
-                  yard. Culture-first, not algorithm-first.
+                  Join a yard — campus, creator crew, or local scene. Culture-first,
+                  not algorithm-first.
                 </p>
               </div>
             </div>
@@ -134,9 +133,8 @@ export default function LandingPage() {
                   Our Infrastructure, Our Rules.
                 </h2>
                 <p className="text-lg opacity-90 mb-8">
-                  BlkSpace runs on community-operated Nostr relays and Iroh
-                  pinners. When you run a node, you strengthen the network for
-                  everyone in your town.
+                  {BRAND.name} runs on community-operated relays. When you host a
+                  node, you strengthen the network for everyone in your yard.
                 </p>
                 <Link href="/relays">
                   <Button
@@ -224,7 +222,7 @@ export default function LandingPage() {
             </h2>
             <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
               Whether you're a freshman scrolling between classes or a founder
-              recruiting talent, BlkSpace has a path for you.
+              recruiting talent, {BRAND.name} has a path for you.
             </p>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-card p-6 rounded-2xl border shadow-sm">
@@ -257,9 +255,9 @@ export default function LandingPage() {
                 <Briefcase className="w-8 h-8 text-primary mb-4" />
                 <h3 className="font-bold mb-2">Professionals</h3>
                 <p className="text-sm text-muted-foreground">
-                  Build a pro profile + portfolio. Recruit HBCU talent. Post
-                  job listings to targeted yards. Verified professional badge
-                  with BKSPC.
+                  Build a pro profile + portfolio. Recruit from campus yards.
+                  Post job listings to targeted communities. Verified badge with{" "}
+                  {BRAND.symbol}.
                 </p>
               </div>
             </div>
@@ -300,7 +298,7 @@ export default function LandingPage() {
               </div>
               <div className="text-center p-6 rounded-2xl border border-secondary/20 bg-secondary/5">
                 <TrendingUp className="w-10 h-10 text-secondary-foreground mx-auto mb-4" />
-                <h3 className="font-bold mb-2">BKSPC (Solana)</h3>
+                <h3 className="font-bold mb-2">{BRAND.symbol} (Solana)</h3>
                 <p className="text-sm text-muted-foreground mb-3">
                   On-chain token. Mint from earned WB (1,000:1). Use for
                   events, NFTs, governance, premium yards.
@@ -326,16 +324,17 @@ export default function LandingPage() {
               For investors & reviewers
             </h2>
             <p className="text-center text-muted-foreground mb-12">
-              BKSPC is a utility token, not a security. Here's the thesis.
+              {BRAND.symbol} is a utility token, not a security. Here&apos;s the
+              thesis.
             </p>
             <div className="grid md:grid-cols-3 gap-6 mb-12">
               <div className="bg-card p-6 rounded-2xl border shadow-sm">
                 <TrendingUp className="w-8 h-8 text-primary mb-4" />
                 <h3 className="font-bold mb-2">Growth thesis</h3>
                 <p className="text-sm text-muted-foreground">
-                  100+ HBCUs × ~3,000 students = 300K+ addressable users per
-                  cohort. As adoption grows, BKSPC utility demand increases.
-                  Burn mechanism shrinks supply. Price discovers naturally.
+                  Campus yards, creator communities, and tight-knit groups —
+                  millions of users who post daily elsewhere. As adoption grows,{" "}
+                  {BRAND.symbol} utility demand increases. Burn shrinks supply.
                 </p>
               </div>
               <div className="bg-card p-6 rounded-2xl border shadow-sm">
@@ -358,7 +357,7 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <a href="https://github.com/er1cbrown/BlkSpace" target="_blank" rel="noopener noreferrer">
+              <a href={BRAND.githubRepo} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" variant="outline" className="rounded-full">
                   View code & CI proof <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
@@ -389,7 +388,7 @@ export default function LandingPage() {
                 variant="secondary"
                 className="text-lg px-12 py-6 rounded-full font-bold shadow-xl"
               >
-                Enter BlkSpace
+                Open {BRAND.name}
               </Button>
             </Link>
           </div>
@@ -397,11 +396,11 @@ export default function LandingPage() {
       </main>
 
       <footer className="bg-card py-12 border-t text-center text-muted-foreground">
-        <p className="font-serif font-bold text-xl mb-4 text-foreground">
-          BlkSpace
+        <p className="font-bold text-xl mb-4 text-foreground tracking-tight">
+          {BRAND.name}
         </p>
         <p className="text-sm">
-          Built by the community. Owned by the community.
+          {BRAND.tagline} · {BRAND.siteUrl.replace("https://", "")}
         </p>
       </footer>
     </div>

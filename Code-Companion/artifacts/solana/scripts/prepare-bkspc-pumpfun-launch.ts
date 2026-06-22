@@ -37,7 +37,7 @@ function main(): void {
   console.log(`Symbol:      ${metadata.symbol}`);
   console.log(`Description: ${metadata.description}`);
   console.log(`Website:     ${metadata.external_url}`);
-  console.log("Image:       Upload the BlkSpace logo (replace blank image field)\n");
+  console.log("Image:       Upload the BKSPC logo (replace blank image field)\n");
 
   console.log("Expected costs (mainnet SOL):");
   console.log("  ~0.02 SOL  token creation + bonding curve");
@@ -47,7 +47,7 @@ function main(): void {
   console.log("  1. Visit https://pump.fun");
   console.log("  2. Connect your Solana wallet");
   console.log("  3. Click 'Create' and paste the values above");
-  console.log("  4. Upload the BlkSpace logo image");
+  console.log("  4. Upload the BKSPC logo image");
   console.log("  5. Submit and sign the transaction");
   console.log("  6. Save the mint address from the success page\n");
 

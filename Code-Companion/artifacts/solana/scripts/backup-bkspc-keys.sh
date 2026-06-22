@@ -15,7 +15,7 @@ OUT_DIR="${1:-$DEFAULT_OUT}"
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
-echo "  BlkSpace — back up your Solana / BKSPC key files"
+echo "  BKSPC — back up your Solana key files"
 echo "═══════════════════════════════════════════════════════════════"
 echo ""
 echo "WHY: setup created secret .json files on this computer."

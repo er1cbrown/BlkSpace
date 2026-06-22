@@ -1,33 +1,30 @@
 # BKSPC pump.fun Launch Runbook
 
-**Token:** BKSPC (BLKSPACE COIN)  
+**Token:** BKSPC (name + symbol — same on Solana; BLKC was taken on-chain)  
 **Platform:** pump.fun (Solana mainnet)  
-**Project:** BlkSpace — https://er1cbrown.github.io/BlkSpace (stopgap until weixblack.net is registered)
+**Website:** https://bkspc.app (register domain → point DNS to GitHub Pages)  
+**Stopgap URL:** https://er1cbrown.github.io/BlkSpace (works until custom domain is live)
 
 ---
 
 ## What this is
 
-This runbook launches `BKSPC` as a **community token** on Solana via pump.fun. It is separate from the in-app `WeixBucks` economy and exists as the on-chain layer of the BlkSpace network.
-
-**Relationship to BlkSpace:**
+This runbook launches **BKSPC** as a **community token** on Solana via pump.fun. It is separate from the in-app **WeixBucks** economy.
 
 | Layer | Token | Purpose |
 |-------|-------|---------|
 | In-app credits | **WeixBucks (WB)** | Earn from posts, yards, node work; spend in-app |
-| On-chain community token | **BKSPC** | Solana-native token for the BlkSpace community |
+| On-chain token | **BKSPC** | Solana SPL — cash-out rail + utility for the social network |
 
-BKSPC is the Solana-facing side of BlkSpace. It is not a presale, not a security, and not a promise of future value.
+Campus yards (HBCU lore) are the first wedge inside the app. The **investor-facing brand is BKSPC** everywhere: website, pump.fun, nav, metadata.
 
 ---
 
 ## Before you start
 
-You need:
-
-1. A Solana wallet with **~0.05 SOL** on mainnet (for creation + fees)
-2. The BlkSpace logo/image ready to upload
-3. This repo checked out
+1. Solana wallet with **~0.05 SOL** on mainnet
+2. **BKSPC** logo/image ready to upload
+3. Register **bkspc.app** (or `.net` / `.social` if `.app` is taken) and point DNS → GitHub Pages
 
 ---
 
@@ -38,59 +35,49 @@ cd Code-Companion
 pnpm --filter @workspace/solana run prepare-bkspc-pumpfun-launch
 ```
 
-This prints the exact values to paste into pump.fun.
-
 Expected output:
 
 ```
-Name:        BLKSPACE COIN
+Name:        BKSPC
 Symbol:      BKSPC
-Description: BLKSPACE COIN (BKSPC) — the Solana token for the BlkSpace community...
-Website:     https://er1cbrown.github.io/BlkSpace
-Image:       Upload the BlkSpace logo
+Description: BKSPC — the social network that pays you to post...
+Website:     https://bkspc.app
+Image:       Upload the BKSPC logo
 ```
 
 ---
 
 ## Step 2 — Launch on pump.fun
 
-1. Go to **https://pump.fun**
-2. Connect your wallet
-3. Click **Create**
-4. Paste the values from Step 1
-5. Upload the BlkSpace logo
-6. Submit and sign the transaction
-7. Save the **mint address** from the success page
-
-Expected cost: **~0.02 SOL**
+1. Visit https://pump.fun → Connect wallet
+2. Click **Create**
+3. Paste values from Step 1
+4. Upload BKSPC logo
+5. Submit + sign → **save the mint address**
 
 ---
 
-## Step 3 — Record the mint
+## Step 3 — Wire the live mint
 
-After launch, paste the mint address below:
+Update:
+
+- `docs/bkspc-pumpfun-launch.md` — mint address below
+- `Code-Companion/artifacts/solana/devnet/bkspc-mint.json` (if mirroring)
+- Wallet UI to display live BKSPC mint
+
+---
+
+## Domain setup (bkspc.app)
+
+1. Register `bkspc.app` on Cloudflare or Namecheap
+2. GitHub repo → Settings → Pages → Custom domain → `bkspc.app`
+3. DNS: `CNAME bkspc.app → er1cbrown.github.io`
+4. Token `external_url` in `metadata/bkspc-token.json` already points to `https://bkspc.app`
+
+---
+
+## Mint address
 
 ```
-BKSPC pump.fun mint address: ________________________________
-Launch transaction signature: ________________________________
-Launch date: ________________________________
+(pending launch)
 ```
-
-Optional: update the wallet UI to display the live BKSPC mint info.
-
----
-
-## Disclaimers
-
-- BKSPC is a community token. It has no guaranteed utility, value, or future conversion to WeixBucks.
-- WeixBucks remain closed-loop in-app credits.
-- Do not market BKSPC as an investment.
-- Mainnet token launches carry legal and regulatory risk. Engage counsel before any marketing or exchange listing.
-
----
-
-## Related docs
-
-- `docs/bkspc-devnet-runbook.md` — devnet BKSPC mint setup
-- `docs/tokenomics-policy.md` — economy policy
-- `docs/economy-uniform-model.md` — creator marketplace model

@@ -3,15 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>BlkSpace — B.L.A.C.K. / WeixNet</title>
-    <meta name="description" content="BlkSpace: a decentralized social platform for HBCU college-town communities. Built by B.L.A.C.K. (Brothers for Love, Achievement, Culture & Knowledge) on WeixNet." />
+    <title>BKSPC — The social network that pays you to post</title>
+    <meta name="description" content="BKSPC: social network + creator economy on Solana. Post, earn WeixBucks, cash out to BKSPC. Works on any laptop or phone." />
     <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="BlkSpace — B.L.A.C.K. / WeixNet" />
-    <meta property="og:description" content="A decentralized social platform for HBCU college-town communities. Built by B.L.A.C.K." />
+    <meta property="og:title" content="BKSPC — The social network that pays you to post" />
+    <meta property="og:description" content="Post, earn, cash out. BKSPC is the Solana token for a community-owned social network." />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bkspc.app" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="BlkSpace" />
-    <meta name="twitter:description" content="BlkSpace — built on Replit. Update this description to reflect the app." />
+    <meta name="twitter:title" content="BKSPC" />
+    <meta name="twitter:description" content="The social network that pays you to post. Earn WeixBucks, cash out to BKSPC on Solana." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,74 +20,41 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- Visible fallback while React loads (helps debug white screen / blank page) -->
     <div id="tauri-loading" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#111;color:#fff;font-family:sans-serif;z-index:9999;">
       <div style="text-align:center">
-        <div style="font-size:24px;margin-bottom:8px">BlkSpace</div>
-        <div style="opacity:0.7">Loading... (first load can take 30s+ for Vite to optimize. Check DevTools Console if stuck after 30s)</div>
+        <div style="font-size:24px;margin-bottom:8px;font-weight:800;letter-spacing:-0.05em">BKSPC</div>
+        <div style="opacity:0.7">Loading...</div>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Hide the loading overlay once React has rendered content into #root,
-      // or after a generous timeout for slow first loads / web dev.
       (function hideLoader() {
         const loader = document.getElementById('tauri-loading');
         if (!loader) return;
-
         const root = document.getElementById('root');
         let attempts = 0;
-        const maxAttempts = 60; // ~30s at 500ms interval
-
+        const maxAttempts = 60;
         const check = () => {
           attempts++;
           if (root && root.children.length > 0) {
             loader.style.display = 'none';
             return;
           }
-          if (attempts < maxAttempts) {
-            setTimeout(check, 500);
-          } else {
-            loader.style.display = 'none';
-          }
+          if (attempts < maxAttempts) setTimeout(check, 500);
         };
-
-        // Also force hide after hard timeout
         setTimeout(() => {
           if (loader.style.display !== 'none') loader.style.display = 'none';
         }, 45000);
-
         check();
       })();
-
-      // Make any JS errors visible instead of silent blank page
       window.addEventListener('error', function(e) {
         const loader = document.getElementById('tauri-loading');
         if (loader) {
           loader.style.background = '#fee';
           loader.style.color = '#900';
-          loader.innerHTML = '<div style="padding:20px;font-family:monospace;max-width:90%;margin:0 auto">' +
-            '<h2 style="color:#c00">JavaScript Error - App failed to display</h2>' +
-            '<p>Open DevTools Console (F12) for full details.</p>' +
-            '<pre style="white-space:pre-wrap">' + (e.message || e) + '\n' + (e.error && e.error.stack || '') + '</pre>' +
-            '</div>';
+          loader.innerHTML = '<div style="padding:20px;font-family:monospace;max-width:90%;margin:0 auto"><h2>JavaScript Error</h2><pre style="white-space:pre-wrap">' + (e.message || e) + '</pre></div>';
           loader.style.display = 'flex';
         }
-        console.error('Global error:', e);
-      });
-      window.addEventListener('unhandledrejection', function(e) {
-        const loader = document.getElementById('tauri-loading');
-        if (loader) {
-          loader.style.background = '#fee';
-          loader.style.color = '#900';
-          loader.innerHTML = '<div style="padding:20px;font-family:monospace;max-width:90%;margin:0 auto">' +
-            '<h2 style="color:#c00">Unhandled Promise Rejection - App failed to display</h2>' +
-            '<p>Open DevTools Console (F12) for full details.</p>' +
-            '<pre style="white-space:pre-wrap">' + (e.reason || e) + '</pre>' +
-            '</div>';
-          loader.style.display = 'flex';
-        }
-        console.error('Unhandled rejection:', e);
       });
     </script>
   </body>

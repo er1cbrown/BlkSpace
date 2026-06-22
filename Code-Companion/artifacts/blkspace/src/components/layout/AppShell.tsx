@@ -23,6 +23,7 @@ import { useAppGetUser } from "@/hooks/use-app-data";
 import { useGuestMode } from "@/lib/guest-mode";
 import { YardSidebar } from "@/components/layout/YardSidebar";
 import { cn } from "@/lib/utils";
+import { BRAND } from "@/lib/brand";
 
 interface AppShellProps {
   children: ReactNode;
@@ -108,7 +109,7 @@ export function AppShell({
       {/* Mobile top bar */}
       <header className="md:hidden sticky top-0 z-40 border-b bg-background/95 backdrop-blur px-4 h-14 flex items-center justify-between">
         <Link href="/feed">
-          <span className="font-serif font-bold text-xl text-primary">BlkSpace</span>
+          <span className="font-serif font-bold text-xl text-primary tracking-tight">{BRAND.name}</span>
         </Link>
         <div className="flex items-center gap-1">
           <Link href="/search">
@@ -129,7 +130,7 @@ export function AppShell({
         <aside className="hidden md:flex w-[240px] shrink-0 flex-col py-4 pr-2">
           <Link href="/feed" className="mb-6 px-3">
             <span className="font-serif font-bold text-2xl tracking-tight text-primary">
-              BlkSpace
+              {BRAND.name}
             </span>
           </Link>
 

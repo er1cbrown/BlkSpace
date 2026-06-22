@@ -134,7 +134,7 @@ export default function SearchPage() {
         {!searched ? (
           <div className="text-center py-20 text-muted-foreground border border-dashed rounded-2xl">
             <SearchIcon className="w-12 h-12 mx-auto mb-4 opacity-30" />
-            <p>Search across the entire BlkSpace network</p>
+            <p>Search across the entire BKSPC network</p>
           </div>
         ) : loading ? (
           <div className="text-center py-20 text-muted-foreground">

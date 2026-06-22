@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "BlkSpace",
+  "productName": "BKSPC",
   "version": "0.1.0",
   "identifier": "com.blkspace.app",
   "build": {
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "BlkSpace",
+        "title": "BKSPC",
         "width": 1200,
         "height": 800,
         "minWidth": 360,

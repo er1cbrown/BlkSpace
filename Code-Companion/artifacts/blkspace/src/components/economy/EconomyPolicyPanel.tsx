@@ -17,7 +17,7 @@ const FALLBACK_POLICY = {
   weeklyWithdrawCapWb: 1000,
   wbToBkspcRatio: 1000,
   bkspcSymbol: "BKSPC",
-  bkspcName: "BlkSpace Settlement",
+  bkspcName: "BKSPC",
   midfThrottleThreshold: 0.7,
   wbPurchasable: false,
   bkspcTradableAfterCounsel: true,

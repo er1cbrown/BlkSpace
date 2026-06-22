@@ -22,7 +22,7 @@ export const SOFT_CURRENCY = {
 
 export const SETTLEMENT_TOKEN = {
   symbol: "BKSPC",
-  name: "BlkSpace Settlement",
+  name: "BKSPC",
   ratio: 1000,
 } as const;
 

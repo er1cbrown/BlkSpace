@@ -32,7 +32,7 @@ import {
 } from "./lib/devnet-guards.js";
 
 const BKSPC = {
-  name: "BlkSpace Settlement",
+  name: "BKSPC",
   symbol: "BKSPC",
   decimals: 9,
 } as const;

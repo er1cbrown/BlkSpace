@@ -4,6 +4,7 @@ import { useTheme } from "next-themes";
 import { Moon, Sun, Bell, Search, Users, Wallet, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { getCurrentHandle } from "@/lib/auth";
+import { BRAND } from "@/lib/brand";
 
 export function Navbar() {
   const [location] = useLocation();
@@ -24,7 +25,7 @@ export function Navbar() {
       <div className="container flex h-16 items-center justify-between">
         <Link href="/">
           <span className="font-sans font-bold text-2xl tracking-tighter text-primary cursor-pointer">
-            BlkSpace
+            {BRAND.name}
           </span>
         </Link>
 

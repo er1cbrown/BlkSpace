@@ -26,6 +26,7 @@ import {
 } from "@/lib/auth";
 import { isTauri, tauriCreateUser } from "@/lib/tauri-api";
 import { markFirstRunComplete } from "@/lib/auth";
+import { BRAND } from "@/lib/brand";
 
 export default function WelcomePage() {
   const [, navigate] = useLocation();
@@ -68,10 +69,13 @@ export default function WelcomePage() {
       <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-4">
         <Globe className="w-10 h-10 text-primary" />
       </div>
-      <h2 className="text-3xl font-bold font-serif">Welcome to BlkSpace</h2>
-      <p className="text-lg text-muted-foreground">
-        The social network that pays you to post. Built for HBCU, works on any
-        laptop or phone.
+      <h2 className="text-3xl font-bold font-serif tracking-tight">
+        Welcome to {BRAND.name}
+      </h2>
+      <p className="text-lg text-muted-foreground">{BRAND.tagline}</p>
+      <p className="text-sm text-muted-foreground">
+        Works on any laptop or phone. Campus yards are where we started — the
+        network is for everyone.
       </p>
       <div className="grid grid-cols-3 gap-4 text-sm pt-4">
         <div className="bg-card p-4 rounded-xl border">

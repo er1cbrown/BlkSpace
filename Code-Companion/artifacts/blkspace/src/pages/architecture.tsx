@@ -23,7 +23,7 @@ export default function ArchitecturePage() {
             Architecture
           </h1>
           <p className="text-lg opacity-90">
-            A look under the hood of BlkSpace. Designed for resilience,
+            A look under the hood of BKSPC. Designed for resilience,
             sovereignty, and community ownership.
           </p>
         </div>

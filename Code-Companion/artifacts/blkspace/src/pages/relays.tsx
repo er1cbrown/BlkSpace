@@ -119,7 +119,7 @@ export default function RelaysPage() {
             </h1>
           </div>
           <p className="text-lg opacity-90 max-w-2xl">
-            The decentralized backbone of BlkSpace. Run by students, alumni, and
+            The decentralized backbone of BKSPC. Run by students, alumni, and
             organizations.
           </p>
         </div>
@@ -386,7 +386,7 @@ export default function RelaysPage() {
                         <span className="font-mono break-all">
                           {visibilityResult.npub}
                         </span>
-                        , or search note text “BlkSpace visibility test”.
+                        , or search note text “BKSPC visibility test”.
                       </p>
                     </div>
                   )}

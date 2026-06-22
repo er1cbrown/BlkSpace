@@ -2,7 +2,7 @@
   "cluster": "devnet",
   "rpcUrl": "https://api.devnet.solana.com",
   "createdAt": "2026-06-20T00:00:00.000Z",
-  "name": "BlkSpace Settlement",
+  "name": "BKSPC",
   "symbol": "BKSPC",
   "decimals": 9,
   "mint": "REPLACE_MINT_PUBKEY",

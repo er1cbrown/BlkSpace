@@ -434,7 +434,7 @@ export default function SettingsPage() {
                   Privacy & Security
                 </CardTitle>
                 <CardDescription>
-                  Important notes about how BlkSpace protects your data
+                  Important notes about how BKSPC protects your data
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
