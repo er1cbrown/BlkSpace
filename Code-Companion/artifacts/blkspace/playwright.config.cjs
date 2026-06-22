@@ -1,6 +1,8 @@
-import { defineConfig, devices } from "@playwright/test";
+const { defineConfig, devices } = require("@playwright/test");
 
-export default defineConfig({
+// CJS config avoids Playwright's TypeScript transform, which deadlocks on some
+// macOS setups (esbuild). Browser specs use .mjs for the same reason.
+module.exports = defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
   retries: process.env.CI ? 1 : 0,
@@ -13,10 +15,9 @@ export default defineConfig({
   projects: [
     {
       name: "browser",
-      testMatch: /.*\.browser\.spec\.ts/,
+      testMatch: /.*\.browser\.spec\.mjs/,
       use: {
         ...devices["Desktop Chrome"],
-        // @ts-expect-error custom fixture option from @srsholmes/tauri-playwright
         mode: "browser",
       },
     },
@@ -25,7 +26,6 @@ export default defineConfig({
       testMatch: /.*\.tauri\.spec\.ts/,
       timeout: 60_000,
       use: {
-        // @ts-expect-error custom fixture option from @srsholmes/tauri-playwright
         mode: "tauri",
         trace: "off",
         screenshot: "off",
@@ -33,8 +33,6 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // Serve production build — avoids Vite/esbuild dev-server hangs on low-RAM Macs.
-    // CI e2e job runs `pnpm build` before `e2e:browser` (see .github/workflows/ci.yml).
     command: "node scripts/spa-server.mjs",
     url: "http://127.0.0.1:24442",
     reuseExistingServer: !process.env.CI,
