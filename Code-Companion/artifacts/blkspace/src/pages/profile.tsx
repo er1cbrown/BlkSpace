@@ -24,6 +24,9 @@ import {
   Music,
   Palette,
   Users,
+  Store,
+  BookOpen,
+  Disc3,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -119,7 +122,7 @@ export default function ProfilePage() {
     classic: "Classic HBCU",
     pro: "Professional Discord",
     vibrant: "Vibrant Yard",
-    myspace: "MySpace Throwback",
+    myspace: "MyYard Classic",
   };
 
   const currentSongBlob = audioBlobs.find((b) => b.hash === profileSong);
@@ -223,7 +226,7 @@ export default function ProfilePage() {
               " rounded-3xl overflow-hidden shadow-xl border mb-8 transition-all"
             }
           >
-            {/* Header Banner (MySpace customizable feel) */}
+            {/* Header Banner (MyYard customizable feel) */}
             <div className="h-40 bg-gradient-to-r from-primary/40 via-primary/10 to-primary/40 relative">
               <div className="absolute -bottom-14 left-8 flex items-end gap-4">
                 <Avatar className="h-28 w-28 border-4 border-card ring-2 ring-primary/30">
@@ -261,7 +264,7 @@ export default function ProfilePage() {
                       });
                     }}
                   >
-                    <Palette className="w-4 h-4 mr-1" /> Customize (MySpace)
+                    <Palette className="w-4 h-4 mr-1" /> Customize MyYard
                   </Button>
                 )}
                 {!isOwnProfile && (
@@ -405,7 +408,7 @@ export default function ProfilePage() {
                   <TabsTrigger value="pro">Pro</TabsTrigger>
                   <TabsTrigger value="music">Music</TabsTrigger>
                   {isOwnProfile && (
-                    <TabsTrigger value="customize">MySpace</TabsTrigger>
+                    <TabsTrigger value="customize">MyYard</TabsTrigger>
                   )}
                 </TabsList>
 
@@ -609,7 +612,7 @@ export default function ProfilePage() {
                           Profile Song
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          MySpace classic — visitors hear your vibe
+                          MyYard classic — visitors hear your vibe
                         </div>
                       </div>
                     </div>
@@ -697,10 +700,11 @@ export default function ProfilePage() {
                   <TabsContent value="customize">
                     <Card>
                       <CardHeader>
-                        <CardTitle>MySpace Customization</CardTitle>
+                        <CardTitle>MyYard</CardTitle>
                         <CardDescription>
-                          Themes and profile music persist to SQLite and publish
-                          as Nostr kind 0 metadata with theme/music tags.
+                          Your creator space — themes, music, and optional
+                          modules. Visitors browse your Grid; you sell from Yard
+                          Sale in Wallet.
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-6">
@@ -728,6 +732,57 @@ export default function ProfilePage() {
                             ))}
                           </div>
                         </div>
+
+                        <div className="space-y-3 pt-2 border-t">
+                          <div className="text-sm font-medium">
+                            Yard modules (opt-in)
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Each creator chooses what appears on their MyYard.
+                            Campus yards stay independent — TSU norms ≠ your
+                            personal modules.
+                          </p>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <Card className="border-dashed border-primary/30">
+                              <CardContent className="pt-4 pb-4 space-y-2">
+                                <div className="flex items-center gap-2 font-medium text-sm">
+                                  <Disc3 className="w-4 h-4 text-primary" />
+                                  Logos Deck
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Scripture mixes & sermon sets — DJ-style deck
+                                  for your yard. Phase 5; publish mixes via Yard
+                                  Sale today.
+                                </p>
+                                <Badge variant="outline" className="text-[10px]">
+                                  Coming — opt-in
+                                </Badge>
+                              </CardContent>
+                            </Card>
+                            <Card className="border-dashed border-primary/30">
+                              <CardContent className="pt-4 pb-4 space-y-2">
+                                <div className="flex items-center gap-2 font-medium text-sm">
+                                  <BookOpen className="w-4 h-4 text-primary" />
+                                  Bible NLP
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  On-device study tags & verse tools — separate
+                                  from FYP; never injected without consent.
+                                </p>
+                                <Badge variant="outline" className="text-[10px]">
+                                  Coming — opt-in
+                                </Badge>
+                              </CardContent>
+                            </Card>
+                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href="/wallet">
+                              <Store className="w-4 h-4 mr-1" />
+                              Open Yard Sale (sell from MyYard)
+                            </Link>
+                          </Button>
+                        </div>
+
                         <Button
                           onClick={() => saveCustomization("classic", null)}
                           disabled={updateCustomization.isPending}

@@ -13,7 +13,7 @@ Yard MVP (~80%)  ████████░░  Students can install & use core
 Economy MVP (~40%) ████░░░░░░  WB simulated; BKSPC devnet scaffolded
 ```
 
-**Works today:** install → welcome wizard → browse feed (guest or account) → post → profile/MySpace themes → yards → wallet (simulated WB) → marketplace (WB + BKSPC with devnet build).
+**Works today:** install → welcome wizard → browse feed (guest or account) → post → profile **MyYard** themes → yards → wallet (simulated WB) → **Yard Sale** (WB + BKSPC with devnet build).
 
 **Not ready for real money yet:** NFT ownership transfer on purchase, full devnet E2E proof, Device B sign-off on a 4 GB Windows laptop.
 

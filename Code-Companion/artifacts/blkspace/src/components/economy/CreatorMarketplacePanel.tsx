@@ -207,10 +207,11 @@ export function CreatorMarketplacePanel() {
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-2">
           <Users className="w-5 h-5 text-primary" />
-          <h4 className="font-bold">Creator marketplace</h4>
+          <h4 className="font-bold">Yard Sale</h4>
         </div>
         <p className="text-sm text-muted-foreground mb-3">
-          List media, mixes, themes, or tickets. Pay with earned WB or burn BKSPC
+          Sell from your MyYard — media, mixes, themes, merch, or tickets. Pay
+          with earned WB or burn BKSPC
           on devnet when settlement is wired. Platform fee{" "}
           {formatFeePercent(marketplaceFeeBps)}.
           {bkspcWired ? (

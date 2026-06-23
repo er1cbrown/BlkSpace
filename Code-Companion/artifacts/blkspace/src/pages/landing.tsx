@@ -77,7 +77,7 @@ export default function LandingPage() {
           <div className="container mx-auto px-4">
             <div className="max-w-3xl mx-auto text-center space-y-8">
               <h2 className="text-3xl md:text-5xl font-bold tracking-tight">
-                TikTok meets MySpace. <br />
+                TikTok meets MyYard. <br />
                 With a paycheck.
               </h2>
               <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
@@ -230,7 +230,7 @@ export default function LandingPage() {
                 <h3 className="font-bold mb-2">Students</h3>
                 <p className="text-sm text-muted-foreground">
                   Post, upload, join your yard. Earn WeixBucks from every
-                  action. Customize your profile MySpace-style. Cash out when
+                  action. Customize your MyYard. Cash out when
                   you&apos;re ready.
                 </p>
               </div>
@@ -238,7 +238,7 @@ export default function LandingPage() {
                 <Music className="w-8 h-8 text-primary mb-4" />
                 <h3 className="font-bold mb-2">Creators</h3>
                 <p className="text-sm text-muted-foreground">
-                  Sell mixes, videos, and art in the marketplace. Mint NFT
+                  Sell mixes, videos, and art in the Yard Sale. Mint NFT
                   tickets. Keep 85% of every sale. Build a subscriber-only
                   yard with BKSPC gating.
                 </p>

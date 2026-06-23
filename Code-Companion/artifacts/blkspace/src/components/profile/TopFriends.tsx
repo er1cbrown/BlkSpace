@@ -21,7 +21,7 @@ const DEFAULT_FRIENDS: TopFriend[] = [
   { handle: "hbcustudent", label: "HBCU" },
 ];
 
-/** MySpace Top 8 friends strip */
+/** MyYard Top 8 friends strip */
 export function TopFriends({ friends, editable, onEdit }: TopFriendsProps) {
   const list = friends.length > 0 ? friends.slice(0, 8) : DEFAULT_FRIENDS;
 

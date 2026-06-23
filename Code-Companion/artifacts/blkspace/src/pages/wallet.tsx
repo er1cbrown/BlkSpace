@@ -548,7 +548,7 @@ function WalletPageContent() {
             <TabsTrigger value="earn">How to Earn</TabsTrigger>
             <TabsTrigger value="marketplace" className="gap-1.5">
               <Store className="w-3.5 h-3.5" />
-              Marketplace
+              Yard Sale
             </TabsTrigger>
           </TabsList>
 
