@@ -10,9 +10,13 @@
     "backup-bkspc-keys": "bash scripts/backup-bkspc-keys.sh",
     "prepare-bkspc-pumpfun-launch": "tsx scripts/prepare-bkspc-pumpfun-launch.ts",
     "mint-media-nft-devnet": "tsx scripts/mint-media-nft-devnet.ts",
+    "wire-bkspc-program-devnet": "tsx scripts/wire-bkspc-program-devnet.ts",
+    "build:program": "cargo build-sbf --manifest-path programs/bkspc/Cargo.toml",
+    "test:anchor": "bash scripts/run-anchor-tests.sh",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@coral-xyz/anchor": "0.29.0",
     "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
     "@metaplex-foundation/umi": "^1.4.1",
     "@metaplex-foundation/umi-bundle-defaults": "^1.4.1",
@@ -21,7 +25,12 @@
     "@solana/web3.js": "^1.98.4"
   },
   "devDependencies": {
+    "@types/chai": "^4.3.20",
+    "@types/mocha": "^10.0.10",
     "@types/node": "catalog:",
+    "chai": "^4.5.0",
+    "mocha": "^10.8.2",
+    "ts-mocha": "^10.0.0",
     "tsx": "catalog:",
     "typescript": "~5.9.3"
   }

@@ -8,6 +8,8 @@ mod tier0_benchmark;
 mod iroh_node;
 
 #[cfg(feature = "bkspc-devnet")]
+#[cfg(feature = "bkspc-devnet")]
+mod bkspc_program;
 mod bkspc_settlement;
 
 #[cfg(feature = "bkspc-devnet")]

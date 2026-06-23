@@ -5,10 +5,10 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-bkspc = "BkSpC111111111111111111111111111111111111"
+bkspc = "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs"
 
 [programs.devnet]
-bkspc = "BkSpC111111111111111111111111111111111111"
+bkspc = "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs"
 
 [registry]
 url = "https://api.apr.dev"

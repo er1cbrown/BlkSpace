@@ -5,9 +5,11 @@
   "name": "BKSPC",
   "symbol": "BKSPC",
   "decimals": 9,
+  "programId": "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs",
   "mint": "REPLACE_MINT_PUBKEY",
-  "mintAuthority": "REPLACE_MULTISIG_PUBKEY",
-  "mintAuthorityType": "spl-multisig-2of2",
+  "mintAuthority": "REPLACE_MINT_AUTHORITY_PDA",
+  "mintAuthorityType": "program-pda",
+  "configInitialized": true,
   "treasuryMultisig": "REPLACE_MULTISIG_PUBKEY",
   "treasurySignerPaths": [
     "devnet/treasury-signer-a.json",
@@ -16,7 +18,7 @@
   "metadataUri": "data:application/json;base64,...",
   "initSignature": "REPLACE_INIT_TX",
   "authorityTransferSignature": "REPLACE_AUTHORITY_TX",
-  "programIdPlaceholder": "BkSpC111111111111111111111111111111111111",
+
   "notice": "Devnet settlement token only. Not for sale. Mainnet requires counsel + audit.",
   "wbToBkspcRatio": 1000,
   "onChainReady": true

@@ -1,6 +1,7 @@
-//! Devnet BKSPC settlement via SPL `mint_to` + 2-of-2 treasury multisig.
+//! Devnet BKSPC settlement via Anchor `bkspc` program (PDA mint authority).
 //! Cargo feature: `bkspc-devnet`. Mainnet value requires counsel + audit (see docs).
 
+use crate::bkspc_program::{self, parse_burn_tokens_amount};
 use serde::{Deserialize, Serialize};
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcTransactionConfig;
@@ -13,7 +14,6 @@ use solana_sdk::{
 use solana_transaction_status::{
   option_serializer::OptionSerializer,
   EncodedTransaction,
-  ParsedInstruction,
   UiInstruction,
   UiMessage,
   UiTransactionEncoding,
@@ -22,7 +22,7 @@ use spl_associated_token_account::{
   get_associated_token_address,
   instruction::create_associated_token_account_idempotent,
 };
-use spl_token::instruction::{burn, mint_to};
+
 use std::fs;
 use std::path::Path;
 use std::str::FromStr;
@@ -32,6 +32,7 @@ use std::str::FromStr;
 pub struct BkspcSettlementStatus {
   pub wired: bool,
   pub cluster: Option<String>,
+  pub program_id: Option<String>,
   pub mint: Option<String>,
   pub mint_authority: Option<String>,
   pub rpc_url: Option<String>,
@@ -65,18 +66,22 @@ pub struct BkspcPurchaseQuote {
 struct BkspcMintManifest {
   cluster: String,
   rpc_url: String,
+  program_id: String,
   mint: String,
   mint_authority: String,
   treasury_signer_paths: Option<Vec<String>>,
   wb_to_bkspc_ratio: i64,
   decimals: u8,
   on_chain_ready: Option<bool>,
+  config_initialized: Option<bool>,
 }
 
 pub(crate) struct DevnetSettlementConfig {
   pub rpc_url: String,
+  pub program_id: Pubkey,
   pub mint: Pubkey,
-  pub multisig_authority: Pubkey,
+  pub mint_authority_pda: Pubkey,
+  pub config_pda: Pubkey,
   pub signer_a: Keypair,
   pub signer_b: Keypair,
   pub wb_to_bkspc_ratio: i64,
@@ -127,6 +132,12 @@ pub(crate) fn load_config() -> Result<DevnetSettlementConfig, String> {
   if manifest.on_chain_ready == Some(false) {
     return Err("Manifest marks onChainReady=false".into());
   }
+  if manifest.config_initialized == Some(false) {
+    return Err("Manifest configInitialized=false — run wire-bkspc-program-devnet".into());
+  }
+  if manifest.program_id.is_empty() {
+    return Err("manifest programId required".into());
+  }
 
   let signer_paths = manifest
     .treasury_signer_paths
@@ -137,11 +148,24 @@ pub(crate) fn load_config() -> Result<DevnetSettlementConfig, String> {
 
   let signer_a = load_keypair(Path::new(&signer_paths[0]))?;
   let signer_b = load_keypair(Path::new(&signer_paths[1]))?;
+  let program_id = Pubkey::from_str(&manifest.program_id).map_err(|e| e.to_string())?;
+  let mint = Pubkey::from_str(&manifest.mint).map_err(|e| e.to_string())?;
+  let (config_pda, _) = bkspc_program::find_config_pda(&program_id);
+  let (mint_authority_pda, _) = bkspc_program::find_mint_authority_pda(&program_id);
+  let manifest_mint_auth =
+    Pubkey::from_str(&manifest.mint_authority).map_err(|e| e.to_string())?;
+  if manifest_mint_auth != mint_authority_pda {
+    return Err(format!(
+      "manifest mintAuthority {manifest_mint_auth} does not match program PDA {mint_authority_pda}"
+    ));
+  }
 
   Ok(DevnetSettlementConfig {
     rpc_url: manifest.rpc_url,
-    mint: Pubkey::from_str(&manifest.mint).map_err(|e| e.to_string())?,
-    multisig_authority: Pubkey::from_str(&manifest.mint_authority).map_err(|e| e.to_string())?,
+    program_id,
+    mint,
+    mint_authority_pda,
+    config_pda,
     signer_a,
     signer_b,
     wb_to_bkspc_ratio: manifest.wb_to_bkspc_ratio,
@@ -202,14 +226,16 @@ pub fn settlement_status() -> BkspcSettlementStatus {
     Ok(cfg) => BkspcSettlementStatus {
       wired: true,
       cluster: Some("devnet".into()),
+      program_id: Some(cfg.program_id.to_string()),
       mint: Some(cfg.mint.to_string()),
-      mint_authority: Some(cfg.multisig_authority.to_string()),
+      mint_authority: Some(cfg.mint_authority_pda.to_string()),
       rpc_url: Some(cfg.rpc_url.clone()),
       reason: None,
     },
     Err(reason) => BkspcSettlementStatus {
       wired: false,
       cluster: None,
+      program_id: None,
       mint: None,
       mint_authority: None,
       rpc_url: None,
@@ -218,7 +244,7 @@ pub fn settlement_status() -> BkspcSettlementStatus {
   }
 }
 
-/// Mint BKSPC to recipient ATA after off-chain WB debit. Treasury 2-of-2 must sign.
+/// Mint BKSPC to recipient ATA via `bkspc::mint_rewards`. Treasury 2-of-2 must sign.
 pub fn mint_settlement_to_recipient(
   recipient_address: &str,
   amount_wb: i64,
@@ -238,15 +264,16 @@ pub fn mint_settlement_to_recipient(
     &spl_token::ID,
   );
 
-  let mint_ix = mint_to(
-    &spl_token::ID,
+  let mint_ix = bkspc_program::mint_rewards_instruction(
+    &config.program_id,
+    &config.signer_a.pubkey(),
+    &config.signer_b.pubkey(),
+    &config.config_pda,
     &config.mint,
     &ata,
-    &config.multisig_authority,
-    &[&config.signer_a.pubkey(), &config.signer_b.pubkey()],
+    &config.mint_authority_pda,
     raw_amount,
-  )
-  .map_err(|e| format!("build mint_to ix: {e}"))?;
+  );
 
   let blockhash = client
     .get_latest_blockhash()
@@ -261,52 +288,61 @@ pub fn mint_settlement_to_recipient(
 
   let signature = client
     .send_and_confirm_transaction(&tx)
-    .map_err(|e| format!("devnet mint_to failed: {e}"))?;
+    .map_err(|e| format!("devnet mint_rewards failed: {e}"))?;
 
   Ok(signature.to_string())
 }
 
-fn spl_burn_amount_from_instructions(
+fn program_burn_amount_from_instructions(
   instructions: &[UiInstruction],
-  mint: &str,
-  authority: &str,
+  account_pubkeys: &[String],
+  program_id: &str,
+  buyer_wallet: &str,
 ) -> Result<u64, String> {
   let mut total = 0u64;
   for ix in instructions {
-    let UiInstruction::Parsed(parsed) = ix else {
+    let UiInstruction::Compiled(compiled) = ix else {
       continue;
     };
-    if parsed.program_id != spl_token::ID.to_string() {
+    let Some(program_key) = account_pubkeys.get(compiled.program_id_index as usize) else {
+      continue;
+    };
+    if program_key != program_id {
       continue;
     }
-    let ParsedInstruction::Parsed(info) = &parsed.parsed else {
-      continue;
-    };
-    if info.type_ != "burn" {
-      continue;
-    }
-    let Some(info_mint) = info.info.get("mint").and_then(|v| v.as_str()) else {
-      continue;
-    };
-    let Some(info_auth) = info.info.get("authority").and_then(|v| v.as_str()) else {
-      continue;
-    };
-    if info_mint != mint || info_auth != authority {
+    let data = bs58::decode(&compiled.data)
+      .into_vec()
+      .map_err(|e| format!("decode ix data: {e}"))?;
+    if parse_burn_tokens_amount(&data).is_none() {
       continue;
     }
-    let amount_str = info
-      .info
-      .get("amount")
-      .and_then(|v| v.as_str())
-      .ok_or_else(|| "Burn instruction missing amount".to_string())?;
-    let amount: u64 = amount_str
-      .parse()
-      .map_err(|_| format!("Invalid burn amount: {amount_str}"))?;
+    // burn_tokens accounts: student_authority is index 0
+    let Some(auth_key) = compiled
+      .accounts
+      .first()
+      .and_then(|i| account_pubkeys.get(*i as usize))
+    else {
+      continue;
+    };
+    if auth_key != buyer_wallet {
+      continue;
+    }
+    let amount = parse_burn_tokens_amount(&data).unwrap();
     total = total
       .checked_add(amount)
       .ok_or_else(|| "Burn amount overflow".to_string())?;
   }
   Ok(total)
+}
+
+fn parsed_message_account_pubkeys(
+  parsed_msg: &solana_transaction_status::UiParsedMessage,
+) -> Vec<String> {
+  parsed_msg
+    .account_keys
+    .iter()
+    .map(|k| k.pubkey.clone())
+    .collect()
 }
 
 /// Verify a confirmed devnet SPL **burn** (not transfer) from the buyer for marketplace payment.
@@ -339,7 +375,7 @@ pub fn verify_bkspc_burn_transaction(
     return Err("Burn transaction failed on-chain".into());
   }
 
-  let mint_str = config.mint.to_string();
+  let program_str = config.program_id.to_string();
   let buyer_str = buyer.to_string();
   let mut burned = 0u64;
 
@@ -347,26 +383,32 @@ pub fn verify_bkspc_burn_transaction(
     return Err("Expected JSON-encoded transaction for burn verification".into());
   };
   if let UiMessage::Parsed(parsed_msg) = &ui_tx.message {
-    burned = burned.saturating_add(spl_burn_amount_from_instructions(
+    let account_pubkeys = parsed_message_account_pubkeys(parsed_msg);
+    burned = burned.saturating_add(program_burn_amount_from_instructions(
       &parsed_msg.instructions,
-      &mint_str,
+      &account_pubkeys,
+      &program_str,
       &buyer_str,
     )?);
   }
 
   if let OptionSerializer::Some(inner) = &meta.inner_instructions {
-    for group in inner {
-      burned = burned.saturating_add(spl_burn_amount_from_instructions(
-        &group.instructions,
-        &mint_str,
-        &buyer_str,
-      )?);
+    if let UiMessage::Parsed(parsed_msg) = &ui_tx.message {
+      let account_pubkeys = parsed_message_account_pubkeys(parsed_msg);
+      for group in inner {
+        burned = burned.saturating_add(program_burn_amount_from_instructions(
+          &group.instructions,
+          &account_pubkeys,
+          &program_str,
+          &buyer_str,
+        )?);
+      }
     }
   }
 
   if burned == 0 {
     return Err(
-      "No SPL burn instruction found for buyer BKSPC ATA (transfers are not accepted)".into(),
+      "No bkspc::burn_tokens instruction found for buyer (legacy SPL burns not accepted)".into(),
     );
   }
 
@@ -392,15 +434,14 @@ pub fn prepare_bkspc_burn_transaction(
   let client = RpcClient::new(config.rpc_url.clone());
   let ata = get_associated_token_address(&buyer, &config.mint);
 
-  let burn_ix = burn(
-    &spl_token::ID,
-    &ata,
-    &config.mint,
+  let burn_ix = bkspc_program::burn_tokens_instruction(
+    &config.program_id,
     &buyer,
-    &[],
+    &config.config_pda,
+    &config.mint,
+    &ata,
     burn_raw_amount,
-  )
-  .map_err(|e| format!("build burn ix: {e}"))?;
+  );
 
   let blockhash = client
     .get_latest_blockhash()

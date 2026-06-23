@@ -756,8 +756,10 @@ export function tauriWithdrawToSolana(
 export interface TauriBkspcSettlementStatus {
   wired: boolean;
   cluster?: string;
+  programId?: string;
   mint?: string;
   mintAuthority?: string;
+  rpcUrl?: string;
   reason?: string;
 }
 

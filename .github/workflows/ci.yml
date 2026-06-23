@@ -92,6 +92,30 @@ jobs:
       - run: cargo test --manifest-path src-tauri/Cargo.toml --lib -- --skip nostr_relay_smoke
         working-directory: ./Code-Companion/artifacts/blkspace
 
+  test-anchor-bkspc:
+    name: Anchor tests (bkspc program)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: Code-Companion/pnpm-lock.yaml
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+      - run: pnpm install --frozen-lockfile
+        working-directory: ./Code-Companion
+      - run: pnpm --filter @workspace/solana run test:anchor
+        working-directory: ./Code-Companion
+
   test-nostr-relay:
     name: Nostr relay smoke (live)
     runs-on: ubuntu-latest

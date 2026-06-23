@@ -1,5 +1,5 @@
 /**
- * Full devnet setup: treasury multisig → BKSPC mint → transfer mint authority to treasury.
+ * Full devnet setup: treasury → BKSPC mint → deploy & wire bkspc Anchor program.
  *
  *   pnpm --filter @workspace/solana run setup-bkspc-devnet
  */
@@ -19,6 +19,7 @@ function run(script: string): void {
 
 run("init-treasury-devnet.ts");
 run("init-bkspc-devnet-mint.ts");
+run("wire-bkspc-program-devnet.ts");
 
 console.log("\n--- Next: back up your keys (plain-English script) ---");
 console.log("  pnpm --filter @workspace/solana run backup-bkspc-keys");
