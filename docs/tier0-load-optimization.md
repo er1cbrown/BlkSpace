@@ -177,7 +177,7 @@ flowchart LR
 - [x] Vite `optimizeDeps` + `server.warmup`; `dev:tier0` / `tauri:dev:tier0` scripts
 - [ ] Add bundle visualizer + extend tier0_benchmark with cold-start metrics; gate CI (Tier B/C)
 - [x] CI Yard artifacts (`BlkSpace-Yard-Windows-x64.msi`, macOS dmg, Linux AppImage) via `build-tauri-yard` job
-- [ ] CI dual release artifacts (`BlkSpace-Full.msi` with Iroh for power users) (Tier B)
+- [x] CI dual release artifacts (`BlkSpace-Full-*` with Iroh for power users) via `build-tauri-full` (Tier B)
 
 ## Tier 0 usage (after Tier A)
 

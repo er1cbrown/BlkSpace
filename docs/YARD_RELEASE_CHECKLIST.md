@@ -92,7 +92,7 @@ git push origin v0.1.0-yard
 | macOS | `BlkSpace-Yard-macOS.dmg` |
 | Linux | `BlkSpace-Yard-Linux.AppImage` |
 
-**Not** `BlkSpace-Full` (future) — that's for lab machines with Iroh mesh.
+**Not** `BlkSpace-Full` — that's for lab machines with Iroh mesh (separate CI job `build-tauri-full`).
 
 ---
 
@@ -109,4 +109,4 @@ git push origin v0.1.0-yard
 
 ## After `v0.1.0-yard`
 
-See [`ROADMAP.md`](ROADMAP.md) — Phase 4 marketplace, BlkSpace-Full artifact, Tier C service worker.
+See [`ROADMAP.md`](ROADMAP.md) — Phase 4 marketplace, Tier C service worker.

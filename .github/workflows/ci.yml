@@ -182,8 +182,8 @@ jobs:
           path: Code-Companion/artifacts/blkspace/playwright-report/
           retention-days: 7
 
-  build-tauri:
-    name: Build (Tauri - ${{ matrix.os }})
+  build-tauri-full:
+    name: Build (BlkSpace Full - ${{ matrix.os }})
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
@@ -214,8 +214,41 @@ jobs:
             libsecret-1-dev
       - run: pnpm install --frozen-lockfile
         working-directory: ./Code-Companion
+      - run: pnpm build:full
+        working-directory: ./Code-Companion/artifacts/blkspace
       - run: pnpm tauri build
         working-directory: ./Code-Companion/artifacts/blkspace
+      - name: Rename Full installers
+        shell: bash
+        run: |
+          BUNDLE="Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle"
+          if [ -d "$BUNDLE/msi" ]; then
+            shopt -s nullglob
+            for f in "$BUNDLE/msi"/*.msi; do
+              cp "$f" "$BUNDLE/msi/BlkSpace-Full-Windows-x64.msi"
+            done
+          fi
+          if [ -d "$BUNDLE/dmg" ]; then
+            shopt -s nullglob
+            for f in "$BUNDLE/dmg"/*.dmg; do
+              cp "$f" "$BUNDLE/dmg/BlkSpace-Full-macOS.dmg"
+            done
+          fi
+          if [ -d "$BUNDLE/appimage" ]; then
+            shopt -s nullglob
+            for f in "$BUNDLE/appimage"/*.AppImage; do
+              cp "$f" "$BUNDLE/appimage/BlkSpace-Full-Linux.AppImage"
+            done
+          fi
+      - name: Upload BlkSpace Full artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlkSpace-Full-${{ matrix.os }}
+          path: |
+            Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/msi/BlkSpace-Full-Windows-x64.msi
+            Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/dmg/BlkSpace-Full-macOS.dmg
+            Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/appimage/BlkSpace-Full-Linux.AppImage
+          if-no-files-found: error
 
   build-tauri-yard:
     name: Build (BlkSpace Yard - ${{ matrix.os }})

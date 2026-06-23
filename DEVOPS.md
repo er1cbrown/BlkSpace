@@ -27,19 +27,21 @@
 |----------|---------|-------------|
 | **CI** | PRs + pushes to `main` | Lint, typecheck, unit test, build |
 | **CI Yard** | Same (job `build-tauri-yard`) | Tier 0 installer: `BlkSpace-Yard-*` per OS |
-| **Release** | Tag push (`v*`) | Build Yard binaries, create GitHub Release |
+| **CI Full** | Same (job `build-tauri-full`) | Iroh + full mesh: `BlkSpace-Full-*` per OS |
+| **Release** | Tag push (`v*`) | Build Yard + Full binaries, create GitHub Release |
 
 ### CI Flow (`.github/workflows/ci.yml`)
 
 ```
-Push/PR → Install deps → Lint → Typecheck → Test → Build (Web) → Build (Tauri) → Build (BlkSpace Yard)
+Push/PR → Install deps → Lint → Typecheck → Test → Build (Web) → Build (BlkSpace Full) → Build (BlkSpace Yard) → Build (Tauri + Iroh smoke)
 ```
 
 - **Lint**: ESLint + Prettier (auto-fix on PR)
 - **Typecheck**: TypeScript strict mode
 - **Test**: Vitest unit tests + React Testing Library
 - **Build Web**: Vite production build
-- **Build Tauri**: `cargo tauri build` (macOS runner for now)
+- **Build Full**: `pnpm build:full` + `tauri build` (Iroh on) → `BlkSpace-Full-*` artifacts
+- **Build Yard**: `pnpm build:tier0` + `tauri build --no-default-features` → `BlkSpace-Yard-*` artifacts
 
 ### Release Flow (`.github/workflows/release.yml`)
 

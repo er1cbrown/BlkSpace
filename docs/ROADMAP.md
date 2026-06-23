@@ -1,6 +1,6 @@
 # BlkSpace Roadmap (plain English)
 
-**Last updated:** June 2026 · **Repo:** `main` @ `ea36c0a` era
+**Last updated:** June 2026 · **Repo:** `main`
 
 This doc answers: *what works today, what “BlkSpace-Full” means, and what Tier C / Phase 5 are.*
 
@@ -35,18 +35,20 @@ Economy MVP (~40%) ████░░░░░░  WB simulated; BKSPC devnet sc
 
 **Student doc:** [`../TIER0_USER.md`](../TIER0_USER.md)
 
-### BlkSpace Full (planned — not separate CI artifact yet)
+### BlkSpace Full (shipped in CI)
 
 **For:** Power users, lab machines, creators uploading large media over P2P.
 
 | Property | Full build |
 |----------|------------|
 | Tauri features | `iroh` default — Iroh blob store, heavier binary |
-| Relays | Full mesh (5 relays, parallel connect) — set `BLKSPACE_FULL_MESH=1` |
+| Relays | Full mesh (5 relays, parallel connect) — set `BLKSPACE_FULL_MESH=1` at dev time |
 | UI | Bridge tab, trending, sidebar trending, relay panel |
 | Use when | Pinning viral CIDs, cross-town bridge, running a real relay node |
+| CI artifact | `BlkSpace-Full-Windows-x64.msi`, `BlkSpace-Full-macOS.dmg`, `BlkSpace-Full-Linux.AppImage` |
+| Job | `build-tauri-full` in `.github/workflows/ci.yml` |
 
-**Today:** run locally with `BLKSPACE_FULL_MESH=1 pnpm tauri:dev` or full `pnpm tauri build` (CI `build-tauri` job). A dedicated **`BlkSpace-Full-*`** release artifact is on the todo list so students don't accidentally download the heavy build.
+**Local dev:** `pnpm tauri:dev:full` or `pnpm tauri:build:full` from `Code-Companion/artifacts/blkspace`. Tagged releases upload both Yard and Full via `build-yard` + `build-full` in `release.yml`.
 
 ---
 
@@ -96,10 +98,10 @@ Checklist: [`YARD_RELEASE_CHECKLIST.md`](YARD_RELEASE_CHECKLIST.md)
 - One recorded devnet walkthrough
 - See [`solana-blueprint.md`](solana-blueprint.md)
 
-### 4. BlkSpace Full CI artifact
+### 4. ~~BlkSpace Full CI artifact~~ ✅
 
 - `build-tauri-full` job alongside Yard
-- Clear naming on Releases page so students pick Yard, labs pick Full
+- Release workflow builds both flavors on `v*` tags
 
 ---
 

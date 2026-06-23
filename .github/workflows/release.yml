@@ -24,8 +24,8 @@ jobs:
           generate_release_notes: true
           name: BlkSpace ${{ github.ref_name }}
 
-  build:
-    name: Build (${{ matrix.os }})
+  build-yard:
+    name: Release Yard (${{ matrix.os }})
     needs: create-release
     strategy:
       matrix:
@@ -33,15 +33,19 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             ext: dmg
+            arch: arm64
           - os: macos-latest
             target: x86_64-apple-darwin
             ext: dmg
+            arch: x64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            ext: AppImage
+            ext: appimage
+            arch: x64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             ext: msi
+            arch: x64
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -75,20 +79,93 @@ jobs:
         working-directory: ./Code-Companion/artifacts/blkspace
       - run: pnpm tauri build --target ${{ matrix.target }} -- --no-default-features
         working-directory: ./Code-Companion/artifacts/blkspace
-      - name: Rename Yard release artifacts
+      - name: Package Yard artifact
         shell: bash
         run: |
           BUNDLE="Code-Companion/artifacts/blkspace/src-tauri/target/${{ matrix.target }}/release/bundle"
           if [ "${{ matrix.ext }}" = "msi" ]; then
             cp "$BUNDLE/msi"/*.msi "$BUNDLE/msi/BlkSpace-Yard-Windows-x64.msi"
           elif [ "${{ matrix.ext }}" = "dmg" ]; then
-            cp "$BUNDLE/dmg"/*.dmg "$BUNDLE/dmg/BlkSpace-Yard-macOS.dmg"
-          elif [ "${{ matrix.ext }}" = "AppImage" ]; then
+            cp "$BUNDLE/dmg"/*.dmg "$BUNDLE/dmg/BlkSpace-Yard-macOS-${{ matrix.arch }}.dmg"
+          elif [ "${{ matrix.ext }}" = "appimage" ]; then
             cp "$BUNDLE/appimage"/*.AppImage "$BUNDLE/appimage/BlkSpace-Yard-Linux.AppImage"
           fi
-      - name: Upload artifact
+      - name: Upload Yard artifact
         uses: softprops/action-gh-release@v2
         with:
           files: |
             Code-Companion/artifacts/blkspace/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.ext }}/BlkSpace-Yard-*
+          tag_name: ${{ github.ref_name }}
+
+  build-full:
+    name: Release Full (${{ matrix.os }})
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            ext: dmg
+            arch: arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            ext: dmg
+            arch: x64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            ext: appimage
+            arch: x64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            ext: msi
+            arch: x64
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: Code-Companion/pnpm-lock.yaml
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install system deps (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libsecret-1-dev
+      - run: pnpm install --frozen-lockfile
+        working-directory: ./Code-Companion
+      - run: pnpm build:full
+        working-directory: ./Code-Companion/artifacts/blkspace
+      - run: pnpm tauri build --target ${{ matrix.target }}
+        working-directory: ./Code-Companion/artifacts/blkspace
+      - name: Package Full artifact
+        shell: bash
+        run: |
+          BUNDLE="Code-Companion/artifacts/blkspace/src-tauri/target/${{ matrix.target }}/release/bundle"
+          if [ "${{ matrix.ext }}" = "msi" ]; then
+            cp "$BUNDLE/msi"/*.msi "$BUNDLE/msi/BlkSpace-Full-Windows-x64.msi"
+          elif [ "${{ matrix.ext }}" = "dmg" ]; then
+            cp "$BUNDLE/dmg"/*.dmg "$BUNDLE/dmg/BlkSpace-Full-macOS-${{ matrix.arch }}.dmg"
+          elif [ "${{ matrix.ext }}" = "appimage" ]; then
+            cp "$BUNDLE/appimage"/*.AppImage "$BUNDLE/appimage/BlkSpace-Full-Linux.AppImage"
+          fi
+      - name: Upload Full artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Code-Companion/artifacts/blkspace/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.ext }}/BlkSpace-Full-*
           tag_name: ${{ github.ref_name }}

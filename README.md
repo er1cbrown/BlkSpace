@@ -69,9 +69,9 @@ BlkSpace/
 | Build | Who | What you get |
 |-------|-----|----------------|
 | **BlkSpace Yard** | Students, Tier 0 laptops | Smaller app, yard-first boot, lite feed UI, no heavy Iroh mesh at startup |
-| **BlkSpace Full** *(planned CI artifact)* | Lab machines, creators | Iroh blob network + full Nostr relay mesh + bridge/trending |
+| **BlkSpace Full** | Lab machines, creators | Iroh blob network + full Nostr relay mesh + bridge/trending |
 
-Today CI produces **Yard** artifacts. **Full** is on the [roadmap](docs/ROADMAP.md).
+CI produces both: **`BlkSpace-Yard-*`** (students) and **`BlkSpace-Full-*`** (labs). See [roadmap](docs/ROADMAP.md).
 
 ---
 
@@ -82,6 +82,7 @@ Today CI produces **Yard** artifacts. **Full** is on the [roadmap](docs/ROADMAP.
 | Auth, feed, profile, MySpace themes | ✅ Usable |
 | Tier 0 boot optimizations | ✅ Shipped |
 | Yard CI installers | ✅ `build-tauri-yard` job |
+| Full CI installers | ✅ `build-tauri-full` job |
 | Device B student sign-off | ⏳ [Checklist](docs/YARD_RELEASE_CHECKLIST.md) |
 | Marketplace + BKSPC devnet | 🟡 Hardened; needs E2E + NFT transfer |
 | Phase 5 (NLP / anti-abuse) | ⬜ Not started |
