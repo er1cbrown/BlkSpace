@@ -22,6 +22,7 @@ import {
   Heart,
   Repeat2,
   Send,
+  Store,
 } from "lucide-react";
 import {
   useTauriGetCommunities,
@@ -34,6 +35,8 @@ import {
 import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { YardEventsPanel } from "@/components/community/YardEventsPanel";
 import { YardMembersPanel } from "@/components/community/YardMembersPanel";
+import { YardSaleTab } from "@/components/community/YardSaleTab";
+import { getYardTheme, yardGradient } from "@/lib/yard-themes";
 import { SafeContent } from "@/components/ui/safe-content";
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { SignatureBadge } from "@/components/ui/signature-badge";
@@ -102,14 +105,6 @@ const fallbackCommunityData: Record<
     description:
       "Morehouse College. Building Black men who lead with integrity and purpose.",
   },
-};
-
-const colorMap: Record<string, string> = {
-  tsu: "from-blue-600 to-blue-800",
-  howard: "from-red-600 to-red-800",
-  spelman: "from-green-600 to-green-800",
-  famu: "from-orange-500 to-orange-700",
-  morehouse: "from-purple-600 to-purple-800",
 };
 
 export default function CommunityPage() {
@@ -285,6 +280,8 @@ export default function CommunityPage() {
           raw: null as TauriPost | null,
         }));
 
+  const yardTheme = getYardTheme(id);
+
   return (
     <AppShell fullWidth hideRightRail>
         <Link href="/communities">
@@ -298,14 +295,26 @@ export default function CommunityPage() {
 
         <div className="flex items-start gap-4 mb-6">
           <div
-            className={`h-20 w-20 rounded-2xl bg-gradient-to-br ${colorMap[id] || "from-primary to-primary/50"} flex-shrink-0`}
-          />
+            className={`h-20 w-20 rounded-2xl bg-gradient-to-br ${yardGradient(id)} flex-shrink-0 flex items-center justify-center text-3xl shadow-lg`}
+          >
+            {yardTheme?.mascot.split(" ")[0]}
+          </div>
           <div className="flex-1">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">
-                  {community.name}
+                  {community.name}{" "}
+                  {yardTheme && (
+                    <span className="text-lg font-normal text-muted-foreground">
+                      {yardTheme.mascot}
+                    </span>
+                  )}
                 </h1>
+                {yardTheme && (
+                  <p className={`text-sm mt-1 ${yardTheme.accentClass}`}>
+                    {yardTheme.tagline}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <GraduationCap className="w-4 h-4" /> {community.school}
@@ -344,13 +353,25 @@ export default function CommunityPage() {
             <p className="text-muted-foreground mt-2 max-w-2xl">
               {community.description}
             </p>
+            {yardTheme && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {yardTheme.norms.map((norm) => (
+                  <Badge key={norm} variant="secondary" className="text-xs font-normal">
+                    {norm}
+                  </Badge>
+                ))}
+                <Badge variant="outline" className="text-xs font-normal">
+                  {yardTheme.weatherHint}
+                </Badge>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Discord-style Channels Sidebar */}
           <div className="lg:col-span-3">
-            <Card className="border-primary/10">
+            <Card className={yardTheme?.cardBorderClass ?? "border-primary/10"}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <MessageSquare className="w-4 h-4" /> Channels
@@ -406,6 +427,14 @@ export default function CommunityPage() {
                 >
                   👥 Manage Roles
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab("yard-sale")}
+                >
+                  <Store className="w-4 h-4 mr-1" /> Yard Sale
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -421,6 +450,7 @@ export default function CommunityPage() {
                 <TabsTrigger value="chat">{activeChannel} Chat</TabsTrigger>
                 <TabsTrigger value="members">Members</TabsTrigger>
                 <TabsTrigger value="events">Events</TabsTrigger>
+                <TabsTrigger value="yard-sale">Yard Sale</TabsTrigger>
                 <TabsTrigger value="about">About</TabsTrigger>
               </TabsList>
 
@@ -572,18 +602,36 @@ export default function CommunityPage() {
                 />
               </TabsContent>
 
+              <TabsContent value="yard-sale">
+                <YardSaleTab yardId={id} communityName={community.name} />
+              </TabsContent>
+
               <TabsContent value="about">
-                <Card>
+                <Card className={yardTheme?.cardBorderClass}>
                   <CardContent className="p-6 space-y-4 text-sm">
                     <div className="flex items-center gap-2">
                       <CalendarDays className="w-4 h-4 text-primary" /> Founded
                       2026 — Digital twin of the physical yard
                     </div>
                     <div>{community.description}</div>
+                    {yardTheme && (
+                      <div className="space-y-2 pt-2">
+                        <div>
+                          <strong>Fanbase:</strong> {yardTheme.fanbase}
+                        </div>
+                        <div>
+                          <strong>Campus vibe:</strong> {yardTheme.norms.join(" · ")}
+                        </div>
+                        <div>
+                          <strong>Weather:</strong> {yardTheme.weatherHint}
+                        </div>
+                      </div>
+                    )}
                     <div className="pt-4 border-t">
                       <strong>Casual rules:</strong> Keep it fun, respectful,
                       and HBCU-proud. Professional networking welcome in
-                      #networking.
+                      #networking. MyYards on this mesh can look different —
+                      campus theme ≠ your personal creator space.
                     </div>
                   </CardContent>
                 </Card>

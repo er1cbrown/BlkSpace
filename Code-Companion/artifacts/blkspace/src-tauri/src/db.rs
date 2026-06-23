@@ -716,6 +716,10 @@ impl Database {
       "ALTER TABLE marketplace_listings ADD COLUMN payment_tx TEXT",
       [],
     );
+    let _ = conn.execute(
+      "ALTER TABLE marketplace_listings ADD COLUMN town_tag TEXT DEFAULT 'tsu'",
+      [],
+    );
 
     conn.execute_batch(
       "
@@ -3257,11 +3261,48 @@ impl Database {
     Ok(v)
   }
 
-  pub fn create_marketplace_listing(&self, seller: &str, item_type: &str, item_ref: Option<&str>, price: i64, title: &str, description: Option<&str>, is_nft: bool) -> Result<i64> {
+  fn seller_town_tag(&self, seller: &str) -> String {
+    let conn = match self.conn.lock() {
+      Ok(c) => c,
+      Err(_) => return "tsu".to_string(),
+    };
+    conn
+      .query_row(
+        "SELECT town FROM users WHERE handle = ?1",
+        params![seller],
+        |row| row.get::<_, String>(0),
+      )
+      .unwrap_or_else(|_| "tsu".to_string())
+  }
+
+  pub fn create_marketplace_listing(
+    &self,
+    seller: &str,
+    item_type: &str,
+    item_ref: Option<&str>,
+    price: i64,
+    title: &str,
+    description: Option<&str>,
+    is_nft: bool,
+    town_tag: Option<&str>,
+  ) -> Result<i64> {
+    let yard = town_tag
+      .map(|s| s.trim().to_lowercase())
+      .filter(|s| !s.is_empty())
+      .unwrap_or_else(|| self.seller_town_tag(seller));
     let conn = self.conn.lock().unwrap();
     conn.execute(
-      "INSERT INTO marketplace_listings (seller_handle, item_type, item_ref, price, title, description, is_nft) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-      params![seller, item_type, item_ref, price, title, description, is_nft as i64],
+      "INSERT INTO marketplace_listings (seller_handle, item_type, item_ref, price, title, description, is_nft, town_tag) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+      params![
+        seller,
+        item_type,
+        item_ref,
+        price,
+        title,
+        description,
+        is_nft as i64,
+        yard
+      ],
     )?;
     Ok(conn.last_insert_rowid())
   }
@@ -3269,7 +3310,7 @@ impl Database {
   pub fn list_marketplace(&self) -> Result<Vec<serde_json::Value>> {
     let conn = self.conn.lock().unwrap();
     let mut stmt = conn.prepare(
-      "SELECT id, seller_handle, item_type, item_ref, price, title, description, is_nft, sold_to, created_at, nft_mint, payment_tx FROM marketplace_listings WHERE sold_to IS NULL ORDER BY created_at DESC"
+      "SELECT id, seller_handle, item_type, item_ref, price, title, description, is_nft, sold_to, created_at, nft_mint, payment_tx, COALESCE(town_tag, 'tsu') FROM marketplace_listings WHERE sold_to IS NULL ORDER BY created_at DESC"
     )?;
     let rows = stmt.query_map([], |row| {
       Ok(serde_json::json!({
@@ -3285,6 +3326,7 @@ impl Database {
         "createdAt": row.get::<_, String>(9)?,
         "nftMint": row.get::<_, Option<String>>(10)?,
         "paymentTx": row.get::<_, Option<String>>(11)?,
+        "townTag": row.get::<_, String>(12)?,
       }))
     })?;
     let mut res = vec![];

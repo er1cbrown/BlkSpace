@@ -612,6 +612,7 @@ export function useAppCreateMarketplaceListing() {
       title: string;
       description: string | null;
       isNft: boolean;
+      townTag?: string | null;
     }) =>
       tauri.tauriCreateMarketplaceListing(
         getSessionToken() || "",
@@ -621,6 +622,7 @@ export function useAppCreateMarketplaceListing() {
         args.title,
         args.description,
         args.isNft,
+        args.townTag ?? null,
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });

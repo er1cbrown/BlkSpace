@@ -64,6 +64,7 @@ import {
 } from "@/hooks/use-app-data";
 import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { Badge } from "@/components/ui/badge";
+import { MYARD_PROFILE_THEMES } from "@/lib/myyard-catalog";
 
 type ThemeKey = "classic" | "pro" | "vibrant" | "myspace";
 
@@ -118,12 +119,9 @@ export default function ProfilePage() {
       "border-fuchsia-600 bg-gradient-to-br from-purple-900 to-black text-white border-4",
   };
 
-  const themeLabel = {
-    classic: "Classic HBCU",
-    pro: "Professional Discord",
-    vibrant: "Vibrant Yard",
-    myspace: "MyYard Classic",
-  };
+  const themeLabel = Object.fromEntries(
+    MYARD_PROFILE_THEMES.map((t) => [t.id, t.label]),
+  ) as Record<ThemeKey, string>;
 
   const currentSongBlob = audioBlobs.find((b) => b.hash === profileSong);
 

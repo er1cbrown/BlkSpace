@@ -1827,7 +1827,7 @@ mod tests {
     db.create_user("seller", "Seller", "").unwrap();
     db.create_user("buyer", "Buyer", "").unwrap();
     let listing_id = db
-      .create_marketplace_listing("seller", "mix", Some("cid123"), 100, "Test Mix", None, true)
+      .create_marketplace_listing("seller", "mix", Some("cid123"), 100, "Test Mix", None, true, None)
       .unwrap();
     let result = db
       .buy_marketplace_listing_bkspc(listing_id, "buyer", "burnTxSig123")
@@ -1847,10 +1847,10 @@ mod tests {
     db.create_user("buyer1", "Buyer 1", "").unwrap();
     db.create_user("buyer2", "Buyer 2", "").unwrap();
     let id1 = db
-      .create_marketplace_listing("seller", "mix", Some("cid1"), 100, "Mix 1", None, true)
+      .create_marketplace_listing("seller", "mix", Some("cid1"), 100, "Mix 1", None, true, None)
       .unwrap();
     let id2 = db
-      .create_marketplace_listing("seller", "mix", Some("cid2"), 100, "Mix 2", None, true)
+      .create_marketplace_listing("seller", "mix", Some("cid2"), 100, "Mix 2", None, true, None)
       .unwrap();
     db.buy_marketplace_listing_bkspc(id1, "buyer1", "sameBurnSig")
       .unwrap();
@@ -1865,7 +1865,7 @@ mod tests {
     let db = setup_test_db();
     db.create_user("seller", "Seller", "").unwrap();
     let listing_id = db
-      .create_marketplace_listing("seller", "theme", None, 50, "Theme", None, false)
+      .create_marketplace_listing("seller", "theme", None, 50, "Theme", None, false, Some("tsu"))
       .unwrap();
     let err = db.buy_marketplace_listing(listing_id, "seller").unwrap_err();
     assert!(err.to_string().contains("own listing"));

@@ -124,9 +124,10 @@ Internal code may keep `myspace` theme id, `marketplace_*` commands, and `Creato
 ## Next implementation steps
 
 1. ✅ User-facing MyYard + Yard Sale rename  
-2. MyYard customize: module toggles (UI only until Phase 4/5 backends)  
-3. Yard Sale: `theme` and `logos-deck` item types when metadata schema lands  
-4. Campus yard themes: `yards.theme_pack_id` + community page skin  
-5. Device B + `v0.1.0-yard` — students get Yard build; labs get Full + optional modules  
+2. ✅ MyYard customize: module stubs (Logos Deck, Bible NLP)  
+3. ✅ Yard Sale: `theme`, `mix`, `logos-deck` listing types + `town_tag` per campus  
+4. ✅ Campus yard theme packs on community pages + per-yard Yard Sale tab  
+5. Persist MyYard module toggles; apply purchased themes to buyer profile  
+6. Device B + `v0.1.0-yard` — students get Yard build; labs get Full + optional modules  
 
 See [`ROADMAP.md`](../ROADMAP.md) for milestone order.

@@ -10,15 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users } from "lucide-react";
+import { Store } from "lucide-react";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   useAppGetUser,
   useAppCreateMarketplaceListing,
-  useAppBuyMarketplaceListing,
-  useAppBuyMarketplaceListingBkspc,
   useTauriMarketplace,
   useTauriPublishMix,
   useTauriGetTokenomicsPolicy,
@@ -28,14 +26,18 @@ import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import {
   isTauri,
   tauriListUserBlobs,
-  tauriGetBkspcPurchaseQuote,
   tauriGetBkspcSettlementStatus,
 } from "@/lib/tauri-api";
 import { formatFeePercent } from "@/lib/tokenomics";
 import {
-  burnBkspcForPurchase,
-  type BkspcPurchaseQuote,
-} from "@/lib/bkspc-marketplace";
+  MYARD_PROFILE_THEMES,
+  YARD_PACK_THEMES,
+  YARD_SALE_ITEM_TYPES,
+} from "@/lib/myyard-catalog";
+import { YARD_IDS, YARD_THEME_PACKS } from "@/lib/yard-themes";
+import { YardSaleListings } from "@/components/economy/YardSaleListings";
+
+const ALL_THEME_OPTIONS = [...MYARD_PROFILE_THEMES, ...YARD_PACK_THEMES];
 
 export function CreatorMarketplacePanel() {
   const handle = getCurrentHandle();
@@ -43,11 +45,9 @@ export function CreatorMarketplacePanel() {
   const { data: listings = [] } = useTauriMarketplace();
   const { data: policy } = useTauriGetTokenomicsPolicy();
   const createListing = useAppCreateMarketplaceListing();
-  const buyListing = useAppBuyMarketplaceListing();
-  const buyListingBkspc = useAppBuyMarketplaceListingBkspc();
   const publishMix = useTauriPublishMix();
   const mintNft = useTauriMintMixNft();
-  const { publicKey, signTransaction, connected } = useWallet();
+  const { publicKey, connected } = useWallet();
 
   const { data: settlementStatus } = useQuery({
     queryKey: ["tauri", "bkspc-settlement-status"],
@@ -56,9 +56,12 @@ export function CreatorMarketplacePanel() {
   });
 
   const bkspcWired = settlementStatus?.wired === true;
+  const defaultTown =
+    (user as { town?: string })?.town?.toLowerCase() || "tsu";
 
   const [showListForm, setShowListForm] = useState(false);
   const [mintNftOnList, setMintNftOnList] = useState(true);
+  const [townTag, setTownTag] = useState(defaultTown);
   const [newItem, setNewItem] = useState({
     itemType: "media",
     itemRef: "",
@@ -72,6 +75,12 @@ export function CreatorMarketplacePanel() {
   const [userMedia, setUserMedia] = useState<any[]>([]);
 
   const marketplaceFeeBps = policy?.marketplaceFeeBps ?? 500;
+
+  useEffect(() => {
+    if ((user as { town?: string })?.town) {
+      setTownTag((user as { town?: string }).town!.toLowerCase());
+    }
+  }, [user]);
 
   useEffect(() => {
     if (isTauri()) {
@@ -89,6 +98,11 @@ export function CreatorMarketplacePanel() {
       toast.error("Title and positive price required");
       return;
     }
+    if (newItem.itemType === "theme" && !newItem.itemRef) {
+      toast.error("Select a theme pack to list");
+      return;
+    }
+
     const isNft =
       (newItem.itemType === "media" || newItem.itemType === "mix") &&
       !!newItem.itemRef;
@@ -104,13 +118,19 @@ export function CreatorMarketplacePanel() {
         });
       }
 
+      const itemRef =
+        newItem.itemRef && newItem.itemRef !== "__none__"
+          ? newItem.itemRef
+          : null;
+
       const listingId = await createListing.mutateAsync({
         itemType: newItem.itemType,
-        itemRef: newItem.itemRef || null,
+        itemRef,
         price: newItem.price,
         title: newItem.title,
         description: newItem.description || null,
         isNft,
+        townTag,
       });
 
       if (
@@ -136,9 +156,11 @@ export function CreatorMarketplacePanel() {
         toast.success(
           newItem.itemType === "mix"
             ? "Mix published (30078) + listed. Connect wallet to mint NFT."
-            : isNft
-              ? "Listed! Connect wallet to mint Metaplex NFT."
-              : "Listed for sale.",
+            : newItem.itemType === "logos-deck"
+              ? "Logos Deck set listed on Yard Sale."
+              : isNft
+                ? "Listed! Connect wallet to mint Metaplex NFT."
+                : "Listed on Yard Sale.",
         );
       }
 
@@ -158,61 +180,17 @@ export function CreatorMarketplacePanel() {
     }
   };
 
-  const handleBuyWithBkspc = async (item: any) => {
-    if (!connected || !publicKey || !signTransaction) {
-      toast.error("Connect Phantom to pay with BKSPC");
-      return;
-    }
-    const token = getSessionToken();
-    if (!token) return;
-
-    try {
-      const quote = (await tauriGetBkspcPurchaseQuote(
-        token,
-        item.id,
-      )) as BkspcPurchaseQuote;
-
-      if (!quote.burnRawAmount || !quote.mint) {
-        toast.error(quote.reason ?? "BKSPC settlement not wired on this build");
-        return;
-      }
-
-      toast.message(`Burning ${quote.burnBkspcDisplay} BKSPC on devnet…`);
-      const burnSig = await burnBkspcForPurchase(
-        quote,
-        publicKey,
-        signTransaction,
-      );
-
-      await buyListingBkspc.mutateAsync({
-        listingId: item.id,
-        buyerSolanaAddress: publicKey.toBase58(),
-        burnTxSignature: burnSig,
-      });
-
-      toast.success(
-        `Purchased with BKSPC burn! ${
-          item.isNft && item.itemRef
-            ? `NFT/Iroh CID: ${item.itemRef.slice(0, 16)}…`
-            : "Seller credited net WB."
-        } Tx: ${burnSig.slice(0, 16)}…`,
-      );
-    } catch (e) {
-      toast.error(String(e));
-    }
-  };
-
   return (
     <Card className="border-primary/10">
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-2">
-          <Users className="w-5 h-5 text-primary" />
+          <Store className="w-5 h-5 text-primary" />
           <h4 className="font-bold">Yard Sale</h4>
         </div>
         <p className="text-sm text-muted-foreground mb-3">
-          Sell from your MyYard — media, mixes, themes, merch, or tickets. Pay
-          with earned WB or burn BKSPC
-          on devnet when settlement is wired. Platform fee{" "}
+          Sell from your MyYard — media, DJ mixes, theme packs, Logos Deck sets,
+          merch, or tickets. Pay with earned WB or burn BKSPC on devnet when
+          settlement is wired. Platform fee{" "}
           {formatFeePercent(marketplaceFeeBps)}.
           {bkspcWired ? (
             <span className="text-primary"> BKSPC devnet: active.</span>
@@ -234,19 +212,64 @@ export function CreatorMarketplacePanel() {
           <div className="space-y-2 mb-4 p-3 border rounded">
             <Select
               value={newItem.itemType}
-              onValueChange={(v) => setNewItem({ ...newItem, itemType: v })}
+              onValueChange={(v) =>
+                setNewItem({ ...newItem, itemType: v, itemRef: "" })
+              }
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="media">Media (photo/video/audio)</SelectItem>
-                <SelectItem value="mix">Mix (DJ mix w/ metadata + 30078)</SelectItem>
-                <SelectItem value="service">Service</SelectItem>
-                <SelectItem value="theme">Theme</SelectItem>
-                <SelectItem value="ticket">Event ticket</SelectItem>
+                {YARD_SALE_ITEM_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+
+            <Select value={townTag} onValueChange={setTownTag}>
+              <SelectTrigger>
+                <SelectValue placeholder="Campus yard tag" />
+              </SelectTrigger>
+              <SelectContent>
+                {YARD_IDS.map((id) => (
+                  <SelectItem key={id} value={id}>
+                    {YARD_THEME_PACKS[id].name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {newItem.itemType === "theme" && (
+              <Select
+                value={newItem.itemRef}
+                onValueChange={(v) => {
+                  const opt = ALL_THEME_OPTIONS.find((t) => t.itemRef === v);
+                  setNewItem({
+                    ...newItem,
+                    itemRef: v,
+                    title: opt?.label ?? newItem.title,
+                    description:
+                      ("description" in (opt || {})
+                        ? (opt as { description?: string }).description
+                        : undefined) ?? newItem.description,
+                  });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select theme pack" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALL_THEME_OPTIONS.map((t) => (
+                    <SelectItem key={t.itemRef} value={t.itemRef}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
             {newItem.itemType === "media" && isTauri() && (
               <Select
                 value={newItem.itemRef}
@@ -281,7 +304,8 @@ export function CreatorMarketplacePanel() {
                       ...newItem,
                       itemRef: v,
                       title:
-                        userMedia.find((m: any) => m.hash === v)?.filename || "",
+                        userMedia.find((m: any) => m.hash === v)?.filename ||
+                        "",
                     })
                   }
                 >
@@ -323,6 +347,34 @@ export function CreatorMarketplacePanel() {
                 />
               </>
             )}
+
+            {newItem.itemType === "logos-deck" && isTauri() && (
+              <Select
+                value={newItem.itemRef}
+                onValueChange={(v) =>
+                  setNewItem({
+                    ...newItem,
+                    itemRef: v,
+                    title:
+                      userMedia.find((m: any) => m.hash === v)?.filename ||
+                      "Logos Deck set",
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Optional audio / sermon set (Iroh CID)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No audio yet (metadata only)</SelectItem>
+                  {userMedia.map((m: any) => (
+                    <SelectItem key={m.hash} value={m.hash}>
+                      {m.filename}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
             <Input
               placeholder="Title"
               value={newItem.title}
@@ -369,80 +421,11 @@ export function CreatorMarketplacePanel() {
           </div>
         )}
 
-        <div className="space-y-2">
-          {listings.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No listings yet. Be the first creator on the yard shop.
-            </p>
-          )}
-          {listings.map((item: any) => (
-            <div
-              key={item.id}
-              className="flex justify-between items-center p-2 border rounded text-sm gap-2"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="font-medium">
-                  {item.title}{" "}
-                  <span className="text-xs text-muted-foreground">
-                    ({item.itemType}
-                    {item.isNft ? ", NFT" : ""})
-                  </span>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  by @{item.sellerHandle} • {item.price} WB
-                </div>
-                {item.description && (
-                  <div className="text-xs">{item.description}</div>
-                )}
-                {item.itemRef && (
-                  <div className="text-[10px] font-mono truncate">
-                    CID: {item.itemRef.slice(0, 20)}…
-                  </div>
-                )}
-                {item.nftMint && (
-                  <div className="text-[10px] font-mono truncate text-primary">
-                    NFT: {item.nftMint.slice(0, 20)}…
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col gap-1 shrink-0">
-                <Button
-                  size="sm"
-                  disabled={item.sellerHandle === (user as any)?.handle}
-                  onClick={async () => {
-                    try {
-                      await buyListing.mutateAsync(item.id);
-                      toast.success(
-                        `Bought for ${item.price} WB! ${
-                          item.isNft && item.itemRef
-                            ? "Delivery CID: " + item.itemRef.slice(0, 16) + "…"
-                            : "WB transferred to seller."
-                        }`,
-                      );
-                    } catch (e) {
-                      toast.error(String(e));
-                    }
-                  }}
-                >
-                  Buy (WB)
-                </Button>
-                {bkspcWired && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={
-                      item.sellerHandle === (user as any)?.handle ||
-                      buyListingBkspc.isPending
-                    }
-                    onClick={() => handleBuyWithBkspc(item)}
-                  >
-                    Buy (BKSPC)
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <YardSaleListings
+          listings={listings}
+          bkspcWired={bkspcWired}
+          emptyMessage="No listings yet. Be the first creator on the Yard Sale."
+        />
       </CardContent>
     </Card>
   );

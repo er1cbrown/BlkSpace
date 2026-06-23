@@ -464,6 +464,7 @@ export function tauriCreateMarketplaceListing(
   title: string,
   description: string | null,
   isNft: boolean,
+  townTag: string | null = null,
 ): Promise<number> {
   return invoke("create_marketplace_listing", {
     sessionToken,
@@ -473,6 +474,7 @@ export function tauriCreateMarketplaceListing(
     title,
     description,
     isNft,
+    townTag,
   });
 }
 

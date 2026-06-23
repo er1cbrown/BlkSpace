@@ -13,64 +13,25 @@ import { Users, MapPin, GraduationCap, ArrowRight } from "lucide-react";
 import { useTauriGetCommunities } from "@/hooks/use-app-data";
 import { isTauri, type TauriCommunity } from "@/lib/tauri-api";
 import { BETA_FEATURES } from "@/lib/beta-features";
+import { YARD_IDS, YARD_THEME_PACKS, yardGradient } from "@/lib/yard-themes";
 
-const fallbackCommunities = [
-  {
-    id: "tsu",
-    name: "TSU Yard",
-    school: "Tennessee State University",
-    location: "Nashville, TN",
-    members: 2847,
-    posts: 1243,
-    color: "from-blue-600 to-blue-800",
-  },
-  {
-    id: "howard",
-    name: "Howard Yard",
-    school: "Howard University",
-    location: "Washington, DC",
-    members: 4521,
-    posts: 2891,
-    color: "from-red-600 to-red-800",
-  },
-  {
-    id: "spelman",
-    name: "Spelman Yard",
-    school: "Spelman College",
-    location: "Atlanta, GA",
-    members: 3190,
-    posts: 1876,
-    color: "from-green-600 to-green-800",
-  },
-  {
-    id: "famu",
-    name: "FAMU Yard",
-    school: "Florida A&M University",
-    location: "Tallahassee, FL",
-    members: 5632,
-    posts: 3421,
-    color: "from-orange-500 to-orange-700",
-  },
-  {
-    id: "morehouse",
-    name: "Morehouse Yard",
-    school: "Morehouse College",
-    location: "Atlanta, GA",
-    members: 2904,
-    posts: 1567,
-    color: "from-purple-600 to-purple-800",
-  },
-];
-
-const colorMap: Record<string, string> = {
-  tsu: "from-blue-600 to-blue-800",
-  howard: "from-red-600 to-red-800",
-  spelman: "from-green-600 to-green-800",
-  famu: "from-orange-500 to-orange-700",
-  morehouse: "from-purple-600 to-purple-800",
-};
+const fallbackCommunities = YARD_IDS.map((id) => {
+  const pack = YARD_THEME_PACKS[id];
+  return {
+    id,
+    name: pack.name,
+    school: pack.school,
+    location: pack.location,
+    members: id === "tsu" ? 2847 : id === "howard" ? 4521 : id === "spelman" ? 3190 : id === "famu" ? 5632 : 2904,
+    posts: 1200,
+    color: pack.gradient,
+    mascot: pack.mascot,
+    tagline: pack.tagline,
+  };
+});
 
 function mapCommunity(c: TauriCommunity) {
+  const pack = YARD_THEME_PACKS[c.id as keyof typeof YARD_THEME_PACKS];
   return {
     id: c.id,
     name: c.name,
@@ -78,7 +39,9 @@ function mapCommunity(c: TauriCommunity) {
     location: c.location,
     members: c.members,
     posts: Math.floor(c.members * 0.5),
-    color: colorMap[c.id] || "from-primary to-primary/50",
+    color: pack?.gradient ?? yardGradient(c.id),
+    mascot: pack?.mascot,
+    tagline: pack?.tagline,
   };
 }
 
@@ -121,11 +84,16 @@ export default function CommunitiesPage() {
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle className="text-xl flex items-center gap-2">
-                        {c.name}{" "}
-                        <span className="text-xs text-muted-foreground">
-                          Yard
-                        </span>
+                        {c.name}
+                        {c.mascot && (
+                          <span className="text-sm font-normal">{c.mascot}</span>
+                        )}
                       </CardTitle>
+                      {c.tagline && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {c.tagline}
+                        </p>
+                      )}
                       <CardDescription className="flex items-center gap-1 mt-1">
                         <GraduationCap className="w-3.5 h-3.5" /> {c.school}
                       </CardDescription>

@@ -972,10 +972,11 @@ fn create_marketplace_listing(
   title: String,
   description: Option<String>,
   is_nft: bool,
+  town_tag: Option<String>,
 ) -> Result<i64, String> {
   let seller = get_handle_from_session(&state, &session_token)?;
   if price <= 0 { return Err("Price must be positive".to_string()); }
-  let listing_id = state.db.create_marketplace_listing(&seller, &item_type, item_ref.as_deref(), price, &title, description.as_deref(), is_nft)
+  let listing_id = state.db.create_marketplace_listing(&seller, &item_type, item_ref.as_deref(), price, &title, description.as_deref(), is_nft, town_tag.as_deref())
     .map_err(|e| e.to_string())?;
 
   // Nostr 30081 NFT listing on create (if NFT or media)
