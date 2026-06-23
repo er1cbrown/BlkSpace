@@ -3307,6 +3307,107 @@ impl Database {
     Ok(conn.last_insert_rowid())
   }
 
+  fn theme_id_from_item_ref(item_ref: &str) -> Option<i64> {
+    match item_ref {
+      "theme:classic" => Some(0),
+      "theme:pro" => Some(1),
+      "theme:vibrant" => Some(2),
+      "theme:myyard" => Some(3),
+      _ => None,
+    }
+  }
+
+  fn merge_profile_layout_value(
+    &self,
+    handle: &str,
+    patch: serde_json::Value,
+  ) -> Result<(), AppError> {
+    let current = self
+      .get_user(handle)
+      .map_err(AppError::from)?
+      .ok_or_else(|| AppError::Validation("User not found".into()))?;
+    let mut layout: serde_json::Value =
+      serde_json::from_str(&current.profile_layout_json).unwrap_or_else(|_| {
+        serde_json::json!({
+          "modules": { "logosDeck": false, "bibleNlp": false },
+          "logosDeck": { "setTitle": "Sermon set", "audioHash": null },
+          "yardPackId": null
+        })
+      });
+    if let (Some(base), Some(p)) = (layout.as_object_mut(), patch.as_object()) {
+      for (k, v) in p {
+        if k == "modules" || k == "logosDeck" {
+          let sub = base
+            .entry(k.clone())
+            .or_insert_with(|| serde_json::json!({}));
+          if let (Some(sub_obj), Some(v_obj)) = (sub.as_object_mut(), v.as_object()) {
+            for (sk, sv) in v_obj {
+              sub_obj.insert(sk.clone(), sv.clone());
+            }
+          }
+        } else {
+          base.insert(k.clone(), v.clone());
+        }
+      }
+    }
+    self.update_profile_layout(handle, &layout.to_string())
+      .map_err(AppError::from)
+  }
+
+  /// Apply theme / Logos Deck / yard pack to buyer after Yard Sale purchase.
+  pub fn apply_marketplace_purchase(
+    &self,
+    buyer: &str,
+    item_type: &str,
+    item_ref: Option<&str>,
+  ) -> Result<serde_json::Value, AppError> {
+    let mut applied = serde_json::json!({});
+
+    match item_type {
+      "theme" => {
+        if let Some(ref_str) = item_ref {
+          if let Some(yard_id) = ref_str.strip_prefix("theme:yard:") {
+            if !yard_id.is_empty() {
+              self.merge_profile_layout_value(
+                buyer,
+                serde_json::json!({ "yardPackId": yard_id }),
+              )?;
+              applied["yardPackId"] = serde_json::json!(yard_id);
+            }
+          } else if let Some(theme_id) = Self::theme_id_from_item_ref(ref_str) {
+            let music = self
+              .get_user(buyer)?
+              .map(|u| u.music_hash)
+              .unwrap_or_default();
+            self.update_profile_customization(buyer, theme_id, &music)?;
+            let theme_name = match theme_id {
+              1 => "pro",
+              2 => "vibrant",
+              3 => "myyard",
+              _ => "classic",
+            };
+            applied["theme"] = serde_json::json!(theme_name);
+          }
+        }
+      }
+      "logos-deck" => {
+        let mut logos_patch = serde_json::json!({
+          "modules": { "logosDeck": true },
+          "logosDeck": { "setTitle": "Purchased Logos Deck set" }
+        });
+        if let Some(hash) = item_ref.filter(|h| !h.is_empty() && *h != "__none__") {
+          logos_patch["logosDeck"]["audioHash"] = serde_json::json!(hash);
+          applied["audioHash"] = serde_json::json!(hash);
+        }
+        self.merge_profile_layout_value(buyer, logos_patch)?;
+        applied["logosDeck"] = serde_json::json!(true);
+      }
+      _ => {}
+    }
+
+    Ok(applied)
+  }
+
   pub fn list_marketplace(&self) -> Result<Vec<serde_json::Value>> {
     let conn = self.conn.lock().unwrap();
     let mut stmt = conn.prepare(
@@ -3470,6 +3571,14 @@ impl Database {
       return Err(AppError::Validation("Listing already sold".into()));
     }
     tx.commit().map_err(AppError::from)?;
+    drop(conn);
+
+    let applied = self
+      .apply_marketplace_purchase(buyer, &item_type, item_ref.as_deref())
+      .unwrap_or_else(|e| {
+        eprintln!("apply_marketplace_purchase: {e}");
+        serde_json::json!({})
+      });
 
     Ok(serde_json::json!({
       "id": id,
@@ -3481,6 +3590,7 @@ impl Database {
       "paymentMethod": "bkspc_burn",
       "burnTx": burn_tx_signature,
       "sellerNetWb": net,
+      "applied": applied,
     }))
   }
 
@@ -3530,6 +3640,14 @@ impl Database {
     if updated == 0 {
       return Err(AppError::Validation("Listing already sold".into()));
     }
+    drop(conn);
+
+    let applied = self
+      .apply_marketplace_purchase(buyer, &item_type, item_ref.as_deref())
+      .unwrap_or_else(|e| {
+        eprintln!("apply_marketplace_purchase: {e}");
+        serde_json::json!({})
+      });
 
     Ok(serde_json::json!({
       "id": id,
@@ -3538,6 +3656,7 @@ impl Database {
       "isNft": is_nft,
       "seller": seller,
       "price": price,
+      "applied": applied,
     }))
   }
 

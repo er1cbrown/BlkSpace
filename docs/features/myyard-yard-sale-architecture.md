@@ -127,7 +127,8 @@ Internal code may keep `myspace` theme id, `marketplace_*` commands, and `Creato
 2. ✅ MyYard customize: module stubs (Logos Deck, Bible NLP)  
 3. ✅ Yard Sale: `theme`, `mix`, `logos-deck` listing types + `town_tag` per campus  
 4. ✅ Campus yard theme packs on community pages + per-yard Yard Sale tab  
-5. Persist MyYard module toggles; apply purchased themes to buyer profile  
-6. Device B + `v0.1.0-yard` — students get Yard build; labs get Full + optional modules  
+5. ✅ Persist MyYard module toggles (`profile_layout_json`); apply purchased themes / Logos Deck on buy  
+6. ✅ Logos Deck player UI on public MyYard when module enabled  
+7. Device B + `v0.1.0-yard` — students get Yard build; labs get Full + optional modules  
 
 See [`ROADMAP.md`](../ROADMAP.md) for milestone order.

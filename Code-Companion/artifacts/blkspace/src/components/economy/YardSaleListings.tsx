@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
   useAppGetUser,
@@ -37,6 +38,15 @@ interface YardSaleListingsProps {
   yardIdFilter?: string;
   emptyMessage?: string;
   bkspcWired?: boolean;
+};
+
+function appliedPurchaseMessage(applied: Record<string, unknown> | undefined): string | null {
+  if (!applied || Object.keys(applied).length === 0) return null;
+  const parts: string[] = [];
+  if (applied.theme) parts.push(`Theme → ${applied.theme}`);
+  if (applied.yardPackId) parts.push(`Campus pack → ${applied.yardPackId}`);
+  if (applied.logosDeck) parts.push("Logos Deck enabled on your MyYard");
+  return parts.length ? parts.join(" · ") : null;
 }
 
 export function YardSaleListings({
@@ -47,9 +57,17 @@ export function YardSaleListings({
 }: YardSaleListingsProps) {
   const handle = getCurrentHandle();
   const { data: user } = useAppGetUser(handle);
+  const qc = useQueryClient();
   const buyListing = useAppBuyMarketplaceListing();
   const buyListingBkspc = useAppBuyMarketplaceListingBkspc();
   const { publicKey, signTransaction, connected } = useWallet();
+
+  const afterPurchase = (result: { applied?: Record<string, unknown> }) => {
+    qc.invalidateQueries({ queryKey: ["tauri", "user"] });
+    qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
+    const msg = appliedPurchaseMessage(result.applied);
+    if (msg) toast.success(`Applied to your MyYard: ${msg}`);
+  };
 
   const filtered = yardIdFilter
     ? listings.filter(
@@ -85,12 +103,13 @@ export function YardSaleListings({
         signTransaction,
       );
 
-      await buyListingBkspc.mutateAsync({
+      const result = await buyListingBkspc.mutateAsync({
         listingId: item.id,
         buyerSolanaAddress: publicKey.toBase58(),
         burnTxSignature: burnSig,
       });
 
+      afterPurchase(result as { applied?: Record<string, unknown> });
       toast.success(`Purchased with BKSPC! Tx: ${burnSig.slice(0, 16)}…`);
     } catch (e) {
       toast.error(String(e));
@@ -152,10 +171,11 @@ export function YardSaleListings({
                   item.sellerHandle === (user as { handle?: string })?.handle
                 }
                 onClick={async () => {
-                  try {
-                    await buyListing.mutateAsync(item.id);
-                    toast.success(`Bought for ${item.price} WB!`);
-                  } catch (e) {
+                    try {
+                      const result = await buyListing.mutateAsync(item.id);
+                      afterPurchase(result as { applied?: Record<string, unknown> });
+                      toast.success(`Bought for ${item.price} WB!`);
+                    } catch (e) {
                     toast.error(String(e));
                   }
                 }}

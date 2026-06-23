@@ -61,10 +61,21 @@ import {
   useTauriListWallPosts,
   useTauriCreateWallPost,
   useTauriApproveWallPost,
+  useTauriUpdateProfileLayout,
 } from "@/hooks/use-app-data";
 import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { MYARD_PROFILE_THEMES } from "@/lib/myyard-catalog";
+import {
+  parseMyYardLayout,
+  mergeMyYardLayout,
+  serializeMyYardLayout,
+  type MyYardLayout,
+} from "@/lib/myyard-layout";
+import { getYardTheme } from "@/lib/yard-themes";
+import { LogosDeckPlayer } from "@/components/profile/LogosDeckPlayer";
 
 type ThemeKey = "classic" | "pro" | "vibrant" | "myspace";
 
@@ -97,6 +108,7 @@ export default function ProfilePage() {
   const { data: wallPostsApi = [] } = useTauriListWallPosts(handle || currentUser);
   const createWallPost = useTauriCreateWallPost();
   const approveWallPost = useTauriApproveWallPost();
+  const updateProfileLayout = useTauriUpdateProfileLayout();
   const { data: remoteFollowing = [] } = useTauriGetFollowing(
     isTauri() && !isOwnProfile,
   );
@@ -122,6 +134,17 @@ export default function ProfilePage() {
   const themeLabel = Object.fromEntries(
     MYARD_PROFILE_THEMES.map((t) => [t.id, t.label]),
   ) as Record<ThemeKey, string>;
+
+  const myyardLayout = useMemo(
+    () =>
+      parseMyYardLayout(
+        (user as { profileLayoutJson?: string })?.profileLayoutJson,
+      ),
+    [user],
+  );
+  const yardPack = myyardLayout.yardPackId
+    ? getYardTheme(myyardLayout.yardPackId)
+    : null;
 
   const currentSongBlob = audioBlobs.find((b) => b.hash === profileSong);
 
@@ -152,6 +175,27 @@ export default function ProfilePage() {
       )
       .catch(() => setAudioBlobs([]));
   }, [isOwnProfile, user?.handle]);
+
+  const persistMyYardLayout = (next: MyYardLayout) => {
+    if (!isTauri()) {
+      toast.success("Saved locally (web preview mode)");
+      return;
+    }
+    updateProfileLayout.mutate(serializeMyYardLayout(next), {
+      onSuccess: () => toast.success("MyYard modules saved"),
+      onError: (e) => toast.error(String(e)),
+    });
+  };
+
+  const setModuleToggle = (
+    key: "logosDeck" | "bibleNlp",
+    enabled: boolean,
+  ) => {
+    const next = mergeMyYardLayout(myyardLayout, {
+      modules: { ...myyardLayout.modules, [key]: enabled },
+    });
+    persistMyYardLayout(next);
+  };
 
   const saveCustomization = (theme: ThemeKey, music: string | null) => {
     setProfileTheme(theme);
@@ -225,7 +269,18 @@ export default function ProfilePage() {
             }
           >
             {/* Header Banner (MyYard customizable feel) */}
-            <div className="h-40 bg-gradient-to-r from-primary/40 via-primary/10 to-primary/40 relative">
+            <div
+              className={
+                yardPack
+                  ? `h-40 bg-gradient-to-br ${yardPack.gradient} relative opacity-95`
+                  : "h-40 bg-gradient-to-r from-primary/40 via-primary/10 to-primary/40 relative"
+              }
+            >
+              {yardPack && (
+                <div className="absolute top-3 left-3 text-xs text-white/90 font-medium drop-shadow">
+                  {yardPack.mascot} · {yardPack.name} pack
+                </div>
+              )}
               <div className="absolute -bottom-14 left-8 flex items-end gap-4">
                 <Avatar className="h-28 w-28 border-4 border-card ring-2 ring-primary/30">
                   <AvatarImage src={user.avatarUrl || ""} />
@@ -392,6 +447,39 @@ export default function ProfilePage() {
                   }}
                 />
               </div>
+
+              {myyardLayout.modules?.logosDeck && (
+                <div className="mb-6">
+                  <LogosDeckPlayer
+                    setTitle={myyardLayout.logosDeck?.setTitle}
+                    audioHash={myyardLayout.logosDeck?.audioHash}
+                    trackIds={myyardLayout.logosDeck?.trackIds}
+                    readOnly={!isOwnProfile}
+                  />
+                </div>
+              )}
+
+              {myyardLayout.modules?.bibleNlp && (
+                <Card className="mb-6 border-dashed border-primary/30">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-center gap-2 font-medium text-sm mb-2">
+                      <BookOpen className="w-4 h-4 text-primary" />
+                      Bible NLP (opt-in study layer)
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      On-device scripture tags — separate from FYP. Suggested
+                      channels: #scripture, #study, cross-ref mixes.
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {["#scripture", "#study", "#cross-ref"].map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <div ref={profileTabsRef}>
               <Tabs
@@ -742,37 +830,63 @@ export default function ProfilePage() {
                           </p>
                           <div className="grid gap-3 sm:grid-cols-2">
                             <Card className="border-dashed border-primary/30">
-                              <CardContent className="pt-4 pb-4 space-y-2">
-                                <div className="flex items-center gap-2 font-medium text-sm">
-                                  <Disc3 className="w-4 h-4 text-primary" />
-                                  Logos Deck
+                              <CardContent className="pt-4 pb-4 space-y-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 font-medium text-sm">
+                                    <Disc3 className="w-4 h-4 text-primary" />
+                                    Logos Deck
+                                  </div>
+                                  <Switch
+                                    id="mod-logos-deck"
+                                    checked={!!myyardLayout.modules?.logosDeck}
+                                    onCheckedChange={(v) =>
+                                      setModuleToggle("logosDeck", v)
+                                    }
+                                    disabled={updateProfileLayout.isPending}
+                                  />
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                  Scripture mixes & sermon sets — DJ-style deck
-                                  for your yard. Phase 5; publish mixes via Yard
-                                  Sale today.
-                                </p>
-                                <Badge variant="outline" className="text-[10px]">
-                                  Coming — opt-in
-                                </Badge>
+                                <Label
+                                  htmlFor="mod-logos-deck"
+                                  className="text-xs text-muted-foreground font-normal cursor-pointer"
+                                >
+                                  Show DJ-style scripture deck on your public
+                                  MyYard. Buy sets on Yard Sale to auto-enable.
+                                </Label>
                               </CardContent>
                             </Card>
                             <Card className="border-dashed border-primary/30">
-                              <CardContent className="pt-4 pb-4 space-y-2">
-                                <div className="flex items-center gap-2 font-medium text-sm">
-                                  <BookOpen className="w-4 h-4 text-primary" />
-                                  Bible NLP
+                              <CardContent className="pt-4 pb-4 space-y-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 font-medium text-sm">
+                                    <BookOpen className="w-4 h-4 text-primary" />
+                                    Bible NLP
+                                  </div>
+                                  <Switch
+                                    id="mod-bible-nlp"
+                                    checked={!!myyardLayout.modules?.bibleNlp}
+                                    onCheckedChange={(v) =>
+                                      setModuleToggle("bibleNlp", v)
+                                    }
+                                    disabled={updateProfileLayout.isPending}
+                                  />
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                  On-device study tags & verse tools — separate
-                                  from FYP; never injected without consent.
-                                </p>
-                                <Badge variant="outline" className="text-[10px]">
-                                  Coming — opt-in
-                                </Badge>
+                                <Label
+                                  htmlFor="mod-bible-nlp"
+                                  className="text-xs text-muted-foreground font-normal cursor-pointer"
+                                >
+                                  Opt-in study tags on profile — never injected
+                                  into feed without consent.
+                                </Label>
                               </CardContent>
                             </Card>
                           </div>
+                          {myyardLayout.modules?.logosDeck && (
+                            <LogosDeckPlayer
+                              setTitle={myyardLayout.logosDeck?.setTitle}
+                              audioHash={myyardLayout.logosDeck?.audioHash}
+                              trackIds={myyardLayout.logosDeck?.trackIds}
+                            />
+                          )}
                           <Button variant="outline" size="sm" asChild>
                             <Link href="/wallet">
                               <Store className="w-4 h-4 mr-1" />

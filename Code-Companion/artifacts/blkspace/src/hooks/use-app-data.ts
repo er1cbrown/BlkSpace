@@ -1566,3 +1566,15 @@ export function useTauriUpdateTopFriends() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tauri", "user"] }),
   });
 }
+
+export function useTauriUpdateProfileLayout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (json: string) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return tauri.tauriUpdateProfileLayout(token, json);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tauri", "user"] }),
+  });
+}

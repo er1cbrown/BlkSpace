@@ -785,7 +785,7 @@ fn theme_name_to_id(theme: &str) -> i64 {
   match theme {
     "pro" => 1,
     "vibrant" => 2,
-    "myspace" => 3,
+    "myspace" | "myyard" => 3,
     _ => 0,
   }
 }
@@ -794,8 +794,15 @@ fn theme_id_to_name(theme_id: i64) -> &'static str {
   match theme_id {
     1 => "pro",
     2 => "vibrant",
-    3 => "myspace",
+    3 => "myyard",
     _ => "classic",
+  }
+}
+
+fn publish_profile_if_purchase_applied(state: &AppState, buyer: &str, result: &serde_json::Value) {
+  let applied = result.get("applied").and_then(|v| v.as_object());
+  if applied.map(|o| !o.is_empty()).unwrap_or(false) {
+    publish_profile_to_nostr(state, buyer);
   }
 }
 
@@ -1105,6 +1112,7 @@ fn buy_marketplace_listing(state: State<AppState>, session_token: String, listin
       }
     }
     // Delivery: if has itemRef (CID/hash), buyer can fetch via existing get_blob / Iroh
+    publish_profile_if_purchase_applied(&state, &buyer, &result);
   }
   Ok(result)
 }
@@ -1403,6 +1411,7 @@ fn buy_marketplace_listing_bkspc(
         }
       }
     }
+    publish_profile_if_purchase_applied(&state, &buyer, &result);
   }
 
   Ok(result)

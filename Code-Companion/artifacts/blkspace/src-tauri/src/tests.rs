@@ -1872,6 +1872,54 @@ mod tests {
   }
 
   #[test]
+  fn test_theme_purchase_applies_to_buyer_profile() {
+    let db = setup_test_db();
+    db.create_user("seller", "Seller", "").unwrap();
+    db.create_user("buyer", "Buyer", "").unwrap();
+    let listing_id = db
+      .create_marketplace_listing(
+        "seller",
+        "theme",
+        Some("theme:pro"),
+        40,
+        "Pro Theme Pack",
+        None,
+        false,
+        Some("howard"),
+      )
+      .unwrap();
+    let result = db.buy_marketplace_listing(listing_id, "buyer").unwrap();
+    assert_eq!(result["applied"]["theme"].as_str(), Some("pro"));
+    let buyer = db.get_user("buyer").unwrap().unwrap();
+    assert_eq!(buyer.theme_id, 1);
+  }
+
+  #[test]
+  fn test_logos_deck_purchase_enables_module() {
+    let db = setup_test_db();
+    db.create_user("seller", "Seller", "").unwrap();
+    db.create_user("buyer", "Buyer", "").unwrap();
+    let listing_id = db
+      .create_marketplace_listing(
+        "seller",
+        "logos-deck",
+        Some("abc123hash0000000000000000000000000000000000000000000000000001"),
+        25,
+        "Sermon Set",
+        None,
+        false,
+        Some("tsu"),
+      )
+      .unwrap();
+    let result = db.buy_marketplace_listing(listing_id, "buyer").unwrap();
+    assert_eq!(result["applied"]["logosDeck"].as_bool(), Some(true));
+    let buyer = db.get_user("buyer").unwrap().unwrap();
+    let layout: serde_json::Value =
+      serde_json::from_str(&buyer.profile_layout_json).unwrap();
+    assert_eq!(layout["modules"]["logosDeck"].as_bool(), Some(true));
+  }
+
+  #[test]
   fn test_record_nft_mint() {
     let db = setup_test_db();
     db.create_user("creator", "Creator", "").unwrap();
