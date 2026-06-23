@@ -49,6 +49,16 @@ function appliedPurchaseMessage(applied: Record<string, unknown> | undefined): s
   if (applied.communitySkinLive && applied.communityYardPack) {
     parts.push(`Community skin live → ${applied.communityYardPack}`);
   }
+  const nft = applied.nftTransferred as
+    | { mintAddress?: string; onChain?: boolean }
+    | undefined;
+  if (nft?.mintAddress) {
+    parts.push(
+      nft.onChain
+        ? `NFT transferred on-chain → ${nft.mintAddress.slice(0, 8)}…`
+        : `NFT ownership → ${nft.mintAddress.slice(0, 8)}…`,
+    );
+  }
   return parts.length ? parts.join(" · ") : null;
 }
 
@@ -65,10 +75,14 @@ export function YardSaleListings({
   const buyListingBkspc = useAppBuyMarketplaceListingBkspc();
   const { publicKey, signTransaction, connected } = useWallet();
 
-  const afterPurchase = (result: { applied?: Record<string, unknown> }) => {
+  const afterPurchase = (result: {
+    applied?: Record<string, unknown>;
+    nftTransferred?: Record<string, unknown>;
+  }) => {
     qc.invalidateQueries({ queryKey: ["tauri", "user"] });
     qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
     qc.invalidateQueries({ queryKey: ["tauri", "communities"] });
+    qc.invalidateQueries({ queryKey: ["tauri", "ownedNfts"] });
     const msg = appliedPurchaseMessage(result.applied);
     if (msg) toast.success(`Applied to your MyYard: ${msg}`);
   };

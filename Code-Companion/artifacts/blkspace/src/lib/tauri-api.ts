@@ -532,6 +532,19 @@ export interface TauriNftMintResult {
   simulated: boolean;
 }
 
+export function tauriListOwnedNfts(sessionToken: string): Promise<
+  Array<{
+    mintAddress: string;
+    itemType: string;
+    itemRef?: string | null;
+    title: string;
+    metadataUri?: string | null;
+    createdAt: string;
+  }>
+> {
+  return invoke("list_owned_nfts", { sessionToken });
+}
+
 export function tauriMintMixNft(
   sessionToken: string,
   recipientSolanaAddress: string,

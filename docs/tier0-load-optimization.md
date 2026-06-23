@@ -175,7 +175,8 @@ flowchart LR
 - [x] Relay parallel connect + 6s timeout per relay (full mesh); yard mode 300ms defer
 - [x] Feed default tab `local` in tier0Lite; defer AppShell user IPC + offline flush (3s)
 - [x] Vite `optimizeDeps` + `server.warmup`; `dev:tier0` / `tauri:dev:tier0` scripts
-- [ ] Add bundle visualizer + extend tier0_benchmark with cold-start metrics; gate CI (Tier B/C)
+- [x] Tier 0 bundle budget gate in CI (`check:bundle:tier0` — entry + total JS gzip limits)
+- [ ] Extend tier0_benchmark with cold-start metrics; optional rollup visualizer artifact
 - [x] CI Yard artifacts (`BlkSpace-Yard-Windows-x64.msi`, macOS dmg, Linux AppImage) via `build-tauri-yard` job
 - [x] CI dual release artifacts (`BlkSpace-Full-*` with Iroh for power users) via `build-tauri-full` (Tier B)
 

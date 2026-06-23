@@ -707,6 +707,31 @@ fn authorize_set_community_role(
   Ok(())
 }
 
+/// Only yard owners and moderators may publish yard events.
+pub(crate) fn authorize_create_yard_event(
+  db: &Database,
+  caller: &str,
+  community_id: &str,
+) -> Result<(), String> {
+  let community_id = community_id.trim();
+  if community_id.is_empty() {
+    return Err("Community ID required".to_string());
+  }
+  if !db
+    .is_yard_member(caller, community_id)
+    .map_err(|e| e.to_string())?
+  {
+    return Err("Join the yard before creating events".to_string());
+  }
+  let role = db
+    .get_community_role(community_id, caller)
+    .map_err(|e| e.to_string())?;
+  if is_community_moderator_or_owner(&role) {
+    return Ok(());
+  }
+  Err("Only yard owners and moderators can create events".to_string())
+}
+
 // ─── User Commands ───────────────────────────────────────
 
 #[tauri::command]
@@ -1254,6 +1279,18 @@ fn mint_mix_nft(
 }
 
 #[tauri::command]
+fn list_owned_nfts(
+  state: State<AppState>,
+  session_token: String,
+) -> Result<Vec<serde_json::Value>, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .list_nft_mints_for_owner(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn get_bkspc_purchase_quote(
   state: State<AppState>,
   session_token: String,
@@ -1377,10 +1414,38 @@ fn buy_marketplace_listing_bkspc(
     quote.burn_raw_amount,
   )?;
 
-  let result = state
+  let mut result = state
     .db
     .buy_marketplace_listing_bkspc(listing_id, &buyer, &burn_tx_signature)
     .map_err(|e| e.to_string())?;
+
+  #[cfg(feature = "bkspc-devnet")]
+  if let Some(mint) = result
+    .get("nftTransferred")
+    .and_then(|n| n.get("mintAddress"))
+    .and_then(|m| m.as_str())
+  {
+    if let Ok(Some(tx)) =
+      nft_mint::transfer_nft_custodial_to_buyer(&buyer_solana_address, mint)
+    {
+      if let Some(obj) = result
+        .get_mut("nftTransferred")
+        .and_then(|v| v.as_object_mut())
+      {
+        obj.insert("onChain".to_string(), serde_json::json!(true));
+        obj.insert("transferTx".to_string(), serde_json::json!(tx));
+      }
+      if let Some(applied) = result.get_mut("applied").and_then(|v| v.as_object_mut()) {
+        if let Some(nft) = applied
+          .get_mut("nftTransferred")
+          .and_then(|v| v.as_object_mut())
+        {
+          nft.insert("onChain".to_string(), serde_json::json!(true));
+          nft.insert("transferTx".to_string(), serde_json::json!(tx));
+        }
+      }
+    }
+  }
 
   {
     let listing = &result;
@@ -3259,6 +3324,7 @@ fn create_yard_event(
   ends_at: Option<String>,
 ) -> Result<YardEvent, String> {
   let handle = check_session_rate_limit(&state, &session_token)?;
+  authorize_create_yard_event(&state.db, &handle, &community_id)?;
   state
     .db
     .create_yard_event(
@@ -3697,6 +3763,7 @@ pub fn run() {
       submit_bkspc_burn_transaction,
       get_bkspc_purchase_quote,
       mint_mix_nft,
+      list_owned_nfts,
       publish_mix,
       list_posts,
       get_post,

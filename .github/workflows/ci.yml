@@ -102,6 +102,27 @@ jobs:
       - run: cargo test --manifest-path src-tauri/Cargo.toml nostr_relay_smoke -- --test-threads=1
         working-directory: ./Code-Companion/artifacts/blkspace
 
+  bundle-budget-tier0:
+    name: Bundle budget (Tier 0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: Code-Companion/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: ./Code-Companion
+      - run: pnpm check:bundle:tier0
+        working-directory: ./Code-Companion/artifacts/blkspace
+        env:
+          PORT: "24442"
+          BASE_PATH: /
+
   build-web:
     name: Build (Web)
     runs-on: ubuntu-latest

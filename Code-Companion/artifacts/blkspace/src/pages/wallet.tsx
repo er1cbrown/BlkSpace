@@ -49,6 +49,7 @@ import { EconomyPolicyPanel } from "@/components/economy/EconomyPolicyPanel";
 import { EconomyTermsCard } from "@/components/economy/EconomyTermsCard";
 import { EconomyAppealCard } from "@/components/economy/EconomyAppealCard";
 import { CreatorMarketplacePanel } from "@/components/economy/CreatorMarketplacePanel";
+import { OwnedNftsPanel } from "@/components/economy/OwnedNftsPanel";
 import { formatFeePercent, FEE_BPS } from "@/lib/tokenomics";
 import { toast } from "sonner";
 import { WalletContextProvider } from "@/components/WalletContextProvider";
@@ -599,7 +600,8 @@ function WalletPageContent() {
             <EconomyAppealCard />
           </TabsContent>
 
-          <TabsContent value="marketplace">
+          <TabsContent value="marketplace" className="space-y-4">
+            <OwnedNftsPanel />
             <CreatorMarketplacePanel />
           </TabsContent>
         </Tabs>

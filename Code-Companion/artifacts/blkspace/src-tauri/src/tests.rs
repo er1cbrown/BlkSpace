@@ -1705,6 +1705,26 @@ mod tests {
   }
 
   #[test]
+  fn test_join_yard_bootstraps_admin() {
+    let db = setup_test_db();
+    db.create_user("first", "First", "").unwrap();
+    db.join_yard("first", "tsu").unwrap();
+    assert_eq!(db.get_community_role("tsu", "first").unwrap(), "Admin");
+  }
+
+  #[test]
+  fn test_student_cannot_create_yard_event() {
+    let db = setup_test_db();
+    db.create_user("owner", "Owner", "").unwrap();
+    db.create_user("student", "Student", "").unwrap();
+    db.join_yard("owner", "tsu").unwrap();
+    db.join_yard("student", "tsu").unwrap();
+    db.set_community_role("tsu", "student", "Student").unwrap();
+    let err = authorize_create_yard_event(&db, "student", "tsu").unwrap_err();
+    assert!(err.contains("owners and moderators"));
+  }
+
+  #[test]
   fn test_yard_event_requires_membership() {
     let db = setup_test_db();
     db.create_user("outsider", "Outsider", "").unwrap();
@@ -1724,7 +1744,9 @@ mod tests {
 
   // ─── Role authorization ─────────────────────────────────
 
-  use crate::{authorize_set_community_role, authorize_set_node_role};
+  use crate::{
+    authorize_create_yard_event, authorize_set_community_role, authorize_set_node_role,
+  };
 
   #[test]
   fn test_node_role_self_service_allowed() {
@@ -1963,5 +1985,55 @@ mod tests {
       .unwrap();
     assert!(id > 0);
     db.set_listing_nft_mint(1, "MintAddr123").ok();
+  }
+
+  #[test]
+  fn test_nft_ownership_transfers_on_marketplace_buy() {
+    let db = setup_test_db();
+    db.create_user("seller", "Seller", "").unwrap();
+    db.create_user("buyer", "Buyer", "").unwrap();
+    db.grant_weix_bucks("buyer", 200, "seed").unwrap();
+    db.record_nft_mint(
+      "seller",
+      "MintAddrNFT",
+      None,
+      "mix",
+      Some("cid789"),
+      "Rare Mix",
+      "mintTx",
+      None,
+    )
+    .unwrap();
+    let listing_id = db
+      .create_marketplace_listing(
+        "seller",
+        "mix",
+        Some("cid789"),
+        50,
+        "Rare Mix NFT",
+        None,
+        true,
+        Some("tsu"),
+      )
+      .unwrap();
+    db.set_listing_nft_mint(listing_id, "MintAddrNFT").unwrap();
+
+    let result = db.buy_marketplace_listing(listing_id, "buyer").unwrap();
+    assert_eq!(
+      result["nftTransferred"]["ownerHandle"].as_str(),
+      Some("buyer")
+    );
+    assert_eq!(
+      result["nftTransferred"]["mintAddress"].as_str(),
+      Some("MintAddrNFT")
+    );
+    assert_eq!(
+      db.get_nft_mint_owner("MintAddrNFT").unwrap().as_deref(),
+      Some("buyer")
+    );
+
+    let owned = db.list_nft_mints_for_owner("buyer").unwrap();
+    assert_eq!(owned.len(), 1);
+    assert_eq!(owned[0]["mintAddress"].as_str(), Some("MintAddrNFT"));
   }
 }

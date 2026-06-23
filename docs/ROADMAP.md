@@ -95,7 +95,7 @@ Checklist: [`YARD_RELEASE_CHECKLIST.md`](YARD_RELEASE_CHECKLIST.md)
 ### 3. Phase 4 marketplace (devnet demo)
 
 - Mint → list → BKSPC burn → seller paid → **buyer owns NFT**
-- One recorded devnet walkthrough
+- Walkthrough: [`phase-4-devnet-demo.md`](phase-4-devnet-demo.md)
 - See [`solana-blueprint.md`](solana-blueprint.md)
 
 ### 4. ~~BlkSpace Full CI artifact~~ ✅

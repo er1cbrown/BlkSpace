@@ -33,10 +33,12 @@ import { useGuestMode } from "@/lib/guest-mode";
 import { isTauri, type TauriYardEvent } from "@/lib/tauri-api";
 import {
   useTauriListYardEvents,
+  useTauriListCommunityRoles,
   useTauriCreateYardEvent,
   useTauriRsvpYardEvent,
   useTauriCancelYardEventRsvp,
 } from "@/hooks/use-app-data";
+import { getCurrentHandle } from "@/lib/auth";
 import { showEarnFromResult } from "@/components/economy/EarnToast";
 
 type YardEventView = {
@@ -134,12 +136,14 @@ function CreateEventDialog({
   communityId,
   communityName,
   isMember,
+  canCreateEvents,
   open,
   onOpenChange,
 }: {
   communityId: string;
   communityName: string;
   isMember: boolean;
+  canCreateEvents: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
@@ -182,6 +186,10 @@ function CreateEventDialog({
       toast.error("Join the yard before creating events");
       return;
     }
+    if (!canCreateEvents) {
+      toast.error("Only yard owners and moderators can publish events");
+      return;
+    }
     createEvent.mutate(
       {
         communityId,
@@ -200,6 +208,10 @@ function CreateEventDialog({
       },
     );
   };
+
+  if (!canCreateEvents && isTauri()) {
+    return null;
+  }
 
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -262,6 +274,12 @@ function CreateEventDialog({
           {!isMember && isTauri() && (
             <p className="text-xs text-amber-600">
               Join this yard first to publish events.
+            </p>
+          )}
+          {isMember && !canCreateEvents && isTauri() && (
+            <p className="text-xs text-muted-foreground">
+              Yard owners and moderators can publish events. Ask an Admin to
+              promote you to Yard Mod.
             </p>
           )}
         </div>
@@ -435,7 +453,15 @@ export function YardEventsPanel({
   createDialogOpen?: boolean;
   onCreateDialogOpenChange?: (open: boolean) => void;
 }) {
+  const currentHandle = getCurrentHandle();
   const { data: tauriEvents, isLoading } = useTauriListYardEvents(communityId);
+  const { data: roleEntries = [] } = useTauriListCommunityRoles(communityId);
+  const myRole = currentHandle
+    ? roleEntries.find((e) => e.handle === currentHandle)?.role ||
+      (isMember ? "Student" : "")
+    : "";
+  const canCreateEvents =
+    !isTauri() || myRole === "Admin" || myRole === "Yard Mod";
 
   const events: YardEventView[] =
     isTauri() && tauriEvents
@@ -481,6 +507,7 @@ export function YardEventsPanel({
           communityId={communityId}
           communityName={communityName}
           isMember={isMember}
+          canCreateEvents={canCreateEvents}
           open={createDialogOpen}
           onOpenChange={onCreateDialogOpenChange}
         />

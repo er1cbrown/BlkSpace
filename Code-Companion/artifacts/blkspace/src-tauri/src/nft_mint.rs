@@ -267,3 +267,59 @@ pub fn mint_media_nft(
   })
 }
 
+/// Transfer SPL NFT from treasury custodial ATA to buyer (devnet demo path).
+/// Returns `None` when the treasury does not hold the token (seller-wallet mints).
+pub fn transfer_nft_custodial_to_buyer(
+  buyer_address: &str,
+  mint_address: &str,
+) -> Result<Option<String>, String> {
+  let config = load_config()?;
+  let buyer = Pubkey::from_str(buyer_address)
+    .map_err(|_| "Invalid buyer Solana address".to_string())?;
+  let mint = Pubkey::from_str(mint_address).map_err(|_| "Invalid mint address".to_string())?;
+  let treasury = config.signer_a.pubkey();
+  let treasury_ata = get_associated_token_address(&treasury, &mint);
+  let buyer_ata = get_associated_token_address(&buyer, &mint);
+
+  let client = RpcClient::new(config.rpc_url.clone());
+  let balance = match client.get_token_account_balance(&treasury_ata) {
+    Ok(b) if b.ui_amount.unwrap_or(0.0) >= 1.0 => b,
+    _ => return Ok(None),
+  };
+  let _ = balance;
+
+  let create_buyer_ata_ix = create_associated_token_account_idempotent(
+    &treasury,
+    &buyer,
+    &mint,
+    &TOKEN_PROGRAM_ID,
+  );
+
+  let transfer_ix = spl_token::instruction::transfer(
+    &TOKEN_PROGRAM_ID,
+    &treasury_ata,
+    &buyer_ata,
+    &treasury,
+    &[],
+    1,
+  )
+  .map_err(|e| format!("transfer ix: {e}"))?;
+
+  let blockhash = client
+    .get_latest_blockhash()
+    .map_err(|e| format!("blockhash: {e}"))?;
+
+  let tx = Transaction::new_signed_with_payer(
+    &[create_buyer_ata_ix, transfer_ix],
+    Some(&treasury),
+    &[&config.signer_a],
+    blockhash,
+  );
+
+  let signature = client
+    .send_and_confirm_transaction(&tx)
+    .map_err(|e| format!("devnet NFT transfer failed: {e}"))?;
+
+  Ok(Some(signature.to_string()))
+}
+

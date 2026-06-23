@@ -3591,6 +3591,78 @@ impl Database {
     Ok(())
   }
 
+  pub fn community_has_owner(&self, community_id: &str) -> Result<bool> {
+    let roles = self.list_community_roles(community_id)?;
+    Ok(roles.iter().any(|e| e.role == "Admin"))
+  }
+
+  pub fn transfer_nft_ownership(&self, mint_address: &str, new_owner: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let updated = conn.execute(
+      "UPDATE nft_mints SET owner_handle = ?1 WHERE mint_address = ?2",
+      params![new_owner, mint_address],
+    )?;
+    Ok(updated > 0)
+  }
+
+  pub fn get_nft_mint_owner(&self, mint_address: &str) -> Result<Option<String>> {
+    let conn = self.conn.lock().unwrap();
+    conn.query_row(
+      "SELECT owner_handle FROM nft_mints WHERE mint_address = ?1",
+      params![mint_address],
+      |r| r.get(0),
+    )
+    .optional()
+    .map_err(Into::into)
+  }
+
+  pub fn list_nft_mints_for_owner(&self, owner: &str) -> Result<Vec<serde_json::Value>> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT mint_address, metadata_address, item_type, item_ref, title, tx_signature, metadata_uri, created_at
+       FROM nft_mints WHERE owner_handle = ?1 ORDER BY created_at DESC",
+    )?;
+    let rows = stmt.query_map(params![owner], |row| {
+      Ok(serde_json::json!({
+        "mintAddress": row.get::<_, String>(0)?,
+        "metadataAddress": row.get::<_, Option<String>>(1)?,
+        "itemType": row.get::<_, String>(2)?,
+        "itemRef": row.get::<_, Option<String>>(3)?,
+        "title": row.get::<_, String>(4)?,
+        "txSignature": row.get::<_, String>(5)?,
+        "metadataUri": row.get::<_, Option<String>>(6)?,
+        "createdAt": row.get::<_, String>(7)?,
+      }))
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+      out.push(row?);
+    }
+    Ok(out)
+  }
+
+  fn complete_nft_purchase_transfer(
+    &self,
+    nft_mint: Option<&str>,
+    buyer: &str,
+    seller: &str,
+  ) -> Option<serde_json::Value> {
+    let mint = nft_mint.filter(|m| !m.is_empty())?;
+    match self.transfer_nft_ownership(mint, buyer) {
+      Ok(true) => Some(serde_json::json!({
+        "mintAddress": mint,
+        "ownerHandle": buyer,
+        "previousOwner": seller,
+        "onChain": false,
+      })),
+      Ok(false) => None,
+      Err(e) => {
+        eprintln!("transfer_nft_ownership: {e}");
+        None
+      }
+    }
+  }
+
   pub fn get_marketplace_listing_price(&self, id: i64) -> Result<Option<(i64, String, bool)>> {
     let conn = self.conn.lock().unwrap();
     conn.query_row(
@@ -3630,7 +3702,7 @@ impl Database {
     let conn = self.conn.lock().unwrap();
     let listing = conn
       .query_row(
-        "SELECT seller_handle, price, item_type, item_ref, is_nft, sold_to FROM marketplace_listings WHERE id = ?1",
+        "SELECT seller_handle, price, item_type, item_ref, is_nft, sold_to, nft_mint FROM marketplace_listings WHERE id = ?1",
         params![id],
         |r| {
           Ok((
@@ -3640,13 +3712,14 @@ impl Database {
             r.get::<_, Option<String>>(3)?,
             r.get::<_, i64>(4)? == 1,
             r.get::<_, Option<String>>(5)?,
+            r.get::<_, Option<String>>(6)?,
           ))
         },
       )
       .optional()
       .map_err(AppError::from)?;
 
-    let Some((seller, price, item_type, item_ref, is_nft, sold_to)) = listing else {
+    let Some((seller, price, item_type, item_ref, is_nft, sold_to, nft_mint)) = listing else {
       return Err(AppError::Validation("Listing not found".into()));
     };
     if sold_to.is_some() {
@@ -3701,12 +3774,20 @@ impl Database {
     tx.commit().map_err(AppError::from)?;
     drop(conn);
 
-    let applied = self
+    let nft_transferred =
+      self.complete_nft_purchase_transfer(nft_mint.as_deref(), buyer, &seller);
+
+    let mut applied = self
       .apply_marketplace_purchase(buyer, &item_type, item_ref.as_deref())
       .unwrap_or_else(|e| {
         eprintln!("apply_marketplace_purchase: {e}");
         serde_json::json!({})
       });
+    if let Some(ref nft) = nft_transferred {
+      if let Some(obj) = applied.as_object_mut() {
+        obj.insert("nftTransferred".to_string(), nft.clone());
+      }
+    }
 
     Ok(serde_json::json!({
       "id": id,
@@ -3718,6 +3799,7 @@ impl Database {
       "paymentMethod": "bkspc_burn",
       "burnTx": burn_tx_signature,
       "sellerNetWb": net,
+      "nftTransferred": nft_transferred,
       "applied": applied,
     }))
   }
@@ -3727,7 +3809,7 @@ impl Database {
       let conn = self.conn.lock().unwrap();
       conn
         .query_row(
-          "SELECT seller_handle, price, item_type, item_ref, is_nft, sold_to FROM marketplace_listings WHERE id = ?1",
+          "SELECT seller_handle, price, item_type, item_ref, is_nft, sold_to, nft_mint FROM marketplace_listings WHERE id = ?1",
           params![id],
           |r| {
             Ok((
@@ -3737,6 +3819,7 @@ impl Database {
               r.get::<_, Option<String>>(3)?,
               r.get::<_, i64>(4)? == 1,
               r.get::<_, Option<String>>(5)?,
+              r.get::<_, Option<String>>(6)?,
             ))
           },
         )
@@ -3744,7 +3827,7 @@ impl Database {
         .map_err(AppError::from)?
     };
 
-    let Some((seller, price, item_type, item_ref, is_nft, sold_to)) = meta else {
+    let Some((seller, price, item_type, item_ref, is_nft, sold_to, nft_mint)) = meta else {
       return Err(AppError::Validation("Listing not found".into()));
     };
     if sold_to.is_some() {
@@ -3770,12 +3853,20 @@ impl Database {
     }
     drop(conn);
 
-    let applied = self
+    let nft_transferred =
+      self.complete_nft_purchase_transfer(nft_mint.as_deref(), buyer, &seller);
+
+    let mut applied = self
       .apply_marketplace_purchase(buyer, &item_type, item_ref.as_deref())
       .unwrap_or_else(|e| {
         eprintln!("apply_marketplace_purchase: {e}");
         serde_json::json!({})
       });
+    if let Some(ref nft) = nft_transferred {
+      if let Some(obj) = applied.as_object_mut() {
+        obj.insert("nftTransferred".to_string(), nft.clone());
+      }
+    }
 
     Ok(serde_json::json!({
       "id": id,
@@ -3784,6 +3875,7 @@ impl Database {
       "isNft": is_nft,
       "seller": seller,
       "price": price,
+      "nftTransferred": nft_transferred,
       "applied": applied,
     }))
   }
@@ -4625,6 +4717,9 @@ impl Database {
     )?;
     drop(conn);
     if inserted > 0 {
+      if !self.community_has_owner(community_id)? {
+        self.set_community_role(community_id, handle, "Admin")?;
+      }
       let quality = self.update_engagement_quality(handle).unwrap_or(1.0);
       let wb_nominal = self.throttle_rewards(handle, 5.0, quality);
       let throttled = self.rewards_throttled(handle);

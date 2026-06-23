@@ -626,6 +626,7 @@ export function useAppCreateMarketplaceListing() {
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "ownedNfts"] });
     },
   });
 }
@@ -663,6 +664,7 @@ export function useAppBuyMarketplaceListing() {
       qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
       qc.invalidateQueries({ queryKey: ["tauri", "wallet"] });
       qc.invalidateQueries({ queryKey: ["tauri", "user"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "ownedNfts"] });
     },
   });
 }
@@ -685,7 +687,16 @@ export function useAppBuyMarketplaceListingBkspc() {
       qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
       qc.invalidateQueries({ queryKey: ["tauri", "wallet"] });
       qc.invalidateQueries({ queryKey: ["tauri", "user"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "ownedNfts"] });
     },
+  });
+}
+
+export function useTauriListOwnedNfts() {
+  return useQuery({
+    queryKey: ["tauri", "ownedNfts"],
+    queryFn: () => tauri.tauriListOwnedNfts(getSessionToken() || ""),
+    enabled: IS_TAURI && !!getSessionToken(),
   });
 }
 
@@ -709,6 +720,7 @@ export function useTauriMintMixNft() {
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "ownedNfts"] });
     },
   });
 }
