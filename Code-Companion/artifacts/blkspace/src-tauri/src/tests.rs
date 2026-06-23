@@ -1831,14 +1831,44 @@ mod tests {
       .unwrap();
     let result = db
       .buy_marketplace_listing_bkspc(listing_id, "buyer", "burnTxSig123")
-      .unwrap()
-      .expect("listing sold");
+      .unwrap();
     assert_eq!(result["paymentMethod"], "bkspc_burn");
     let seller = db.get_user("seller").unwrap().unwrap();
     // 100 WB price - 5% fee = 95 WB net
     assert_eq!(seller.weix_bucks, 100 + 95);
     let buyer = db.get_user("buyer").unwrap().unwrap();
     assert_eq!(buyer.weix_bucks, 100);
+  }
+
+  #[test]
+  fn test_bkspc_payment_tx_replay_rejected() {
+    let db = setup_test_db();
+    db.create_user("seller", "Seller", "").unwrap();
+    db.create_user("buyer1", "Buyer 1", "").unwrap();
+    db.create_user("buyer2", "Buyer 2", "").unwrap();
+    let id1 = db
+      .create_marketplace_listing("seller", "mix", Some("cid1"), 100, "Mix 1", None, true)
+      .unwrap();
+    let id2 = db
+      .create_marketplace_listing("seller", "mix", Some("cid2"), 100, "Mix 2", None, true)
+      .unwrap();
+    db.buy_marketplace_listing_bkspc(id1, "buyer1", "sameBurnSig")
+      .unwrap();
+    let err = db
+      .buy_marketplace_listing_bkspc(id2, "buyer2", "sameBurnSig")
+      .unwrap_err();
+    assert!(err.to_string().contains("already used"));
+  }
+
+  #[test]
+  fn test_cannot_buy_own_listing_wb() {
+    let db = setup_test_db();
+    db.create_user("seller", "Seller", "").unwrap();
+    let listing_id = db
+      .create_marketplace_listing("seller", "theme", None, 50, "Theme", None, false)
+      .unwrap();
+    let err = db.buy_marketplace_listing(listing_id, "seller").unwrap_err();
+    assert!(err.to_string().contains("own listing"));
   }
 
   #[test]

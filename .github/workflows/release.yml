@@ -71,10 +71,24 @@ jobs:
             libsecret-1-dev
       - run: pnpm install --frozen-lockfile
         working-directory: ./Code-Companion
-      - run: pnpm tauri build --target ${{ matrix.target }}
+      - run: pnpm build:tier0
         working-directory: ./Code-Companion/artifacts/blkspace
+      - run: pnpm tauri build --target ${{ matrix.target }} -- --no-default-features
+        working-directory: ./Code-Companion/artifacts/blkspace
+      - name: Rename Yard release artifacts
+        shell: bash
+        run: |
+          BUNDLE="Code-Companion/artifacts/blkspace/src-tauri/target/${{ matrix.target }}/release/bundle"
+          if [ "${{ matrix.ext }}" = "msi" ]; then
+            cp "$BUNDLE/msi"/*.msi "$BUNDLE/msi/BlkSpace-Yard-Windows-x64.msi"
+          elif [ "${{ matrix.ext }}" = "dmg" ]; then
+            cp "$BUNDLE/dmg"/*.dmg "$BUNDLE/dmg/BlkSpace-Yard-macOS.dmg"
+          elif [ "${{ matrix.ext }}" = "AppImage" ]; then
+            cp "$BUNDLE/appimage"/*.AppImage "$BUNDLE/appimage/BlkSpace-Yard-Linux.AppImage"
+          fi
       - name: Upload artifact
         uses: softprops/action-gh-release@v2
         with:
-          files: Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/${{ matrix.ext }}/*
+          files: |
+            Code-Companion/artifacts/blkspace/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.ext }}/BlkSpace-Yard-*
           tag_name: ${{ github.ref_name }}

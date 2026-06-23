@@ -12,7 +12,7 @@ No technical knowledge required. If you can install Spotify or Discord, you can 
 
 ### For Windows (Tier 0 Laptops)
 1. Go to **https://github.com/er1cbrown/BlkSpace/releases**
-2. Download `BlkSpace-Setup-Windows.exe` (or `.msi`)
+2. Download **`BlkSpace-Yard-Windows-x64.msi`** (from [Releases](https://github.com/er1cbrown/BlkSpace/releases) or CI artifact `BlkSpace-Yard-windows-latest`)
 3. Double-click the file
 4. Click "Install" (no admin rights needed)
 5. BlkSpace opens automatically

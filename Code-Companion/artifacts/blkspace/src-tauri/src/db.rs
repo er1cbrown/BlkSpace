@@ -613,7 +613,7 @@ pub struct Database {
 }
 
 /// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
-const SCHEMA_VERSION: i32 = 1;
+const SCHEMA_VERSION: i32 = 2;
 
 impl Database {
   /// Fast open for app boot — schema only; demo seed runs on a background thread.
@@ -731,6 +731,9 @@ impl Database {
         metadata_uri TEXT,
         created_at TEXT DEFAULT (datetime('now'))
       );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_marketplace_payment_tx
+        ON marketplace_listings(payment_tx)
+        WHERE payment_tx IS NOT NULL AND payment_tx != '';
       ",
     )?;
     Ok(())
@@ -3317,15 +3320,32 @@ impl Database {
     Ok(())
   }
 
-  pub fn get_marketplace_listing_price(&self, id: i64) -> Result<Option<(i64, bool)>> {
+  pub fn get_marketplace_listing_price(&self, id: i64) -> Result<Option<(i64, String, bool)>> {
     let conn = self.conn.lock().unwrap();
     conn.query_row(
-      "SELECT price, sold_to IS NOT NULL FROM marketplace_listings WHERE id = ?1",
+      "SELECT price, seller_handle, sold_to IS NOT NULL FROM marketplace_listings WHERE id = ?1",
       params![id],
-      |r| Ok((r.get(0)?, r.get::<_, i64>(1)? == 1)),
+      |r| Ok((r.get(0)?, r.get(1)?, r.get::<_, i64>(2)? == 1)),
     )
     .optional()
     .map_err(Into::into)
+  }
+
+  pub fn ensure_burn_tx_unused(&self, burn_tx_signature: &str) -> Result<(), AppError> {
+    let conn = self.conn.lock().unwrap();
+    let count: i64 = conn
+      .query_row(
+        "SELECT COUNT(*) FROM marketplace_listings WHERE payment_tx = ?1",
+        params![burn_tx_signature],
+        |r| r.get(0),
+      )
+      .map_err(AppError::from)?;
+    if count > 0 {
+      return Err(AppError::Validation(
+        "Burn transaction already used for a purchase".into(),
+      ));
+    }
+    Ok(())
   }
 
   pub fn buy_marketplace_listing_bkspc(
@@ -3333,93 +3353,150 @@ impl Database {
     id: i64,
     buyer: &str,
     burn_tx_signature: &str,
-  ) -> Result<Option<serde_json::Value>> {
+  ) -> Result<serde_json::Value, AppError> {
+    self.ensure_burn_tx_unused(burn_tx_signature)?;
+
     let conn = self.conn.lock().unwrap();
-    let listing: Option<(String, i64, String, Option<String>, bool)> = conn
+    let listing = conn
       .query_row(
-        "SELECT seller_handle, price, item_type, item_ref, is_nft FROM marketplace_listings WHERE id = ?1 AND sold_to IS NULL",
+        "SELECT seller_handle, price, item_type, item_ref, is_nft, sold_to FROM marketplace_listings WHERE id = ?1",
         params![id],
-        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get::<_, i64>(4)? == 1)),
+        |r| {
+          Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, i64>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, Option<String>>(3)?,
+            r.get::<_, i64>(4)? == 1,
+            r.get::<_, Option<String>>(5)?,
+          ))
+        },
       )
-      .ok();
-    if let Some((seller, price, item_type, item_ref, is_nft)) = listing {
-      let fee = calc_platform_fee(price, MARKETPLACE_PLATFORM_FEE_BPS);
-      let net = price - fee;
-      if net <= 0 {
-        return Err(rusqlite::Error::InvalidParameterName(
-          "Amount too small after platform fee".into(),
-        ));
-      }
+      .optional()
+      .map_err(AppError::from)?;
 
-      let tx = conn.unchecked_transaction()?;
-      tx.execute(
-        "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
-        params![net, seller],
-      )?;
-      tx.execute(
-        "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
-         SELECT ?1, 'earn', ?2, ?3, weix_bucks FROM users WHERE handle = ?1",
-        params![
-          seller,
-          net,
-          format!("BKSPC marketplace sale ({burn_tx_signature})"),
-        ],
-      )?;
-      tx.execute(
-        "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
-         SELECT ?1, 'spend', 0, ?2, weix_bucks FROM users WHERE handle = ?1",
-        params![
-          buyer,
-          format!("BKSPC marketplace purchase — {price} WB equivalent burned on-chain ({burn_tx_signature})"),
-        ],
-      )?;
-      tx.execute(
-        "UPDATE marketplace_listings SET sold_to = ?1, payment_tx = ?2 WHERE id = ?3",
-        params![buyer, burn_tx_signature, id],
-      )?;
-      tx.commit()?;
-
-      Ok(Some(serde_json::json!({
-        "id": id,
-        "itemType": item_type,
-        "itemRef": item_ref,
-        "isNft": is_nft,
-        "seller": seller,
-        "price": price,
-        "paymentMethod": "bkspc_burn",
-        "burnTx": burn_tx_signature,
-        "sellerNetWb": net,
-      })))
-    } else {
-      Ok(None)
+    let Some((seller, price, item_type, item_ref, is_nft, sold_to)) = listing else {
+      return Err(AppError::Validation("Listing not found".into()));
+    };
+    if sold_to.is_some() {
+      return Err(AppError::Validation("Listing already sold".into()));
     }
+    if seller == buyer {
+      return Err(AppError::Validation("Cannot buy your own listing".into()));
+    }
+
+    let fee = calc_platform_fee(price, MARKETPLACE_PLATFORM_FEE_BPS);
+    let net = price - fee;
+    if net <= 0 {
+      return Err(AppError::Validation(
+        "Amount too small after platform fee".into(),
+      ));
+    }
+
+    let tx = conn.unchecked_transaction().map_err(AppError::from)?;
+    tx.execute(
+      "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
+      params![net, seller],
+    )
+    .map_err(AppError::from)?;
+    tx.execute(
+      "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
+       SELECT ?1, 'earn', ?2, ?3, weix_bucks FROM users WHERE handle = ?1",
+      params![
+        seller,
+        net,
+        format!("BKSPC marketplace sale ({burn_tx_signature})"),
+      ],
+    )
+    .map_err(AppError::from)?;
+    tx.execute(
+      "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
+       SELECT ?1, 'spend', 0, ?2, weix_bucks FROM users WHERE handle = ?1",
+      params![
+        buyer,
+        format!("BKSPC marketplace purchase — {price} WB equivalent burned on-chain ({burn_tx_signature})"),
+      ],
+    )
+    .map_err(AppError::from)?;
+    let updated = tx
+      .execute(
+        "UPDATE marketplace_listings SET sold_to = ?1, payment_tx = ?2 WHERE id = ?3 AND sold_to IS NULL",
+        params![buyer, burn_tx_signature, id],
+      )
+      .map_err(AppError::from)?;
+    if updated == 0 {
+      return Err(AppError::Validation("Listing already sold".into()));
+    }
+    tx.commit().map_err(AppError::from)?;
+
+    Ok(serde_json::json!({
+      "id": id,
+      "itemType": item_type,
+      "itemRef": item_ref,
+      "isNft": is_nft,
+      "seller": seller,
+      "price": price,
+      "paymentMethod": "bkspc_burn",
+      "burnTx": burn_tx_signature,
+      "sellerNetWb": net,
+    }))
   }
 
-  pub fn buy_marketplace_listing(&self, id: i64, buyer: &str) -> Result<Option<serde_json::Value>> {
-    let conn = self.conn.lock().unwrap();
-    let listing: Option<(String, i64, String, Option<String>, bool)> = conn.query_row(
-      "SELECT seller_handle, price, item_type, item_ref, is_nft FROM marketplace_listings WHERE id = ?1 AND sold_to IS NULL",
-      params![id],
-      |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get::<_, i64>(4)? == 1)),
-    ).ok();
-    if let Some((seller, price, item_type, item_ref, is_nft)) = listing {
-      self.transfer_weixbucks(buyer, &seller, price, MARKETPLACE_PLATFORM_FEE_BPS)?;
-      // Mark sold
-      conn.execute(
-        "UPDATE marketplace_listings SET sold_to = ?1 WHERE id = ?2",
-        params![buyer, id],
-      )?;
-      Ok(Some(serde_json::json!({
-        "id": id,
-        "itemType": item_type,
-        "itemRef": item_ref,
-        "isNft": is_nft,
-        "seller": seller,
-        "price": price,
-      })))
-    } else {
-      Ok(None)
+  pub fn buy_marketplace_listing(&self, id: i64, buyer: &str) -> Result<serde_json::Value, AppError> {
+    let meta = {
+      let conn = self.conn.lock().unwrap();
+      conn
+        .query_row(
+          "SELECT seller_handle, price, item_type, item_ref, is_nft, sold_to FROM marketplace_listings WHERE id = ?1",
+          params![id],
+          |r| {
+            Ok((
+              r.get::<_, String>(0)?,
+              r.get::<_, i64>(1)?,
+              r.get::<_, String>(2)?,
+              r.get::<_, Option<String>>(3)?,
+              r.get::<_, i64>(4)? == 1,
+              r.get::<_, Option<String>>(5)?,
+            ))
+          },
+        )
+        .optional()
+        .map_err(AppError::from)?
+    };
+
+    let Some((seller, price, item_type, item_ref, is_nft, sold_to)) = meta else {
+      return Err(AppError::Validation("Listing not found".into()));
+    };
+    if sold_to.is_some() {
+      return Err(AppError::Validation("Listing already sold".into()));
     }
+    if seller == buyer {
+      return Err(AppError::Validation("Cannot buy your own listing".into()));
+    }
+
+    self
+      .transfer_weixbucks(buyer, &seller, price, MARKETPLACE_PLATFORM_FEE_BPS)
+      .map_err(AppError::from)?;
+
+    let conn = self.conn.lock().unwrap();
+    let updated = conn
+      .execute(
+        "UPDATE marketplace_listings SET sold_to = ?1 WHERE id = ?2 AND sold_to IS NULL",
+        params![buyer, id],
+      )
+      .map_err(AppError::from)?;
+    if updated == 0 {
+      return Err(AppError::Validation("Listing already sold".into()));
+    }
+
+    Ok(serde_json::json!({
+      "id": id,
+      "itemType": item_type,
+      "itemRef": item_ref,
+      "isNft": is_nft,
+      "seller": seller,
+      "price": price,
+    }))
   }
 
   pub fn increment_relay_uptime(&self, handle: &str, hours: i64) -> Result<()> {

@@ -217,6 +217,74 @@ jobs:
       - run: pnpm tauri build
         working-directory: ./Code-Companion/artifacts/blkspace
 
+  build-tauri-yard:
+    name: Build (BlkSpace Yard - ${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: Code-Companion/pnpm-lock.yaml
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install system deps (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libsecret-1-dev
+      - run: pnpm install --frozen-lockfile
+        working-directory: ./Code-Companion
+      - run: pnpm build:tier0
+        working-directory: ./Code-Companion/artifacts/blkspace
+      - run: pnpm tauri build -- --no-default-features
+        working-directory: ./Code-Companion/artifacts/blkspace
+      - name: Rename Yard installers
+        shell: bash
+        run: |
+          BUNDLE="Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle"
+          if [ -d "$BUNDLE/msi" ]; then
+            shopt -s nullglob
+            for f in "$BUNDLE/msi"/*.msi; do
+              cp "$f" "$BUNDLE/msi/BlkSpace-Yard-Windows-x64.msi"
+            done
+          fi
+          if [ -d "$BUNDLE/dmg" ]; then
+            shopt -s nullglob
+            for f in "$BUNDLE/dmg"/*.dmg; do
+              cp "$f" "$BUNDLE/dmg/BlkSpace-Yard-macOS.dmg"
+            done
+          fi
+          if [ -d "$BUNDLE/appimage" ]; then
+            shopt -s nullglob
+            for f in "$BUNDLE/appimage"/*.AppImage; do
+              cp "$f" "$BUNDLE/appimage/BlkSpace-Yard-Linux.AppImage"
+            done
+          fi
+      - name: Upload BlkSpace Yard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlkSpace-Yard-${{ matrix.os }}
+          path: |
+            Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/msi/BlkSpace-Yard-Windows-x64.msi
+            Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/dmg/BlkSpace-Yard-macOS.dmg
+            Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/appimage/BlkSpace-Yard-Linux.AppImage
+          if-no-files-found: error
+
   build-tauri-iroh:
     name: Build (Tauri + Iroh - Linux)
     runs-on: ubuntu-latest

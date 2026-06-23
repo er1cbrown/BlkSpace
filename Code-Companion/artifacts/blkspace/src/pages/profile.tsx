@@ -8,7 +8,7 @@ import {
   CardFooter,
   CardDescription,
 } from "@/components/ui/card";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -100,7 +100,8 @@ export default function ProfilePage() {
   const [profileTheme, setProfileTheme] = useState<ThemeKey>("classic");
   const [profileSong, setProfileSong] = useState<string | null>(null);
   const [audioBlobs, setAudioBlobs] = useState<TauriBlobInfo[]>([]);
-  const [showCustomize, setShowCustomize] = useState(false);
+  const [profileTab, setProfileTab] = useState("grid");
+  const profileTabsRef = useRef<HTMLDivElement>(null);
   const [audioSrc, setAudioSrc] = useState<string | null>(null); // for real Iroh play
   const [wallText, setWallText] = useState(""); // for visitor wall posts
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
@@ -252,7 +253,13 @@ export default function ProfilePage() {
                     variant="secondary"
                     size="sm"
                     className="rounded-full"
-                    onClick={() => setShowCustomize(!showCustomize)}
+                    onClick={() => {
+                      setProfileTab("customize");
+                      profileTabsRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }}
                   >
                     <Palette className="w-4 h-4 mr-1" /> Customize (MySpace)
                   </Button>
@@ -385,7 +392,12 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <Tabs defaultValue="grid" className="mt-2">
+              <div ref={profileTabsRef}>
+              <Tabs
+                value={profileTab}
+                onValueChange={setProfileTab}
+                className="mt-2"
+              >
                 <TabsList className="mb-4 w-full justify-start flex-wrap h-auto">
                   <TabsTrigger value="grid">Grid (IG)</TabsTrigger>
                   <TabsTrigger value="wall">Wall (FB)</TabsTrigger>
@@ -727,6 +739,7 @@ export default function ProfilePage() {
                   </TabsContent>
                 )}
               </Tabs>
+              </div>
             </div>
           </div>
         ) : (

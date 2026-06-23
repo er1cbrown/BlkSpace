@@ -21,10 +21,10 @@ Tier 0 is the computer you already have: a low-end or older Windows laptop with 
 
 ## Install in 3 steps
 
-1. **Download** from [GitHub Releases](https://github.com/er1cbrown/BlkSpace/releases)  
-   - Windows: `BlkSpace-Setup-Windows.exe` or `.msi`  
-   - Mac: `BlkSpace-Setup-Mac.dmg`  
-   - Linux: `BlkSpace-Setup-Linux.AppImage`
+1. **Download** from [GitHub Releases](https://github.com/er1cbrown/BlkSpace/releases) or CI artifacts  
+   - Windows: **`BlkSpace-Yard-Windows-x64.msi`** (Tier 0 build — no heavy mesh)  
+   - Mac: **`BlkSpace-Yard-macOS.dmg`**  
+   - Linux: **`BlkSpace-Yard-Linux.AppImage`**
 
 2. **Install** like any other app (double-click → Install).
 

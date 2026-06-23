@@ -11,6 +11,11 @@ mod iroh_node;
 mod bkspc_settlement;
 
 #[cfg(feature = "bkspc-devnet")]
+use std::str::FromStr;
+#[cfg(feature = "bkspc-devnet")]
+use solana_sdk::pubkey::Pubkey;
+
+#[cfg(feature = "bkspc-devnet")]
 mod nft_mint;
 
 #[cfg(test)]
@@ -1054,10 +1059,26 @@ fn publish_mix(
 }
 
 #[tauri::command]
-fn buy_marketplace_listing(state: State<AppState>, session_token: String, listing_id: i64) -> Result<Option<serde_json::Value>, String> {
+fn buy_marketplace_listing(state: State<AppState>, session_token: String, listing_id: i64) -> Result<serde_json::Value, String> {
   let buyer = get_handle_from_session(&state, &session_token)?;
-  let result = state.db.buy_marketplace_listing(listing_id, &buyer).map_err(|e| e.to_string())?;
-  if let Some(listing) = &result {
+  let row = state
+    .db
+    .get_marketplace_listing_price(listing_id)
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "Listing not found".to_string())?;
+  let (_price, seller, sold) = row;
+  if sold {
+    return Err("Listing already sold".to_string());
+  }
+  if seller == buyer {
+    return Err("Cannot buy your own listing".to_string());
+  }
+  let result = state
+    .db
+    .buy_marketplace_listing(listing_id, &buyer)
+    .map_err(|e| e.to_string())?;
+  {
+    let listing = &result;
     // Publish Nostr 30081 for NFT listing/purchase if applicable
     if listing["isNft"].as_bool().unwrap_or(false) {
       let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
@@ -1235,23 +1256,24 @@ fn get_bkspc_purchase_quote(
     .get_marketplace_listing_price(listing_id)
     .map_err(|e| e.to_string())?
     .ok_or_else(|| "Listing not found".to_string())?;
-  if row.1 {
+  let (price, _seller, sold) = row;
+  if sold {
     return Err("Listing already sold".to_string());
   }
 
   #[cfg(feature = "bkspc-devnet")]
   {
-    let quote = bkspc_settlement::marketplace_purchase_quote(row.0, MARKETPLACE_PLATFORM_FEE_BPS)?;
+    let quote = bkspc_settlement::marketplace_purchase_quote(price, MARKETPLACE_PLATFORM_FEE_BPS)?;
     return serde_json::to_value(quote).map_err(|e| e.to_string());
   }
 
   #[cfg(not(feature = "bkspc-devnet"))]
   {
-    let fee = calc_platform_fee(row.0, MARKETPLACE_PLATFORM_FEE_BPS);
+    let fee = calc_platform_fee(price, MARKETPLACE_PLATFORM_FEE_BPS);
     Ok(serde_json::json!({
-      "listingPriceWb": row.0,
+      "listingPriceWb": price,
       "platformFeeWb": fee,
-      "totalWb": row.0 + fee,
+      "totalWb": price,
       "wired": false,
       "reason": "Build with bkspc-devnet feature for on-chain BKSPC purchases",
     }))
@@ -1298,9 +1320,23 @@ fn buy_marketplace_listing_bkspc(
   listing_id: i64,
   buyer_solana_address: String,
   burn_tx_signature: String,
-) -> Result<Option<serde_json::Value>, String> {
+) -> Result<serde_json::Value, String> {
+  #[cfg(not(feature = "bkspc-devnet"))]
+  {
+    let _ = (
+      state,
+      session_token,
+      listing_id,
+      buyer_solana_address,
+      burn_tx_signature,
+    );
+    return Err("Build with bkspc-devnet feature for on-chain BKSPC purchases".into());
+  }
+
+  #[cfg(feature = "bkspc-devnet")]
+  {
   let buyer = get_handle_from_session(&state, &session_token)?;
-  if buyer_solana_address.len() < 32 || buyer_solana_address.len() > 44 {
+  if Pubkey::from_str(&buyer_solana_address).is_err() {
     return Err("Invalid buyer Solana address".to_string());
   }
   if burn_tx_signature.is_empty() {
@@ -1312,26 +1348,33 @@ fn buy_marketplace_listing_bkspc(
     .get_marketplace_listing_price(listing_id)
     .map_err(|e| e.to_string())?
     .ok_or_else(|| "Listing not found".to_string())?;
-  if row.1 {
+  let (price, seller, sold) = row;
+  if sold {
     return Err("Listing already sold".to_string());
   }
-
-  #[cfg(feature = "bkspc-devnet")]
-  {
-    let quote = bkspc_settlement::marketplace_purchase_quote(row.0, MARKETPLACE_PLATFORM_FEE_BPS)?;
-    bkspc_settlement::verify_bkspc_burn_transaction(
-      &burn_tx_signature,
-      &buyer_solana_address,
-      quote.burn_raw_amount,
-    )?;
+  if seller == buyer {
+    return Err("Cannot buy your own listing".to_string());
   }
+
+  state
+    .db
+    .ensure_burn_tx_unused(&burn_tx_signature)
+    .map_err(|e| e.to_string())?;
+
+  let quote = bkspc_settlement::marketplace_purchase_quote(price, MARKETPLACE_PLATFORM_FEE_BPS)?;
+  bkspc_settlement::verify_bkspc_burn_transaction(
+    &burn_tx_signature,
+    &buyer_solana_address,
+    quote.burn_raw_amount,
+  )?;
 
   let result = state
     .db
     .buy_marketplace_listing_bkspc(listing_id, &buyer, &burn_tx_signature)
     .map_err(|e| e.to_string())?;
 
-  if let Some(listing) = &result {
+  {
+    let listing = &result;
     if listing["isNft"].as_bool().unwrap_or(false) {
       let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
       if has_relays {
@@ -1362,6 +1405,7 @@ fn buy_marketplace_listing_bkspc(
   }
 
   Ok(result)
+  }
 }
 
 // ─── Post Commands ───────────────────────────────────────

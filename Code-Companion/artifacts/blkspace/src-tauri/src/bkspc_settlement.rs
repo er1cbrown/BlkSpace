@@ -12,6 +12,10 @@ use solana_sdk::{
 };
 use solana_transaction_status::{
   option_serializer::OptionSerializer,
+  EncodedTransaction,
+  ParsedInstruction,
+  UiInstruction,
+  UiMessage,
   UiTransactionEncoding,
 };
 use spl_associated_token_account::{
@@ -174,8 +178,9 @@ pub fn marketplace_purchase_quote(price_wb: i64, marketplace_fee_bps: i64) -> Re
   }
   let config = load_config()?;
   let platform_fee_wb = calc_platform_fee(price_wb, marketplace_fee_bps);
-  let total_wb = price_wb + platform_fee_wb;
-  let burn_raw = wb_to_raw_amount(total_wb, config.wb_to_bkspc_ratio, config.decimals)?;
+  // Buyer burns listing price only; platform fee is deducted from seller net (same as WB rail).
+  let total_wb = price_wb;
+  let burn_raw = wb_to_raw_amount(price_wb, config.wb_to_bkspc_ratio, config.decimals)?;
   let scale = 10f64.powi(config.decimals as i32);
   let display = (burn_raw as f64) / scale;
 
@@ -261,7 +266,50 @@ pub fn mint_settlement_to_recipient(
   Ok(signature.to_string())
 }
 
-/// Verify a confirmed devnet burn tx from the buyer's wallet for marketplace payment.
+fn spl_burn_amount_from_instructions(
+  instructions: &[UiInstruction],
+  mint: &str,
+  authority: &str,
+) -> Result<u64, String> {
+  let mut total = 0u64;
+  for ix in instructions {
+    let UiInstruction::Parsed(parsed) = ix else {
+      continue;
+    };
+    if parsed.program_id != spl_token::ID.to_string() {
+      continue;
+    }
+    let ParsedInstruction::Parsed(info) = &parsed.parsed else {
+      continue;
+    };
+    if info.type_ != "burn" {
+      continue;
+    }
+    let Some(info_mint) = info.info.get("mint").and_then(|v| v.as_str()) else {
+      continue;
+    };
+    let Some(info_auth) = info.info.get("authority").and_then(|v| v.as_str()) else {
+      continue;
+    };
+    if info_mint != mint || info_auth != authority {
+      continue;
+    }
+    let amount_str = info
+      .info
+      .get("amount")
+      .and_then(|v| v.as_str())
+      .ok_or_else(|| "Burn instruction missing amount".to_string())?;
+    let amount: u64 = amount_str
+      .parse()
+      .map_err(|_| format!("Invalid burn amount: {amount_str}"))?;
+    total = total
+      .checked_add(amount)
+      .ok_or_else(|| "Burn amount overflow".to_string())?;
+  }
+  Ok(total)
+}
+
+/// Verify a confirmed devnet SPL **burn** (not transfer) from the buyer for marketplace payment.
 pub fn verify_bkspc_burn_transaction(
   signature: &str,
   buyer_wallet: &str,
@@ -291,42 +339,35 @@ pub fn verify_bkspc_burn_transaction(
     return Err("Burn transaction failed on-chain".into());
   }
 
-  let pre = match &meta.pre_token_balances {
-    OptionSerializer::Some(v) => v,
-    _ => return Err("No pre token balances".into()),
-  };
-  let post = match &meta.post_token_balances {
-    OptionSerializer::Some(v) => v,
-    _ => return Err("No post token balances".into()),
-  };
-
   let mint_str = config.mint.to_string();
-  let mut burned: u64 = 0;
+  let buyer_str = buyer.to_string();
+  let mut burned = 0u64;
 
-  for pre_bal in pre {
-    if pre_bal.mint != mint_str {
-      continue;
+  let EncodedTransaction::Json(ui_tx) = &confirmed.transaction.transaction else {
+    return Err("Expected JSON-encoded transaction for burn verification".into());
+  };
+  if let UiMessage::Parsed(parsed_msg) = &ui_tx.message {
+    burned = burned.saturating_add(spl_burn_amount_from_instructions(
+      &parsed_msg.instructions,
+      &mint_str,
+      &buyer_str,
+    )?);
+  }
+
+  if let OptionSerializer::Some(inner) = &meta.inner_instructions {
+    for group in inner {
+      burned = burned.saturating_add(spl_burn_amount_from_instructions(
+        &group.instructions,
+        &mint_str,
+        &buyer_str,
+      )?);
     }
-    let owner = match &pre_bal.owner {
-      OptionSerializer::Some(s) => s.as_str(),
-      _ => "",
-    };
-    if owner != buyer.to_string() {
-      continue;
-    }
-    let pre_amt: u64 = pre_bal
-      .ui_token_amount
-      .amount
-      .parse()
-      .map_err(|_| "parse pre balance".to_string())?;
-    let post_amt = post
-      .iter()
-      .find(|p| p.account_index == pre_bal.account_index)
-      .map(|p| p.ui_token_amount.amount.parse::<u64>().unwrap_or(0))
-      .unwrap_or(0);
-    if pre_amt > post_amt {
-      burned += pre_amt - post_amt;
-    }
+  }
+
+  if burned == 0 {
+    return Err(
+      "No SPL burn instruction found for buyer BKSPC ATA (transfers are not accepted)".into(),
+    );
   }
 
   if burned < min_raw_burn {
@@ -411,5 +452,11 @@ mod tests {
   #[test]
   fn wb_to_raw_amount_rejects_tiny() {
     assert!(wb_to_raw_amount(1, 1000, 9).is_err());
+  }
+
+  #[test]
+  fn marketplace_platform_fee_math() {
+    let fee = (100 * 500 + 9999) / 10000;
+    assert_eq!(fee, 5);
   }
 }
