@@ -483,6 +483,68 @@ export function tauriBuyMarketplaceListing(
   return invoke("buy_marketplace_listing", { sessionToken, listingId });
 }
 
+export interface TauriBkspcPurchaseQuote {
+  listingPriceWb: number;
+  platformFeeWb: number;
+  totalWb: number;
+  burnRawAmount?: number;
+  burnBkspcDisplay?: string;
+  mint?: string;
+  wbToBkspcRatio?: number;
+  decimals?: number;
+  marketplaceFeeBps?: number;
+  wired?: boolean;
+  reason?: string;
+}
+
+export function tauriGetBkspcPurchaseQuote(
+  sessionToken: string,
+  listingId: number,
+): Promise<TauriBkspcPurchaseQuote> {
+  return invoke("get_bkspc_purchase_quote", { sessionToken, listingId });
+}
+
+export function tauriBuyMarketplaceListingBkspc(
+  sessionToken: string,
+  listingId: number,
+  buyerSolanaAddress: string,
+  burnTxSignature: string,
+): Promise<any> {
+  return invoke("buy_marketplace_listing_bkspc", {
+    sessionToken,
+    listingId,
+    buyerSolanaAddress,
+    burnTxSignature,
+  });
+}
+
+export interface TauriNftMintResult {
+  mintAddress: string;
+  metadataAddress: string;
+  txSignature: string;
+  metadataUri: string;
+  recipient: string;
+  simulated: boolean;
+}
+
+export function tauriMintMixNft(
+  sessionToken: string,
+  recipientSolanaAddress: string,
+  cid: string,
+  title: string,
+  itemType: string,
+  listingId?: number | null,
+): Promise<TauriNftMintResult> {
+  return invoke("mint_mix_nft", {
+    sessionToken,
+    recipientSolanaAddress,
+    cid,
+    title,
+    itemType,
+    listingId: listingId ?? null,
+  });
+}
+
 export function tauriPublishMix(
   sessionToken: string,
   cid: string,
@@ -494,14 +556,45 @@ export function tauriPublishMix(
   return invoke("publish_mix", { sessionToken, cid, title, bpm, key, tracklist });
 }
 
+export interface TauriPaginatedPosts {
+  posts: TauriPost[];
+  hasMore: boolean;
+}
+
 export function tauriListPosts(
   town?: string,
   currentUser?: string,
-): Promise<TauriPost[]> {
+  limit?: number,
+  beforeId?: number,
+): Promise<TauriPaginatedPosts> {
   return invoke("list_posts", {
     town: town || null,
     currentUser: currentUser || null,
+    limit: limit ?? null,
+    beforeId: beforeId ?? null,
   });
+}
+
+export interface TauriBkspcBurnPrepare {
+  transactionBase64: string;
+  blockhash: string;
+  lastValidBlockHeight: number;
+}
+
+export function tauriPrepareBkspcBurnTx(
+  buyerSolanaAddress: string,
+  burnRawAmount: number,
+): Promise<TauriBkspcBurnPrepare> {
+  return invoke("prepare_bkspc_burn_transaction", {
+    buyerSolanaAddress,
+    burnRawAmount,
+  });
+}
+
+export function tauriSubmitBkspcBurnTx(
+  signedTxBase64: string,
+): Promise<string> {
+  return invoke("submit_bkspc_burn_transaction", { signedTxBase64 });
 }
 
 export function tauriGetPost(

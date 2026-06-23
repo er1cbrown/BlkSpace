@@ -10,6 +10,9 @@ mod iroh_node;
 #[cfg(feature = "bkspc-devnet")]
 mod bkspc_settlement;
 
+#[cfg(feature = "bkspc-devnet")]
+mod nft_mint;
+
 #[cfg(test)]
 mod tests;
 
@@ -24,11 +27,13 @@ use key_store::KeyStore;
 use db::{
   AppError, ApproveWallPostResult, BlobRecord, Community, CreatePostResult, CreateReplyResult,
   CrossTownEvent, Database, EarnResult, EarnSummary, JoinYardResult, KarmaLeaderboardEntry,
+  PaginatedPosts,
   CommunityRoleEntry, RepostFeedItem, RepostResult, RsvpYardEventResult, ToggleLikeResult,
   YardEvent,
   NetworkStats,
   Notification, Post, Relay, Reply, UploadBlobResult, User, WalletTx, WallPost, WallPostResult,
   EconomyAppeal, TokenomicsPolicy, WithdrawEligibility, WITHDRAW_SETTLEMENT_FEE_BPS,
+  MARKETPLACE_PLATFORM_FEE_BPS,
   calc_platform_fee,
   RelayConnectionRecord, RelayEventRecord,
   validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
@@ -58,11 +63,16 @@ struct PendingChallenge {
   created_at: Instant,
 }
 
+/// Yard-first boot unless `BLKSPACE_FULL_MESH=1` (connect all relays + eager Iroh).
+fn full_mesh_startup() -> bool {
+  std::env::var("BLKSPACE_FULL_MESH").as_deref() == Ok("1")
+}
+
 struct AppState {
   db: Database,
   blob_store: BlobStore,
   #[cfg(feature = "iroh")]
-  iroh: Option<Mutex<IrohNode>>,
+  iroh: Mutex<Option<IrohNode>>,
   #[cfg(not(feature = "iroh"))]
   iroh: Option<()>,
   app_dir: PathBuf,
@@ -1077,11 +1087,302 @@ fn buy_marketplace_listing(state: State<AppState>, session_token: String, listin
   Ok(result)
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NftMintResponse {
+  mint_address: String,
+  metadata_address: String,
+  tx_signature: String,
+  metadata_uri: String,
+  recipient: String,
+  simulated: bool,
+}
+
+#[tauri::command]
+fn mint_mix_nft(
+  state: State<AppState>,
+  session_token: String,
+  recipient_solana_address: String,
+  cid: String,
+  title: String,
+  item_type: String,
+  listing_id: Option<i64>,
+) -> Result<NftMintResponse, String> {
+  let seller = get_handle_from_session(&state, &session_token)?;
+  if recipient_solana_address.len() < 32 || recipient_solana_address.len() > 44 {
+    return Err("Invalid Solana recipient address".to_string());
+  }
+  if cid.is_empty() || title.is_empty() {
+    return Err("CID and title required".to_string());
+  }
+
+  #[cfg(feature = "bkspc-devnet")]
+  let result = {
+    let minted = nft_mint::mint_media_nft(
+      &recipient_solana_address,
+      &title,
+      &item_type,
+      &cid,
+      &seller,
+    )?;
+    state
+      .db
+      .record_nft_mint(
+        &seller,
+        &minted.mint_address,
+        Some(&minted.metadata_address),
+        &item_type,
+        Some(&cid),
+        &title,
+        &minted.tx_signature,
+        Some(&minted.metadata_uri),
+      )
+      .map_err(|e| e.to_string())?;
+    if let Some(lid) = listing_id {
+      let _ = state
+        .db
+        .set_listing_nft_mint(lid, &minted.mint_address)
+        .map_err(|e| e.to_string())?;
+    }
+    NftMintResponse {
+      mint_address: minted.mint_address,
+      metadata_address: minted.metadata_address,
+      tx_signature: minted.tx_signature,
+      metadata_uri: minted.metadata_uri,
+      recipient: minted.recipient,
+      simulated: false,
+    }
+  };
+
+  #[cfg(not(feature = "bkspc-devnet"))]
+  let result = {
+    let simulated_sig: String = (0..88)
+      .map(|i| {
+        let chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+        let idx = ((uuid::Uuid::new_v4().as_u128() >> (i % 8)) % 58) as usize;
+        chars.chars().nth(idx).unwrap_or('1')
+      })
+      .collect();
+    let mint_address = format!("SimNFT{}", &simulated_sig[..32]);
+    state
+      .db
+      .record_nft_mint(
+        &seller,
+        &mint_address,
+        None,
+        &item_type,
+        Some(&cid),
+        &title,
+        &simulated_sig,
+        Some("blkspace://nft/simulated"),
+      )
+      .map_err(|e| e.to_string())?;
+    if let Some(lid) = listing_id {
+      let _ = state
+        .db
+        .set_listing_nft_mint(lid, &mint_address)
+        .map_err(|e| e.to_string())?;
+    }
+    NftMintResponse {
+      mint_address,
+      metadata_address: String::new(),
+      tx_signature: simulated_sig,
+      metadata_uri: "blkspace://nft/simulated".into(),
+      recipient: recipient_solana_address,
+      simulated: true,
+    }
+  };
+
+  // Nostr 30080 NFT mint event
+  if state.relay_manager.lock().unwrap().relay_count() > 0 {
+    if let Some(keys) = user_nostr_keys_for_publish(&state, &seller, "NFT mint publish") {
+      let content = format!("Minted NFT: {}", title);
+      let tags: Vec<Vec<String>> = vec![
+        vec!["t".to_string(), "blkspace".to_string()],
+        vec!["mint".to_string(), result.mint_address.clone()],
+        vec!["cid".to_string(), cid],
+        vec!["item_type".to_string(), item_type],
+      ];
+      let client = state.relay_manager.lock().unwrap().client().clone();
+      if let Ok(rt) = tokio::runtime::Runtime::new() {
+        let _ = rt.block_on(async {
+          use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+          let ntags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+          let event = EventBuilder::new(Kind::Custom(30080), &content)
+            .tags(ntags)
+            .sign(&keys)
+            .await
+            .map_err(|e| format!("Nostr sign: {}", e))?;
+          let _ = client.send_event(event).await;
+          Ok::<_, String>(())
+        });
+      }
+    }
+  }
+
+  Ok(result)
+}
+
+#[tauri::command]
+fn get_bkspc_purchase_quote(
+  state: State<AppState>,
+  session_token: String,
+  listing_id: i64,
+) -> Result<serde_json::Value, String> {
+  let _caller = get_handle_from_session(&state, &session_token)?;
+  let row = state
+    .db
+    .get_marketplace_listing_price(listing_id)
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "Listing not found".to_string())?;
+  if row.1 {
+    return Err("Listing already sold".to_string());
+  }
+
+  #[cfg(feature = "bkspc-devnet")]
+  {
+    let quote = bkspc_settlement::marketplace_purchase_quote(row.0, MARKETPLACE_PLATFORM_FEE_BPS)?;
+    return serde_json::to_value(quote).map_err(|e| e.to_string());
+  }
+
+  #[cfg(not(feature = "bkspc-devnet"))]
+  {
+    let fee = calc_platform_fee(row.0, MARKETPLACE_PLATFORM_FEE_BPS);
+    Ok(serde_json::json!({
+      "listingPriceWb": row.0,
+      "platformFeeWb": fee,
+      "totalWb": row.0 + fee,
+      "wired": false,
+      "reason": "Build with bkspc-devnet feature for on-chain BKSPC purchases",
+    }))
+  }
+}
+
+#[tauri::command]
+fn prepare_bkspc_burn_transaction(
+  buyer_solana_address: String,
+  burn_raw_amount: u64,
+) -> Result<serde_json::Value, String> {
+  #[cfg(feature = "bkspc-devnet")]
+  {
+    let prep = bkspc_settlement::prepare_bkspc_burn_transaction(
+      &buyer_solana_address,
+      burn_raw_amount,
+    )?;
+    return serde_json::to_value(prep).map_err(|e| e.to_string());
+  }
+  #[cfg(not(feature = "bkspc-devnet"))]
+  {
+    let _ = (buyer_solana_address, burn_raw_amount);
+    Err("Build with bkspc-devnet feature for on-chain BKSPC burns".into())
+  }
+}
+
+#[tauri::command]
+fn submit_bkspc_burn_transaction(signed_tx_base64: String) -> Result<String, String> {
+  #[cfg(feature = "bkspc-devnet")]
+  {
+    return bkspc_settlement::submit_bkspc_burn_transaction(&signed_tx_base64);
+  }
+  #[cfg(not(feature = "bkspc-devnet"))]
+  {
+    let _ = signed_tx_base64;
+    Err("Build with bkspc-devnet feature for on-chain BKSPC burns".into())
+  }
+}
+
+#[tauri::command]
+fn buy_marketplace_listing_bkspc(
+  state: State<AppState>,
+  session_token: String,
+  listing_id: i64,
+  buyer_solana_address: String,
+  burn_tx_signature: String,
+) -> Result<Option<serde_json::Value>, String> {
+  let buyer = get_handle_from_session(&state, &session_token)?;
+  if buyer_solana_address.len() < 32 || buyer_solana_address.len() > 44 {
+    return Err("Invalid buyer Solana address".to_string());
+  }
+  if burn_tx_signature.is_empty() {
+    return Err("Burn transaction signature required".to_string());
+  }
+
+  let row = state
+    .db
+    .get_marketplace_listing_price(listing_id)
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "Listing not found".to_string())?;
+  if row.1 {
+    return Err("Listing already sold".to_string());
+  }
+
+  #[cfg(feature = "bkspc-devnet")]
+  {
+    let quote = bkspc_settlement::marketplace_purchase_quote(row.0, MARKETPLACE_PLATFORM_FEE_BPS)?;
+    bkspc_settlement::verify_bkspc_burn_transaction(
+      &burn_tx_signature,
+      &buyer_solana_address,
+      quote.burn_raw_amount,
+    )?;
+  }
+
+  let result = state
+    .db
+    .buy_marketplace_listing_bkspc(listing_id, &buyer, &burn_tx_signature)
+    .map_err(|e| e.to_string())?;
+
+  if let Some(listing) = &result {
+    if listing["isNft"].as_bool().unwrap_or(false) {
+      let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
+      if has_relays {
+        if let Some(keys) = user_nostr_keys_for_publish(&state, &buyer, "BKSPC NFT purchase") {
+          let content = format!("Purchased NFT via BKSPC burn: {}", listing["itemType"]);
+          let tags: Vec<Vec<String>> = vec![
+            vec!["t".to_string(), "blkspace".to_string()],
+            vec!["id".to_string(), listing_id.to_string()],
+            vec!["burn_tx".to_string(), burn_tx_signature.clone()],
+          ];
+          let client = state.relay_manager.lock().unwrap().client().clone();
+          if let Ok(rt) = tokio::runtime::Runtime::new() {
+            let _ = rt.block_on(async {
+              use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+              let ntags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+              let event = EventBuilder::new(Kind::Custom(30081), &content)
+                .tags(ntags)
+                .sign(&keys)
+                .await
+                .map_err(|e| format!("Nostr sign: {}", e))?;
+              let _ = client.send_event(event).await;
+              Ok::<_, String>(())
+            });
+          }
+        }
+      }
+    }
+  }
+
+  Ok(result)
+}
+
 // ─── Post Commands ───────────────────────────────────────
 
 #[tauri::command]
-fn list_posts(state: State<AppState>, town: Option<String>, current_user: Option<String>) -> Result<Vec<Post>, String> {
-  state.db.list_posts(town.as_deref(), current_user.as_deref()).map_err(|e| AppError::from(e).to_string())
+fn list_posts(
+  state: State<AppState>,
+  town: Option<String>,
+  current_user: Option<String>,
+  limit: Option<i64>,
+  before_id: Option<i64>,
+) -> Result<PaginatedPosts, String> {
+  state
+    .db
+    .list_posts(
+      town.as_deref(),
+      current_user.as_deref(),
+      limit.or(Some(db::DEFAULT_POST_PAGE_SIZE)),
+      before_id,
+    )
+    .map_err(|e| AppError::from(e).to_string())
 }
 
 #[tauri::command]
@@ -2017,8 +2318,7 @@ fn pin_content(state: State<AppState>, session_token: String, hash: String) -> R
   let pinned = state.db.pin_blob(&hash, &pinned_by).map_err(|e| e.to_string())?;
   
   #[cfg(feature = "iroh")]
-  if let Some(iroh) = &state.iroh {
-    let iroh = iroh.lock().unwrap();
+  if let Some(iroh) = state.iroh.lock().unwrap().as_ref() {
     let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
     if let Ok(Some(_)) = rt.block_on(iroh.get_blob(&hash)) {
       log::info!("Blob {} pinned by {} (already in Iroh)", hash, pinned_by);
@@ -2144,8 +2444,7 @@ fn sync_account_content(state: State<AppState>, session_token: String) -> Result
   let hashes = state.db.get_user_media_hashes(&handle).map_err(|e| e.to_string())?;
   
   #[cfg(feature = "iroh")]
-  if let Some(iroh) = &state.iroh {
-    let iroh = iroh.lock().unwrap();
+  if let Some(iroh) = state.iroh.lock().unwrap().as_ref() {
     let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
     
     let mut synced = Vec::new();
@@ -2205,8 +2504,7 @@ fn prefetch_content(state: State<AppState>, session_token: String, hashes: Vec<S
   let cached_by = get_handle_from_session(&state, &session_token)?;
   
   #[cfg(feature = "iroh")]
-  if let Some(iroh) = &state.iroh {
-    let iroh = iroh.lock().unwrap();
+  if let Some(iroh) = state.iroh.lock().unwrap().as_ref() {
     let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
     
     let mut fetched = Vec::new();
@@ -2715,8 +3013,7 @@ fn upload_blob(
   // For basic CID support: use the content hash as CID when Iroh not available.
   // When Iroh feature enabled and working, use real Iroh CID.
   #[cfg(feature = "iroh")]
-  let cid = if let Some(iroh) = &state.iroh {
-    let iroh = iroh.lock().unwrap();
+  let cid = if let Some(iroh) = state.iroh.lock().unwrap().as_ref() {
     let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
     match rt.block_on(iroh.add_blob(&bytes)) {
       Ok(iroh_cid) => {
@@ -2787,8 +3084,7 @@ fn get_blob_bytes(state: State<AppState>, session_token: String, hash: String) -
   // Try Iroh first (decentralized content fetching). Prefer the recorded CID (real Iroh/blake3 hash)
   // when present — this is the key step that makes "media CIDs" actually fetch from the Iroh store.
   #[cfg(feature = "iroh")]
-  if let Some(iroh) = &state.iroh {
-    let iroh = iroh.lock().unwrap();
+  if let Some(iroh) = state.iroh.lock().unwrap().as_ref() {
     let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
     // Look up record to get cid if available (upload stores cid separately from the local sha hash)
     let rec = state.db.get_blob_record(&hash).ok().flatten();
@@ -3118,36 +3414,13 @@ pub fn run() {
 
   let database = Database::new(app_dir.clone()).expect("Failed to initialize database");
   let blob_store = BlobStore::new(&app_dir);
-  let mut relay_manager = RelayManager::new();
+  let relay_manager = RelayManager::new();
 
-  // Initialize Iroh node for decentralized content storage (only if feature enabled)
+  // Iroh + relay mesh init deferred to background (yard-first boot). Set BLKSPACE_FULL_MESH=1 for eager init.
   #[cfg(feature = "iroh")]
-  let iroh_node = {
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
-    match rt.block_on(IrohNode::new(app_dir.clone())) {
-      Ok(node) => {
-        log::info!("Iroh node initialized successfully");
-        Some(Mutex::new(node))
-      }
-      Err(e) => {
-        log::warn!("Failed to initialize Iroh node: {}. Falling back to local blob storage.", e);
-        None
-      }
-    }
-  };
+  let iroh_slot = Mutex::new(None::<IrohNode>);
   #[cfg(not(feature = "iroh"))]
-  let iroh_node: Option<()> = None;
-
-  // Connect to default public relays on startup
-  {
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
-    if let Ok(connected) = rt.block_on(relay_manager.connect_to_default_relays()) {
-      log::info!("Connected to {} default relays: {:?}", connected.len(), connected);
-      for url in &connected {
-        let _ = database.upsert_relay_connection(url, "Public", "global", "connected");
-      }
-    }
-  }
+  let iroh_slot: Option<()> = None;
 
   let mut app_builder = tauri::Builder::default();
 
@@ -3163,22 +3436,84 @@ pub fn run() {
     .manage(AppState {
       db: database,
       blob_store,
-      iroh: iroh_node,
+      iroh: iroh_slot,
       app_dir: app_dir.clone(),
-      key_store: KeyStore::new(app_dir),
+      key_store: KeyStore::new(app_dir.clone()),
       sessions: Mutex::new(HashMap::new()),
       challenges: Mutex::new(HashMap::new()),
       rate_limiter: Mutex::new(HashMap::new()),
       relay_manager: Mutex::new(relay_manager),
       relay_town_subscriptions: Mutex::new(Vec::new()),
     })
-    .setup(|app| {
+    .setup(move |app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()
             .level(log::LevelFilter::Info)
             .build(),
         )?;
+      }
+
+      // Demo seed off the critical path — first paint does not wait on INSERT batch.
+      let seed_handle = app.handle().clone();
+      std::thread::spawn(move || {
+        let state = seed_handle.state::<AppState>();
+        if let Err(e) = state.db.ensure_seeded() {
+          log::warn!("Deferred demo seed failed: {e}");
+        }
+      });
+
+      let handle = app.handle().clone();
+      let mesh_dir = app_dir.clone();
+      let full_mesh = full_mesh_startup();
+      let relay_delay_ms = if full_mesh { 0 } else { 300 };
+      let iroh_delay_ms = if full_mesh { 0 } else { 600 };
+
+      // Deferred Nostr relay connect (1 relay in yard mode, parallel + timeout in full mesh).
+      tauri::async_runtime::spawn(async move {
+        if relay_delay_ms > 0 {
+          tokio::time::sleep(std::time::Duration::from_millis(relay_delay_ms)).await;
+        }
+        let connected = {
+          let state = handle.state::<AppState>();
+          let mut manager = state.relay_manager.lock().unwrap();
+          manager.connect_startup_relays_blocking(full_mesh)
+        };
+        if let Ok(urls) = connected {
+          log::info!(
+            "Deferred relay connect: {} relay(s) (full_mesh={full_mesh})",
+            urls.len()
+          );
+          let state = handle.state::<AppState>();
+          for url in &urls {
+            let _ = state
+              .db
+              .upsert_relay_connection(url, "Public", "global", "connected");
+          }
+        }
+      });
+
+      #[cfg(feature = "iroh")]
+      {
+        let iroh_handle = app.handle().clone();
+        std::thread::spawn(move || {
+          if iroh_delay_ms > 0 {
+            std::thread::sleep(std::time::Duration::from_millis(iroh_delay_ms));
+          }
+          let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
+          match rt.block_on(IrohNode::new(mesh_dir)) {
+            Ok(node) => {
+              let state = iroh_handle.state::<AppState>();
+              *state.iroh.lock().unwrap() = Some(node);
+              log::info!("Iroh node initialized (deferred, full_mesh={full_mesh})");
+            }
+            Err(e) => {
+              log::warn!(
+                "Deferred Iroh init failed: {e}. Using local blob storage until retry on upload."
+              );
+            }
+          }
+        });
       }
 
       // Background sync: poll connected relays every 60s for new events
@@ -3303,6 +3638,11 @@ pub fn run() {
       list_marketplace,
       create_marketplace_listing,
       buy_marketplace_listing,
+      buy_marketplace_listing_bkspc,
+      prepare_bkspc_burn_transaction,
+      submit_bkspc_burn_transaction,
+      get_bkspc_purchase_quote,
+      mint_mix_nft,
       publish_mix,
       list_posts,
       get_post,

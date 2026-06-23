@@ -13,18 +13,29 @@ import {
 import { Users } from "lucide-react";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { Connection, Transaction, SystemProgram } from "@solana/web3.js";
+import { useQuery } from "@tanstack/react-query";
 import {
   useAppGetUser,
   useAppCreateMarketplaceListing,
   useAppBuyMarketplaceListing,
+  useAppBuyMarketplaceListingBkspc,
   useTauriMarketplace,
   useTauriPublishMix,
   useTauriGetTokenomicsPolicy,
+  useTauriMintMixNft,
 } from "@/hooks/use-app-data";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
-import { isTauri, tauriListUserBlobs } from "@/lib/tauri-api";
+import {
+  isTauri,
+  tauriListUserBlobs,
+  tauriGetBkspcPurchaseQuote,
+  tauriGetBkspcSettlementStatus,
+} from "@/lib/tauri-api";
 import { formatFeePercent } from "@/lib/tokenomics";
+import {
+  burnBkspcForPurchase,
+  type BkspcPurchaseQuote,
+} from "@/lib/bkspc-marketplace";
 
 export function CreatorMarketplacePanel() {
   const handle = getCurrentHandle();
@@ -33,10 +44,21 @@ export function CreatorMarketplacePanel() {
   const { data: policy } = useTauriGetTokenomicsPolicy();
   const createListing = useAppCreateMarketplaceListing();
   const buyListing = useAppBuyMarketplaceListing();
+  const buyListingBkspc = useAppBuyMarketplaceListingBkspc();
   const publishMix = useTauriPublishMix();
+  const mintNft = useTauriMintMixNft();
   const { publicKey, signTransaction, connected } = useWallet();
 
+  const { data: settlementStatus } = useQuery({
+    queryKey: ["tauri", "bkspc-settlement-status"],
+    queryFn: tauriGetBkspcSettlementStatus,
+    enabled: isTauri(),
+  });
+
+  const bkspcWired = settlementStatus?.wired === true;
+
   const [showListForm, setShowListForm] = useState(false);
+  const [mintNftOnList, setMintNftOnList] = useState(true);
   const [newItem, setNewItem] = useState({
     itemType: "media",
     itemRef: "",
@@ -62,6 +84,124 @@ export function CreatorMarketplacePanel() {
     }
   }, []);
 
+  const handleListItem = async () => {
+    if (!newItem.title || newItem.price <= 0) {
+      toast.error("Title and positive price required");
+      return;
+    }
+    const isNft =
+      (newItem.itemType === "media" || newItem.itemType === "mix") &&
+      !!newItem.itemRef;
+
+    try {
+      if (newItem.itemType === "mix" && newItem.itemRef) {
+        await publishMix.mutateAsync({
+          cid: newItem.itemRef,
+          title: newItem.title,
+          bpm: newItem.bpm,
+          key: newItem.key || undefined,
+          tracklist: newItem.tracklist || undefined,
+        });
+      }
+
+      const listingId = await createListing.mutateAsync({
+        itemType: newItem.itemType,
+        itemRef: newItem.itemRef || null,
+        price: newItem.price,
+        title: newItem.title,
+        description: newItem.description || null,
+        isNft,
+      });
+
+      if (
+        isNft &&
+        mintNftOnList &&
+        connected &&
+        publicKey &&
+        newItem.itemRef
+      ) {
+        const minted = await mintNft.mutateAsync({
+          recipientSolanaAddress: publicKey.toBase58(),
+          cid: newItem.itemRef,
+          title: newItem.title,
+          itemType: newItem.itemType,
+          listingId,
+        });
+        toast.success(
+          minted.simulated
+            ? `Listed + simulated NFT mint (${minted.mintAddress.slice(0, 12)}…)`
+            : `Listed + Metaplex NFT minted on devnet: ${minted.mintAddress.slice(0, 12)}…`,
+        );
+      } else {
+        toast.success(
+          newItem.itemType === "mix"
+            ? "Mix published (30078) + listed. Connect wallet to mint NFT."
+            : isNft
+              ? "Listed! Connect wallet to mint Metaplex NFT."
+              : "Listed for sale.",
+        );
+      }
+
+      setShowListForm(false);
+      setNewItem({
+        itemType: "media",
+        itemRef: "",
+        price: 10,
+        title: "",
+        description: "",
+        bpm: undefined,
+        key: "",
+        tracklist: "",
+      });
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
+  const handleBuyWithBkspc = async (item: any) => {
+    if (!connected || !publicKey || !signTransaction) {
+      toast.error("Connect Phantom to pay with BKSPC");
+      return;
+    }
+    const token = getSessionToken();
+    if (!token) return;
+
+    try {
+      const quote = (await tauriGetBkspcPurchaseQuote(
+        token,
+        item.id,
+      )) as BkspcPurchaseQuote;
+
+      if (!quote.burnRawAmount || !quote.mint) {
+        toast.error(quote.reason ?? "BKSPC settlement not wired on this build");
+        return;
+      }
+
+      toast.message(`Burning ${quote.burnBkspcDisplay} BKSPC on devnet…`);
+      const burnSig = await burnBkspcForPurchase(
+        quote,
+        publicKey,
+        signTransaction,
+      );
+
+      await buyListingBkspc.mutateAsync({
+        listingId: item.id,
+        buyerSolanaAddress: publicKey.toBase58(),
+        burnTxSignature: burnSig,
+      });
+
+      toast.success(
+        `Purchased with BKSPC burn! ${
+          item.isNft && item.itemRef
+            ? `NFT/Iroh CID: ${item.itemRef.slice(0, 16)}…`
+            : "Seller credited net WB."
+        } Tx: ${burnSig.slice(0, 16)}…`,
+      );
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
   return (
     <Card className="border-primary/10">
       <CardContent className="p-4">
@@ -70,10 +210,14 @@ export function CreatorMarketplacePanel() {
           <h4 className="font-bold">Creator marketplace</h4>
         </div>
         <p className="text-sm text-muted-foreground mb-3">
-          List your media, mixes, themes, services, or tickets for WB. Buyers pay
-          with earned WeixBucks — same creator-shop loop as Roblox UGC or Fortnite
-          item shop. Platform fee {formatFeePercent(marketplaceFeeBps)}; seller
-          receives net WB.
+          List media, mixes, themes, or tickets. Pay with earned WB or burn BKSPC
+          on devnet when settlement is wired. Platform fee{" "}
+          {formatFeePercent(marketplaceFeeBps)}.
+          {bkspcWired ? (
+            <span className="text-primary"> BKSPC devnet: active.</span>
+          ) : (
+            <span> BKSPC burns require `bkspc-devnet` build + manifest.</span>
+          )}
         </p>
 
         <Button
@@ -141,7 +285,7 @@ export function CreatorMarketplacePanel() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select mix audio from uploads (Iroh CID)" />
+                    <SelectValue placeholder="Select mix audio (Iroh CID)" />
                   </SelectTrigger>
                   <SelectContent>
                     {userMedia.map((m: any) => (
@@ -164,7 +308,7 @@ export function CreatorMarketplacePanel() {
                     }
                   />
                   <Input
-                    placeholder="Key (e.g. Am, C#)"
+                    placeholder="Key (e.g. Am)"
                     value={newItem.key}
                     onChange={(e) => setNewItem({ ...newItem, key: e.target.value })}
                   />
@@ -201,56 +345,25 @@ export function CreatorMarketplacePanel() {
                 setNewItem({ ...newItem, description: e.target.value })
               }
             />
+            {(newItem.itemType === "media" || newItem.itemType === "mix") &&
+              newItem.itemRef && (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={mintNftOnList}
+                    onChange={(e) => setMintNftOnList(e.target.checked)}
+                  />
+                  Mint Metaplex NFT on devnet when wallet connected
+                </label>
+              )}
             <Button
               size="sm"
-              onClick={async () => {
-                if (!newItem.title || newItem.price <= 0) {
-                  toast.error("Title and positive price required");
-                  return;
-                }
-                const isNft =
-                  (newItem.itemType === "media" || newItem.itemType === "mix") &&
-                  !!newItem.itemRef;
-                try {
-                  if (newItem.itemType === "mix" && newItem.itemRef) {
-                    await publishMix.mutateAsync({
-                      cid: newItem.itemRef,
-                      title: newItem.title,
-                      bpm: newItem.bpm,
-                      key: newItem.key || undefined,
-                      tracklist: newItem.tracklist || undefined,
-                    });
-                  }
-                  await createListing.mutateAsync({
-                    itemType: newItem.itemType,
-                    itemRef: newItem.itemRef || null,
-                    price: newItem.price,
-                    title: newItem.title,
-                    description: newItem.description || null,
-                    isNft,
-                  });
-                  setShowListForm(false);
-                  setNewItem({
-                    itemType: "media",
-                    itemRef: "",
-                    price: 10,
-                    title: "",
-                    description: "",
-                    bpm: undefined,
-                    key: "",
-                    tracklist: "",
-                  });
-                  toast.success(
-                    newItem.itemType === "mix"
-                      ? "Mix published as 30078 + listed (30081 if NFT). 8 WB credited."
-                      : "Listed! Published as Nostr 30081 if NFT.",
-                  );
-                } catch (e) {
-                  toast.error(String(e));
-                }
-              }}
+              onClick={handleListItem}
+              disabled={createListing.isPending || mintNft.isPending}
             >
-              List for sale
+              {createListing.isPending || mintNft.isPending
+                ? "Listing…"
+                : "List for sale"}
             </Button>
           </div>
         )}
@@ -264,9 +377,9 @@ export function CreatorMarketplacePanel() {
           {listings.map((item: any) => (
             <div
               key={item.id}
-              className="flex justify-between items-center p-2 border rounded text-sm"
+              className="flex justify-between items-center p-2 border rounded text-sm gap-2"
             >
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="font-medium">
                   {item.title}{" "}
                   <span className="text-xs text-muted-foreground">
@@ -281,67 +394,51 @@ export function CreatorMarketplacePanel() {
                   <div className="text-xs">{item.description}</div>
                 )}
                 {item.itemRef && (
-                  <div className="text-[10px] font-mono">
-                    Ref: {item.itemRef.slice(0, 16)}… (Iroh CID for delivery)
+                  <div className="text-[10px] font-mono truncate">
+                    CID: {item.itemRef.slice(0, 20)}…
+                  </div>
+                )}
+                {item.nftMint && (
+                  <div className="text-[10px] font-mono truncate text-primary">
+                    NFT: {item.nftMint.slice(0, 20)}…
                   </div>
                 )}
               </div>
-              <Button
-                size="sm"
-                disabled={item.sellerHandle === (user as any)?.handle}
-                onClick={async () => {
-                  try {
-                    await buyListing.mutateAsync(item.id);
-                    toast.success(
-                      `Bought for ${item.price} WB! ${
-                        item.isNft && item.itemRef
-                          ? "NFT/Iroh delivery CID: " +
-                            item.itemRef +
-                            " (fetch in media or via Iroh)"
-                          : "WB transferred to seller."
-                      }`,
-                    );
-
-                    if (connected && publicKey && signTransaction) {
-                      try {
-                        const connection = new Connection(
-                          "https://api.devnet.solana.com",
-                        );
-                        const tx = new Transaction().add(
-                          SystemProgram.transfer({
-                            fromPubkey: publicKey,
-                            toPubkey: publicKey,
-                            lamports: 1,
-                          }),
-                        );
-                        tx.recentBlockhash = (
-                          await connection.getLatestBlockhash()
-                        ).blockhash;
-                        tx.feePayer = publicKey;
-                        const signed = await signTransaction(tx);
-                        const sig = await connection.sendRawTransaction(
-                          signed.serialize(),
-                        );
-                        toast(
-                          `On-chain BKSPC settlement for purchase: ${sig.slice(0, 16)}...`,
-                        );
-                      } catch {
-                        /* optional devnet stub */
-                      }
-                    }
-
-                    if (item.itemType === "theme") {
-                      toast(
-                        "Theme unlocked on-chain (Solana NFT stub + Nostr kind 0 for profile persistence)! Go to profile customize.",
+              <div className="flex flex-col gap-1 shrink-0">
+                <Button
+                  size="sm"
+                  disabled={item.sellerHandle === (user as any)?.handle}
+                  onClick={async () => {
+                    try {
+                      await buyListing.mutateAsync(item.id);
+                      toast.success(
+                        `Bought for ${item.price} WB! ${
+                          item.isNft && item.itemRef
+                            ? "Delivery CID: " + item.itemRef.slice(0, 16) + "…"
+                            : "WB transferred to seller."
+                        }`,
                       );
+                    } catch (e) {
+                      toast.error(String(e));
                     }
-                  } catch (e) {
-                    toast.error(String(e));
-                  }
-                }}
-              >
-                Buy
-              </Button>
+                  }}
+                >
+                  Buy (WB)
+                </Button>
+                {bkspcWired && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={
+                      item.sellerHandle === (user as any)?.handle ||
+                      buyListingBkspc.isPending
+                    }
+                    onClick={() => handleBuyWithBkspc(item)}
+                  >
+                    Buy (BKSPC)
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </div>

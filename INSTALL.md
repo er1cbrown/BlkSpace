@@ -4,6 +4,8 @@
 
 No technical knowledge required. If you can install Spotify or Discord, you can install BlkSpace.
 
+> **Using an older Windows laptop (4–8 GB RAM)?** Read **[`TIER0_USER.md`](TIER0_USER.md)** first — download the installer only; do not build from source.
+
 ---
 
 ## Option 1: Download & Run (Recommended — Easiest)
@@ -127,19 +129,9 @@ curl -fsSL https://raw.githubusercontent.com/er1cbrown/BlkSpace/main/setup.sh | 
 
 ## For Windows / Low-End Machine Users
 
-If your Windows laptop has limited disk space (common on Tier 0 hardware):
+**End users:** See **[`TIER0_USER.md`](TIER0_USER.md)** — install from [Releases](https://github.com/er1cbrown/BlkSpace/releases) only.
 
-1. **Use CI for builds** — push your code to GitHub, and CI builds the `.msi` installer for you. Don't build Tauri locally.
-2. **Frontend-only dev** — `pnpm dev` starts a web preview without compiling Rust. This uses ~200MB instead of ~14GB.
-3. **Reduce Rust parallelism** if you must build locally:
-   ```powershell
-   $env:CARGO_BUILD_JOBS=1
-   pnpm tauri build
-   ```
-4. **Set pnpm store to external drive** (if you have one):
-   ```powershell
-   pnpm config set store-dir D:\.pnpm-store
-   ```
+**Developers** on Tier 0 hardware: see **[`docs/TIER0_DEV.md`](docs/TIER0_DEV.md)** (use CI for `.msi` builds; avoid local `tauri build` unless necessary).
 
 ---
 
@@ -159,8 +151,8 @@ When you first open BlkSpace, you'll see a **Welcome Wizard** that:
 
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
-| RAM | 2GB | 4GB |
-| Storage | 500MB (app) / 2GB (build) | 1GB (app) / 16GB (build) |
+| RAM | 4GB (Tier 0) | 8GB |
+| Storage | 500MB (installed app) | 1GB free for comfortable use |
 | OS | Windows 10+, macOS 12+, Ubuntu 22.04 | Latest version |
 | CPU | Any 64-bit | Intel i3 / AMD equivalent |
 | Internet | 1 Mbps | 5 Mbps |

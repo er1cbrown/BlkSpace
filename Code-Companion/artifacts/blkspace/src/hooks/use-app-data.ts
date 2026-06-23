@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   useListPosts,
   getListPostsQueryKey,
@@ -62,16 +67,16 @@ function getMockUser(handle: string) {
 
 // ─── Users ───────────────────────────────────────────────
 
-export function useAppGetUser(handle: string) {
+export function useAppGetUser(handle: string, enabled = true) {
   const tauriResult = useQuery({
     queryKey: ["tauri", "user", handle],
     queryFn: () => tauri.tauriGetUser(handle),
-    enabled: IS_TAURI && !!handle,
+    enabled: IS_TAURI && !!handle && enabled,
   });
   const webResult = useQuery({
     queryKey: ["web", "user", handle],
     queryFn: () => Promise.resolve(getMockUser(handle)),
-    enabled: !IS_TAURI && !!handle,
+    enabled: !IS_TAURI && !!handle && enabled,
     staleTime: Infinity,
   });
   return IS_TAURI ? tauriResult : webResult;
@@ -79,31 +84,67 @@ export function useAppGetUser(handle: string) {
 
 // ─── Posts ───────────────────────────────────────────────
 
-export function useAppListPosts(town: string, currentUser: string) {
-  const tauriResult = useQuery({
+export const FEED_PAGE_SIZE = 20;
+
+export function useAppListPosts(
+  town: string,
+  currentUser: string,
+  enabled = true,
+) {
+  const tauriInfinite = useInfiniteQuery({
     queryKey: ["tauri", "posts", town, currentUser],
-    queryFn: () => tauri.tauriListPosts(town, currentUser),
-    enabled: IS_TAURI,
+    queryFn: ({ pageParam }) =>
+      tauri.tauriListPosts(
+        town,
+        currentUser,
+        FEED_PAGE_SIZE,
+        pageParam as number | undefined,
+      ),
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.posts.length > 0
+        ? lastPage.posts[lastPage.posts.length - 1]!.id
+        : undefined,
+    enabled: IS_TAURI && enabled,
   });
   const webResult = useQuery({
     queryKey: ["web", "posts", town],
     queryFn: () => Promise.resolve(getMockPosts(town)),
-    enabled: !IS_TAURI,
+    enabled: !IS_TAURI && enabled,
     staleTime: Infinity,
   });
-  return IS_TAURI ? tauriResult : webResult;
+
+  if (IS_TAURI) {
+    const flat =
+      tauriInfinite.data?.pages.flatMap((page) => page.posts) ?? undefined;
+    return {
+      data: flat,
+      isLoading: tauriInfinite.isLoading,
+      isFetchingNextPage: tauriInfinite.isFetchingNextPage,
+      fetchNextPage: tauriInfinite.fetchNextPage,
+      hasNextPage: tauriInfinite.hasNextPage ?? false,
+    };
+  }
+
+  return {
+    data: webResult.data,
+    isLoading: webResult.isLoading,
+    isFetchingNextPage: false,
+    fetchNextPage: async () => {},
+    hasNextPage: false,
+  };
 }
 
-export function useAppGetTrendingFeed(currentUser: string) {
+export function useAppGetTrendingFeed(currentUser: string, enabled = true) {
   const tauriResult = useQuery({
     queryKey: ["tauri", "trending", currentUser],
     queryFn: () => tauri.tauriGetTrendingFeed(currentUser),
-    enabled: IS_TAURI,
+    enabled: IS_TAURI && enabled,
   });
   const webResult = useQuery({
     queryKey: ["web", "trending"],
     queryFn: () => Promise.resolve(getMockPosts()),
-    enabled: !IS_TAURI,
+    enabled: !IS_TAURI && enabled,
     staleTime: Infinity,
   });
   return IS_TAURI ? tauriResult : webResult;
@@ -624,6 +665,52 @@ export function useAppBuyMarketplaceListing() {
   });
 }
 
+export function useAppBuyMarketplaceListingBkspc() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: {
+      listingId: number;
+      buyerSolanaAddress: string;
+      burnTxSignature: string;
+    }) =>
+      tauri.tauriBuyMarketplaceListingBkspc(
+        getSessionToken() || "",
+        args.listingId,
+        args.buyerSolanaAddress,
+        args.burnTxSignature,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "wallet"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "user"] });
+    },
+  });
+}
+
+export function useTauriMintMixNft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: {
+      recipientSolanaAddress: string;
+      cid: string;
+      title: string;
+      itemType: string;
+      listingId?: number;
+    }) =>
+      tauri.tauriMintMixNft(
+        getSessionToken() || "",
+        args.recipientSolanaAddress,
+        args.cid,
+        args.title,
+        args.itemType,
+        args.listingId,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
+    },
+  });
+}
+
 export function useTauriGetTokenomicsPolicy() {
   return useQuery({
     queryKey: ["tauri", "tokenomics-policy"],
@@ -830,11 +917,11 @@ export function useTauriListSubscribedTowns() {
 
 // ─── Cross-Town Feed Hooks ─────────────────────────────────
 
-export function useTauriCombinedFeed(town?: string) {
+export function useTauriCombinedFeed(town?: string, enabled = true) {
   return useQuery({
     queryKey: ["tauri", "combinedFeed", town],
     queryFn: () => tauri.tauriListCombinedFeed(town, getCurrentHandle()),
-    enabled: IS_TAURI,
+    enabled: IS_TAURI && enabled,
   });
 }
 

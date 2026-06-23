@@ -46,11 +46,13 @@ export function OfflineSyncProvider({
       });
     };
 
-    tryFlush();
+    // Defer first flush so feed IPC wins the race on cold boot.
+    const startupDelay = window.setTimeout(tryFlush, 3_000);
     window.addEventListener("online", tryFlush);
     const interval = window.setInterval(tryFlush, 60_000);
 
     return () => {
+      window.clearTimeout(startupDelay);
       window.removeEventListener("online", tryFlush);
       window.clearInterval(interval);
     };

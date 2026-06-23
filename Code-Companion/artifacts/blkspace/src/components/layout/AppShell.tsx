@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -88,7 +88,12 @@ export function AppShell({
   const { theme, setTheme } = useTheme();
   const { isGuest } = useGuestMode();
   const handle = getCurrentHandle();
-  const { data: user } = useAppGetUser(handle);
+  const [shellReady, setShellReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShellReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const { data: user } = useAppGetUser(handle, shellReady);
   const profileHref = `/profile/${handle}`;
 
   const primaryNav = isGuest

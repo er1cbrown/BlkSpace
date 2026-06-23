@@ -15,6 +15,7 @@ Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 - `DEVOPS.md` — full pipeline docs
 - `SOUL.md` — project persona
 - `FLESHTHEORY.md` — phased approach, Tier 0 constraint, economic model
+- `TIER0_USER.md` — student install guide (download only; no builds)
 - `docs/TOP_DOWN_APPROACH.md` — Nostr/Iroh/Solana to 5-layer network stack
 - `docs/security-considerations.md` — Nostr attack mitigations
 - `docs/architecture-blueprint.md` — Federated College-Town Relay Mesh

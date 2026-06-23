@@ -1,9 +1,27 @@
+import React, { useState, useMemo, Suspense } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PostComposer } from "@/components/social/PostComposer";
-import { StoryStrip } from "@/components/social/StoryStrip";
-import { WatchFeed } from "@/components/feed/WatchFeed";
-import { ReadFeed } from "@/components/feed/ReadFeed";
-import { BridgeFeed } from "@/components/feed/BridgeFeed";
+
+const StoryStrip = React.lazy(() =>
+  import("@/components/social/StoryStrip").then((m) => ({
+    default: m.StoryStrip,
+  })),
+);
+const WatchFeed = React.lazy(() =>
+  import("@/components/feed/WatchFeed").then((m) => ({
+    default: m.WatchFeed,
+  })),
+);
+const ReadFeed = React.lazy(() =>
+  import("@/components/feed/ReadFeed").then((m) => ({
+    default: m.ReadFeed,
+  })),
+);
+const BridgeFeed = React.lazy(() =>
+  import("@/components/feed/BridgeFeed").then((m) => ({
+    default: m.BridgeFeed,
+  })),
+);
 import { KarmaBadge } from "@/components/economy/KarmaBadge";
 import {
   showPostEarnCelebration,
@@ -18,7 +36,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { useState, useMemo } from "react";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -54,7 +72,7 @@ import {
   useTauriGetFollowing,
   useTauriRepostPost,
   useTauriFollowingReposts,
-} from "@/hooks/use-app-data";
+} from "@/hooks/use-feed-data";
 import { getCurrentHandle } from "@/lib/auth";
 import { useGuestMode } from "@/lib/guest-mode";
 import { useRequiresWallet } from "@/hooks/use-requires-wallet";
@@ -68,7 +86,9 @@ export default function FeedPage() {
   const queryClient = useQueryClient();
   const { isGuest } = useGuestMode();
   const { requireWallet } = useRequiresWallet();
-  const [activeTab, setActiveTab] = useState("watch");
+  const [activeTab, setActiveTab] = useState(
+    BETA_FEATURES.tier0Lite ? "local" : "watch",
+  );
   const [selectedTown, setSelectedTown] = useState("tsu");
   const [content, setContent] = useState("");
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
@@ -79,30 +99,46 @@ export default function FeedPage() {
     const saved = localStorage.getItem("blkspace_followed") || "[]";
     return JSON.parse(saved);
   });
-  // Real kind 3 for feeds: load follows from backend (which can be backed by kind 3 relay query in future)
-  const { data: remoteFollowing = [] } = useTauriGetFollowing();
+
+  const needsLocalPosts = ["watch", "read", "following", "local"].includes(
+    activeTab,
+  );
+  const needsTrending = ["watch", "read", "trending"].includes(activeTab);
+  const needsFollowing = activeTab === "following";
+  const needsBridge = activeTab === "bridge" && BETA_FEATURES.showBridgeTab();
+
+  const { data: remoteFollowing = [] } = useTauriGetFollowing(needsFollowing);
   const followedHandles = Array.from(
     new Set([...(localFollowed || []), ...(remoteFollowing || [])]),
   );
 
-  const { data: localPosts, isLoading: localLoading } = useAppListPosts(
-    selectedTown,
-    getCurrentHandle(),
-  );
+  const {
+    data: localPosts,
+    isLoading: localLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useAppListPosts(selectedTown, getCurrentHandle(), needsLocalPosts);
   const { data: trendingFeed, isLoading: trendingLoading } =
-    useAppGetTrendingFeed(getCurrentHandle());
+    useAppGetTrendingFeed(getCurrentHandle(), needsTrending);
   const bridgeTownArg =
     bridgeTownFilter === "all" ? undefined : bridgeTownFilter;
   const { data: crossTownFeed, isLoading: crossTownLoading } =
-    useTauriCombinedFeed(
-      activeTab === "bridge" ? bridgeTownArg : selectedTown,
-    );
+    useTauriCombinedFeed(bridgeTownArg, needsBridge);
   const createPost = useAppCreatePost();
   const toggleLike = useAppToggleLike();
   const sendWeixBucks = useAppSendWeixBucks();
   const repostPost = useTauriRepostPost();
   const { data: followingReposts = [] } = useTauriFollowingReposts(
-    isTauri() && followedHandles.length > 0,
+    needsFollowing && isTauri() && followedHandles.length > 0,
+  );
+
+  const feedPanelFallback = (
+    <div className="space-y-4 animate-pulse">
+      {[1, 2, 3].map((i) => (
+        <Card key={i} className="h-40 bg-muted/50" />
+      ))}
+    </div>
   );
 
   const followingPosts = useMemo(() => {
@@ -340,7 +376,11 @@ export default function FeedPage() {
           )}
         </TabsList>
 
-        {(activeTab === "watch" || activeTab === "read") && <StoryStrip />}
+        {(activeTab === "watch" || activeTab === "read") && (
+          <Suspense fallback={null}>
+            <StoryStrip />
+          </Suspense>
+        )}
 
         {activeTab !== "bridge" &&
           (isGuest ? (
@@ -407,27 +447,29 @@ export default function FeedPage() {
         </Tabs>
 
         {activeTab === "bridge" ? (
-          <BridgeFeed
-            events={crossTownFeed || []}
-            isLoading={crossTownLoading}
-            townFilter={bridgeTownFilter}
-            onTownFilterChange={setBridgeTownFilter}
-            showFlagged={showFlagged}
-          />
+          <Suspense fallback={feedPanelFallback}>
+            <BridgeFeed
+              events={crossTownFeed || []}
+              isLoading={crossTownLoading}
+              townFilter={bridgeTownFilter}
+              onTownFilterChange={setBridgeTownFilter}
+              showFlagged={showFlagged}
+            />
+          </Suspense>
         ) : isLoading ? (
-          <div className="space-y-4 animate-pulse">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="h-40 bg-muted/50"></Card>
-            ))}
-          </div>
+          feedPanelFallback
         ) : activeTab === "watch" ? (
-          <WatchFeed posts={posts} onLike={handleLike} />
+          <Suspense fallback={feedPanelFallback}>
+            <WatchFeed posts={posts} onLike={handleLike} />
+          </Suspense>
         ) : activeTab === "read" ? (
-          <ReadFeed
-            posts={posts}
-            onLike={handleLike}
-            onRepost={handleRepost}
-          />
+          <Suspense fallback={feedPanelFallback}>
+            <ReadFeed
+              posts={posts}
+              onLike={handleLike}
+              onRepost={handleRepost}
+            />
+          </Suspense>
         ) : (
           <div className="space-y-4">
             {!Array.isArray(posts) && (
@@ -636,6 +678,21 @@ export default function FeedPage() {
                   </Card>
                 );
               })}
+            {hasNextPage &&
+              (activeTab === "local" ||
+                activeTab === "following" ||
+                activeTab === "trending") && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isFetchingNextPage}
+                    onClick={() => fetchNextPage()}
+                  >
+                    {isFetchingNextPage ? "Loading…" : "Load more posts"}
+                  </Button>
+                </div>
+              )}
           </div>
         )}
     </AppShell>

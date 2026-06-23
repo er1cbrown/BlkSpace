@@ -36,7 +36,9 @@ pub fn run_tier0_benchmarks(db: &Database, blob_store: &BlobStore) -> Tier0Bench
   }
 
   let feed_start = Instant::now();
-  let _ = db.list_posts(None, Some("bench_user")).unwrap();
+  let _ = db
+    .list_posts(None, Some("bench_user"), None, None)
+    .unwrap();
   let feed_ms = feed_start.elapsed().as_millis() as u64;
   metrics.push(Tier0BenchmarkMetric {
     name: "Feed load (50 posts)".to_string(),

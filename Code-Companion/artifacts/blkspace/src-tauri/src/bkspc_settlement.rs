@@ -3,16 +3,22 @@
 
 use serde::{Deserialize, Serialize};
 use solana_client::rpc_client::RpcClient;
+use solana_client::rpc_config::RpcTransactionConfig;
 use solana_sdk::{
+  commitment_config::CommitmentConfig,
   pubkey::Pubkey,
-  signature::{Keypair, Signer},
+  signature::{Keypair, Signature, Signer},
   transaction::Transaction,
+};
+use solana_transaction_status::{
+  option_serializer::OptionSerializer,
+  UiTransactionEncoding,
 };
 use spl_associated_token_account::{
   get_associated_token_address,
   instruction::create_associated_token_account_idempotent,
 };
-use spl_token::instruction::mint_to;
+use spl_token::instruction::{burn, mint_to};
 use std::fs;
 use std::path::Path;
 use std::str::FromStr;
@@ -24,7 +30,30 @@ pub struct BkspcSettlementStatus {
   pub cluster: Option<String>,
   pub mint: Option<String>,
   pub mint_authority: Option<String>,
+  pub rpc_url: Option<String>,
   pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BkspcBurnPrepare {
+  pub transaction_base64: String,
+  pub blockhash: String,
+  pub last_valid_block_height: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BkspcPurchaseQuote {
+  pub listing_price_wb: i64,
+  pub platform_fee_wb: i64,
+  pub total_wb: i64,
+  pub burn_raw_amount: u64,
+  pub burn_bkspc_display: String,
+  pub mint: String,
+  pub wb_to_bkspc_ratio: i64,
+  pub decimals: u8,
+  pub marketplace_fee_bps: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -40,14 +69,14 @@ struct BkspcMintManifest {
   on_chain_ready: Option<bool>,
 }
 
-struct DevnetSettlementConfig {
-  rpc_url: String,
-  mint: Pubkey,
-  multisig_authority: Pubkey,
-  signer_a: Keypair,
-  signer_b: Keypair,
-  wb_to_bkspc_ratio: i64,
-  decimals: u8,
+pub(crate) struct DevnetSettlementConfig {
+  pub rpc_url: String,
+  pub mint: Pubkey,
+  pub multisig_authority: Pubkey,
+  pub signer_a: Keypair,
+  pub signer_b: Keypair,
+  pub wb_to_bkspc_ratio: i64,
+  pub decimals: u8,
 }
 
 fn load_keypair(path: &Path) -> Result<Keypair, String> {
@@ -62,7 +91,6 @@ fn manifest_path() -> Option<String> {
   if let Ok(path) = std::env::var("BKSPC_DEVNET_MANIFEST") {
     return Some(path);
   }
-  // Devnet fallback paths for local builds (workspace root → Code-Companion/artifacts/solana/devnet).
   let candidates = [
     "Code-Companion/artifacts/solana/devnet/bkspc-mint.json",
     "artifacts/solana/devnet/bkspc-mint.json",
@@ -75,12 +103,11 @@ fn manifest_path() -> Option<String> {
   None
 }
 
-fn load_config() -> Result<DevnetSettlementConfig, String> {
+pub(crate) fn load_config() -> Result<DevnetSettlementConfig, String> {
   let path = manifest_path().ok_or_else(|| {
     "BKSPC devnet manifest not found. Set BKSPC_DEVNET_MANIFEST or place manifest at Code-Companion/artifacts/solana/devnet/bkspc-mint.json".to_string()
   })?;
-  let raw = fs::read_to_string(&path)
-    .map_err(|e| format!("read manifest {path}: {e}"))?;
+  let raw = fs::read_to_string(&path).map_err(|e| format!("read manifest {path}: {e}"))?;
   let manifest: BkspcMintManifest = serde_json::from_str(&raw)
     .map_err(|e| format!("parse manifest {path}: {e}"))?;
 
@@ -118,7 +145,7 @@ fn load_config() -> Result<DevnetSettlementConfig, String> {
   })
 }
 
-fn wb_to_raw_amount(amount_wb: i64, ratio: i64, decimals: u8) -> Result<u64, String> {
+pub fn wb_to_raw_amount(amount_wb: i64, ratio: i64, decimals: u8) -> Result<u64, String> {
   if amount_wb <= 0 || ratio <= 0 {
     return Err("Invalid withdrawal amount".into());
   }
@@ -137,6 +164,34 @@ fn wb_to_raw_amount(amount_wb: i64, ratio: i64, decimals: u8) -> Result<u64, Str
   u64::try_from(raw).map_err(|_| "Mint amount overflow".to_string())
 }
 
+fn calc_platform_fee(amount: i64, fee_bps: i64) -> i64 {
+  (amount * fee_bps + 9999) / 10000
+}
+
+pub fn marketplace_purchase_quote(price_wb: i64, marketplace_fee_bps: i64) -> Result<BkspcPurchaseQuote, String> {
+  if price_wb <= 0 {
+    return Err("Listing price must be positive".into());
+  }
+  let config = load_config()?;
+  let platform_fee_wb = calc_platform_fee(price_wb, marketplace_fee_bps);
+  let total_wb = price_wb + platform_fee_wb;
+  let burn_raw = wb_to_raw_amount(total_wb, config.wb_to_bkspc_ratio, config.decimals)?;
+  let scale = 10f64.powi(config.decimals as i32);
+  let display = (burn_raw as f64) / scale;
+
+  Ok(BkspcPurchaseQuote {
+    listing_price_wb: price_wb,
+    platform_fee_wb,
+    total_wb,
+    burn_raw_amount: burn_raw,
+    burn_bkspc_display: format!("{display:.9}").trim_end_matches('0').trim_end_matches('.').to_string(),
+    mint: config.mint.to_string(),
+    wb_to_bkspc_ratio: config.wb_to_bkspc_ratio,
+    decimals: config.decimals,
+    marketplace_fee_bps,
+  })
+}
+
 pub fn settlement_status() -> BkspcSettlementStatus {
   match load_config() {
     Ok(cfg) => BkspcSettlementStatus {
@@ -144,6 +199,7 @@ pub fn settlement_status() -> BkspcSettlementStatus {
       cluster: Some("devnet".into()),
       mint: Some(cfg.mint.to_string()),
       mint_authority: Some(cfg.multisig_authority.to_string()),
+      rpc_url: Some(cfg.rpc_url.clone()),
       reason: None,
     },
     Err(reason) => BkspcSettlementStatus {
@@ -151,6 +207,7 @@ pub fn settlement_status() -> BkspcSettlementStatus {
       cluster: None,
       mint: None,
       mint_authority: None,
+      rpc_url: None,
       reason: Some(reason),
     },
   }
@@ -202,4 +259,157 @@ pub fn mint_settlement_to_recipient(
     .map_err(|e| format!("devnet mint_to failed: {e}"))?;
 
   Ok(signature.to_string())
+}
+
+/// Verify a confirmed devnet burn tx from the buyer's wallet for marketplace payment.
+pub fn verify_bkspc_burn_transaction(
+  signature: &str,
+  buyer_wallet: &str,
+  min_raw_burn: u64,
+) -> Result<u64, String> {
+  let config = load_config()?;
+  let buyer = Pubkey::from_str(buyer_wallet).map_err(|_| "Invalid buyer wallet".to_string())?;
+  let client = RpcClient::new(config.rpc_url);
+
+  let tx_config = RpcTransactionConfig {
+    encoding: Some(UiTransactionEncoding::JsonParsed),
+    commitment: Some(CommitmentConfig::confirmed()),
+    max_supported_transaction_version: Some(0),
+  };
+
+  let sig = Signature::from_str(signature).map_err(|_| "Invalid burn tx signature".to_string())?;
+  let confirmed = client
+    .get_transaction_with_config(&sig, tx_config)
+    .map_err(|e| format!("fetch burn tx: {e}"))?;
+
+  let meta = confirmed
+    .transaction
+    .meta
+    .as_ref()
+    .ok_or_else(|| "Burn tx missing metadata".to_string())?;
+  if meta.err.is_some() {
+    return Err("Burn transaction failed on-chain".into());
+  }
+
+  let pre = match &meta.pre_token_balances {
+    OptionSerializer::Some(v) => v,
+    _ => return Err("No pre token balances".into()),
+  };
+  let post = match &meta.post_token_balances {
+    OptionSerializer::Some(v) => v,
+    _ => return Err("No post token balances".into()),
+  };
+
+  let mint_str = config.mint.to_string();
+  let mut burned: u64 = 0;
+
+  for pre_bal in pre {
+    if pre_bal.mint != mint_str {
+      continue;
+    }
+    let owner = match &pre_bal.owner {
+      OptionSerializer::Some(s) => s.as_str(),
+      _ => "",
+    };
+    if owner != buyer.to_string() {
+      continue;
+    }
+    let pre_amt: u64 = pre_bal
+      .ui_token_amount
+      .amount
+      .parse()
+      .map_err(|_| "parse pre balance".to_string())?;
+    let post_amt = post
+      .iter()
+      .find(|p| p.account_index == pre_bal.account_index)
+      .map(|p| p.ui_token_amount.amount.parse::<u64>().unwrap_or(0))
+      .unwrap_or(0);
+    if pre_amt > post_amt {
+      burned += pre_amt - post_amt;
+    }
+  }
+
+  if burned < min_raw_burn {
+    return Err(format!(
+      "Burn amount {burned} raw is less than required {min_raw_burn} raw BKSPC"
+    ));
+  }
+
+  Ok(burned)
+}
+
+/// Build an unsigned SPL burn tx via Tauri RPC (no browser WebSocket).
+pub fn prepare_bkspc_burn_transaction(
+  buyer_wallet: &str,
+  burn_raw_amount: u64,
+) -> Result<BkspcBurnPrepare, String> {
+  if burn_raw_amount == 0 {
+    return Err("Burn amount must be positive".into());
+  }
+  let config = load_config()?;
+  let buyer = Pubkey::from_str(buyer_wallet).map_err(|_| "Invalid buyer wallet".to_string())?;
+  let client = RpcClient::new(config.rpc_url.clone());
+  let ata = get_associated_token_address(&buyer, &config.mint);
+
+  let burn_ix = burn(
+    &spl_token::ID,
+    &ata,
+    &config.mint,
+    &buyer,
+    &[],
+    burn_raw_amount,
+  )
+  .map_err(|e| format!("build burn ix: {e}"))?;
+
+  let blockhash = client
+    .get_latest_blockhash()
+    .map_err(|e| format!("RPC blockhash: {e}"))?;
+  let last_valid_block_height = client
+    .get_block_height()
+    .map_err(|e| format!("RPC block height: {e}"))?;
+
+  let mut tx = Transaction::new_with_payer(&[burn_ix], Some(&buyer));
+  tx.message.recent_blockhash = blockhash;
+
+  let bytes = bincode::serialize(&tx).map_err(|e| format!("serialize tx: {e}"))?;
+  let transaction_base64 =
+    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes);
+
+  Ok(BkspcBurnPrepare {
+    transaction_base64,
+    blockhash: blockhash.to_string(),
+    last_valid_block_height,
+  })
+}
+
+/// Submit a wallet-signed burn tx via Tauri RPC proxy.
+pub fn submit_bkspc_burn_transaction(signed_tx_base64: &str) -> Result<String, String> {
+  let config = load_config()?;
+  let client = RpcClient::new(config.rpc_url);
+  let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, signed_tx_base64)
+    .map_err(|e| format!("decode signed tx: {e}"))?;
+  let tx: Transaction =
+    bincode::deserialize(&bytes).map_err(|e| format!("deserialize signed tx: {e}"))?;
+
+  let signature = client
+    .send_and_confirm_transaction(&tx)
+    .map_err(|e| format!("submit burn tx: {e}"))?;
+
+  Ok(signature.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn wb_to_raw_amount_converts_ratio() {
+    let raw = wb_to_raw_amount(1000, 1000, 9).expect("convert");
+    assert_eq!(raw, 1_000_000_000);
+  }
+
+  #[test]
+  fn wb_to_raw_amount_rejects_tiny() {
+    assert!(wb_to_raw_amount(1, 1000, 9).is_err());
+  }
 }

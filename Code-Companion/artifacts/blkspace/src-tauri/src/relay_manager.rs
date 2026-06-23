@@ -65,24 +65,88 @@ impl RelayManager {
     }
   }
 
-  pub async fn connect_to_default_relays(&mut self) -> Result<Vec<String>, String> {
-    let mut connected = Vec::new();
-    for url in DEFAULT_RELAYS {
-      match self.add_relay(url).await {
-        Ok(_) => {
-          match self.connect_relay(url).await {
-            Ok(_) => {
-              let latency = self.check_health(url).await.ok();
-              self.register_connection(url.to_string(), latency);
-              connected.push(url.to_string());
+  /// Tier 0 yard boot: one relay with timeout. Full mesh: parallel connect, skip slow relays.
+  pub async fn connect_startup_relays(&mut self, full_mesh: bool) -> Result<Vec<String>, String> {
+    use tokio::time::{timeout, Duration};
+
+    let urls: Vec<&str> = if full_mesh {
+      DEFAULT_RELAYS.to_vec()
+    } else {
+      vec![DEFAULT_RELAYS[0]]
+    };
+
+    const RELAY_TIMEOUT: Duration = Duration::from_secs(6);
+
+    if full_mesh && urls.len() > 1 {
+      let client = self.client_clone();
+      let mut tasks = Vec::with_capacity(urls.len());
+      for url in urls {
+        let url = url.to_string();
+        let log_url = url.clone();
+        let c = client.clone();
+        tasks.push(tokio::spawn(async move {
+          match timeout(
+            RELAY_TIMEOUT,
+            async {
+              c.add_relay(&url).await.map_err(|e| e.to_string())?;
+              c.connect_relay(&url).await.map_err(|e| e.to_string())?;
+              Ok::<_, String>(url)
+            },
+          )
+          .await
+          {
+            Ok(Ok(u)) => Some(u),
+            Ok(Err(e)) => {
+              log::warn!("Relay connect failed for {log_url}: {e}");
+              None
             }
-            Err(e) => log::warn!("Failed to connect to {}: {}", url, e),
+            Err(_) => {
+              log::warn!("Relay connect timed out: {log_url}");
+              None
+            }
           }
+        }));
+      }
+
+      let mut connected = Vec::new();
+      for task in tasks {
+        if let Ok(Some(url)) = task.await {
+          self.register_connection(url.clone(), None);
+          connected.push(url);
         }
-        Err(e) => log::warn!("Failed to add {}: {}", url, e),
+      }
+      return Ok(connected);
+    }
+
+    let mut connected = Vec::new();
+    for url in urls {
+      match timeout(RELAY_TIMEOUT, async {
+        self.add_relay(url).await?;
+        self.connect_relay(url).await?;
+        Ok::<_, String>(())
+      })
+      .await
+      {
+        Ok(Ok(())) => {
+          let latency = self.check_health(url).await.ok();
+          self.register_connection(url.to_string(), latency);
+          connected.push(url.to_string());
+        }
+        Ok(Err(e)) => log::warn!("Failed to connect to {url}: {e}"),
+        Err(_) => log::warn!("Relay connect timed out: {url}"),
       }
     }
     Ok(connected)
+  }
+
+  /// Blocking wrapper for deferred background thread startup (no mutex held across await).
+  pub fn connect_startup_relays_blocking(&mut self, full_mesh: bool) -> Result<Vec<String>, String> {
+    let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {e}"))?;
+    rt.block_on(self.connect_startup_relays(full_mesh))
+  }
+
+  pub async fn connect_to_default_relays(&mut self) -> Result<Vec<String>, String> {
+    self.connect_startup_relays(true).await
   }
 
   pub async fn check_health(&self, url: &str) -> Result<u64, String> {

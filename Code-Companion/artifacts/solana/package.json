@@ -9,6 +9,7 @@
     "setup-bkspc-devnet": "tsx scripts/setup-bkspc-devnet.ts",
     "backup-bkspc-keys": "bash scripts/backup-bkspc-keys.sh",
     "prepare-bkspc-pumpfun-launch": "tsx scripts/prepare-bkspc-pumpfun-launch.ts",
+    "mint-media-nft-devnet": "tsx scripts/mint-media-nft-devnet.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

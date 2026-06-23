@@ -6,6 +6,8 @@
 
 ## For End Users (The Simple Way)
 
+**Tier 0 laptop?** Full guide: [`TIER0_USER.md`](TIER0_USER.md)
+
 1. **Download** BlkSpace from the [Releases page](https://github.com/er1cbrown/BlkSpace/releases)
 2. **Install** it like any other app (double-click, drag to Applications, etc.)
 3. **Open** it and follow the Welcome Wizard

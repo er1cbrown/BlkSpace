@@ -58,6 +58,24 @@ export default defineConfig({
     },
     dedupe: ["react", "react-dom"],
   },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "react/jsx-dev-runtime",
+      "@tanstack/react-query",
+      "wouter",
+      "lucide-react",
+      "sonner",
+      "next-themes",
+      "@radix-ui/react-tabs",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-avatar",
+      "@radix-ui/react-slot",
+    ],
+  },
   root: path.resolve(import.meta.dirname),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
@@ -71,6 +89,18 @@ export default defineConfig({
             }
             if (id.includes("@radix-ui")) return "radix";
             if (id.includes("lucide-react")) return "icons";
+            if (id.includes("@tanstack/react-query")) return "query";
+            if (id.includes("framer-motion")) return "motion";
+            if (id.includes("recharts")) return "charts";
+          }
+          if (
+            id.includes("/src/components/feed/") ||
+            id.includes("/src/pages/feed")
+          ) {
+            return "feed";
+          }
+          if (id.includes("/src/pages/communities")) {
+            return "communities";
           }
         },
       },
@@ -83,6 +113,15 @@ export default defineConfig({
     allowedHosts: true,
     fs: {
       strict: true,
+    },
+    warmup: {
+      clientFiles: [
+        "./src/main.tsx",
+        "./src/App.tsx",
+        "./src/pages/feed.tsx",
+        "./src/components/layout/AppShell.tsx",
+        "./src/hooks/use-feed-data.ts",
+      ],
     },
   },
   preview: {

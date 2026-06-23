@@ -29,7 +29,10 @@ import { SEED_SUGGESTED_PEOPLE } from "@/lib/seed-content";
 export function YardSidebar() {
   const handle = getCurrentHandle();
   const { data: user } = useAppGetUser(handle);
-  const { data: trending = [] } = useAppGetTrendingFeed(handle);
+  const { data: trending = [] } = useAppGetTrendingFeed(
+    handle,
+    BETA_FEATURES.showSidebarTrending(),
+  );
 
   const town = user?.town ?? "tsu";
   const wb = user?.weixBucks ?? 0;
@@ -113,39 +116,41 @@ export function YardSidebar() {
         </CardContent>
       </Card>
 
-      <Card className="border-border/60">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-accent" />
-            Trending on the yard
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {(trending as { authorHandle?: string; content?: string; likesCount?: number }[])
-            .slice(0, 3)
-            .map((post, i) => (
-              <div
-                key={i}
-                className="text-sm p-2 rounded-lg bg-muted/30 border border-border/40"
-              >
-                <p className="font-medium text-xs text-primary">
-                  @{post.authorHandle}
-                </p>
-                <p className="text-muted-foreground line-clamp-2 mt-0.5">
-                  {post.content}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {post.likesCount ?? 0} likes
-                </p>
-              </div>
-            ))}
-          {trending.length === 0 && (
-            <p className="text-xs text-muted-foreground p-2">
-              Post something — you might trend across yards.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {BETA_FEATURES.showSidebarTrending() && (
+        <Card className="border-border/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-accent" />
+              Trending on the yard
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {(trending as { authorHandle?: string; content?: string; likesCount?: number }[])
+              .slice(0, 3)
+              .map((post, i) => (
+                <div
+                  key={i}
+                  className="text-sm p-2 rounded-lg bg-muted/30 border border-border/40"
+                >
+                  <p className="font-medium text-xs text-primary">
+                    @{post.authorHandle}
+                  </p>
+                  <p className="text-muted-foreground line-clamp-2 mt-0.5">
+                    {post.content}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {post.likesCount ?? 0} likes
+                  </p>
+                </div>
+              ))}
+            {trending.length === 0 && (
+              <p className="text-xs text-muted-foreground p-2">
+                Post something — you might trend across yards.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {BETA_FEATURES.showRelayPanel() && (
         <Card className="border-border/60 bg-secondary/20">

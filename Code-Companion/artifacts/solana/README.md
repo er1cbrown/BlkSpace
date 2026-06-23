@@ -21,7 +21,17 @@ pnpm --filter @workspace/solana run setup-bkspc-devnet
 | `init-treasury-devnet` | 2-of-2 SPL multisig + signer keypairs |
 | `init-bkspc-devnet` | Metaplex mint + transfer authority to treasury |
 | `setup-bkspc-devnet` | Runs both in order |
+| `mint-media-nft-devnet` | CLI Metaplex NFT for mix/media (`RECIPIENT`, `CID`, `TITLE`) |
 | `backup-bkspc-keys` | Password-locked backup of wallet + treasury keys |
+
+## In-app Phase 4 commands (Tauri)
+
+| Command | Purpose |
+|---------|---------|
+| `withdraw_to_solana` | WB → BKSPC devnet mint (`bkspc-devnet` feature) |
+| `mint_mix_nft` | Metaplex NFT for mix/media Iroh CID |
+| `get_bkspc_purchase_quote` | Burn amount for on-chain marketplace buy |
+| `buy_marketplace_listing_bkspc` | Verify burn tx + complete sale |
 
 ## Wire real devnet withdraw (step 3)
 

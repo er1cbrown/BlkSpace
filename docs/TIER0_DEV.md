@@ -20,6 +20,16 @@ Measured on this machine:
 
 Warm runs are fine. Cold runs thrash because **disk + RAM** can't hold the full build graph at once.
 
+**Faster dev boot (Tier 0 lite):**
+
+```bash
+cd Code-Companion/artifacts/blkspace
+pnpm dev:tier0          # web — lite UI, local tab default, pre-warmed Vite graph
+pnpm tauri:dev:tier0    # desktop — same + deferred Rust seed/relays
+```
+
+Use `serve:tier0` or a release `.msi` for daily use on 4–8 GB machines — not `pnpm dev`.
+
 ---
 
 ## Complexity breakdown

@@ -1,4 +1,4 @@
-use rusqlite::{Connection, Result, params, Error as SqlError};
+use rusqlite::{Connection, Result, params, Error as SqlError, OptionalExtension};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -318,6 +318,16 @@ pub struct Post {
   pub risk_level: String,
 }
 
+/// Default page size for feed queries (Tier 0 pagination).
+pub const DEFAULT_POST_PAGE_SIZE: i64 = 20;
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PaginatedPosts {
+  pub posts: Vec<Post>,
+  pub has_more: bool,
+}
+
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Reply {
@@ -602,9 +612,13 @@ pub struct Database {
   pub conn: Mutex<Connection>,
 }
 
+/// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
+const SCHEMA_VERSION: i32 = 1;
+
 impl Database {
+  /// Fast open for app boot — schema only; demo seed runs on a background thread.
   pub fn new(app_dir: PathBuf) -> Result<Self> {
-    Self::open(app_dir, true)
+    Self::open(app_dir, false)
   }
 
   /// Test-only constructor: fresh schema without demo seed data.
@@ -613,17 +627,113 @@ impl Database {
     Self::open(app_dir, false)
   }
 
-  fn open(app_dir: PathBuf, seed: bool) -> Result<Self> {
+  /// Idempotent demo content + pubkey backfill (safe to call from background seed thread).
+  pub fn ensure_seeded(&self) -> Result<()> {
+    self.seed()?;
+    self.backfill_demo_pubkeys()
+  }
+
+  fn open(app_dir: PathBuf, seed_now: bool) -> Result<Self> {
     std::fs::create_dir_all(&app_dir).ok();
     let db_path = app_dir.join("blkspace.db");
     let conn = Connection::open(db_path)?;
+    conn.execute_batch(
+      "
+      PRAGMA journal_mode=WAL;
+      PRAGMA synchronous=NORMAL;
+      PRAGMA cache_size=-64000;
+      PRAGMA temp_store=MEMORY;
+      ",
+    )?;
     let db = Database { conn: Mutex::new(conn) };
     db.initialize()?;
-    if seed {
-      db.seed()?;
-      db.backfill_demo_pubkeys()?;
+    if seed_now {
+      db.ensure_seeded()?;
     }
     Ok(db)
+  }
+
+  fn schema_version(conn: &Connection) -> Result<i32> {
+    conn.execute(
+      "CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT)",
+      [],
+    )?;
+    let version: Result<String, _> = conn.query_row(
+      "SELECT value FROM app_meta WHERE key = 'schema_version'",
+      [],
+      |r| r.get(0),
+    );
+    Ok(version
+      .ok()
+      .and_then(|s| s.parse().ok())
+      .unwrap_or(0))
+  }
+
+  fn set_schema_version(conn: &Connection, version: i32) -> Result<()> {
+    conn.execute(
+      "INSERT INTO app_meta (key, value) VALUES ('schema_version', ?1)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      params![version.to_string()],
+    )?;
+    Ok(())
+  }
+
+  fn run_migrations(conn: &Connection) -> Result<()> {
+    // Migrate existing databases (run once per schema version bump)
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN pubkey TEXT DEFAULT ''", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN engagement_quality REAL DEFAULT 1.0", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN last_action_unix INTEGER DEFAULT 0", []);
+    let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_users_pubkey ON users(pubkey)", []);
+    let _ = conn.execute("ALTER TABLE posts ADD COLUMN media_blobs TEXT DEFAULT '[]'", []);
+    let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_blobs_uploader ON blobs(uploader_handle)", []);
+    let _ = conn.execute("ALTER TABLE posts ADD COLUMN nostr_event_id TEXT DEFAULT ''", []);
+    let _ = conn.execute("ALTER TABLE posts ADD COLUMN relay_url TEXT DEFAULT ''", []);
+    let _ = conn.execute("ALTER TABLE blobs ADD COLUMN cid TEXT", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN node_role TEXT DEFAULT ''", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN relay_uptime_hours INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN theme_id INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN music_hash TEXT DEFAULT ''", []);
+    let _ = conn.execute("ALTER TABLE posts ADD COLUMN channel_id TEXT DEFAULT ''", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN post_karma INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN comment_karma INTEGER DEFAULT 0", []);
+    let _ = conn.execute(
+      "ALTER TABLE users ADD COLUMN pro_profile_json TEXT DEFAULT '{}'",
+      [],
+    );
+    let _ = conn.execute(
+      "ALTER TABLE users ADD COLUMN profile_layout_json TEXT DEFAULT '{}'",
+      [],
+    );
+    let _ = conn.execute(
+      "ALTER TABLE users ADD COLUMN top_friends_json TEXT DEFAULT '[]'",
+      [],
+    );
+    let _ = conn.execute(
+      "ALTER TABLE marketplace_listings ADD COLUMN nft_mint TEXT",
+      [],
+    );
+    let _ = conn.execute(
+      "ALTER TABLE marketplace_listings ADD COLUMN payment_tx TEXT",
+      [],
+    );
+
+    conn.execute_batch(
+      "
+      CREATE TABLE IF NOT EXISTS nft_mints (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_handle TEXT NOT NULL,
+        mint_address TEXT NOT NULL,
+        metadata_address TEXT,
+        item_type TEXT NOT NULL,
+        item_ref TEXT,
+        title TEXT NOT NULL,
+        tx_signature TEXT NOT NULL,
+        metadata_uri TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+      ",
+    )?;
+    Ok(())
   }
 
   fn initialize(&self) -> Result<()> {
@@ -951,35 +1061,11 @@ impl Database {
       "
     )?;
 
-    // Migrate existing databases
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN pubkey TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN engagement_quality REAL DEFAULT 1.0", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN last_action_unix INTEGER DEFAULT 0", []);
-    let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_users_pubkey ON users(pubkey)", []);
-    let _ = conn.execute("ALTER TABLE posts ADD COLUMN media_blobs TEXT DEFAULT '[]'", []);
-    let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_blobs_uploader ON blobs(uploader_handle)", []);
-    let _ = conn.execute("ALTER TABLE posts ADD COLUMN nostr_event_id TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE posts ADD COLUMN relay_url TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE blobs ADD COLUMN cid TEXT", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN node_role TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN relay_uptime_hours INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN theme_id INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN music_hash TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE posts ADD COLUMN channel_id TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN post_karma INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN comment_karma INTEGER DEFAULT 0", []);
-    let _ = conn.execute(
-      "ALTER TABLE users ADD COLUMN pro_profile_json TEXT DEFAULT '{}'",
-      [],
-    );
-    let _ = conn.execute(
-      "ALTER TABLE users ADD COLUMN profile_layout_json TEXT DEFAULT '{}'",
-      [],
-    );
-    let _ = conn.execute(
-      "ALTER TABLE users ADD COLUMN top_friends_json TEXT DEFAULT '[]'",
-      [],
-    );
+    let version = Self::schema_version(&conn)?;
+    if version < SCHEMA_VERSION {
+      Self::run_migrations(&conn)?;
+      Self::set_schema_version(&conn, SCHEMA_VERSION)?;
+    }
 
     Ok(())
   }
@@ -1347,9 +1433,22 @@ impl Database {
     }
   }
 
-  pub fn list_posts(&self, town: Option<&str>, current_user: Option<&str>) -> Result<Vec<Post>> {
+  pub fn list_posts(
+    &self,
+    town: Option<&str>,
+    current_user: Option<&str>,
+    limit: Option<i64>,
+    before_id: Option<i64>,
+  ) -> Result<PaginatedPosts> {
     let has_town = town.is_some();
-    let sql = if has_town {
+    let page_limit = limit.unwrap_or(DEFAULT_POST_PAGE_SIZE);
+    let fetch_limit = if limit.is_some() {
+      page_limit + 1
+    } else {
+      i64::MAX
+    };
+
+    let mut sql = if has_town {
       "SELECT p.id, p.author_handle, u.display_name, u.avatar_url, p.content, p.town_tag, p.channel_id,
               p.replies_count, p.reposts_count, p.likes_count,
               CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END as liked,
@@ -1357,8 +1456,8 @@ impl Database {
        FROM posts p
        JOIN users u ON u.handle = p.author_handle
        LEFT JOIN likes l ON l.post_id = p.id AND l.user_handle = ?2
-       WHERE p.town_tag = ?1
-       ORDER BY p.created_at DESC"
+       WHERE p.town_tag = ?1"
+        .to_string()
     } else {
       "SELECT p.id, p.author_handle, u.display_name, u.avatar_url, p.content, p.town_tag, p.channel_id,
               p.replies_count, p.reposts_count, p.likes_count,
@@ -1367,63 +1466,88 @@ impl Database {
        FROM posts p
        JOIN users u ON u.handle = p.author_handle
        LEFT JOIN likes l ON l.post_id = p.id AND l.user_handle = ?1
-       ORDER BY p.created_at DESC"
+       WHERE 1=1"
+        .to_string()
     };
+
+    if before_id.is_some() {
+      sql.push_str(" AND p.id < ?");
+    }
+    sql.push_str(" ORDER BY p.created_at DESC");
+    if limit.is_some() {
+      sql.push_str(" LIMIT ?");
+    }
 
     fn parse_media_blobs(json: &str) -> Vec<String> {
       serde_json::from_str(json).unwrap_or_default()
     }
 
+    fn map_post_row(row: &rusqlite::Row<'_>) -> Result<Post> {
+      Ok(Post {
+        id: row.get(0)?,
+        author_handle: row.get(1)?,
+        author_display_name: row.get(2)?,
+        author_avatar_url: row.get(3)?,
+        content: row.get(4)?,
+        town_tag: row.get(5)?,
+        channel_id: row.get(6).unwrap_or_default(),
+        replies_count: row.get(7)?,
+        reposts_count: row.get(8)?,
+        likes_count: row.get(9)?,
+        liked: row.get::<_, i64>(10)? != 0,
+        media_blobs: parse_media_blobs(&row.get::<_, String>(11).unwrap_or_default()),
+        nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
+        relay_url: row.get::<_, String>(13).unwrap_or_default(),
+        created_at: row.get(14)?,
+        engagement_quality: 1.0,
+        malicious_score: 0.0,
+        risk_level: "low".to_string(),
+      })
+    }
+
     let mut posts = {
       let conn = self.conn.lock().unwrap();
-      let mut stmt = conn.prepare(sql)?;
+      let mut stmt = conn.prepare(&sql)?;
       let row_map: Box<dyn Iterator<Item = Result<Post>>> = if has_town {
-      Box::new(stmt.query_map(params![town.unwrap_or("tsu"), current_user.unwrap_or("")], |row| {
-        Ok(Post {
-          id: row.get(0)?,
-          author_handle: row.get(1)?,
-          author_display_name: row.get(2)?,
-          author_avatar_url: row.get(3)?,
-          content: row.get(4)?,
-          town_tag: row.get(5)?,
-          channel_id: row.get(6).unwrap_or_default(),
-          replies_count: row.get(7)?,
-          reposts_count: row.get(8)?,
-          likes_count: row.get(9)?,
-          liked: row.get::<_, i64>(10)? != 0,
-          media_blobs: parse_media_blobs(&row.get::<_, String>(11).unwrap_or_default()),
-          nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
-          relay_url: row.get::<_, String>(13).unwrap_or_default(),
-          created_at: row.get(14)?,
-          engagement_quality: 1.0,
-          malicious_score: 0.0,
-          risk_level: "low".to_string(),
-        })
-      })?)
-    } else {
-      Box::new(stmt.query_map(params![current_user.unwrap_or("")], |row| {
-        Ok(Post {
-          id: row.get(0)?,
-          author_handle: row.get(1)?,
-          author_display_name: row.get(2)?,
-          author_avatar_url: row.get(3)?,
-          content: row.get(4)?,
-          town_tag: row.get(5)?,
-          channel_id: row.get(6).unwrap_or_default(),
-          replies_count: row.get(7)?,
-          reposts_count: row.get(8)?,
-          likes_count: row.get(9)?,
-          liked: row.get::<_, i64>(10)? != 0,
-          media_blobs: parse_media_blobs(&row.get::<_, String>(11).unwrap_or_default()),
-          nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
-          relay_url: row.get::<_, String>(13).unwrap_or_default(),
-          created_at: row.get(14)?,
-          engagement_quality: 1.0,
-          malicious_score: 0.0,
-          risk_level: "low".to_string(),
-        })
-      })?)
-    };
+        if let (Some(cursor), Some(lim)) = (before_id, limit) {
+          Box::new(stmt.query_map(
+            params![town.unwrap_or("tsu"), current_user.unwrap_or(""), cursor, fetch_limit],
+            map_post_row,
+          )?)
+        } else if let Some(lim) = limit {
+          Box::new(stmt.query_map(
+            params![town.unwrap_or("tsu"), current_user.unwrap_or(""), fetch_limit],
+            map_post_row,
+          )?)
+        } else if let Some(cursor) = before_id {
+          Box::new(stmt.query_map(
+            params![town.unwrap_or("tsu"), current_user.unwrap_or(""), cursor],
+            map_post_row,
+          )?)
+        } else {
+          Box::new(stmt.query_map(
+            params![town.unwrap_or("tsu"), current_user.unwrap_or("")],
+            map_post_row,
+          )?)
+        }
+      } else if let (Some(cursor), Some(_lim)) = (before_id, limit) {
+        Box::new(stmt.query_map(
+          params![current_user.unwrap_or(""), cursor, fetch_limit],
+          map_post_row,
+        )?)
+      } else if limit.is_some() {
+        Box::new(stmt.query_map(
+          params![current_user.unwrap_or(""), fetch_limit],
+          map_post_row,
+        )?)
+      } else if let Some(cursor) = before_id {
+        Box::new(stmt.query_map(
+          params![current_user.unwrap_or(""), cursor],
+          map_post_row,
+        )?)
+      } else {
+        Box::new(stmt.query_map(params![current_user.unwrap_or("")], map_post_row)?)
+      };
 
       let mut posts = Vec::new();
       for row in row_map {
@@ -1431,8 +1555,13 @@ impl Database {
       }
       posts
     };
+
+    let has_more = limit.is_some() && posts.len() as i64 > page_limit;
+    if has_more {
+      posts.truncate(page_limit as usize);
+    }
     self.enrich_posts_security(&mut posts);
-    Ok(posts)
+    Ok(PaginatedPosts { posts, has_more })
   }
 
   pub fn get_post(&self, id: i64, current_user: Option<&str>) -> Result<Option<Post>> {
@@ -2808,7 +2937,9 @@ impl Database {
   }
 
   pub fn get_trending_feed(&self, current_user: Option<&str>) -> Result<Vec<Post>> {
-    self.list_posts(None, current_user)
+    Ok(self
+      .list_posts(None, current_user, Some(DEFAULT_POST_PAGE_SIZE), None)?
+      .posts)
   }
 
   pub fn list_posts_for_channel(&self, channel_id: &str, current_user: Option<&str>) -> Result<Vec<Post>> {
@@ -3135,7 +3266,7 @@ impl Database {
   pub fn list_marketplace(&self) -> Result<Vec<serde_json::Value>> {
     let conn = self.conn.lock().unwrap();
     let mut stmt = conn.prepare(
-      "SELECT id, seller_handle, item_type, item_ref, price, title, description, is_nft, sold_to, created_at FROM marketplace_listings WHERE sold_to IS NULL ORDER BY created_at DESC"
+      "SELECT id, seller_handle, item_type, item_ref, price, title, description, is_nft, sold_to, created_at, nft_mint, payment_tx FROM marketplace_listings WHERE sold_to IS NULL ORDER BY created_at DESC"
     )?;
     let rows = stmt.query_map([], |row| {
       Ok(serde_json::json!({
@@ -3149,11 +3280,119 @@ impl Database {
         "isNft": row.get::<_, i64>(7)? == 1,
         "soldTo": row.get::<_, Option<String>>(8)?,
         "createdAt": row.get::<_, String>(9)?,
+        "nftMint": row.get::<_, Option<String>>(10)?,
+        "paymentTx": row.get::<_, Option<String>>(11)?,
       }))
     })?;
     let mut res = vec![];
     for r in rows { res.push(r?); }
     Ok(res)
+  }
+
+  pub fn record_nft_mint(
+    &self,
+    owner: &str,
+    mint_address: &str,
+    metadata_address: Option<&str>,
+    item_type: &str,
+    item_ref: Option<&str>,
+    title: &str,
+    tx_signature: &str,
+    metadata_uri: Option<&str>,
+  ) -> Result<i64> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "INSERT INTO nft_mints (owner_handle, mint_address, metadata_address, item_type, item_ref, title, tx_signature, metadata_uri) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+      params![owner, mint_address, metadata_address, item_type, item_ref, title, tx_signature, metadata_uri],
+    )?;
+    Ok(conn.last_insert_rowid())
+  }
+
+  pub fn set_listing_nft_mint(&self, listing_id: i64, nft_mint: &str) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "UPDATE marketplace_listings SET nft_mint = ?1 WHERE id = ?2",
+      params![nft_mint, listing_id],
+    )?;
+    Ok(())
+  }
+
+  pub fn get_marketplace_listing_price(&self, id: i64) -> Result<Option<(i64, bool)>> {
+    let conn = self.conn.lock().unwrap();
+    conn.query_row(
+      "SELECT price, sold_to IS NOT NULL FROM marketplace_listings WHERE id = ?1",
+      params![id],
+      |r| Ok((r.get(0)?, r.get::<_, i64>(1)? == 1)),
+    )
+    .optional()
+    .map_err(Into::into)
+  }
+
+  pub fn buy_marketplace_listing_bkspc(
+    &self,
+    id: i64,
+    buyer: &str,
+    burn_tx_signature: &str,
+  ) -> Result<Option<serde_json::Value>> {
+    let conn = self.conn.lock().unwrap();
+    let listing: Option<(String, i64, String, Option<String>, bool)> = conn
+      .query_row(
+        "SELECT seller_handle, price, item_type, item_ref, is_nft FROM marketplace_listings WHERE id = ?1 AND sold_to IS NULL",
+        params![id],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get::<_, i64>(4)? == 1)),
+      )
+      .ok();
+    if let Some((seller, price, item_type, item_ref, is_nft)) = listing {
+      let fee = calc_platform_fee(price, MARKETPLACE_PLATFORM_FEE_BPS);
+      let net = price - fee;
+      if net <= 0 {
+        return Err(rusqlite::Error::InvalidParameterName(
+          "Amount too small after platform fee".into(),
+        ));
+      }
+
+      let tx = conn.unchecked_transaction()?;
+      tx.execute(
+        "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
+        params![net, seller],
+      )?;
+      tx.execute(
+        "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
+         SELECT ?1, 'earn', ?2, ?3, weix_bucks FROM users WHERE handle = ?1",
+        params![
+          seller,
+          net,
+          format!("BKSPC marketplace sale ({burn_tx_signature})"),
+        ],
+      )?;
+      tx.execute(
+        "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
+         SELECT ?1, 'spend', 0, ?2, weix_bucks FROM users WHERE handle = ?1",
+        params![
+          buyer,
+          format!("BKSPC marketplace purchase — {price} WB equivalent burned on-chain ({burn_tx_signature})"),
+        ],
+      )?;
+      tx.execute(
+        "UPDATE marketplace_listings SET sold_to = ?1, payment_tx = ?2 WHERE id = ?3",
+        params![buyer, burn_tx_signature, id],
+      )?;
+      tx.commit()?;
+
+      Ok(Some(serde_json::json!({
+        "id": id,
+        "itemType": item_type,
+        "itemRef": item_ref,
+        "isNft": is_nft,
+        "seller": seller,
+        "price": price,
+        "paymentMethod": "bkspc_burn",
+        "burnTx": burn_tx_signature,
+        "sellerNetWb": net,
+      })))
+    } else {
+      Ok(None)
+    }
   }
 
   pub fn buy_marketplace_listing(&self, id: i64, buyer: &str) -> Result<Option<serde_json::Value>> {

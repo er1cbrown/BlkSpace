@@ -108,7 +108,7 @@ mod tests {
     db.create_post("author", "Post 1", "tsu", NO_CHANNEL, &[]).unwrap();
     db.create_post("author", "Post 2", "tsu", NO_CHANNEL, &[]).unwrap();
     
-    let posts = db.list_posts(Some("tsu"), None).unwrap();
+    let posts = db.list_posts(Some("tsu"), None, None, None).unwrap().posts;
     assert_eq!(posts.len(), 2);
   }
 
@@ -153,7 +153,7 @@ mod tests {
     assert_eq!(reply.content, "Nice post!");
     
     // Check post reply count incremented
-    let posts = db.list_posts(Some("tsu"), None).unwrap();
+    let posts = db.list_posts(Some("tsu"), None, None, None).unwrap().posts;
     assert_eq!(posts[0].replies_count, 1);
   }
 
@@ -623,6 +623,7 @@ mod tests {
     let temp_dir = std::env::temp_dir().join(format!("blkspace_seed_{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir).unwrap();
     let db = Database::new(temp_dir).unwrap();
+    db.ensure_seeded().unwrap();
 
     let jane = db.get_user("jane_doe").unwrap().expect("jane_doe seeded");
     assert_eq!(
@@ -829,7 +830,7 @@ mod tests {
       ).unwrap();
     }
 
-    let posts = db.list_posts(Some("tsu"), None).unwrap();
+    let posts = db.list_posts(Some("tsu"), None, None, None).unwrap().posts;
     assert_eq!(posts.len(), 1);
     assert!((posts[0].engagement_quality - 0.6).abs() < f64::EPSILON);
     assert!((posts[0].malicious_score - 0.75).abs() < f64::EPSILON);
@@ -1512,7 +1513,10 @@ mod tests {
     let queen = db.get_user("campus_queen").unwrap().unwrap();
     assert_eq!(queen.weix_bucks, 125);
 
-    let posts = db.list_posts(Some("tsu"), Some("campus_queen")).unwrap();
+    let posts = db
+      .list_posts(Some("tsu"), Some("campus_queen"), None, None)
+      .unwrap()
+      .posts;
     assert_eq!(posts.len(), 1);
     assert_eq!(posts[0].id, post_id);
     assert_eq!(posts[0].likes_count, 1);
@@ -1815,5 +1819,45 @@ mod tests {
     let err =
       authorize_set_community_role(&db, "mod_user", "tsu", "owner", "Student").unwrap_err();
     assert!(err.contains("Moderators cannot change an owner"));
+  }
+
+  #[test]
+  fn test_bkspc_marketplace_purchase_credits_seller() {
+    let db = setup_test_db();
+    db.create_user("seller", "Seller", "").unwrap();
+    db.create_user("buyer", "Buyer", "").unwrap();
+    let listing_id = db
+      .create_marketplace_listing("seller", "mix", Some("cid123"), 100, "Test Mix", None, true)
+      .unwrap();
+    let result = db
+      .buy_marketplace_listing_bkspc(listing_id, "buyer", "burnTxSig123")
+      .unwrap()
+      .expect("listing sold");
+    assert_eq!(result["paymentMethod"], "bkspc_burn");
+    let seller = db.get_user("seller").unwrap().unwrap();
+    // 100 WB price - 5% fee = 95 WB net
+    assert_eq!(seller.weix_bucks, 100 + 95);
+    let buyer = db.get_user("buyer").unwrap().unwrap();
+    assert_eq!(buyer.weix_bucks, 100);
+  }
+
+  #[test]
+  fn test_record_nft_mint() {
+    let db = setup_test_db();
+    db.create_user("creator", "Creator", "").unwrap();
+    let id = db
+      .record_nft_mint(
+        "creator",
+        "MintAddr123",
+        Some("MetaAddr"),
+        "mix",
+        Some("cid456"),
+        "My Mix",
+        "txSig789",
+        Some("blkspace://nft/mix/cid456"),
+      )
+      .unwrap();
+    assert!(id > 0);
+    db.set_listing_nft_mint(1, "MintAddr123").ok();
   }
 }
