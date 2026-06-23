@@ -13,25 +13,46 @@ import { Users, MapPin, GraduationCap, ArrowRight } from "lucide-react";
 import { useTauriGetCommunities } from "@/hooks/use-app-data";
 import { isTauri, type TauriCommunity } from "@/lib/tauri-api";
 import { BETA_FEATURES } from "@/lib/beta-features";
-import { YARD_IDS, YARD_THEME_PACKS, yardGradient } from "@/lib/yard-themes";
+import {
+  YARD_IDS,
+  YARD_THEME_PACKS,
+  resolveCommunityYardTheme,
+} from "@/lib/yard-themes";
+import { Sparkles, Lock } from "lucide-react";
 
 const fallbackCommunities = YARD_IDS.map((id) => {
-  const pack = YARD_THEME_PACKS[id];
+  const resolved = resolveCommunityYardTheme(id, false, 0)!;
   return {
     id,
-    name: pack.name,
-    school: pack.school,
-    location: pack.location,
-    members: id === "tsu" ? 2847 : id === "howard" ? 4521 : id === "spelman" ? 3190 : id === "famu" ? 5632 : 2904,
+    name: resolved.name,
+    school: resolved.school,
+    location: resolved.location,
+    members:
+      id === "tsu"
+        ? 2847
+        : id === "howard"
+          ? 4521
+          : id === "spelman"
+            ? 3190
+            : id === "famu"
+              ? 5632
+              : 2904,
     posts: 1200,
-    color: pack.gradient,
-    mascot: pack.mascot,
-    tagline: pack.tagline,
+    color: resolved.gradient,
+    mascot: resolved.mascot,
+    tagline: resolved.tagline,
+    packActive: false,
+    skinTier: resolved.skinTier,
   };
 });
 
 function mapCommunity(c: TauriCommunity) {
-  const pack = YARD_THEME_PACKS[c.id as keyof typeof YARD_THEME_PACKS];
+  const packActive = c.packActive ?? false;
+  const resolved = resolveCommunityYardTheme(
+    c.id,
+    packActive,
+    c.purchaseCount ?? 0,
+  );
   return {
     id: c.id,
     name: c.name,
@@ -39,9 +60,11 @@ function mapCommunity(c: TauriCommunity) {
     location: c.location,
     members: c.members,
     posts: Math.floor(c.members * 0.5),
-    color: pack?.gradient ?? yardGradient(c.id),
-    mascot: pack?.mascot,
-    tagline: pack?.tagline,
+    color: resolved?.gradient ?? c.color,
+    mascot: resolved?.mascot,
+    tagline: resolved?.tagline,
+    packActive,
+    skinTier: resolved?.skinTier ?? "preview",
   };
 }
 
@@ -78,8 +101,16 @@ export default function CommunitiesPage() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {communities.map((c) => (
             <Link key={c.id} href={`/communities/${c.id}`}>
-              <Card className="group cursor-pointer overflow-hidden border-primary/5 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                <div className={`h-24 bg-gradient-to-br ${c.color}`} />
+              <Card
+                className={`group cursor-pointer overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 ${
+                  c.packActive ? "border-primary/20" : "border-border/60 opacity-95"
+                }`}
+              >
+                <div
+                  className={`h-24 bg-gradient-to-br ${c.color} ${
+                    !c.packActive ? "saturate-50" : ""
+                  }`}
+                />
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
                     <div>
@@ -98,12 +129,23 @@ export default function CommunitiesPage() {
                         <GraduationCap className="w-3.5 h-3.5" /> {c.school}
                       </CardDescription>
                     </div>
-                    <Badge
-                      variant="outline"
-                      className="bg-primary/5 text-primary text-xs"
-                    >
-                      {c.members.toLocaleString()} members
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      {c.packActive ? (
+                        <Badge className="text-[10px] gap-0.5">
+                          <Sparkles className="w-3 h-3" /> Live
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] gap-0.5 text-muted-foreground">
+                          <Lock className="w-3 h-3" /> Preview
+                        </Badge>
+                      )}
+                      <Badge
+                        variant="outline"
+                        className="bg-primary/5 text-primary text-xs"
+                      >
+                        {c.members.toLocaleString()} members
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

@@ -37,7 +37,7 @@ flowchart TB
 
 | Layer | What it is | Who sees it | Distinct per… |
 |-------|------------|-------------|---------------|
-| **Yard** | Campus / town mesh (Nostr town tags, relay scope) | Everyone in that community | Mascots, colors, norms, events, weather hooks |
+| **Yard** | Campus / town mesh (Nostr town tags, relay scope) | Everyone in that community | Mascots, colors, norms, events — **preview** until a campus pack sells on Yard Sale, then **live** for all |
 | **MyYard** | Your personal creator profile (was "MySpace" in UI) | Visitors + you | Themes, Top 8, profile song, pro JSON, optional modules |
 | **Yard Sale** | Marketplace tied to creator identity | Buyers across yards | Listings from *your* MyYard inventory |
 
@@ -129,6 +129,7 @@ Internal code may keep `myspace` theme id, `marketplace_*` commands, and `Creato
 4. ✅ Campus yard theme packs on community pages + per-yard Yard Sale tab  
 5. ✅ Persist MyYard module toggles (`profile_layout_json`); apply purchased themes / Logos Deck on buy  
 6. ✅ Logos Deck player UI on public MyYard when module enabled  
-7. Device B + `v0.1.0-yard` — students get Yard build; labs get Full + optional modules  
+7. ✅ Campus pack purchase activates community yard skin (`community_yard_packs` table)  
+8. Device B + `v0.1.0-yard` — students get Yard build; labs get Full + optional modules  
 
 See [`ROADMAP.md`](../ROADMAP.md) for milestone order.

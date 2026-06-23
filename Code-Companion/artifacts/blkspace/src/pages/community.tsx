@@ -36,7 +36,8 @@ import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { YardEventsPanel } from "@/components/community/YardEventsPanel";
 import { YardMembersPanel } from "@/components/community/YardMembersPanel";
 import { YardSaleTab } from "@/components/community/YardSaleTab";
-import { getYardTheme, yardGradient } from "@/lib/yard-themes";
+import { resolveCommunityYardTheme } from "@/lib/yard-themes";
+import { YardCommunitySkin } from "@/components/community/YardCommunitySkin";
 import { SafeContent } from "@/components/ui/safe-content";
 import { RiskBadge } from "@/components/ui/risk-badge";
 import { SignatureBadge } from "@/components/ui/signature-badge";
@@ -280,7 +281,13 @@ export default function CommunityPage() {
           raw: null as TauriPost | null,
         }));
 
-  const yardTheme = getYardTheme(id);
+  const tauriCommunity =
+    isTauri() && Array.isArray(tauriCommunities)
+      ? tauriCommunities.find((c: TauriCommunity) => c.id === id)
+      : undefined;
+  const packActive = tauriCommunity?.packActive ?? false;
+  const purchaseCount = tauriCommunity?.purchaseCount ?? 0;
+  const yardTheme = resolveCommunityYardTheme(id, packActive, purchaseCount);
 
   return (
     <AppShell fullWidth hideRightRail>
@@ -293,9 +300,18 @@ export default function CommunityPage() {
           </Button>
         </Link>
 
+        {yardTheme && (
+          <YardCommunitySkin
+            theme={yardTheme}
+            communityName={community.name}
+          />
+        )}
+
         <div className="flex items-start gap-4 mb-6">
           <div
-            className={`h-20 w-20 rounded-2xl bg-gradient-to-br ${yardGradient(id)} flex-shrink-0 flex items-center justify-center text-3xl shadow-lg`}
+            className={`h-20 w-20 rounded-2xl bg-gradient-to-br ${yardTheme?.gradient ?? "from-primary to-primary/50"} flex-shrink-0 flex items-center justify-center text-3xl shadow-lg ${
+              yardTheme?.skinTier === "preview" ? "opacity-70 saturate-50" : ""
+            }`}
           >
             {yardTheme?.mascot.split(" ")[0]}
           </div>
@@ -353,7 +369,7 @@ export default function CommunityPage() {
             <p className="text-muted-foreground mt-2 max-w-2xl">
               {community.description}
             </p>
-            {yardTheme && (
+            {yardTheme && yardTheme.skinTier === "live" && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {yardTheme.norms.map((norm) => (
                   <Badge key={norm} variant="secondary" className="text-xs font-normal">

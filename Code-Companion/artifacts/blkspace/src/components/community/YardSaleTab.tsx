@@ -4,7 +4,8 @@ import { Store } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { YardSaleListings } from "@/components/economy/YardSaleListings";
-import { getYardTheme } from "@/lib/yard-themes";
+import { resolveCommunityYardTheme } from "@/lib/yard-themes";
+import { useTauriGetCommunities } from "@/hooks/use-app-data";
 import { isTauri, tauriGetBkspcSettlementStatus } from "@/lib/tauri-api";
 import { useTauriMarketplace } from "@/hooks/use-app-data";
 
@@ -14,7 +15,13 @@ interface YardSaleTabProps {
 }
 
 export function YardSaleTab({ yardId, communityName }: YardSaleTabProps) {
-  const yard = getYardTheme(yardId);
+  const { data: communities = [] } = useTauriGetCommunities();
+  const community = communities.find((c) => c.id === yardId);
+  const yard = resolveCommunityYardTheme(
+    yardId,
+    community?.packActive ?? false,
+    community?.purchaseCount ?? 0,
+  );
   const { data: listings = [] } = useTauriMarketplace();
 
   const { data: settlementStatus } = useQuery({

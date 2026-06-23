@@ -46,6 +46,9 @@ function appliedPurchaseMessage(applied: Record<string, unknown> | undefined): s
   if (applied.theme) parts.push(`Theme → ${applied.theme}`);
   if (applied.yardPackId) parts.push(`Campus pack → ${applied.yardPackId}`);
   if (applied.logosDeck) parts.push("Logos Deck enabled on your MyYard");
+  if (applied.communitySkinLive && applied.communityYardPack) {
+    parts.push(`Community skin live → ${applied.communityYardPack}`);
+  }
   return parts.length ? parts.join(" · ") : null;
 }
 
@@ -65,6 +68,7 @@ export function YardSaleListings({
   const afterPurchase = (result: { applied?: Record<string, unknown> }) => {
     qc.invalidateQueries({ queryKey: ["tauri", "user"] });
     qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
+    qc.invalidateQueries({ queryKey: ["tauri", "communities"] });
     const msg = appliedPurchaseMessage(result.applied);
     if (msg) toast.success(`Applied to your MyYard: ${msg}`);
   };

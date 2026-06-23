@@ -102,3 +102,40 @@ export function getYardTheme(yardId: string): YardThemePack | null {
 export function yardGradient(yardId: string): string {
   return getYardTheme(yardId)?.gradient ?? "from-primary to-primary/50";
 }
+
+export type CommunitySkinTier = "preview" | "live";
+
+export interface ResolvedCommunityYardTheme extends YardThemePack {
+  packActive: boolean;
+  skinTier: CommunitySkinTier;
+  purchaseCount: number;
+}
+
+/** Community mesh skin — muted until a campus pack is purchased on Yard Sale. */
+export function resolveCommunityYardTheme(
+  yardId: string,
+  packActive: boolean,
+  purchaseCount = 0,
+): ResolvedCommunityYardTheme | null {
+  const base = getYardTheme(yardId);
+  if (!base) return null;
+
+  if (packActive) {
+    return {
+      ...base,
+      packActive: true,
+      skinTier: "live",
+      purchaseCount,
+    };
+  }
+
+  return {
+    ...base,
+    gradient: "from-slate-600/50 to-slate-800/60",
+    accentClass: "text-muted-foreground",
+    cardBorderClass: "border-border/50",
+    packActive: false,
+    skinTier: "preview",
+    purchaseCount: 0,
+  };
+}

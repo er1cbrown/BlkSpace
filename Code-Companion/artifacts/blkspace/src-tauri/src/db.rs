@@ -375,6 +375,10 @@ pub struct Community {
   pub description: String,
   pub members: i64,
   pub color: String,
+  /// Campus pack purchased on Yard Sale — full community skin live for all visitors.
+  pub pack_active: bool,
+  pub purchase_count: i64,
+  pub pack_id: String,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -723,6 +727,18 @@ impl Database {
 
     conn.execute_batch(
       "
+      CREATE TABLE IF NOT EXISTS community_yard_packs (
+        community_id TEXT PRIMARY KEY,
+        pack_active INTEGER NOT NULL DEFAULT 0,
+        purchase_count INTEGER NOT NULL DEFAULT 0,
+        last_activated_by TEXT,
+        activated_at TEXT
+      );
+      ",
+    )?;
+
+    conn.execute_batch(
+      "
       CREATE TABLE IF NOT EXISTS nft_mints (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         owner_handle TEXT NOT NULL,
@@ -1006,6 +1022,14 @@ impl Database {
         handle TEXT NOT NULL,
         joined_at TEXT DEFAULT (datetime('now')),
         PRIMARY KEY (community_id, handle)
+      );
+
+      CREATE TABLE IF NOT EXISTS community_yard_packs (
+        community_id TEXT PRIMARY KEY,
+        pack_active INTEGER NOT NULL DEFAULT 0,
+        purchase_count INTEGER NOT NULL DEFAULT 0,
+        last_activated_by TEXT,
+        activated_at TEXT
       );
 
       CREATE TABLE IF NOT EXISTS yard_events (
@@ -2513,14 +2537,115 @@ impl Database {
     ])
   }
 
+  fn community_pack_state(&self, community_id: &str) -> (bool, i64) {
+    let conn = match self.conn.lock() {
+      Ok(c) => c,
+      Err(_) => return (false, 0),
+    };
+    conn
+      .query_row(
+        "SELECT pack_active, purchase_count FROM community_yard_packs WHERE community_id = ?1",
+        params![community_id],
+        |r| Ok((r.get::<_, i64>(0)? == 1, r.get::<_, i64>(1)?)),
+      )
+      .unwrap_or((false, 0))
+  }
+
+  /// First campus pack purchase on Yard Sale activates full skin for the whole community mesh.
+  pub fn activate_community_yard_pack(
+    &self,
+    community_id: &str,
+    buyer: &str,
+  ) -> Result<(), AppError> {
+    let conn = self.conn.lock().unwrap();
+    conn
+      .execute(
+        "INSERT INTO community_yard_packs (community_id, pack_active, purchase_count, last_activated_by, activated_at)
+         VALUES (?1, 1, 1, ?2, datetime('now'))
+         ON CONFLICT(community_id) DO UPDATE SET
+           pack_active = 1,
+           purchase_count = purchase_count + 1,
+           last_activated_by = excluded.last_activated_by,
+           activated_at = excluded.activated_at",
+        params![community_id, buyer],
+      )
+      .map_err(AppError::from)?;
+    Ok(())
+  }
+
   pub fn get_communities(&self) -> Vec<Community> {
-    vec![
-      Community { id: "tsu".into(), name: "TSU Yard".into(), school: "Tennessee State University".into(), location: "Nashville, TN".into(), description: "The official TSU community. Home of the Tigers.".into(), members: 2847, color: "from-blue-600 to-blue-800".into() },
-      Community { id: "howard".into(), name: "Howard Yard".into(), school: "Howard University".into(), location: "Washington, DC".into(), description: "Howard University's digital yard. The Mecca of HBCU culture.".into(), members: 4521, color: "from-red-600 to-red-800".into() },
-      Community { id: "spelman".into(), name: "Spelman Yard".into(), school: "Spelman College".into(), location: "Atlanta, GA".into(), description: "Spelman College community. Where Black women lead.".into(), members: 3190, color: "from-green-600 to-green-800".into() },
-      Community { id: "famu".into(), name: "FAMU Yard".into(), school: "Florida A&M University".into(), location: "Tallahassee, FL".into(), description: "Florida A&M — the largest HBCU by enrollment.".into(), members: 5632, color: "from-orange-500 to-orange-700".into() },
-      Community { id: "morehouse".into(), name: "Morehouse Yard".into(), school: "Morehouse College".into(), location: "Atlanta, GA".into(), description: "Morehouse College. Building Black men who lead.".into(), members: 2904, color: "from-purple-600 to-purple-800".into() },
-    ]
+    let bases = vec![
+      Community {
+        id: "tsu".into(),
+        name: "TSU Yard".into(),
+        school: "Tennessee State University".into(),
+        location: "Nashville, TN".into(),
+        description: "The official TSU community. Home of the Tigers.".into(),
+        members: 2847,
+        color: "from-blue-600 to-blue-800".into(),
+        pack_active: false,
+        purchase_count: 0,
+        pack_id: String::new(),
+      },
+      Community {
+        id: "howard".into(),
+        name: "Howard Yard".into(),
+        school: "Howard University".into(),
+        location: "Washington, DC".into(),
+        description: "Howard University's digital yard. The Mecca of HBCU culture.".into(),
+        members: 4521,
+        color: "from-red-600 to-red-800".into(),
+        pack_active: false,
+        purchase_count: 0,
+        pack_id: String::new(),
+      },
+      Community {
+        id: "spelman".into(),
+        name: "Spelman Yard".into(),
+        school: "Spelman College".into(),
+        location: "Atlanta, GA".into(),
+        description: "Spelman College community. Where Black women lead.".into(),
+        members: 3190,
+        color: "from-green-600 to-green-800".into(),
+        pack_active: false,
+        purchase_count: 0,
+        pack_id: String::new(),
+      },
+      Community {
+        id: "famu".into(),
+        name: "FAMU Yard".into(),
+        school: "Florida A&M University".into(),
+        location: "Tallahassee, FL".into(),
+        description: "Florida A&M — the largest HBCU by enrollment.".into(),
+        members: 5632,
+        color: "from-orange-500 to-orange-700".into(),
+        pack_active: false,
+        purchase_count: 0,
+        pack_id: String::new(),
+      },
+      Community {
+        id: "morehouse".into(),
+        name: "Morehouse Yard".into(),
+        school: "Morehouse College".into(),
+        location: "Atlanta, GA".into(),
+        description: "Morehouse College. Building Black men who lead.".into(),
+        members: 2904,
+        color: "from-purple-600 to-purple-800".into(),
+        pack_active: false,
+        purchase_count: 0,
+        pack_id: String::new(),
+      },
+    ];
+    bases
+      .into_iter()
+      .map(|mut c| {
+        let (active, count) = self.community_pack_state(&c.id);
+        c.pack_active = active;
+        c.purchase_count = count;
+        c.pack_id = if active { c.id.clone() } else { String::new() };
+        c
+      })
+      .collect()
   }
 
   pub fn create_channel(&self, community_id: &str, id: &str, name: &str, description: &str) -> Result<Channel> {
@@ -3372,7 +3497,10 @@ impl Database {
                 buyer,
                 serde_json::json!({ "yardPackId": yard_id }),
               )?;
+              self.activate_community_yard_pack(yard_id, buyer)?;
               applied["yardPackId"] = serde_json::json!(yard_id);
+              applied["communityYardPack"] = serde_json::json!(yard_id);
+              applied["communitySkinLive"] = serde_json::json!(true);
             }
           } else if let Some(theme_id) = Self::theme_id_from_item_ref(ref_str) {
             let music = self

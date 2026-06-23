@@ -1895,6 +1895,32 @@ mod tests {
   }
 
   #[test]
+  fn test_campus_pack_purchase_activates_community_skin() {
+    let db = setup_test_db();
+    db.create_user("seller", "Seller", "").unwrap();
+    db.create_user("buyer", "Buyer", "").unwrap();
+    let listing_id = db
+      .create_marketplace_listing(
+        "seller",
+        "theme",
+        Some("theme:yard:tsu"),
+        30,
+        "TSU Campus Pack",
+        None,
+        false,
+        Some("tsu"),
+      )
+      .unwrap();
+    let result = db.buy_marketplace_listing(listing_id, "buyer").unwrap();
+    assert_eq!(result["applied"]["communityYardPack"].as_str(), Some("tsu"));
+    assert_eq!(result["applied"]["communitySkinLive"].as_bool(), Some(true));
+    let communities = db.get_communities();
+    let tsu = communities.iter().find(|c| c.id == "tsu").unwrap();
+    assert!(tsu.pack_active);
+    assert_eq!(tsu.purchase_count, 1);
+  }
+
+  #[test]
   fn test_logos_deck_purchase_enables_module() {
     let db = setup_test_db();
     db.create_user("seller", "Seller", "").unwrap();

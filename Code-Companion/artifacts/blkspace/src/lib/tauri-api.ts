@@ -241,6 +241,9 @@ export interface TauriCommunity {
   description: string;
   members: number;
   color: string;
+  packActive?: boolean;
+  purchaseCount?: number;
+  packId?: string;
 }
 
 export interface TauriChannel {
