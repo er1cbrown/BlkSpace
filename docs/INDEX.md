@@ -1,7 +1,9 @@
 # BlkSpace / WeixNet Documentation Index
 
 **Status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ~90% · Phase 3 ~75% · Phase 4 in progress · Phase 5 not started  
-**Date:** 2026-06-22
+**Date:** 2026-06-23
+
+> **New here?** Read [`../README.md`](../README.md) first, then [`README.md`](README.md) (doc map) or [`ROADMAP.md`](ROADMAP.md) (what's next).
 
 ---
 
@@ -16,6 +18,9 @@
 
 | Document | Purpose |
 |----------|---------|
+| [README.md](./README.md) | **Documentation map** — who should read what |
+| [ROADMAP.md](./ROADMAP.md) | Yard vs Full builds, Tier C, Phase 5, next milestones |
+| [YARD_RELEASE_CHECKLIST.md](./YARD_RELEASE_CHECKLIST.md) | Device B smoke + `v0.1.0-yard` tag steps |
 | [phase-0-status.md](./phase-0-status.md) | Living gate checklist |
 | [mvp-timeline-and-onchain-roadmap.md](./mvp-timeline-and-onchain-roadmap.md) | P1–P11 priority list |
 | [architecture-blueprint.md](./architecture-blueprint.md) | Federated mesh + stack mapping |

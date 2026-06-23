@@ -112,3 +112,7 @@ Still stuck? TSU Yard community or [GitHub Issues](https://github.com/er1cbrown/
 | [`docs/tier0-load-optimization.md`](docs/tier0-load-optimization.md) | Engineering performance notes |
 
 **Bottom line:** Download the installer, run it, write down your 12 words, join your Yard. The dev team handles the rest.
+
+---
+
+**More docs:** [`README.md`](README.md) · [`docs/README.md`](docs/README.md) · Release testing: [`docs/YARD_RELEASE_CHECKLIST.md`](docs/YARD_RELEASE_CHECKLIST.md)

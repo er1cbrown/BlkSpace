@@ -16,7 +16,8 @@ Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | M1 hub-sync ✅ | P4–P5 ✅ | P
 
 ## Device B M0 run (in progress)
 
-**Runbook:** [`device-b-m0-results.md`](device-b-m0-results.md) (fill as you go)
+**Quick gate:** [`YARD_RELEASE_CHECKLIST.md`](YARD_RELEASE_CHECKLIST.md) (student smoke + tag)  
+**Full runbook:** [`device-b-m0-results.md`](device-b-m0-results.md) (fill as you go)
 
 | Step | Task | Status |
 |------|------|--------|

@@ -1,6 +1,7 @@
 # BlkSpace — Quick Start
 
-**Getting started in 3 minutes.**
+**Getting started in 3 minutes.**  
+**Full doc map:** [`docs/README.md`](docs/README.md) · **What's next:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ---
 

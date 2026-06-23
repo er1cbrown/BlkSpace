@@ -12,6 +12,10 @@ Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 - No Docker locally (disk constraint). Use CI for builds.
 
 ## Key Files
+- `README.md` — repo entry point (students vs devs vs docs map)
+- `docs/README.md` — documentation map
+- `docs/ROADMAP.md` — Yard vs Full, Tier C, Phase 5, next milestones
+- `docs/YARD_RELEASE_CHECKLIST.md` — Device B + v0.1.0-yard release gate
 - `DEVOPS.md` — full pipeline docs
 - `SOUL.md` — project persona
 - `FLESHTHEORY.md` — phased approach, Tier 0 constraint, economic model

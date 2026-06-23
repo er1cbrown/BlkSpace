@@ -26,12 +26,13 @@
 | Workflow | Trigger | What It Does |
 |----------|---------|-------------|
 | **CI** | PRs + pushes to `main` | Lint, typecheck, unit test, build |
-| **Release** | Tag push (`v*`) | Build signed binaries, create GitHub Release |
+| **CI Yard** | Same (job `build-tauri-yard`) | Tier 0 installer: `BlkSpace-Yard-*` per OS |
+| **Release** | Tag push (`v*`) | Build Yard binaries, create GitHub Release |
 
 ### CI Flow (`.github/workflows/ci.yml`)
 
 ```
-Push/PR → Install deps → Lint → Typecheck → Test → Build (Web) → Build (Tauri)
+Push/PR → Install deps → Lint → Typecheck → Test → Build (Web) → Build (Tauri) → Build (BlkSpace Yard)
 ```
 
 - **Lint**: ESLint + Prettier (auto-fix on PR)
