@@ -28,6 +28,7 @@ Runs: treasury signers → Metaplex mint → deploy program → `initialize_conf
 | `setup-bkspc-devnet` | Runs all three in order |
 | `mint-media-nft-devnet` | CLI Metaplex NFT for mix/media (`RECIPIENT`, `CID`, `TITLE`) |
 | `backup-bkspc-keys` | Password-locked backup of wallet + treasury keys |
+| `record-devnet-e2e` | Fund check → setup (if needed) → proof template |
 | `test:anchor` | Local-validator mint/burn + unauthorized tests |
 
 ## In-app Phase 4 commands (Tauri)

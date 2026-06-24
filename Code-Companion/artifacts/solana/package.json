@@ -12,6 +12,7 @@
     "mint-media-nft-devnet": "tsx scripts/mint-media-nft-devnet.ts",
     "wire-bkspc-program-devnet": "tsx scripts/wire-bkspc-program-devnet.ts",
     "build:program": "cargo build-sbf --manifest-path programs/bkspc/Cargo.toml",
+    "record-devnet-e2e": "tsx scripts/record-devnet-e2e.ts",
     "test:anchor": "bash scripts/run-anchor-tests.sh",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
