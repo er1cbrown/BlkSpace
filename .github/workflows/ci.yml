@@ -221,7 +221,7 @@ jobs:
         working-directory: ./Code-Companion
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tauri-playwright-report
           path: Code-Companion/artifacts/blkspace/playwright-report/
@@ -286,7 +286,7 @@ jobs:
             done
           fi
       - name: Upload BlkSpace Full artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: BlkSpace-Full-${{ matrix.os }}
           path: |
@@ -354,7 +354,7 @@ jobs:
             done
           fi
       - name: Upload BlkSpace Yard artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: BlkSpace-Yard-${{ matrix.os }}
           path: |
