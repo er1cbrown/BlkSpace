@@ -112,7 +112,7 @@ export default function ConnectPage() {
 }
 
 function ConnectHub() {
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<string>("research");
   const [q, setQ] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const handle = getCurrentHandle();
@@ -157,13 +157,14 @@ function ConnectHub() {
               ProjectConnectBKSPC · Credibility layer
             </Badge>
             <h1 className="font-serif text-3xl md:text-4xl font-bold tracking-tight">
-              Find work. Build <span className="text-primary">Cred</span>. Connect.
+              Research first. Build <span className="text-primary">Cred</span>. Then earn.
             </h1>
             <p className="text-muted-foreground text-sm md:text-base leading-relaxed">
-              Orgs, research labs, clubs, and service hubs — before any coin.
-              Express interest, get endorsed, grow Yard Cred.{" "}
-              <strong className="text-foreground">BKSPC finance stays gated</strong> until
-              credibility is real.
+              ProjectConnectBKSPC — research labs, medtech/biomedical data, pro chapters, clubs,
+              and service hubs for underrepresented campuses. Express interest, get endorsed,
+              grow Yard Cred.{" "}
+              <strong className="text-foreground">BKSPC (BlkSpace Coin) stays gated</strong> until
+              credibility is real — soft WeixBucks today, settlement later.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
               <Link href="/connect/inbox">

@@ -108,6 +108,32 @@ const DEMO_ORGS: ConnectOrg[] = [
     createdAt: "2026-06-01T12:00:00",
   },
   {
+    id: "org_bmds",
+    slug: "bmds-medtech",
+    name: "Biomedical Data Sciences & MedTech",
+    orgType: "research",
+    yardId: "tsu",
+    description:
+      "Master's-track research: clinical data, health AI, medtech pipelines. Built for HBCU scholars moving into biomedical data sciences — and for faculty who need motivated analysts.",
+    createdBy: "demo_user",
+    memberCount: 1,
+    opportunityCount: 3,
+    createdAt: "2026-08-01T12:00:00",
+  },
+  {
+    id: "org_weixnet",
+    slug: "weixnet-portfolio",
+    name: "WeixNet Portfolio Lab",
+    orgType: "professional",
+    yardId: "tsu",
+    description:
+      "Bleeding-edge social + economy experiments for underrepresented campuses. Ship real product (BlkSpace / ProjectConnect) while building a portfolio that labs and employers can verify.",
+    createdBy: "demo_user",
+    memberCount: 1,
+    opportunityCount: 1,
+    createdAt: "2026-08-01T12:00:00",
+  },
+  {
     id: "org_service",
     slug: "tiger-service",
     name: "Tiger Community Service Hub",
@@ -239,6 +265,66 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     interestCount: 0,
     createdAt: "2026-06-15T09:00:00",
   },
+  {
+    id: 7,
+    orgId: "org_bmds",
+    orgName: "Biomedical Data Sciences & MedTech",
+    orgType: "research",
+    title: "Clinical NLP for Care Notes (MedTech)",
+    description:
+      "Pipeline for de-identified clinical notes: preprocessing, entity extraction, evaluation. Ideal for students entering biomedical data sciences. No PHI on laptops — synthetic/demo data only.",
+    durationText: "1 semester",
+    tagsJson: '["research","medtech","NLP","biomedical"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-01T10:00:00",
+  },
+  {
+    id: 8,
+    orgId: "org_bmds",
+    orgName: "Biomedical Data Sciences & MedTech",
+    orgType: "research",
+    title: "Wearable Signal ML — Risk Stratification Prototype",
+    description:
+      "Explore time-series features from wearable-like synthetic signals for early risk flags. Python/pandas/sklearn. Portfolio-ready figures for medtech interviews.",
+    durationText: "6 months",
+    tagsJson: '["research","medtech","ML","wearables"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-01T11:00:00",
+  },
+  {
+    id: 9,
+    orgId: "org_bmds",
+    orgName: "Biomedical Data Sciences & MedTech",
+    orgType: "research",
+    title: "Fairness Audit: Health Prediction Models",
+    description:
+      "Audit a baseline clinical risk model for subgroup performance. Document bias metrics and mitigation notes. Aligns with ethical AI + HBCU student impact narrative.",
+    durationText: "4 months",
+    tagsJson: '["research","fairness","health-AI"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-01T12:00:00",
+  },
+  {
+    id: 10,
+    orgId: "org_weixnet",
+    orgName: "WeixNet Portfolio Lab",
+    orgType: "professional",
+    title: "BlkSpace Campus Ambassador · Product Demo Squad",
+    description:
+      "Help ship promo demos of BlkSpace + ProjectConnect for HBCU yards: capture stories, run Tier 0 smoke tests, and showcase WeixNet portfolio work to partners.",
+    durationText: "ongoing",
+    tagsJson: '["professional","product","HBCU"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-01T13:00:00",
+  },
 ];
 
 type WebState = {
@@ -249,7 +335,7 @@ type WebState = {
   nextInterestId: number;
 };
 
-const LS_KEY = "blkspace_project_connect_v1";
+const LS_KEY = "blkspace_project_connect_v2";
 
 function loadWeb(): WebState {
   try {
