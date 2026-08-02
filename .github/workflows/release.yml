@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to rebuild (e.g. v0.1.0-yard)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
 
 env:
   PNPM_VERSION: 9
@@ -15,18 +24,32 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create-release.outputs.upload_url }}
+      tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+      - id: meta
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
       - id: create-release
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tag_name: ${{ steps.meta.outputs.tag }}
           # Student Yard tags ship as published releases (not draft)
           draft: false
-          prerelease: ${{ contains(github.ref_name, 'yard') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'rc') }}
+          prerelease: ${{ contains(steps.meta.outputs.tag, 'yard') || contains(steps.meta.outputs.tag, 'alpha') || contains(steps.meta.outputs.tag, 'rc') }}
           generate_release_notes: true
-          name: BlkSpace ${{ github.ref_name }}
+          name: BlkSpace ${{ steps.meta.outputs.tag }}
           body: |
-            ## BlkSpace ${{ github.ref_name }}
+            ## BlkSpace ${{ steps.meta.outputs.tag }}
 
             **Product mark:** BlkSpace (orange capital **B**) · **Coin ticker:** BKSPC (gated settlement)
 
@@ -108,10 +131,12 @@ jobs:
           fi
       - name: Upload Yard artifact
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
             Code-Companion/artifacts/blkspace/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.ext }}/BlkSpace-Yard-*
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.create-release.outputs.tag }}
 
   build-full:
     name: Release Full (${{ matrix.os }})
@@ -181,7 +206,9 @@ jobs:
           fi
       - name: Upload Full artifact
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
             Code-Companion/artifacts/blkspace/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.ext }}/BlkSpace-Full-*
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.create-release.outputs.tag }}
