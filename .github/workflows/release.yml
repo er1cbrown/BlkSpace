@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 env:
-  PNPM_VERSION: 9
+  PNPM_VERSION: 10
   NODE_VERSION: 22
 
 jobs:
