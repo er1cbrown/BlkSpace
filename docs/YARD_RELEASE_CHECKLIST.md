@@ -4,6 +4,9 @@
 
 **Time:** ~1–2 hours on one test laptop + 10 minutes for the git tag.
 
+**Release notes:** [`releases/v0.1.0-yard.md`](releases/v0.1.0-yard.md)  
+**Tag status:** implemented on `main` — push tag `v0.1.0-yard` triggers **Release** workflow (installers attach to GitHub Release).
+
 ---
 
 ## Before you start

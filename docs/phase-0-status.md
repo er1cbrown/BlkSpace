@@ -12,7 +12,7 @@
 ```
 Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | Guest mode ✅ | Turso DB ✅ | Multi-OS CI ✅
 Connect+Cred ✅ | Escrow marketplace ✅ | Events/tickets ✅ | Clubs/reading/tournaments ✅ | Studio delivery ✅
-BKSPC mainnet ⬜ | Live stream ⬜ | M0 manual ⏳
+v0.1.0-yard 🏷️ | BKSPC mainnet ⬜ | Live stream ⬜ | M0 Device B smoke ⏳
 ```
 
 ---

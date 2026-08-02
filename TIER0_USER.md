@@ -21,9 +21,10 @@ Tier 0 is the computer you already have: a low-end or older Windows laptop with 
 
 ## Install in 3 steps
 
-1. **Download** from [GitHub Releases](https://github.com/er1cbrown/BlkSpace/releases) or CI artifacts  
-   - Windows: **`BlkSpace-Yard-Windows-x64.msi`** (Tier 0 build — no heavy mesh)  
-   - Mac: **`BlkSpace-Yard-macOS.dmg`**  
+1. **Download** the **`v0.1.0-yard`** release (or latest Yard release)  
+   - **Preferred:** [v0.1.0-yard on GitHub Releases](https://github.com/er1cbrown/BlkSpace/releases/tag/v0.1.0-yard)  
+   - Windows: **`BlkSpace-Yard-Windows-x64.msi`** (Tier 0 — no heavy mesh)  
+   - Mac: **`BlkSpace-Yard-macOS-arm64.dmg`** or **`…-x64.dmg`**  
    - Linux: **`BlkSpace-Yard-Linux.AppImage`**
 
 2. **Install** like any other app (double-click → Install).

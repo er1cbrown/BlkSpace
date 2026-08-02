@@ -134,11 +134,13 @@ Mobile (iOS/Android)     ██░░░░░░░░  ~10%   Tauri mobile pat
 | Live streaming | ⬜ | Out of product for now |
 | iOS / Android installers | ⬜ | After desktop Yard is tagged |
 
+**Release:** **[`v0.1.0-yard`](https://github.com/er1cbrown/BlkSpace/releases/tag/v0.1.0-yard)** — first student Yard installers ([notes](docs/releases/v0.1.0-yard.md)).
+
 **Next milestones**
-1. **Device B** smoke on Tier 0 Windows → tag **`v0.1.0-yard`**.  
-2. Keep **BlkSpace** product mark consistent (GitHub + UI); counsel on trademark — [brand lock](docs/features/brand-trademark-and-bkspc-rights.md).  
+1. **Device B** smoke on Tier 0 Windows using the Yard MSI ([checklist](docs/YARD_RELEASE_CHECKLIST.md)).  
+2. Keep **BlkSpace** product mark consistent (orange **B**); counsel on trademark — [brand lock](docs/features/brand-trademark-and-bkspc-rights.md).  
 3. **Cred before coin** — ProjectConnect + Yard Cred **before** mainnet **BKSPC** — [rights path](docs/features/bkspc-rights-path.md).  
-4. Use-case log stays current: [`docs/features/use-case-capability-log.md`](docs/features/use-case-capability-log.md).  
+4. Use-case log: [`docs/features/use-case-capability-log.md`](docs/features/use-case-capability-log.md).  
 5. Mobile after desktop multi-OS is trusted.
 
 Full roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md) · Dashboard: [`docs/phase-0-status.md`](docs/phase-0-status.md)

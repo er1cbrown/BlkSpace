@@ -20,9 +20,25 @@ jobs:
       - id: create-release
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          # Student Yard tags ship as published releases (not draft)
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'yard') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'rc') }}
           generate_release_notes: true
           name: BlkSpace ${{ github.ref_name }}
+          body: |
+            ## BlkSpace ${{ github.ref_name }}
+
+            **Product mark:** BlkSpace (orange capital **B**) · **Coin ticker:** BKSPC (gated settlement)
+
+            ### Students (Yard build — Tier 0)
+            Download **BlkSpace-Yard-*** assets below (Windows `.msi`, macOS `.dmg`, Linux `.AppImage`).
+
+            - Install guide: [TIER0_USER.md](https://github.com/er1cbrown/BlkSpace/blob/main/TIER0_USER.md)
+            - First run / recovery phrase: [FIRST_RUN.md](https://github.com/er1cbrown/BlkSpace/blob/main/FIRST_RUN.md)
+            - Release notes: [docs/releases/v0.1.0-yard.md](https://github.com/er1cbrown/BlkSpace/blob/main/docs/releases/v0.1.0-yard.md)
+
+            ### Not included
+            Live streaming · mainnet BKSPC rights · Full mesh build is separate (**BlkSpace-Full-*** assets if attached).
 
   build-yard:
     name: Release Yard (${{ matrix.os }})
