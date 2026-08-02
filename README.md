@@ -123,10 +123,10 @@ Mobile (iOS/Android)     ██░░░░░░░░  ~10%   Tauri mobile pat
 | Phase 5 NLP / anti-abuse | ⬜ | After Yard is stable |
 
 **Next milestones**
-1. **Device B** smoke on Tier 0 Windows → tag **`v0.1.0-yard`** (all three OS installers on Releases).  
-2. Confirm **MacBook** install from CI artifact / release DMG.  
-3. Finish Phase 4 marketplace E2E (devnet).  
-4. Mobile (iOS/Android) only after desktop multi-OS is trusted.
+1. **Device B** smoke on Tier 0 Windows → tag **`v0.1.0-yard`**.  
+2. **Credibility layer — ProjectConnectBKSPC** (orgs, opportunities, Yard Cred) **before** mainnet coin — [spec](docs/features/project-connect-credibility-layer.md).  
+3. Phase 4 marketplace / **BKSPC (BlkSpace Coin)** settlement only after Cred gates.  
+4. Mobile (iOS/Android) after desktop multi-OS is trusted.
 
 Full roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md) · Dashboard: [`docs/phase-0-status.md`](docs/phase-0-status.md)
 

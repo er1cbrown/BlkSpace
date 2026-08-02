@@ -73,6 +73,8 @@
 
 | Document | Phase |
 |----------|-------|
+| [features/project-connect-credibility-layer.md](./features/project-connect-credibility-layer.md) | **Cred before finance** · ProjectConnectBKSPC · orgs/opportunities · pre-BKSPC |
+| [features/myyard-yard-sale-architecture.md](./features/myyard-yard-sale-architecture.md) | MyYard · Yard Sale · layers |
 | [features/logos-decks.md](./features/logos-decks.md) | 5 |
 | [features/nft-dj-mixes.md](./features/nft-dj-mixes.md) | 4 |
 | [features/decentralized-media.md](./features/decentralized-media.md) | 2 |

@@ -82,25 +82,33 @@ Mobile (~10%)           ██░░░░░░░░  Planned (Tauri); not shi
 
 ---
 
-## Recommended order (next 4 milestones)
+## Recommended order (next milestones)
 
-### 1. Device B + `v0.1.0-yard` tag ← **do this first**
+### 1. Device B + `v0.1.0-yard` tag
 
-Turns CI artifacts into a **named release** TSU can trust.
+Turns CI artifacts into a **named release** students can trust.
 
 Checklist: [`YARD_RELEASE_CHECKLIST.md`](YARD_RELEASE_CHECKLIST.md)
 
-### 2. Finish Phase 3 gaps
+### 2. Credibility layer — ProjectConnectBKSPC ← **build before mainnet finance**
+
+Orgs · opportunities · interest · connect · Yard Cred — professional/clubs/service hubs  
+**without** shipping token hype first.
+
+Spec: [`features/project-connect-credibility-layer.md`](features/project-connect-credibility-layer.md)
+
+### 3. Finish Phase 3 gaps
 
 - Community **events** and **roles** (stubbed UI)
 - Bundle size budget in CI (no regressions on Tier 0)
 - `tauri:dev:tier0` compiles without Iroh (dev parity with Yard)
 
-### 3. Phase 4 marketplace (devnet demo)
+### 4. Phase 4 marketplace / BKSPC settlement (devnet → mainnet only after Cred gates)
 
 - Mint → list → BKSPC burn → seller paid → **buyer owns NFT**
+- Withdraw eligibility includes **credibility_score** + completions (see Connect doc)
 - Walkthrough: [`phase-4-devnet-demo.md`](phase-4-devnet-demo.md)
-- See [`solana-blueprint.md`](solana-blueprint.md)
+- Token name: **BKSPC = BlkSpace Coin** — [`tokenomics-policy.md`](tokenomics-policy.md)
 
 ### 4. ~~BlkSpace Full CI artifact~~ ✅
 

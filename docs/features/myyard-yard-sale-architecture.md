@@ -40,8 +40,9 @@ flowchart TB
 | **Yard** | Campus / town mesh (Nostr town tags, relay scope) | Everyone in that community | Mascots, colors, norms, events — **preview** until a campus pack sells on Yard Sale, then **live** for all |
 | **MyYard** | Your personal creator profile (was "MySpace" in UI) | Visitors + you | Themes, Top 8, profile song, pro JSON, optional modules |
 | **Yard Sale** | Marketplace tied to creator identity | Buyers across yards | Listings from *your* MyYard inventory |
+| **ProjectConnect** | Orgs + opportunities (pro / club / research / service) | Applicants + leads | Credibility layer before BKSPC finance — see [`project-connect-credibility-layer.md`](project-connect-credibility-layer.md) |
 
-**Key idea:** One mesh having Bible NLP or DJ mixes does **not** mean the next mesh does. Same for individuals — your MyYard is not TSU's default Yard skin.
+**Key idea:** One mesh having Bible NLP or DJ mixes does **not** mean the next mesh does. Same for individuals — your MyYard is not TSU's default Yard skin. Yards are **place**; Connect orgs are **purpose**.
 
 ---
 
