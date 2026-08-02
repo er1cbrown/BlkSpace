@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
   use sha2::{Digest, Sha256};
-  use rusqlite;
+  use crate::params;
   use crate::db::{
     Database, DAILY_WB_EARN_CAP, MARKETPLACE_PLATFORM_FEE_BPS, MIN_WITHDRAW_KARMA,
     MIN_WITHDRAW_POSTS, MIN_WITHDRAW_WB, TIP_PLATFORM_FEE_BPS, TokenomicsPolicy,
@@ -597,7 +597,7 @@ mod tests {
       let conn = db.conn.lock().unwrap();
       conn.execute(
         "INSERT INTO notifications (user_handle, notification_type, from_handle, message) VALUES (?1, 'like', 'from', 'liked your post')",
-        rusqlite::params!["user"],
+        params!["user"],
       ).unwrap();
     }
 
@@ -1037,7 +1037,7 @@ mod tests {
     let conn = db.conn.lock().unwrap();
     let hours: i64 = conn.query_row(
       "SELECT relay_uptime_hours FROM users WHERE handle = ?1",
-      rusqlite::params!["demo_user"],
+      params!["demo_user"],
       |r| r.get(0),
     ).unwrap();
     assert_eq!(hours, 5);

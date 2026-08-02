@@ -1,3 +1,5 @@
+#[macro_use]
+mod sqlite;
 mod db;
 mod blob_store;
 mod key_store;
@@ -2483,12 +2485,12 @@ fn report_pin_serve(state: State<AppState>, session_token: String, hash: String)
   let conn = state.db.conn.lock().unwrap();
   conn.execute(
     "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
-    rusqlite::params![0.1, served_by],
+    params![0.1, served_by],
   ).ok();
   conn.execute(
     "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
      SELECT ?1, 'earn', ?2, 'Pin serve reward', weix_bucks FROM users WHERE handle = ?1",
-    rusqlite::params![served_by, 0.1],
+    params![served_by, 0.1],
   ).ok();
   drop(conn);
 
@@ -3430,7 +3432,7 @@ fn publish_repost_to_nostr(state: &AppState, reposter_handle: &str, post: &Post)
     let conn = state.db.conn.lock().unwrap();
     conn.query_row(
       "SELECT COALESCE(pubkey, '') FROM users WHERE handle = ?1",
-      rusqlite::params![post.author_handle],
+      params![post.author_handle],
       |r| r.get(0),
     )
     .unwrap_or_default()

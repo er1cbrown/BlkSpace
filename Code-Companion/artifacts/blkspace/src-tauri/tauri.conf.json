@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../dist/public",
     "devUrl": "http://127.0.0.1:24442",
-    "beforeDevCommand": "PORT=24442 BASE_PATH=/ pnpm dev",
+    "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build"
   },
   "app": {

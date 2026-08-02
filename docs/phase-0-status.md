@@ -1,8 +1,8 @@
 # BlkSpace Progress Dashboard
 
 **Project:** BlkSpace on WeixNet  
-**Last updated:** 2026-06-22  
-**Repo:** `BlkSpoof/` monorepo
+**Last updated:** 2026-08-02  
+**Repo:** `BlkSpace/` · UI shots: [`docs/assets/screenshots/`](assets/screenshots/)
 
 ---
 

@@ -21,7 +21,10 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.2", features = [] }
 tauri-plugin-log = "2"
-rusqlite = { version = "0.34.0", features = ["bundled"] }
+# Embedded Turso — Tier 0 local DB (SQLite-compatible).
+# default-features = false: no mimalloc global allocator, no FTS, no cloud sync.
+# Sync/Cloud stay opt-in later; Yard ships local file only.
+turso = { version = "0.8.0-pre.2", default-features = false }
 chrono = "0.4"
 dirs = "6.0"
 hex = "0.4"
@@ -78,3 +81,24 @@ e2e-testing = ["dep:tauri-plugin-playwright"]
 
 [dev-dependencies]
 tempfile = "3"
+
+# --- Tier 0 / multi-OS release shape ---
+# Yard installs: smaller binary, less RAM, still decent CPU on weak laptops.
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3
+strip = true
+panic = "abort"
+
+# Dev: compile heavy Turso crates optimized so `tauri dev` is usable on 4–8 GB machines.
+[profile.dev.package.turso]
+opt-level = 2
+[profile.dev.package.turso_core]
+opt-level = 2
+[profile.dev.package.turso_sdk_kit]
+opt-level = 2
+[profile.dev.package.turso_sync_sdk_kit]
+opt-level = 2
+[profile.dev.package.turso_parser]
+opt-level = 2

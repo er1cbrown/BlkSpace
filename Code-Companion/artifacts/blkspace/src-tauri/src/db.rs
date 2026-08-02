@@ -1,4 +1,7 @@
-use rusqlite::{Connection, Result, params, Error as SqlError, OptionalExtension};
+use crate::sqlite::{
+  Connection, Error as SqlError, OptionalExtension, Result, Row, ToSql,
+};
+use crate::params;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -22,7 +25,7 @@ impl std::fmt::Display for AppError {
 impl From<SqlError> for AppError {
   fn from(e: SqlError) -> Self {
     match e {
-      SqlError::SqliteFailure(e, _) if e.code == rusqlite::ffi::ErrorCode::ConstraintViolation => {
+      SqlError::SqliteFailure(crate::sqlite::ErrorCode::ConstraintViolation, _) => {
         AppError::Validation("That handle is already taken".into())
       }
       _ => AppError::Database(()),
@@ -102,7 +105,7 @@ const USER_SELECT: &str = "SELECT id, handle, display_name, bio, avatar_url, uni
               COALESCE(top_friends_json, '[]')
        FROM users";
 
-fn map_user_row(row: &rusqlite::Row<'_>) -> Result<User> {
+fn map_user_row(row: &Row) -> Result<User> {
   Ok(User {
     id: row.get(0)?,
     handle: row.get(1)?,
@@ -619,6 +622,33 @@ pub struct Database {
 /// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
 const SCHEMA_VERSION: i32 = 2;
 
+/// Tier 0 page cache in KiB (negative PRAGMA cache_size = KiB).
+/// Default 8 MiB — was 64 MiB which is too heavy for 4 GB laptops.
+/// Override: `BLKSPACE_DB_CACHE_KIB=16384` (or any positive integer).
+fn tier0_cache_kib() -> i64 {
+  std::env::var("BLKSPACE_DB_CACHE_KIB")
+    .ok()
+    .and_then(|s| s.parse().ok())
+    .filter(|&n| n > 0)
+    .unwrap_or(8 * 1024)
+}
+
+/// Low-RAM SQLite/Turso pragmas. Each statement is best-effort (engine may ignore).
+fn apply_tier0_pragmas(conn: &Connection) {
+  let cache = tier0_cache_kib();
+  // WAL + NORMAL = good durability without full fsync every write (Tier 0 disks).
+  let _ = conn.execute("PRAGMA journal_mode=WAL", ());
+  let _ = conn.execute("PRAGMA synchronous=NORMAL", ());
+  // Small page cache — primary RAM control for embedded Turso on 4–8 GB machines.
+  let _ = conn.execute(&format!("PRAGMA cache_size=-{cache}"), ());
+  // Prefer disk temp under memory pressure (Tier 0).
+  let _ = conn.execute("PRAGMA temp_store=FILE", ());
+  // Avoid large mmap regions on low-RAM Windows.
+  let _ = conn.execute("PRAGMA mmap_size=0", ());
+  // Soft limit on busy waits (milliseconds) if supported.
+  let _ = conn.execute("PRAGMA busy_timeout=3000", ());
+}
+
 impl Database {
   /// Fast open for app boot — schema only; demo seed runs on a background thread.
   pub fn new(app_dir: PathBuf) -> Result<Self> {
@@ -641,14 +671,7 @@ impl Database {
     std::fs::create_dir_all(&app_dir).ok();
     let db_path = app_dir.join("blkspace.db");
     let conn = Connection::open(db_path)?;
-    conn.execute_batch(
-      "
-      PRAGMA journal_mode=WAL;
-      PRAGMA synchronous=NORMAL;
-      PRAGMA cache_size=-64000;
-      PRAGMA temp_store=MEMORY;
-      ",
-    )?;
+    apply_tier0_pragmas(&conn);
     let db = Database { conn: Mutex::new(conn) };
     db.initialize()?;
     if seed_now {
@@ -660,11 +683,10 @@ impl Database {
   fn schema_version(conn: &Connection) -> Result<i32> {
     conn.execute(
       "CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT)",
-      [],
+      (),
     )?;
     let version: Result<String, _> = conn.query_row(
-      "SELECT value FROM app_meta WHERE key = 'schema_version'",
-      [],
+      "SELECT value FROM app_meta WHERE key = 'schema_version'", (),
       |r| r.get(0),
     );
     Ok(version
@@ -684,45 +706,45 @@ impl Database {
 
   fn run_migrations(conn: &Connection) -> Result<()> {
     // Migrate existing databases (run once per schema version bump)
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN pubkey TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN engagement_quality REAL DEFAULT 1.0", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN last_action_unix INTEGER DEFAULT 0", []);
-    let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_users_pubkey ON users(pubkey)", []);
-    let _ = conn.execute("ALTER TABLE posts ADD COLUMN media_blobs TEXT DEFAULT '[]'", []);
-    let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_blobs_uploader ON blobs(uploader_handle)", []);
-    let _ = conn.execute("ALTER TABLE posts ADD COLUMN nostr_event_id TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE posts ADD COLUMN relay_url TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE blobs ADD COLUMN cid TEXT", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN node_role TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN relay_uptime_hours INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN theme_id INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN music_hash TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE posts ADD COLUMN channel_id TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN post_karma INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE users ADD COLUMN comment_karma INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN pubkey TEXT DEFAULT ''", ());
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN engagement_quality REAL DEFAULT 1.0", ());
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN last_action_unix INTEGER DEFAULT 0", ());
+    let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_users_pubkey ON users(pubkey)", ());
+    let _ = conn.execute("ALTER TABLE posts ADD COLUMN media_blobs TEXT DEFAULT '[]'", ());
+    let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_blobs_uploader ON blobs(uploader_handle)", ());
+    let _ = conn.execute("ALTER TABLE posts ADD COLUMN nostr_event_id TEXT DEFAULT ''", ());
+    let _ = conn.execute("ALTER TABLE posts ADD COLUMN relay_url TEXT DEFAULT ''", ());
+    let _ = conn.execute("ALTER TABLE blobs ADD COLUMN cid TEXT", ());
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN node_role TEXT DEFAULT ''", ());
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN relay_uptime_hours INTEGER DEFAULT 0", ());
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN theme_id INTEGER DEFAULT 0", ());
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN music_hash TEXT DEFAULT ''", ());
+    let _ = conn.execute("ALTER TABLE posts ADD COLUMN channel_id TEXT DEFAULT ''", ());
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN post_karma INTEGER DEFAULT 0", ());
+    let _ = conn.execute("ALTER TABLE users ADD COLUMN comment_karma INTEGER DEFAULT 0", ());
     let _ = conn.execute(
       "ALTER TABLE users ADD COLUMN pro_profile_json TEXT DEFAULT '{}'",
-      [],
+      (),
     );
     let _ = conn.execute(
       "ALTER TABLE users ADD COLUMN profile_layout_json TEXT DEFAULT '{}'",
-      [],
+      (),
     );
     let _ = conn.execute(
       "ALTER TABLE users ADD COLUMN top_friends_json TEXT DEFAULT '[]'",
-      [],
+      (),
     );
     let _ = conn.execute(
       "ALTER TABLE marketplace_listings ADD COLUMN nft_mint TEXT",
-      [],
+      (),
     );
     let _ = conn.execute(
       "ALTER TABLE marketplace_listings ADD COLUMN payment_tx TEXT",
-      [],
+      (),
     );
     let _ = conn.execute(
       "ALTER TABLE marketplace_listings ADD COLUMN town_tag TEXT DEFAULT 'tsu'",
-      [],
+      (),
     );
 
     conn.execute_batch(
@@ -1103,7 +1125,7 @@ impl Database {
 
   fn seed(&self) -> Result<()> {
     let conn = self.conn.lock().unwrap();
-    let count: i64 = conn.query_row("SELECT COUNT(*) FROM users", [], |r| r.get(0))?;
+    let count: i64 = conn.query_row("SELECT COUNT(*) FROM users", (), |r| r.get(0))?;
     if count > 0 {
       return Ok(());
     }
@@ -1215,7 +1237,7 @@ impl Database {
     let conn = self.conn.lock().unwrap();
     let sql = format!("{USER_SELECT} ORDER BY followers_count DESC");
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map([], map_user_row)?;
+    let rows = stmt.query_map((), map_user_row)?;
     let mut users = Vec::new();
     for row in rows {
       users.push(row?);
@@ -1437,7 +1459,7 @@ impl Database {
       params![theme_id, music_hash, handle],
     )?;
     drop(conn);
-    self.get_user(handle)?.ok_or_else(|| rusqlite::Error::QueryReturnedNoRows)
+    self.get_user(handle)?.ok_or_else(|| crate::sqlite::Error::QueryReturnedNoRows)
   }
 
   pub fn store_nostr_event_json(&self, event_id: &str, event_json: &str) -> Result<()> {
@@ -1459,7 +1481,7 @@ impl Database {
     );
     match result {
       Ok(json) => Ok(Some(json)),
-      Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+      Err(crate::sqlite::Error::QueryReturnedNoRows) => Ok(None),
       Err(e) => Err(e),
     }
   }
@@ -1513,7 +1535,7 @@ impl Database {
       serde_json::from_str(json).unwrap_or_default()
     }
 
-    fn map_post_row(row: &rusqlite::Row<'_>) -> Result<Post> {
+    fn map_post_row(row: &Row) -> Result<Post> {
       Ok(Post {
         id: row.get(0)?,
         author_handle: row.get(1)?,
@@ -1721,11 +1743,11 @@ impl Database {
     reason: &str,
   ) -> Result<EconomyAppeal> {
     if let Err(e) = validate_content(reason) {
-      return Err(rusqlite::Error::InvalidParameterName(e.to_string()));
+      return Err(crate::sqlite::Error::InvalidParameterName(e.to_string()));
     }
     let allowed = ["earn_throttle", "withdraw_denied", "midf_score", "other"];
     if !allowed.contains(&appeal_type) {
-      return Err(rusqlite::Error::InvalidParameterName(
+      return Err(crate::sqlite::Error::InvalidParameterName(
         "Invalid appeal type".into(),
       ));
     }
@@ -2151,12 +2173,12 @@ impl Database {
     fee_bps: i64,
   ) -> Result<(i64, i64)> {
     if amount <= 0 {
-      return Err(rusqlite::Error::InvalidParameterName("Amount must be positive".into()));
+      return Err(crate::sqlite::Error::InvalidParameterName("Amount must be positive".into()));
     }
     let fee = calc_platform_fee(amount, fee_bps);
     let net = amount - fee;
     if net <= 0 {
-      return Err(rusqlite::Error::InvalidParameterName(
+      return Err(crate::sqlite::Error::InvalidParameterName(
         "Amount too small after platform fee".into(),
       ));
     }
@@ -2170,7 +2192,7 @@ impl Database {
       |r| r.get(0),
     )?;
     if sender_bucks < amount {
-      return Err(rusqlite::Error::InvalidParameterName("Insufficient WeixBucks".into()));
+      return Err(crate::sqlite::Error::InvalidParameterName("Insufficient WeixBucks".into()));
     }
 
     let receiver_exists: bool = tx.query_row(
@@ -2179,7 +2201,7 @@ impl Database {
       |r| r.get::<_, i64>(0),
     ).map(|c| c > 0)?;
     if !receiver_exists {
-      return Err(rusqlite::Error::InvalidParameterName("Recipient not found".into()));
+      return Err(crate::sqlite::Error::InvalidParameterName("Recipient not found".into()));
     }
 
     tx.execute(
@@ -2232,7 +2254,7 @@ impl Database {
         map_user_row,
       )
       .map_err(|_| {
-        rusqlite::Error::InvalidParameterName(format!("User not found: {handle}"))
+        crate::sqlite::Error::InvalidParameterName(format!("User not found: {handle}"))
       })?;
 
     let account_age_days = parse_db_timestamp(&user.created_at)
@@ -2375,7 +2397,7 @@ impl Database {
 
   pub fn deduct_weix_bucks(&self, handle: &str, amount: i64, description: &str) -> Result<i64> {
     if amount <= 0 {
-      return Err(rusqlite::Error::InvalidParameterName("Amount must be positive".into()));
+      return Err(crate::sqlite::Error::InvalidParameterName("Amount must be positive".into()));
     }
     let conn = self.conn.lock().unwrap();
     let tx = conn.unchecked_transaction()?;
@@ -2386,7 +2408,7 @@ impl Database {
       |r| r.get(0),
     )?;
     if current_bucks < amount {
-      return Err(rusqlite::Error::InvalidParameterName("Insufficient WeixBucks".into()));
+      return Err(crate::sqlite::Error::InvalidParameterName("Insufficient WeixBucks".into()));
     }
 
     tx.execute(
@@ -2492,20 +2514,19 @@ impl Database {
 
   pub fn get_network_stats(&self) -> Result<NetworkStats> {
     let conn = self.conn.lock().unwrap();
-    let total_users: i64 = conn.query_row("SELECT COUNT(*) FROM users", [], |r| r.get(0))?;
+    let total_users: i64 = conn.query_row("SELECT COUNT(*) FROM users", (), |r| r.get(0))?;
     let active_towns: i64 = conn.query_row(
-      "SELECT COUNT(DISTINCT town) FROM users WHERE town != ''",
-      [],
+      "SELECT COUNT(DISTINCT town) FROM users WHERE town != ''", (),
       |r| r.get(0),
     )?;
     let total_bucks: i64 = conn.query_row(
       "SELECT COALESCE(SUM(weix_bucks), 0) FROM users",
-      [],
+      (),
       |r| r.get(0),
     )?;
     let events: i64 = conn.query_row(
       "SELECT COUNT(*) FROM posts WHERE created_at >= datetime('now', '-1 day')",
-      [],
+      (),
       |r| r.get(0),
     )?;
     Ok(NetworkStats {
@@ -2810,7 +2831,7 @@ impl Database {
     let mut stmt = conn.prepare(
       "SELECT id, url, name, town, status, connected_at, created_at FROM relay_connections ORDER BY created_at DESC"
     )?;
-    let rows = stmt.query_map([], |row| {
+    let rows = stmt.query_map((), |row| {
       Ok(RelayConnectionRecord {
         id: row.get(0)?,
         url: row.get(1)?,
@@ -2828,7 +2849,7 @@ impl Database {
     Ok(connections)
   }
 
-  fn map_relay_event_row(row: &rusqlite::Row) -> rusqlite::Result<RelayEventRecord> {
+  fn map_relay_event_row(row: &Row) -> Result<RelayEventRecord> {
     Ok(RelayEventRecord {
       id: row.get(0)?,
       event_id: row.get(1)?,
@@ -3541,7 +3562,7 @@ impl Database {
     let mut stmt = conn.prepare(
       "SELECT id, seller_handle, item_type, item_ref, price, title, description, is_nft, sold_to, created_at, nft_mint, payment_tx, COALESCE(town_tag, 'tsu') FROM marketplace_listings WHERE sold_to IS NULL ORDER BY created_at DESC"
     )?;
-    let rows = stmt.query_map([], |row| {
+    let rows = stmt.query_map((), |row| {
       Ok(serde_json::json!({
         "id": row.get::<_, i64>(0)?,
         "sellerHandle": row.get::<_, String>(1)?,
@@ -4185,8 +4206,7 @@ impl Database {
   pub fn get_network_centrality(&self, handle: &str) -> Result<f64> {
     let conn = self.conn.lock().unwrap();
     let total_users: i64 = conn.query_row(
-      "SELECT COUNT(*) FROM users",
-      [],
+      "SELECT COUNT(*) FROM users", (),
       |r| r.get(0),
     )?;
     if total_users <= 1 {
@@ -4384,7 +4404,7 @@ impl Database {
   /// Get the stored malicious intent scores for a user
   pub fn get_malicious_intent_scores(&self, handle: &str) -> Result<Option<serde_json::Value>> {
     let conn = self.conn.lock().unwrap();
-    let result: rusqlite::Result<(f64, f64, f64, f64, f64, f64, String)> = conn.query_row(
+    let result: Result<(f64, f64, f64, f64, f64, f64, String)> = conn.query_row(
       "SELECT overall_score, follower_velocity, network_centrality, content_similarity, temporal_pattern, self_interaction, updated_at
        FROM malicious_intent_scores WHERE handle = ?1",
       params![handle],
@@ -4427,7 +4447,7 @@ impl Database {
     let handles: Vec<String> = {
       let conn = self.conn.lock().unwrap();
       let mut stmt = conn.prepare("SELECT handle FROM users")?;
-      let rows = stmt.query_map([], |row| {
+      let rows = stmt.query_map((), |row| {
         Ok(row.get::<_, String>(0)?)
       })?;
       rows.collect::<Result<Vec<_>, _>>()?
@@ -4507,17 +4527,17 @@ impl Database {
   ) -> Result<YardEvent> {
     let title = title.trim();
     if title.is_empty() || title.len() > 200 {
-      return Err(rusqlite::Error::InvalidParameterName(
+      return Err(crate::sqlite::Error::InvalidParameterName(
         "Title must be 1-200 characters".into(),
       ));
     }
     if starts_at.trim().is_empty() {
-      return Err(rusqlite::Error::InvalidParameterName(
+      return Err(crate::sqlite::Error::InvalidParameterName(
         "Start time required".into(),
       ));
     }
     if !self.is_yard_member(created_by, community_id)? {
-      return Err(rusqlite::Error::InvalidParameterName(
+      return Err(crate::sqlite::Error::InvalidParameterName(
         "Join the yard before creating events".into(),
       ));
     }
@@ -4575,11 +4595,11 @@ impl Database {
         |r| r.get(0),
       )
       .map_err(|_| {
-        rusqlite::Error::InvalidParameterName("Event not found".into())
+        crate::sqlite::Error::InvalidParameterName("Event not found".into())
       })?
     };
     if !self.is_yard_member(handle, &community_id)? {
-      return Err(rusqlite::Error::InvalidParameterName(
+      return Err(crate::sqlite::Error::InvalidParameterName(
         "Join the yard before RSVPing".into(),
       ));
     }
@@ -4779,7 +4799,7 @@ impl Database {
     auto_approve_own: bool,
   ) -> Result<WallPostResult> {
     if content.is_empty() || content.len() > 5000 {
-      return Err(rusqlite::Error::InvalidParameterName(
+      return Err(crate::sqlite::Error::InvalidParameterName(
         "Content must be 1-5000 characters".into(),
       ));
     }
@@ -4895,7 +4915,7 @@ impl Database {
       .map(|c| c > 0)
       .unwrap_or(false);
     if !exists {
-      return Err(rusqlite::Error::QueryReturnedNoRows);
+      return Err(crate::sqlite::Error::QueryReturnedNoRows);
     }
     let inserted = conn.execute(
       "INSERT OR IGNORE INTO reposts (user_handle, post_id) VALUES (?1, ?2)",
@@ -4948,14 +4968,14 @@ impl Database {
     let rows: Vec<(String, String, String, i64)> = {
       let conn = self.conn.lock().unwrap();
       let mut stmt = conn.prepare(&sql)?;
-      let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = handles
+      let mut params: Vec<Box<dyn ToSql>> = handles
         .iter()
-        .map(|h| Box::new(h.clone()) as Box<dyn rusqlite::types::ToSql>)
+        .map(|h| Box::new(h.clone()) as Box<dyn ToSql>)
         .collect();
       params.push(Box::new(limit));
-      let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+      let param_refs: Vec<&dyn ToSql> =
         params.iter().map(|p| p.as_ref()).collect();
-      let mapped = stmt.query_map(param_refs.as_slice(), |row| {
+      let mapped = stmt.query_map(crate::sqlite::Params::from_refs(&param_refs), |row| {
         Ok((
           row.get::<_, String>(0)?,
           row.get::<_, String>(1)?,

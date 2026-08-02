@@ -156,9 +156,9 @@ test-fast:
 |------|---------|----------------------|
 | Iroh | Default on in `Cargo.toml` | **Off by default for Tier 0 dev builds**; enable in CI / Tier 1+ |
 | Tauri dev | Full desktop + Rust | Web preview for UI; Tauri only for IPC testing |
-| Sessions | In-memory | Persist to SQLite (fewer re-auth round-trips) |
+| Sessions | In-memory | Persist to Turso/SQLite (fewer re-auth round-trips) |
 | Routes | `React.lazy` already | Good — keep heavy pages lazy |
-| SQLite | Indexed queries | Run `test:tier0` to verify feed < 2 s on this hardware |
+| Turso (embedded SQLite) | Indexed queries | Run `test:tier0` to verify feed < 2 s on this hardware |
 
 ---
 

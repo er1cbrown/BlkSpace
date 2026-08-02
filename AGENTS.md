@@ -26,7 +26,8 @@ Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 - `.github/workflows/ci.yml` — lint → typecheck → test → build (includes windows-latest)
 - `.github/workflows/release.yml` — tag-triggered releases (macOS + Linux + Windows)
 - `Code-Companion/package.json` — root workspace config
-- `Code-Companion/artifacts/blkspace/src-tauri/Cargo.toml` — Rust deps
+- `Code-Companion/artifacts/blkspace/src-tauri/Cargo.toml` — Rust deps (embedded Turso replaces rusqlite)
+- `Code-Companion/artifacts/blkspace/src-tauri/src/sqlite.rs` — Turso sync facade used by `db.rs`
 
 ## Repository Structure
 ```
@@ -87,10 +88,14 @@ BlkSpace/ (cloned root)
 
 ## Windows / Low-End Machine Workflow
 - **Frontend-only dev**: `pnpm dev` (from `Code-Companion/`) starts Vite web preview. No Rust needed. Uses ~200MB.
+- **Tier 0 desktop (Turso local DB, no Iroh)**: from `artifacts/blkspace`:
+  - Dev: `pnpm tauri:dev:tier0` (cross-platform; sets `CARGO_BUILD_JOBS=1`, 8 MiB DB cache)
+  - Build: `pnpm tauri:build:tier0`
+  - Override cache: `BLKSPACE_DB_CACHE_KIB=4096` (4 MiB) if RAM is tight
 - **CI builds the desktop app**: Push to GitHub; `ci.yml` builds Tauri for `windows-latest`. Download artifacts.
 - **Tagged releases**: Push a `v*` tag; `release.yml` produces `.msi` installer for Windows.
 - **Local Rust build** (only if modifying Rust code): `cd artifacts/blkspace && pnpm tauri build`
-- **Low-RAM build**: `$env:CARGO_BUILD_JOBS=1` before building (reduces parallelism)
+- **Low-RAM build**: `CARGO_BUILD_JOBS=1` is default for `tauri:*-tier0` scripts
 
 ## Rust Build Optimization
 - `Cargo.toml` has `iroh-blobs` (40+ crates) in default features. For Phase 0-only builds:
