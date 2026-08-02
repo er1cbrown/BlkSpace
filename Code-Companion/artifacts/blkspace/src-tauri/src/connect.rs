@@ -48,6 +48,9 @@ pub struct ConnectInterest {
   pub message: String,
   pub skills_snapshot: String,
   pub classification: String,
+  /// Only populated when applicant opted to share with org leads.
+  pub gpa: String,
+  pub gpa_shared: bool,
   pub status: String,
   pub created_at: String,
   pub yard_cred: i64,
@@ -103,6 +106,8 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
       message TEXT DEFAULT '',
       skills_snapshot TEXT DEFAULT '',
       classification TEXT DEFAULT '',
+      gpa TEXT DEFAULT '',
+      gpa_shared INTEGER DEFAULT 0,
       status TEXT DEFAULT 'pending',
       created_at TEXT DEFAULT (datetime('now')),
       UNIQUE(opportunity_id, handle)
@@ -121,6 +126,12 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
     CREATE INDEX IF NOT EXISTS idx_connect_interest_handle ON connect_interests(handle);
     ",
   )?;
+  // Additive columns for DBs created before GPA privacy
+  let _ = conn.execute("ALTER TABLE connect_interests ADD COLUMN gpa TEXT DEFAULT ''", ());
+  let _ = conn.execute(
+    "ALTER TABLE connect_interests ADD COLUMN gpa_shared INTEGER DEFAULT 0",
+    (),
+  );
   Ok(())
 }
 
@@ -356,16 +367,34 @@ pub fn express_interest(
   message: &str,
   skills_snapshot: &str,
   classification: &str,
+  gpa: &str,
+  gpa_shared: bool,
 ) -> Result<ConnectInterest> {
+  // Privacy: only store GPA when applicant explicitly shares with org leads.
+  let (store_gpa, shared) = if gpa_shared && !gpa.trim().is_empty() {
+    (gpa.trim(), 1i64)
+  } else {
+    ("", 0i64)
+  };
   conn.execute(
-    "INSERT INTO connect_interests (opportunity_id, handle, message, skills_snapshot, classification)
-     VALUES (?1, ?2, ?3, ?4, ?5)
+    "INSERT INTO connect_interests (opportunity_id, handle, message, skills_snapshot, classification, gpa, gpa_shared)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
      ON CONFLICT(opportunity_id, handle) DO UPDATE SET
        message = excluded.message,
        skills_snapshot = excluded.skills_snapshot,
        classification = excluded.classification,
+       gpa = excluded.gpa,
+       gpa_shared = excluded.gpa_shared,
        status = 'pending'",
-    params![opportunity_id, handle, message, skills_snapshot, classification],
+    params![
+      opportunity_id,
+      handle,
+      message,
+      skills_snapshot,
+      classification,
+      store_gpa,
+      shared
+    ],
   )?;
   list_interests_for_opportunity(conn, opportunity_id)?
     .into_iter()
@@ -373,14 +402,44 @@ pub fn express_interest(
     .ok_or_else(|| crate::sqlite::Error::QueryReturnedNoRows)
 }
 
+fn map_interest_row(row: &crate::sqlite::Row) -> Result<ConnectInterest> {
+  let gpa_shared_i: i64 = row.get(11).unwrap_or(0);
+  let gpa_raw: String = row.get(10).unwrap_or_default();
+  let gpa_shared = gpa_shared_i != 0;
+  Ok(ConnectInterest {
+    id: row.get(0)?,
+    opportunity_id: row.get(1)?,
+    opportunity_title: row.get(2)?,
+    org_name: row.get(3)?,
+    handle: row.get(4)?,
+    display_name: row.get(5)?,
+    message: row.get(6)?,
+    skills_snapshot: row.get(7)?,
+    classification: row.get(8)?,
+    status: row.get(9)?,
+    gpa: if gpa_shared { gpa_raw } else { String::new() },
+    gpa_shared,
+    created_at: row.get(12)?,
+    yard_cred: {
+      let karma: i64 = row.get(13).unwrap_or(0);
+      compute_cred_from_parts(karma, 0, 0, 0, 1)
+    },
+  })
+}
+
 pub fn list_interests_for_opportunity(
   conn: &Connection,
   opportunity_id: i64,
 ) -> Result<Vec<ConnectInterest>> {
+  // Column order must match map_interest_row:
+  // 0 id, 1 opp_id, 2 title, 3 org, 4 handle, 5 display, 6 message, 7 skills,
+  // 8 class, 9 status, 10 gpa, 11 gpa_shared, 12 created_at, 13 karma
   let sql = "
     SELECT i.id, i.opportunity_id, p.title, o.name, i.handle,
            COALESCE(u.display_name, i.handle),
-           i.message, i.skills_snapshot, i.classification, i.status, i.created_at,
+           i.message, i.skills_snapshot, i.classification, i.status,
+           COALESCE(i.gpa, ''), COALESCE(i.gpa_shared, 0),
+           i.created_at,
            COALESCE(u.post_karma,0) + COALESCE(u.comment_karma,0)
     FROM connect_interests i
     JOIN connect_opportunities p ON p.id = i.opportunity_id
@@ -390,23 +449,7 @@ pub fn list_interests_for_opportunity(
     ORDER BY i.created_at DESC
   ";
   let mut stmt = conn.prepare(sql)?;
-  let rows = stmt.query_map(params![opportunity_id], |row| {
-    let karma: i64 = row.get(11)?;
-    Ok(ConnectInterest {
-      id: row.get(0)?,
-      opportunity_id: row.get(1)?,
-      opportunity_title: row.get(2)?,
-      org_name: row.get(3)?,
-      handle: row.get(4)?,
-      display_name: row.get(5)?,
-      message: row.get(6)?,
-      skills_snapshot: row.get(7)?,
-      classification: row.get(8)?,
-      status: row.get(9)?,
-      created_at: row.get(10)?,
-      yard_cred: compute_cred_from_parts(karma, 0, 0, 0, 1),
-    })
-  })?;
+  let rows = stmt.query_map(params![opportunity_id], map_interest_row)?;
   let mut out = Vec::new();
   for r in rows {
     out.push(r?);
@@ -418,7 +461,9 @@ pub fn list_inbox_for_lead(conn: &Connection, lead_handle: &str) -> Result<Vec<C
   let sql = "
     SELECT i.id, i.opportunity_id, p.title, o.name, i.handle,
            COALESCE(u.display_name, i.handle),
-           i.message, i.skills_snapshot, i.classification, i.status, i.created_at,
+           i.message, i.skills_snapshot, i.classification, i.status,
+           COALESCE(i.gpa, ''), COALESCE(i.gpa_shared, 0),
+           i.created_at,
            COALESCE(u.post_karma,0) + COALESCE(u.comment_karma,0)
     FROM connect_interests i
     JOIN connect_opportunities p ON p.id = i.opportunity_id
@@ -431,23 +476,7 @@ pub fn list_inbox_for_lead(conn: &Connection, lead_handle: &str) -> Result<Vec<C
     ORDER BY i.created_at DESC
   ";
   let mut stmt = conn.prepare(sql)?;
-  let rows = stmt.query_map(params![lead_handle, lead_handle], |row| {
-    let karma: i64 = row.get(11)?;
-    Ok(ConnectInterest {
-      id: row.get(0)?,
-      opportunity_id: row.get(1)?,
-      opportunity_title: row.get(2)?,
-      org_name: row.get(3)?,
-      handle: row.get(4)?,
-      display_name: row.get(5)?,
-      message: row.get(6)?,
-      skills_snapshot: row.get(7)?,
-      classification: row.get(8)?,
-      status: row.get(9)?,
-      created_at: row.get(10)?,
-      yard_cred: compute_cred_from_parts(karma, 0, 0, 0, 1),
-    })
-  })?;
+  let rows = stmt.query_map(params![lead_handle, lead_handle], map_interest_row)?;
   let mut out = Vec::new();
   for r in rows {
     out.push(r?);

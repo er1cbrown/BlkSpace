@@ -15,6 +15,9 @@ export interface ProProfileData {
   skills: string[];
   experience: string;
   portfolioUrl: string;
+  /** Only shown publicly when gpaVisibility === public */
+  gpa?: string;
+  gpaVisibility?: "private" | "connect_leads" | "public";
 }
 
 const EMPTY: ProProfileData = {
@@ -25,6 +28,8 @@ const EMPTY: ProProfileData = {
   skills: [],
   experience: "",
   portfolioUrl: "",
+  gpa: "",
+  gpaVisibility: "private",
 };
 
 interface ProProfileTabProps {
@@ -114,6 +119,18 @@ export function ProProfileTab({ initialJson, isOwn, onSave }: ProProfileTabProps
           ) : (
             <p className="text-sm">
               {data.major || "—"} · Class of {data.graduationYear || "—"}
+              {data.gpaVisibility === "public" && data.gpa
+                ? ` · GPA ${data.gpa}`
+                : ""}
+            </p>
+          )}
+          {isOwn && (
+            <p className="text-xs text-muted-foreground col-span-full">
+              GPA is managed under{" "}
+              <a href="/settings" className="text-primary underline">
+                Settings → Privacy
+              </a>
+              . Default is private — not shown here unless visibility is Public.
             </p>
           )}
         </CardContent>

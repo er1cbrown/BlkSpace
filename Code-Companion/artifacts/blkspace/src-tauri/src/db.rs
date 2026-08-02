@@ -744,6 +744,8 @@ impl Database {
     message: &str,
     skills: &str,
     classification: &str,
+    gpa: &str,
+    gpa_shared: bool,
   ) -> Result<crate::connect::ConnectInterest> {
     let conn = self.conn.lock().unwrap();
     crate::connect::express_interest(
@@ -753,6 +755,8 @@ impl Database {
       message,
       skills,
       classification,
+      gpa,
+      gpa_shared,
     )
   }
 

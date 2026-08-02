@@ -2062,8 +2062,12 @@ fn connect_express_interest(
   message: String,
   skills_snapshot: String,
   classification: String,
+  gpa: Option<String>,
+  gpa_shared: Option<bool>,
 ) -> Result<connect::ConnectInterest, String> {
   let handle = get_handle_from_session(&state, &session_token)?;
+  let share = gpa_shared.unwrap_or(false);
+  let gpa_val = gpa.unwrap_or_default();
   state
     .db
     .connect_express_interest(
@@ -2072,6 +2076,8 @@ fn connect_express_interest(
       &message,
       &skills_snapshot,
       &classification,
+      if share { &gpa_val } else { "" },
+      share,
     )
     .map_err(|e| e.to_string())
 }

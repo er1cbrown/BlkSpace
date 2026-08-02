@@ -30,10 +30,14 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { nip19 } from "nostr-tools";
 import { Badge } from "@/components/ui/badge";
-import { isTauri, tauriVerifyNostrEvent } from "@/lib/tauri-api";
+import {
+  isTauri,
+  tauriVerifyNostrEvent,
+  tauriUpdateProProfile,
+} from "@/lib/tauri-api";
 import type { TauriNostrEventVerification } from "@/lib/tauri-api";
 import {
   getCurrentHandle,
@@ -44,7 +48,19 @@ import {
   clearIdentity,
   getStoredPubkey,
 } from "@/lib/auth";
-import { Eye, EyeOff, Shield, Key, LogOut, AlertTriangle } from "lucide-react";
+import { Eye, EyeOff, Shield, Key, LogOut, GraduationCap } from "lucide-react";
+import {
+  GPA_VISIBILITY_HELP,
+  type GpaVisibility,
+  type PrivacySettings,
+  loadPrivacySettings,
+  savePrivacySettings,
+  sanitizeGpa,
+  embedPrivacyInProJson,
+  mergePrivacyFromProJson,
+} from "@/lib/privacy-settings";
+import { useAppGetUser } from "@/hooks/use-app-data";
+import { toast } from "sonner";
 
 function EventSignatureVerifier() {
   const [eventJson, setEventJson] = useState("");
@@ -123,6 +139,9 @@ export default function SettingsPage() {
   const [loadingPhrase, setLoadingPhrase] = useState(false);
   const [showPhrase, setShowPhrase] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
+  const [privacy, setPrivacy] = useState<PrivacySettings>(() => loadPrivacySettings());
+  const [privacySaved, setPrivacySaved] = useState(false);
+  const { data: me } = useAppGetUser(handle);
 
   const handleRevealPhrase = async () => {
     setLoadingPhrase(true);
@@ -153,6 +172,37 @@ export default function SettingsPage() {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
+
+  const handleSavePrivacy = async () => {
+    const next: PrivacySettings = {
+      ...privacy,
+      gpa: sanitizeGpa(privacy.gpa),
+    };
+    if (next.gpaVisibility === "private") {
+      next.shareGpaOnApplyDefault = false;
+    }
+    savePrivacySettings(next);
+    setPrivacy(next);
+    // Persist with pro profile JSON when Tauri session is available
+    const token = getSessionToken();
+    if (isTauri() && token) {
+      try {
+        const merged = embedPrivacyInProJson(me?.proProfileJson, next);
+        await tauriUpdateProProfile(token, merged);
+      } catch (e) {
+        console.warn("pro profile privacy sync failed", e);
+      }
+    }
+    setPrivacySaved(true);
+    toast.success("GPA privacy saved");
+    setTimeout(() => setPrivacySaved(false), 2000);
+  };
+
+  useEffect(() => {
+    if (me?.proProfileJson) {
+      setPrivacy((p) => mergePrivacyFromProJson(loadPrivacySettings(), me.proProfileJson));
+    }
+  }, [me?.proProfileJson]);
 
   const handleLogout = () => {
     clearIdentity();
@@ -427,14 +477,104 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="privacy" className="space-y-6">
+            <Card className="border-primary/20 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5 text-primary" />
+                  GPA privacy (ProjectConnect)
+                </CardTitle>
+                <CardDescription>
+                  GPA is private by default. Org leads only see it when you opt
+                  in on an application — never sold, never required for Cred.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="gpa">GPA (optional)</Label>
+                  <Input
+                    id="gpa"
+                    type="number"
+                    min={0}
+                    max={4.5}
+                    step={0.01}
+                    placeholder="e.g. 3.75"
+                    value={privacy.gpa}
+                    onChange={(e) =>
+                      setPrivacy((p) => ({ ...p, gpa: e.target.value }))
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank if you prefer not to store GPA at all.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Who can see my GPA?</Label>
+                  <Select
+                    value={privacy.gpaVisibility}
+                    onValueChange={(v) =>
+                      setPrivacy((p) => ({
+                        ...p,
+                        gpaVisibility: v as GpaVisibility,
+                        shareGpaOnApplyDefault:
+                          v === "private" ? false : p.shareGpaOnApplyDefault,
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="private">
+                        Private — never share
+                      </SelectItem>
+                      <SelectItem value="connect_leads">
+                        Connect leads only — opt-in when I apply
+                      </SelectItem>
+                      <SelectItem value="public">
+                        Public on pro profile (apply still opt-in)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {GPA_VISIBILITY_HELP[privacy.gpaVisibility]}
+                  </p>
+                </div>
+
+                {privacy.gpaVisibility !== "private" && (
+                  <label className="flex items-start gap-3 text-sm rounded-lg border p-3 cursor-pointer hover:bg-muted/40">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={privacy.shareGpaOnApplyDefault}
+                      onChange={(e) =>
+                        setPrivacy((p) => ({
+                          ...p,
+                          shareGpaOnApplyDefault: e.target.checked,
+                        }))
+                      }
+                    />
+                    <span>
+                      <strong>Pre-check “share GPA”</strong> when I apply on
+                      ProjectConnect. You can still uncheck per application.
+                    </span>
+                  </label>
+                )}
+
+                <Button onClick={handleSavePrivacy} className="rounded-full px-8">
+                  {privacySaved ? "Saved!" : "Save GPA privacy"}
+                </Button>
+              </CardContent>
+            </Card>
+
             <Card className="border-amber-600/20 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-amber-200 flex items-center gap-2">
                   <Shield className="w-5 h-5" />
-                  Privacy & Security
+                  Platform privacy notes
                 </CardTitle>
                 <CardDescription>
-                  Important notes about how BKSPC protects your data
+                  How BKSPC protects your data on the yard
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -454,7 +594,7 @@ export default function SettingsPage() {
                   <p>
                     <strong>Key Storage</strong> — Your private key is stored on
                     this device only. In Tauri desktop mode, it is stored in an
-                    encrypted file. In web mode, it is stored in your browser's
+                    encrypted file. In web mode, it is stored in your browser&apos;s
                     localStorage.
                   </p>
                   <p>

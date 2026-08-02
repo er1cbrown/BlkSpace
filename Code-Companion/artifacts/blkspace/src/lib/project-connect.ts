@@ -51,6 +51,9 @@ export interface ConnectInterest {
   message: string;
   skillsSnapshot: string;
   classification: string;
+  /** Only set when applicant shared with org leads */
+  gpa: string;
+  gpaShared: boolean;
   status: string;
   createdAt: string;
   yardCred: number;
@@ -414,11 +417,24 @@ export async function expressInterest(input: {
   message: string;
   skillsSnapshot: string;
   classification: string;
+  /** Only sent when user opts in and privacy allows */
+  gpa?: string;
+  gpaShared?: boolean;
 }): Promise<ConnectInterest> {
+  const share = !!input.gpaShared && !!(input.gpa && input.gpa.trim());
+  const gpaVal = share ? input.gpa!.trim() : "";
   if (isTauri()) {
     const sessionToken = getSessionToken();
     if (!sessionToken) throw new Error("Sign in to apply");
-    return invoke("connect_express_interest", { sessionToken, ...input });
+    return invoke("connect_express_interest", {
+      sessionToken,
+      opportunityId: input.opportunityId,
+      message: input.message,
+      skillsSnapshot: input.skillsSnapshot,
+      classification: input.classification,
+      gpa: gpaVal,
+      gpaShared: share,
+    });
   }
   const s = loadWeb();
   const opp = s.opps.find((o) => o.id === input.opportunityId);
@@ -431,6 +447,8 @@ export async function expressInterest(input: {
     existing.message = input.message;
     existing.skillsSnapshot = input.skillsSnapshot;
     existing.classification = input.classification;
+    existing.gpa = gpaVal;
+    existing.gpaShared = share;
     existing.status = "pending";
     saveWeb(s);
     return existing;
@@ -445,6 +463,8 @@ export async function expressInterest(input: {
     message: input.message,
     skillsSnapshot: input.skillsSnapshot,
     classification: input.classification,
+    gpa: gpaVal,
+    gpaShared: share,
     status: "pending",
     createdAt: new Date().toISOString(),
     yardCred: webCred(handle).score,

@@ -54,6 +54,10 @@ import {
   type ConnectOpportunity,
   type OrgType,
 } from "@/lib/project-connect";
+import {
+  canShareGpaOnConnect,
+  loadPrivacySettings,
+} from "@/lib/privacy-settings";
 import { cn } from "@/lib/utils";
 
 function typeIcon(t: string) {
@@ -507,6 +511,11 @@ function OpportunityDetailPage({ oppId }: { oppId: number }) {
   const [message, setMessage] = useState("");
   const [skills, setSkills] = useState("");
   const [classification, setClassification] = useState("Junior");
+  const privacy = loadPrivacySettings();
+  const canShareGpa = canShareGpaOnConnect(privacy);
+  const [shareGpa, setShareGpa] = useState(
+    () => canShareGpa && privacy.shareGpaOnApplyDefault,
+  );
 
   const applyMut = useMutation({
     mutationFn: () =>
@@ -515,9 +524,15 @@ function OpportunityDetailPage({ oppId }: { oppId: number }) {
         message,
         skillsSnapshot: skills,
         classification,
+        gpa: shareGpa && canShareGpa ? privacy.gpa : "",
+        gpaShared: shareGpa && canShareGpa,
       }),
     onSuccess: () => {
-      toast.success("Interest sent — lead will see you in their inbox");
+      toast.success(
+        shareGpa && canShareGpa
+          ? "Interest sent — GPA shared with org leads only"
+          : "Interest sent — GPA not shared",
+      );
       qc.invalidateQueries({ queryKey: ["connect"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -601,6 +616,35 @@ function OpportunityDetailPage({ oppId }: { oppId: number }) {
                 onChange={(e) => setMessage(e.target.value)}
                 rows={3}
               />
+
+              <div className="rounded-lg border border-border/60 p-3 space-y-2 text-sm">
+                <p className="font-medium">GPA privacy</p>
+                {privacy.gpaVisibility === "private" || !privacy.gpa ? (
+                  <p className="text-muted-foreground text-xs">
+                    GPA is private or not set.{" "}
+                    <Link href="/settings" className="text-primary underline">
+                      Settings → Privacy
+                    </Link>{" "}
+                    to store GPA and allow sharing with Connect leads.
+                  </p>
+                ) : (
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={shareGpa}
+                      onChange={(e) => setShareGpa(e.target.checked)}
+                    />
+                    <span>
+                      Share my GPA ({privacy.gpa}) with{" "}
+                      <strong>this opportunity&apos;s org leads only</strong>.
+                      Not public on your profile unless you chose Public in
+                      settings.
+                    </span>
+                  </label>
+                )}
+              </div>
+
               <Button
                 className="w-full sm:w-auto"
                 disabled={applyMut.isPending}
@@ -690,6 +734,16 @@ function InboxPage() {
                     <p>
                       <span className="text-muted-foreground">Skills: </span>
                       {item.skillsSnapshot}
+                    </p>
+                  )}
+                  {item.gpaShared && item.gpa ? (
+                    <p>
+                      <span className="text-muted-foreground">GPA (shared): </span>
+                      <span className="font-medium">{item.gpa}</span>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      GPA not shared by applicant
                     </p>
                   )}
                   {item.message && <p className="text-muted-foreground italic">&ldquo;{item.message}&rdquo;</p>}
