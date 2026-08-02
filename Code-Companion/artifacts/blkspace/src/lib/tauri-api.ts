@@ -69,13 +69,41 @@ export interface TauriYardEvent {
   createdBy: string;
   createdByDisplayName: string;
   rsvpCount: number;
+  goingCount?: number;
+  waitlistCount?: number;
   userRsvp?: string | null;
+  capacity?: number | null;
+  orgId?: string | null;
+  orgName?: string | null;
+  requiresOrgMember?: boolean;
+  ticketPriceWb?: number;
+  eventKind?: string;
+  userTicketCode?: string | null;
+  userWaitlisted?: boolean;
+  userCheckedIn?: boolean;
+  spotsRemaining?: number | null;
 }
 
 export interface TauriRsvpYardEventResult {
   rsvped: boolean;
   status: string;
   earn: TauriEarnResult;
+  ticketCode?: string | null;
+  waitlisted?: boolean;
+  paidWb?: number;
+  pass?: Record<string, unknown> | null;
+}
+
+export interface TauriEventGuest {
+  handle: string;
+  displayName: string;
+  status: string;
+  ticketCode?: string | null;
+  paidWb: number;
+  checkedIn: boolean;
+  waitlisted: boolean;
+  createdAt: string;
+  yardCred: number;
 }
 
 export interface TauriCommunityRoleEntry {
@@ -151,6 +179,8 @@ export interface TauriEconomyAppeal {
 }
 
 export interface TauriWithdrawEligibility {
+  yardCred?: number;
+  minYardCred?: number;
   eligible: boolean;
   reasons: string[];
   minAmountWb: number;
@@ -468,6 +498,10 @@ export function tauriCreateMarketplaceListing(
   description: string | null,
   isNft: boolean,
   townTag: string | null = null,
+  fulfillmentMode: string | null = null,
+  orgId: string | null = null,
+  orgSplitBps: number | null = null,
+  deliveryHint: string | null = null,
 ): Promise<number> {
   return invoke("create_marketplace_listing", {
     sessionToken,
@@ -478,7 +512,51 @@ export function tauriCreateMarketplaceListing(
     description,
     isNft,
     townTag,
+    fulfillmentMode,
+    orgId,
+    orgSplitBps,
+    deliveryHint,
   });
+}
+
+export function tauriListMyEscrows(sessionToken: string): Promise<any[]> {
+  return invoke("list_my_escrows", { sessionToken });
+}
+
+export function tauriEscrowMarkDelivered(
+  sessionToken: string,
+  escrowId: number,
+  deliveryRef: string,
+  deliveryNote: string | null = null,
+): Promise<any> {
+  return invoke("escrow_mark_delivered", {
+    sessionToken,
+    escrowId,
+    deliveryRef,
+    deliveryNote,
+  });
+}
+
+export function tauriEscrowConfirmRelease(
+  sessionToken: string,
+  escrowId: number,
+): Promise<any> {
+  return invoke("escrow_confirm_release", { sessionToken, escrowId });
+}
+
+export function tauriEscrowOpenDispute(
+  sessionToken: string,
+  escrowId: number,
+  reason: string | null = null,
+): Promise<any> {
+  return invoke("escrow_open_dispute", { sessionToken, escrowId, reason });
+}
+
+export function tauriEscrowRefund(
+  sessionToken: string,
+  escrowId: number,
+): Promise<any> {
+  return invoke("escrow_refund", { sessionToken, escrowId });
 }
 
 export function tauriBuyMarketplaceListing(
@@ -1427,6 +1505,11 @@ export function tauriCreateYardEvent(
   location: string,
   startsAt: string,
   endsAt?: string,
+  capacity?: number | null,
+  orgId?: string | null,
+  requiresOrgMember?: boolean,
+  ticketPriceWb?: number,
+  eventKind?: string,
 ): Promise<TauriYardEvent> {
   return invoke("create_yard_event", {
     sessionToken,
@@ -1436,6 +1519,11 @@ export function tauriCreateYardEvent(
     location,
     startsAt,
     endsAt,
+    capacity: capacity ?? null,
+    orgId: orgId ?? null,
+    requiresOrgMember: requiresOrgMember ?? false,
+    ticketPriceWb: ticketPriceWb ?? 0,
+    eventKind: eventKind ?? "general",
   });
 }
 
@@ -1452,6 +1540,35 @@ export function tauriCancelYardEventRsvp(
   eventId: number,
 ): Promise<boolean> {
   return invoke("cancel_yard_event_rsvp", { sessionToken, eventId });
+}
+
+export function tauriListEventGuests(
+  sessionToken: string,
+  eventId: number,
+): Promise<TauriEventGuest[]> {
+  return invoke("list_event_guests", { sessionToken, eventId });
+}
+
+export function tauriCheckInEventGuest(
+  sessionToken: string,
+  eventId: number,
+  ticketOrHandle: string,
+): Promise<{ checkedIn: boolean; handle?: string; alreadyCheckedIn?: boolean }> {
+  return invoke("check_in_event_guest", {
+    sessionToken,
+    eventId,
+    ticketOrHandle,
+  });
+}
+
+export function tauriListOpenToOpportunities(
+  sessionToken: string | null,
+  filter?: string | null,
+): Promise<any[]> {
+  return invoke("list_open_to_opportunities", {
+    sessionToken,
+    filter: filter ?? null,
+  });
 }
 
 export function tauriCreateWallPost(

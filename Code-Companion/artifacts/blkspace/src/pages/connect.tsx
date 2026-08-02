@@ -37,6 +37,8 @@ import { toast } from "sonner";
 import { getCurrentHandle } from "@/lib/auth";
 import { useGuestMode } from "@/lib/guest-mode";
 import { GuestCTA } from "@/components/social/GuestCTA";
+import { useOpenToBoard } from "@/hooks/use-app-data";
+import { broadcastOpportunityToYard } from "@/lib/club-activities";
 import {
   ORG_TYPES,
   completeInterest,
@@ -281,8 +283,117 @@ function ConnectHub() {
             </div>
           )}
         </section>
+
+        <OpenToTalentBoard />
       </div>
     </AppShell>
+  );
+}
+
+function OpenToTalentBoard() {
+  const [boardFilter, setBoardFilter] = useState<"all" | "work" | "research">(
+    "all",
+  );
+  const { data: candidates = [], isLoading } = useOpenToBoard(boardFilter);
+
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Briefcase className="h-5 w-5 text-primary" /> Open to work & research
+        </h2>
+        <div className="flex gap-1">
+          {(["all", "work", "research"] as const).map((f) => (
+            <Button
+              key={f}
+              size="sm"
+              variant={boardFilter === f ? "default" : "outline"}
+              className="text-xs capitalize"
+              onClick={() => setBoardFilter(f)}
+            >
+              {f}
+            </Button>
+          ))}
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Students who toggled Open to work / Open to research on Pro Profile
+        (post-internship outreach for labs and orgs).
+      </p>
+      {isLoading ? (
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      ) : candidates.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No open signals yet. Students: Profile → Pro → enable open flags.
+        </p>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {candidates.map((c) => (
+            <Card key={c.handle} className="border-primary/10">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between gap-2">
+                  <CardTitle className="text-base">
+                    {c.displayName}{" "}
+                    <span className="text-muted-foreground font-normal text-sm">
+                      @{c.handle}
+                    </span>
+                  </CardTitle>
+                  <div className="flex flex-wrap gap-1 justify-end">
+                    {c.openToWork && (
+                      <Badge className="bg-green-600 text-[10px]">Work</Badge>
+                    )}
+                    {c.openToResearch && (
+                      <Badge className="bg-blue-600 text-[10px]">Research</Badge>
+                    )}
+                  </div>
+                </div>
+                <CardDescription className="text-xs">
+                  {c.major || "—"} · {c.university || c.town} · Class of{" "}
+                  {c.graduationYear || "—"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p className="font-medium leading-snug">
+                  {c.headline || "No headline"}
+                </p>
+                {c.experience && (
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {c.experience}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-1">
+                  {(Array.isArray(c.skills) ? c.skills : []).slice(0, 6).map(
+                    (s: string) => (
+                      <Badge key={s} variant="secondary" className="text-[10px]">
+                        {s}
+                      </Badge>
+                    ),
+                  )}
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Link href={`/profile/${c.handle}`}>
+                    <Button size="sm" variant="outline">
+                      View profile
+                    </Button>
+                  </Link>
+                  {c.portfolioUrl && (
+                    <Button size="sm" variant="ghost" asChild>
+                      <a
+                        href={c.portfolioUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Portfolio
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -539,6 +650,17 @@ function OpportunityDetailPage({ oppId }: { oppId: number }) {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const broadcastMut = useMutation({
+    mutationFn: () => broadcastOpportunityToYard(oppId),
+    onSuccess: () => {
+      toast.success(
+        "Broadcast to yard feed — students see this opportunity in announcements",
+      );
+      qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
+    },
+    onError: (e: Error) => toast.error(e.message || String(e)),
+  });
+
   if (isLoading) {
     return (
       <AppShell>
@@ -586,6 +708,22 @@ function OpportunityDetailPage({ oppId }: { oppId: number }) {
                 </Badge>
               ))}
             </div>
+            {!isGuest && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={broadcastMut.isPending}
+                onClick={() => broadcastMut.mutate()}
+              >
+                {broadcastMut.isPending
+                  ? "Broadcasting…"
+                  : "Broadcast to campus yard"}
+              </Button>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Faculty/org members: push scholarships, research, and internships
+              to the yard feed so all students see them.
+            </p>
           </CardContent>
         </Card>
 

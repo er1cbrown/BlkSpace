@@ -36,6 +36,10 @@ import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { YardEventsPanel } from "@/components/community/YardEventsPanel";
 import { YardMembersPanel } from "@/components/community/YardMembersPanel";
 import { YardSaleTab } from "@/components/community/YardSaleTab";
+import {
+  ClubActivitiesPanel,
+  StudyHourHint,
+} from "@/components/community/ClubActivitiesPanel";
 import { resolveCommunityYardTheme } from "@/lib/yard-themes";
 import { YardCommunitySkin } from "@/components/community/YardCommunitySkin";
 import { SafeContent } from "@/components/ui/safe-content";
@@ -466,6 +470,7 @@ export default function CommunityPage() {
                 <TabsTrigger value="chat">{activeChannel} Chat</TabsTrigger>
                 <TabsTrigger value="members">Members</TabsTrigger>
                 <TabsTrigger value="events">Events</TabsTrigger>
+                <TabsTrigger value="clubs">Clubs</TabsTrigger>
                 <TabsTrigger value="yard-sale">Yard Sale</TabsTrigger>
                 <TabsTrigger value="about">About</TabsTrigger>
               </TabsList>
@@ -609,13 +614,33 @@ export default function CommunityPage() {
               </TabsContent>
 
               <TabsContent value="events">
-                <YardEventsPanel
-                  communityId={id}
-                  communityName={community.name}
-                  isMember={isMember}
-                  createDialogOpen={createEventOpen}
-                  onCreateDialogOpenChange={setCreateEventOpen}
-                />
+                <div className="space-y-3">
+                  <StudyHourHint />
+                  <YardEventsPanel
+                    communityId={id}
+                    communityName={community.name}
+                    isMember={isMember}
+                    createDialogOpen={createEventOpen}
+                    onCreateDialogOpenChange={setCreateEventOpen}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="clubs">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">
+                      Clubs · reading · tournaments
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Anime book groups, gaming brackets, study kits, faculty
+                      channels — without live streaming.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <ClubActivitiesPanel communityId={id} />
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="yard-sale">

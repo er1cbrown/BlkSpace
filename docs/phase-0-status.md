@@ -1,15 +1,18 @@
 # BlkSpace Progress Dashboard
 
-**Project:** BlkSpace on WeixNet  
+**Project:** **BlkSpace** on WeixNet · coin ticker **BKSPC** (BlkSpace Coin)  
 **Last updated:** 2026-08-02  
-**Repo:** `BlkSpace/` · UI shots: [`docs/assets/screenshots/`](assets/screenshots/)
+**Repo:** [`er1cbrown/BlkSpace`](https://github.com/er1cbrown/BlkSpace) · UI shots: [`docs/assets/screenshots/`](assets/screenshots/)  
+**Use-case log:** [`features/use-case-capability-log.md`](features/use-case-capability-log.md) · **Brand lock:** [`features/brand-trademark-and-bkspc-rights.md`](features/brand-trademark-and-bkspc-rights.md)
 
 ---
 
 ## Status line
 
 ```
-Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | M1 hub-sync ✅ | P4–P5 ✅ | P6 earn ✅ | P7 bridge ✅ | Guest mode ✅ | Turso DB ✅ | Multi-OS CI ✅ | M0 manual ⏳
+Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | Guest mode ✅ | Turso DB ✅ | Multi-OS CI ✅
+Connect+Cred ✅ | Escrow marketplace ✅ | Events/tickets ✅ | Clubs/reading/tournaments ✅ | Studio delivery ✅
+BKSPC mainnet ⬜ | Live stream ⬜ | M0 manual ⏳
 ```
 
 ---

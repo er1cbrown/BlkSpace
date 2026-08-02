@@ -1,8 +1,12 @@
 # BlkSpace Roadmap (plain English)
 
-**Last updated:** August 2026 · **Repo:** `main`
+**Last updated:** August 2026 · **Repo:** [`er1cbrown/BlkSpace`](https://github.com/er1cbrown/BlkSpace)  
+**Product mark:** **BlkSpace** · **Coin ticker:** **BKSPC** (BlkSpace Coin) · Soft: **WeixBucks**
 
 This doc answers: *what works today, multi-OS status, what “BlkSpace-Full” means, and what Tier C / Phase 5 are.*
+
+**Capability log (use cases):** [`features/use-case-capability-log.md`](features/use-case-capability-log.md)  
+**Trademark / coin rights:** [`features/brand-trademark-and-bkspc-rights.md`](features/brand-trademark-and-bkspc-rights.md)
 
 ---
 
@@ -11,13 +15,14 @@ This doc answers: *what works today, multi-OS status, what “BlkSpace-Full” m
 ```
 Cross-OS desktop (~90%) █████████░  Windows + macOS + Linux (Yard & Full via CI)
 Yard MVP (~80%)         ████████░░  Students can install & use core social loop
-Economy MVP (~40%)      ████░░░░░░  WB simulated; BKSPC devnet scaffolded
+Campus use cases (~80%) ████████░░  Connect · escrow · events · clubs · studio
+Economy MVP (~50%)      █████░░░░░  WB + escrow; BKSPC devnet scaffolded (not mainnet rights)
 Mobile (~10%)           ██░░░░░░░░  Planned (Tauri); not shipping yet
 ```
 
-**Works today:** install on **Windows / macOS / Linux** → welcome wizard → browse feed (guest or account) → post → profile **MyYard** themes → yards → wallet (simulated WB) → **Yard Sale** (WB + BKSPC with devnet build). Local DB is **Turso** (embedded) on desktop.
+**Works today:** install on **Windows / macOS / Linux** → welcome → feed → **MyYard** → yards → wallet (WB) → **Yard Sale** (instant + escrow) → **Connect** → **Events/tickets** → **Clubs** (reading/tournaments) → **Studio** (portfolio + client delivery). Local DB **Turso** on desktop.
 
-**Not ready for real money yet:** NFT ownership transfer on purchase, full devnet E2E proof, Device B sign-off on a 4 GB Windows laptop.
+**Not ready for real money yet:** mainnet **BKSPC** public launch, full Eventbrite/Pixieset/Twitch clones, live streaming, Device B sign-off on a 4 GB Windows laptop.
 
 **Multi-OS principle:** one codebase (Tauri 2 + React). If it runs on Tier 0 Windows, the same product ships to MacBook and Linux labs.
 

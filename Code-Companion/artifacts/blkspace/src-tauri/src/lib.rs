@@ -2,6 +2,10 @@
 mod sqlite;
 mod db;
 mod connect;
+mod escrow;
+mod events_ticketing;
+mod club_activities;
+mod studio;
 mod blob_store;
 mod key_store;
 mod relay_manager;
@@ -1010,14 +1014,33 @@ fn create_marketplace_listing(
   description: Option<String>,
   is_nft: bool,
   town_tag: Option<String>,
+  fulfillment_mode: Option<String>,
+  org_id: Option<String>,
+  org_split_bps: Option<i64>,
+  delivery_hint: Option<String>,
 ) -> Result<i64, String> {
   let seller = get_handle_from_session(&state, &session_token)?;
   if price <= 0 { return Err("Price must be positive".to_string()); }
-  let listing_id = state.db.create_marketplace_listing(&seller, &item_type, item_ref.as_deref(), price, &title, description.as_deref(), is_nft, town_tag.as_deref())
+  let listing_id = state.db.create_marketplace_listing(
+    &seller,
+    &item_type,
+    item_ref.as_deref(),
+    price,
+    &title,
+    description.as_deref(),
+    is_nft,
+    town_tag.as_deref(),
+    fulfillment_mode.as_deref(),
+    org_id.as_deref(),
+    org_split_bps,
+    delivery_hint.as_deref(),
+  )
     .map_err(|e| e.to_string())?;
 
   // Nostr 30081 NFT listing on create (if NFT or media)
-  if (is_nft || item_type == "media") && state.relay_manager.lock().unwrap().relay_count() > 0 {
+  if (is_nft || item_type == "media" || escrow::ESCROW_DEFAULT_TYPES.contains(&item_type.as_str()))
+    && state.relay_manager.lock().unwrap().relay_count() > 0
+  {
     if let Some(keys) = user_nostr_keys_for_publish(&state, &seller, "marketplace listing publish") {
     let content = format!("Listed: {}", title);
     let tags: Vec<Vec<String>> = vec![
@@ -1117,12 +1140,23 @@ fn buy_marketplace_listing(state: State<AppState>, session_token: String, listin
     .map_err(|e| e.to_string())?;
   {
     let listing = &result;
-    // Publish Nostr 30081 for NFT listing/purchase if applicable
-    if listing["isNft"].as_bool().unwrap_or(false) {
+    // Publish Nostr receipt for NFT purchase or escrow fund
+    let is_escrow = listing["fulfillmentMode"].as_str() == Some("escrow")
+      || listing.get("escrowId").is_some();
+    if listing["isNft"].as_bool().unwrap_or(false) || is_escrow {
       let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
       if has_relays {
         if let Some(keys) = user_nostr_keys_for_publish(&state, &buyer, "marketplace purchase publish") {
-        let content = format!("Purchased NFT: {}", listing["itemType"]);
+        let content = if is_escrow {
+          format!(
+            "Escrow funded: {} (#{})",
+            listing["title"].as_str().unwrap_or("listing"),
+            listing_id
+          )
+        } else {
+          format!("Purchased NFT: {}", listing["itemType"])
+        };
+        let kind = if is_escrow { 30082 } else { 30081 };
         let tags: Vec<Vec<String>> = vec![
           vec!["t".to_string(), "blkspace".to_string()],
           vec!["id".to_string(), listing_id.to_string()],
@@ -1133,7 +1167,7 @@ fn buy_marketplace_listing(state: State<AppState>, session_token: String, listin
           let _ = rt.block_on(async {
             use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
             let ntags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
-            let event = EventBuilder::new(Kind::Custom(30081), &content).tags(ntags).sign(&keys).await.map_err(|e| format!("Nostr sign: {}", e))?;
+            let event = EventBuilder::new(Kind::Custom(kind), &content).tags(ntags).sign(&keys).await.map_err(|e| format!("Nostr sign: {}", e))?;
             let _ = client.send_event(event).await;
             Ok::<_, String>(())
           });
@@ -1145,6 +1179,116 @@ fn buy_marketplace_listing(state: State<AppState>, session_token: String, listin
     publish_profile_if_purchase_applied(&state, &buyer, &result);
   }
   Ok(result)
+}
+
+#[tauri::command]
+fn list_my_escrows(
+  state: State<AppState>,
+  session_token: String,
+) -> Result<Vec<escrow::EscrowTrade>, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state.db.escrow_list_mine(&handle).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_escrow(
+  state: State<AppState>,
+  session_token: String,
+  escrow_id: i64,
+) -> Result<Option<escrow::EscrowTrade>, String> {
+  let _ = get_handle_from_session(&state, &session_token)?;
+  state.db.escrow_get(escrow_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn escrow_mark_delivered(
+  state: State<AppState>,
+  session_token: String,
+  escrow_id: i64,
+  delivery_ref: String,
+  delivery_note: Option<String>,
+) -> Result<serde_json::Value, String> {
+  let seller = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .escrow_mark_delivered(
+      escrow_id,
+      &seller,
+      &delivery_ref,
+      delivery_note.as_deref(),
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn escrow_confirm_release(
+  state: State<AppState>,
+  session_token: String,
+  escrow_id: i64,
+) -> Result<serde_json::Value, String> {
+  let buyer = get_handle_from_session(&state, &session_token)?;
+  let result = state
+    .db
+    .escrow_confirm_release(escrow_id, &buyer)
+    .map_err(|e| e.to_string())?;
+
+  // Signed sale receipt on Nostr when relays available
+  if state.relay_manager.lock().unwrap().relay_count() > 0 {
+    if let Some(keys) = user_nostr_keys_for_publish(&state, &buyer, "escrow receipt publish") {
+      let content = result
+        .get("receipt")
+        .map(|r| r.to_string())
+        .unwrap_or_else(|| format!("Escrow released #{escrow_id}"));
+      let tags: Vec<Vec<String>> = vec![
+        vec!["t".into(), "blkspace".into()],
+        vec!["escrow".into(), escrow_id.to_string()],
+        vec!["type".into(), "sale_receipt".into()],
+      ];
+      let client = state.relay_manager.lock().unwrap().client().clone();
+      if let Ok(rt) = tokio::runtime::Runtime::new() {
+        let _ = rt.block_on(async {
+          use nostr_sdk::prelude::{EventBuilder, Kind, Tag};
+          let ntags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+          let event = EventBuilder::new(Kind::Custom(30082), &content)
+            .tags(ntags)
+            .sign(&keys)
+            .await
+            .map_err(|e| format!("Nostr sign: {e}"))?;
+          let _ = client.send_event(event).await;
+          Ok::<_, String>(())
+        });
+      }
+    }
+  }
+  publish_profile_if_purchase_applied(&state, &buyer, &result);
+  Ok(result)
+}
+
+#[tauri::command]
+fn escrow_open_dispute(
+  state: State<AppState>,
+  session_token: String,
+  escrow_id: i64,
+  reason: Option<String>,
+) -> Result<serde_json::Value, String> {
+  let actor = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .escrow_open_dispute(escrow_id, &actor, reason.as_deref())
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn escrow_refund(
+  state: State<AppState>,
+  session_token: String,
+  escrow_id: i64,
+) -> Result<serde_json::Value, String> {
+  let actor = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .escrow_refund(escrow_id, &actor)
+    .map_err(|e| e.to_string())
 }
 
 #[derive(serde::Serialize)]
@@ -3521,6 +3665,11 @@ fn create_yard_event(
   location: String,
   starts_at: String,
   ends_at: Option<String>,
+  capacity: Option<i64>,
+  org_id: Option<String>,
+  requires_org_member: Option<bool>,
+  ticket_price_wb: Option<i64>,
+  event_kind: Option<String>,
 ) -> Result<YardEvent, String> {
   let handle = check_session_rate_limit(&state, &session_token)?;
   authorize_create_yard_event(&state.db, &handle, &community_id)?;
@@ -3534,8 +3683,13 @@ fn create_yard_event(
       &location,
       &starts_at,
       ends_at.as_deref(),
+      capacity,
+      org_id.as_deref(),
+      requires_org_member.unwrap_or(false),
+      ticket_price_wb.unwrap_or(0),
+      event_kind.as_deref(),
     )
-    .map_err(|e| AppError::from(e).to_string())
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3549,7 +3703,7 @@ fn rsvp_yard_event(
   state
     .db
     .rsvp_yard_event(&handle, event_id, &status)
-    .map_err(|e| AppError::from(e).to_string())
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3562,7 +3716,527 @@ fn cancel_yard_event_rsvp(
   state
     .db
     .cancel_yard_event_rsvp(&handle, event_id)
-    .map_err(|e| AppError::from(e).to_string())
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_event_guests(
+  state: State<AppState>,
+  session_token: String,
+  event_id: i64,
+) -> Result<Vec<events_ticketing::EventGuest>, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .list_event_guests(&handle, event_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn check_in_event_guest(
+  state: State<AppState>,
+  session_token: String,
+  event_id: i64,
+  ticket_or_handle: String,
+) -> Result<serde_json::Value, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .check_in_event_guest(&handle, event_id, &ticket_or_handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_open_to_opportunities(
+  state: State<AppState>,
+  session_token: Option<String>,
+  filter: Option<String>,
+) -> Result<Vec<serde_json::Value>, String> {
+  if let Some(tok) = session_token {
+    if !tok.is_empty() {
+      let _ = check_session_rate_limit(&state, &tok)?;
+    }
+  }
+  state
+    .db
+    .list_open_to_opportunities(filter.as_deref())
+    .map_err(|e| e.to_string())
+}
+
+// ─── Club activities ─────────────────────────────────────
+
+#[tauri::command]
+fn list_club_templates() -> Vec<club_activities::ClubTemplate> {
+  club_activities::templates()
+}
+
+#[tauri::command]
+fn apply_club_template(
+  state: State<AppState>,
+  session_token: String,
+  community_id: String,
+  template_id: String,
+) -> Result<serde_json::Value, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .apply_club_template(&community_id, &template_id, &handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_applied_club_templates(
+  state: State<AppState>,
+  community_id: String,
+) -> Result<Vec<String>, String> {
+  state
+    .db
+    .list_applied_club_templates(&community_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_reading_circles(
+  state: State<AppState>,
+  community_id: String,
+) -> Result<Vec<club_activities::ReadingCircle>, String> {
+  state
+    .db
+    .list_reading_circles(&community_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_reading_circle(
+  state: State<AppState>,
+  session_token: String,
+  community_id: String,
+  title: String,
+  media_type: String,
+  description: String,
+  current_work: String,
+  org_id: Option<String>,
+) -> Result<club_activities::ReadingCircle, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .create_reading_circle(
+      &community_id,
+      &handle,
+      &title,
+      &media_type,
+      &description,
+      &current_work,
+      org_id.as_deref(),
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn join_reading_circle(
+  state: State<AppState>,
+  session_token: String,
+  circle_id: i64,
+) -> Result<(), String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .join_reading_circle(circle_id, &handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_reading_current(
+  state: State<AppState>,
+  session_token: String,
+  circle_id: i64,
+  work: String,
+  chapter: String,
+) -> Result<(), String> {
+  let _ = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .set_reading_current(circle_id, &work, &chapter)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn add_reading_entry(
+  state: State<AppState>,
+  session_token: String,
+  circle_id: i64,
+  entry_type: String,
+  title: String,
+  body: String,
+  media_ref: String,
+  chapter_label: String,
+) -> Result<club_activities::ReadingEntry, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .add_reading_entry(
+      circle_id,
+      &handle,
+      &entry_type,
+      &title,
+      &body,
+      &media_ref,
+      &chapter_label,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_reading_entries(
+  state: State<AppState>,
+  circle_id: i64,
+) -> Result<Vec<club_activities::ReadingEntry>, String> {
+  state
+    .db
+    .list_reading_entries(circle_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_tournaments(
+  state: State<AppState>,
+  community_id: String,
+) -> Result<Vec<club_activities::Tournament>, String> {
+  state
+    .db
+    .list_tournaments(&community_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_tournament(
+  state: State<AppState>,
+  session_token: String,
+  community_id: String,
+  title: String,
+  game_title: String,
+  description: String,
+  max_players: i64,
+  prize_text: String,
+  prize_wb: i64,
+  event_id: Option<i64>,
+) -> Result<club_activities::Tournament, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .create_tournament(
+      &community_id,
+      &handle,
+      &title,
+      &game_title,
+      &description,
+      max_players,
+      &prize_text,
+      prize_wb,
+      event_id,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn register_tournament(
+  state: State<AppState>,
+  session_token: String,
+  tournament_id: i64,
+) -> Result<serde_json::Value, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .register_tournament(tournament_id, &handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_tournament_entrants(
+  state: State<AppState>,
+  tournament_id: i64,
+) -> Result<Vec<serde_json::Value>, String> {
+  state
+    .db
+    .list_tournament_entrants(tournament_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn generate_tournament_bracket(
+  state: State<AppState>,
+  session_token: String,
+  tournament_id: i64,
+) -> Result<Vec<club_activities::TournamentMatch>, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .generate_tournament_bracket(tournament_id, &handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_tournament_matches(
+  state: State<AppState>,
+  tournament_id: i64,
+) -> Result<Vec<club_activities::TournamentMatch>, String> {
+  state
+    .db
+    .list_tournament_matches(tournament_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn report_tournament_match(
+  state: State<AppState>,
+  session_token: String,
+  match_id: i64,
+  score_a: i64,
+  score_b: i64,
+) -> Result<club_activities::TournamentMatch, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .report_tournament_match(match_id, &handle, score_a, score_b)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn broadcast_opportunity_to_yard(
+  state: State<AppState>,
+  session_token: String,
+  opportunity_id: i64,
+) -> Result<CreatePostResult, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .broadcast_opportunity_to_yard(opportunity_id, &handle)
+    .map_err(|e| e.to_string())
+}
+
+// ─── Studio (photo/video portfolio + client delivery) ────
+
+#[tauri::command]
+fn studio_list_collections(
+  state: State<AppState>,
+  owner_handle: String,
+  viewer_handle: Option<String>,
+) -> Result<Vec<studio::StudioCollection>, String> {
+  state
+    .db
+    .studio_list_collections(&owner_handle, viewer_handle.as_deref())
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_create_collection(
+  state: State<AppState>,
+  session_token: String,
+  title: String,
+  description: String,
+  cover_ref: String,
+  visibility: String,
+) -> Result<studio::StudioCollection, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .studio_create_collection(&handle, &title, &description, &cover_ref, &visibility)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_add_collection_item(
+  state: State<AppState>,
+  session_token: String,
+  collection_id: i64,
+  media_ref: String,
+  caption: String,
+  kind: String,
+) -> Result<studio::StudioCollectionItem, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .studio_add_collection_item(&handle, collection_id, &media_ref, &caption, &kind)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_list_collection_items(
+  state: State<AppState>,
+  collection_id: i64,
+) -> Result<Vec<studio::StudioCollectionItem>, String> {
+  state
+    .db
+    .studio_list_collection_items(collection_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_list_my_shoots(
+  state: State<AppState>,
+  session_token: String,
+) -> Result<Vec<studio::StudioShoot>, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .studio_list_my_shoots(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_list_client_deliveries(
+  state: State<AppState>,
+  session_token: String,
+) -> Result<Vec<studio::StudioShoot>, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .studio_list_client_deliveries(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_create_shoot(
+  state: State<AppState>,
+  session_token: String,
+  title: String,
+  description: String,
+  client_handle: String,
+  client_label: String,
+  access_mode: String,
+  price_wb: i64,
+  pin_code: String,
+) -> Result<studio::StudioShoot, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .studio_create_shoot(
+      &handle,
+      &title,
+      &description,
+      &client_handle,
+      &client_label,
+      &access_mode,
+      price_wb,
+      &pin_code,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_add_shoot_asset(
+  state: State<AppState>,
+  session_token: String,
+  shoot_id: i64,
+  media_ref: String,
+  filename: String,
+  caption: String,
+  kind: String,
+) -> Result<studio::StudioAsset, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .studio_add_asset(&handle, shoot_id, &media_ref, &filename, &caption, &kind)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_list_shoot_assets(
+  state: State<AppState>,
+  session_token: Option<String>,
+  shoot_id: i64,
+  viewer_handle: Option<String>,
+) -> Result<Vec<studio::StudioAsset>, String> {
+  let viewer = if let Some(tok) = session_token {
+    if !tok.is_empty() {
+      check_session_rate_limit(&state, &tok)?
+    } else {
+      viewer_handle.unwrap_or_else(|| "guest".into())
+    }
+  } else {
+    viewer_handle.unwrap_or_else(|| "guest".into())
+  };
+  state
+    .db
+    .studio_list_assets(shoot_id, &viewer)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_publish_shoot(
+  state: State<AppState>,
+  session_token: String,
+  shoot_id: i64,
+) -> Result<studio::StudioShoot, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .studio_publish_shoot(&handle, shoot_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_grant_access(
+  state: State<AppState>,
+  session_token: String,
+  shoot_id: i64,
+  client_handle: String,
+) -> Result<serde_json::Value, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .studio_grant_access(&handle, shoot_id, &client_handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_purchase_access(
+  state: State<AppState>,
+  session_token: String,
+  shoot_id: i64,
+) -> Result<serde_json::Value, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .studio_purchase_access(&handle, shoot_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_export_manifest(
+  state: State<AppState>,
+  session_token: String,
+  shoot_id: i64,
+) -> Result<serde_json::Value, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .studio_export_manifest(&handle, shoot_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn studio_get_shoot(
+  state: State<AppState>,
+  shoot_id: i64,
+  viewer_handle: Option<String>,
+  session_token: Option<String>,
+) -> Result<Option<studio::StudioShoot>, String> {
+  let viewer = if let Some(tok) = session_token {
+    if !tok.is_empty() {
+      check_session_rate_limit(&state, &tok).unwrap_or_else(|_| {
+        viewer_handle.clone().unwrap_or_else(|| "guest".into())
+      })
+    } else {
+      viewer_handle.unwrap_or_else(|| "guest".into())
+    }
+  } else {
+    viewer_handle.unwrap_or_else(|| "guest".into())
+  };
+  state
+    .db
+    .studio_get_shoot(shoot_id, &viewer)
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3958,6 +4632,12 @@ pub fn run() {
       create_marketplace_listing,
       buy_marketplace_listing,
       buy_marketplace_listing_bkspc,
+      list_my_escrows,
+      get_escrow,
+      escrow_mark_delivered,
+      escrow_confirm_release,
+      escrow_open_dispute,
+      escrow_refund,
       prepare_bkspc_burn_transaction,
       submit_bkspc_burn_transaction,
       get_bkspc_purchase_quote,
@@ -4057,6 +4737,40 @@ pub fn run() {
       create_yard_event,
       rsvp_yard_event,
       cancel_yard_event_rsvp,
+      list_event_guests,
+      check_in_event_guest,
+      list_open_to_opportunities,
+      list_club_templates,
+      apply_club_template,
+      list_applied_club_templates,
+      list_reading_circles,
+      create_reading_circle,
+      join_reading_circle,
+      set_reading_current,
+      add_reading_entry,
+      list_reading_entries,
+      list_tournaments,
+      create_tournament,
+      register_tournament,
+      list_tournament_entrants,
+      generate_tournament_bracket,
+      list_tournament_matches,
+      report_tournament_match,
+      broadcast_opportunity_to_yard,
+      studio_list_collections,
+      studio_create_collection,
+      studio_add_collection_item,
+      studio_list_collection_items,
+      studio_list_my_shoots,
+      studio_list_client_deliveries,
+      studio_create_shoot,
+      studio_add_shoot_asset,
+      studio_list_shoot_assets,
+      studio_publish_shoot,
+      studio_grant_access,
+      studio_purchase_access,
+      studio_export_manifest,
+      studio_get_shoot,
       create_wall_post,
       list_wall_posts,
       approve_wall_post,

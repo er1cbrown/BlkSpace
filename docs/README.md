@@ -26,6 +26,8 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 |-----|-----|
 | [`ROADMAP.md`](ROADMAP.md) | **What's done, what's next** (plain English) |
 | [`phase-0-status.md`](phase-0-status.md) | Living checklist & M0 progress |
+| [`features/use-case-capability-log.md`](features/use-case-capability-log.md) | Campus use cases: Done / Partial / Out of scope |
+| [`features/brand-trademark-and-bkspc-rights.md`](features/brand-trademark-and-bkspc-rights.md) | **BlkSpace** mark vs **BKSPC** coin ticker |
 | [`../FLESHTHEORY.md`](../FLESHTHEORY.md) | Full product theory |
 | [`codebase-overview.md`](codebase-overview.md) | Where code lives |
 

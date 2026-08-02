@@ -38,8 +38,9 @@ export function YardSaleTab({ yardId, communityName }: YardSaleTabProps) {
           {communityName} Yard Sale
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Creators selling from their MyYard — mixes, themes, merch, and Logos
-          Deck sets tagged to this campus.
+          Creators selling from their MyYard — mixes, themes, fashion mockups,
+          art, tech packs, merch digital, and Logos Deck sets tagged to this
+          campus. Fashion listings use escrow (pay → deliver → release).
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

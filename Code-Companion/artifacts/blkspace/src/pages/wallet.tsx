@@ -229,6 +229,11 @@ function WithdrawEligibilityPanel({
       label: `Posts: ${eligibility.postCount}/${eligibility.minPosts}`,
     },
     {
+      ok:
+        (eligibility.yardCred ?? 0) >= (eligibility.minYardCred ?? 15),
+      label: `Yard Cred: ${eligibility.yardCred ?? 0}/${eligibility.minYardCred ?? 15} (ProjectConnect)`,
+    },
+    {
       ok: eligibility.daysUntilNextWithdraw === 0,
       label:
         eligibility.daysUntilNextWithdraw > 0

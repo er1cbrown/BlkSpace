@@ -1,8 +1,12 @@
 # Path to BKSPC “crypto rights” (product + credibility)
 
 **Last updated:** 2026-08-02  
-**Token:** **BKSPC** = **BlkSpace Coin** (on-chain settlement / community token on Solana)  
-**Soft currency:** WeixBucks (WB) — earn-only in-app credits  
+
+| Mark | Role |
+|------|------|
+| **BlkSpace** | Product / app / UI — trademark-intent name ([brand lock](brand-trademark-and-bkspc-rights.md)) |
+| **BKSPC** | **BlkSpace Coin** ticker — on-chain settlement on Solana when gated |
+| **WeixBucks (WB)** | Soft earn-only credits in-app |
 
 This is **not legal advice**. “Rights” here means **product eligibility** to use settlement features when counsel and product gates allow — not securities promises.
 
@@ -12,11 +16,17 @@ This is **not legal advice**. “Rights” here means **product eligibility** to
 
 | Piece | Status |
 |-------|--------|
-| WB earn / spend / marketplace (sim) | ✅ |
-| Withdraw eligibility + appeals (devnet/sim) | ✅ in code |
+| BlkSpace product brand in UI (`brand.ts`) | ✅ BlkSpace · ticker BKSPC |
+| WB earn / spend / marketplace + escrow | ✅ |
+| Fashion / digital listing types + org split | ✅ |
+| Yard events · capacity · club exclusive · guest check-in | ✅ |
+| Club kits · reading circles · tournaments (no stream) | ✅ |
+| Studio portfolio · client free/paid delivery · export | ✅ |
+| Withdraw eligibility + **Yard Cred** gate | ✅ in code |
 | BKSPC burn / settlement paths (devnet) | 🟡 scaffolded |
-| ProjectConnect orgs + research + GPA privacy | ✅ demo |
+| ProjectConnect orgs + research + GPA privacy + talent board | ✅ demo |
 | Yard Cred (composite) | ✅ early |
+| Trademark filing for **BlkSpace** | ⬜ counsel |
 | Mainnet BKSPC / pump.fun | ⬜ gated |
 
 ---
@@ -67,10 +77,12 @@ Before public BKSPC launch messaging:
 |---|------|-----|
 | 1 | Promo demo video: Connect research → apply → inbox → endorse | Portfolio + partners |
 | 2 | Tag `v0.1.0-yard` after Device B smoke | Installers for Win/Mac/Linux |
-| 3 | Wire **Yard Cred** into `evaluate_withdraw_eligibility` (sim) | “Crypto rights” product path |
+| 3 | Wire **Yard Cred** into `evaluate_withdraw_eligibility` (sim) | ✅ landed — keep tightening thresholds |
 | 4 | Complete one **devnet** BKSPC withdrawal end-to-end | Technical proof |
-| 5 | Research org seed (BMDS/medtech) + WeixNet lab | Already started in Connect demo |
+| 5 | Research org seed (BMDS/medtech) + WeixNet lab | ✅ Connect demo |
 | 6 | One-pager for faculty/labs (no token hype) | Credibility-first outreach |
+| 7 | Keep **BlkSpace** casing on GitHub + UI; never replace with BKSPC in chrome | Trademark path |
+| 8 | Use-case capability log kept current | [use-case-capability-log.md](use-case-capability-log.md) |
 
 ---
 

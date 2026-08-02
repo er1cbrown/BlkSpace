@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 96" role="img" aria-label="BlkSpace">
+  <!-- Trademark-intent product mark: orange capital B + lkSpace -->
+  <text
+    x="0"
+    y="72"
+    font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif"
+    font-size="72"
+    font-weight="800"
+    letter-spacing="-0.04em"
+  >
+    <tspan fill="#f97316">B</tspan><tspan fill="#f8fafc">lkSpace</tspan>
+  </text>
+</svg>

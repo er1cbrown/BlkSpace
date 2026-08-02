@@ -31,6 +31,11 @@ type Listing = {
   isNft?: boolean;
   nftMint?: string | null;
   townTag?: string | null;
+  fulfillmentMode?: string | null;
+  orgId?: string | null;
+  orgName?: string | null;
+  orgSplitBps?: number;
+  deliveryHint?: string | null;
 };
 
 interface YardSaleListingsProps {
@@ -38,7 +43,7 @@ interface YardSaleListingsProps {
   yardIdFilter?: string;
   emptyMessage?: string;
   bkspcWired?: boolean;
-};
+}
 
 function appliedPurchaseMessage(applied: Record<string, unknown> | undefined): string | null {
   if (!applied || Object.keys(applied).length === 0) return null;
@@ -78,11 +83,21 @@ export function YardSaleListings({
   const afterPurchase = (result: {
     applied?: Record<string, unknown>;
     nftTransferred?: Record<string, unknown>;
+    fulfillmentMode?: string;
+    escrowId?: number;
+    status?: string;
   }) => {
     qc.invalidateQueries({ queryKey: ["tauri", "user"] });
     qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
     qc.invalidateQueries({ queryKey: ["tauri", "communities"] });
     qc.invalidateQueries({ queryKey: ["tauri", "ownedNfts"] });
+    qc.invalidateQueries({ queryKey: ["tauri", "escrows"] });
+    if (result.escrowId || result.fulfillmentMode === "escrow") {
+      toast.success(
+        `Escrow funded (#${result.escrowId ?? "—"}) — seller delivers, then you release WB`,
+      );
+      return;
+    }
     const msg = appliedPurchaseMessage(result.applied);
     if (msg) toast.success(`Applied to your MyYard: ${msg}`);
   };
@@ -98,6 +113,10 @@ export function YardSaleListings({
   const handleBuyWithBkspc = async (item: Listing) => {
     if (!connected || !publicKey || !signTransaction) {
       toast.error("Connect Phantom to pay with BKSPC");
+      return;
+    }
+    if (item.fulfillmentMode === "escrow") {
+      toast.error("Escrow listings settle in WB for now — BKSPC burn path is instant-only");
       return;
     }
     const token = getSessionToken();
@@ -147,6 +166,8 @@ export function YardSaleListings({
       {filtered.map((item) => {
         const themeName = themeLabelFromRef(item.itemRef);
         const yard = item.townTag ? getYardTheme(item.townTag) : null;
+        const isEscrow = (item.fulfillmentMode || "instant") === "escrow";
+        const me = (user as { handle?: string })?.handle || handle;
 
         return (
           <div
@@ -160,6 +181,19 @@ export function YardSaleListings({
                   {itemTypeLabel(item.itemType)}
                   {item.isNft ? " · NFT" : ""}
                 </Badge>
+                {isEscrow && (
+                  <Badge variant="outline" className="text-[10px] font-normal border-amber-500/50 text-amber-700 dark:text-amber-400">
+                    Escrow
+                  </Badge>
+                )}
+                {item.orgName && (
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    {item.orgName}
+                    {item.orgSplitBps
+                      ? ` · ${(item.orgSplitBps / 100).toFixed(0)}%`
+                      : ""}
+                  </Badge>
+                )}
                 {yard && (
                   <Badge variant="outline" className="text-[10px] font-normal">
                     {yard.mascot.split(" ")[1] ?? yard.name}
@@ -169,10 +203,16 @@ export function YardSaleListings({
               <div className="text-xs text-muted-foreground mt-0.5">
                 by @{item.sellerHandle} · {item.price} WB
                 {themeName ? ` · ${themeName}` : ""}
+                {isEscrow ? " · pay → deliver → release" : " · instant"}
               </div>
               {item.description && (
                 <div className="text-xs mt-1 text-muted-foreground">
                   {item.description}
+                </div>
+              )}
+              {item.deliveryHint && isEscrow && (
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  Delivery: {item.deliveryHint}
                 </div>
               )}
               {item.itemRef && item.itemType !== "theme" && (
@@ -185,27 +225,38 @@ export function YardSaleListings({
               <Button
                 size="sm"
                 disabled={
-                  !isTauri() ||
-                  item.sellerHandle === (user as { handle?: string })?.handle
+                  item.sellerHandle === me || buyListing.isPending
                 }
                 onClick={async () => {
-                    try {
-                      const result = await buyListing.mutateAsync(item.id);
-                      afterPurchase(result as { applied?: Record<string, unknown> });
+                  try {
+                    const result = await buyListing.mutateAsync(item.id);
+                    afterPurchase(
+                      result as {
+                        applied?: Record<string, unknown>;
+                        fulfillmentMode?: string;
+                        escrowId?: number;
+                      },
+                    );
+                    if (
+                      !(result as { escrowId?: number }).escrowId &&
+                      (result as { fulfillmentMode?: string }).fulfillmentMode !==
+                        "escrow"
+                    ) {
                       toast.success(`Bought for ${item.price} WB!`);
-                    } catch (e) {
+                    }
+                  } catch (e) {
                     toast.error(String(e));
                   }
                 }}
               >
-                Buy (WB)
+                {isEscrow ? "Pay escrow (WB)" : "Buy (WB)"}
               </Button>
-              {bkspcWired && isTauri() && (
+              {bkspcWired && isTauri() && !isEscrow && (
                 <Button
                   size="sm"
                   variant="outline"
                   disabled={
-                    item.sellerHandle === (user as { handle?: string })?.handle ||
+                    item.sellerHandle === me ||
                     buyListingBkspc.isPending
                   }
                   onClick={() => handleBuyWithBkspc(item)}

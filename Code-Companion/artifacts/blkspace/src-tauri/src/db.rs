@@ -28,6 +28,7 @@ impl From<SqlError> for AppError {
       SqlError::SqliteFailure(crate::sqlite::ErrorCode::ConstraintViolation, _) => {
         AppError::Validation("That handle is already taken".into())
       }
+      SqlError::InvalidParameterName(msg) => AppError::Validation(msg),
       _ => AppError::Database(()),
     }
   }
@@ -237,7 +238,19 @@ pub struct YardEvent {
   pub created_by: String,
   pub created_by_display_name: String,
   pub rsvp_count: i64,
+  pub going_count: i64,
+  pub waitlist_count: i64,
   pub user_rsvp: Option<String>,
+  pub capacity: Option<i64>,
+  pub org_id: Option<String>,
+  pub org_name: Option<String>,
+  pub requires_org_member: bool,
+  pub ticket_price_wb: i64,
+  pub event_kind: String,
+  pub user_ticket_code: Option<String>,
+  pub user_waitlisted: bool,
+  pub user_checked_in: bool,
+  pub spots_remaining: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -253,6 +266,10 @@ pub struct RsvpYardEventResult {
   pub rsvped: bool,
   pub status: String,
   pub earn: EarnResult,
+  pub ticket_code: Option<String>,
+  pub waitlisted: bool,
+  pub paid_wb: i64,
+  pub pass: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -484,6 +501,8 @@ pub const MIN_WITHDRAW_WB: i64 = 100;
 pub const MIN_ACCOUNT_AGE_DAYS: i64 = 7;
 pub const MIN_WITHDRAW_KARMA: i64 = 10;
 pub const MIN_WITHDRAW_POSTS: i64 = 3;
+/// Yard Cred floor before withdraw-to-settlement (credibility-before-finance).
+pub const MIN_WITHDRAW_YARD_CRED: i64 = 15;
 pub const WEEKLY_WITHDRAW_CAP_WB: i64 = 1000;
 pub const WITHDRAW_COOLDOWN_DAYS: i64 = 7;
 pub const BKSPC_SYMBOL: &str = "BKSPC";
@@ -586,6 +605,8 @@ pub struct WithdrawEligibility {
   pub post_count: i64,
   pub min_posts: i64,
   pub balance_wb: i64,
+  pub yard_cred: i64,
+  pub min_yard_cred: i64,
   pub wb_to_bkspc_ratio: i64,
   pub bkspc_symbol: String,
   pub bkspc_name: String,
@@ -620,7 +641,7 @@ pub struct Database {
 }
 
 /// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
-const SCHEMA_VERSION: i32 = 3;
+const SCHEMA_VERSION: i32 = 7;
 
 /// Tier 0 page cache in KiB (negative PRAGMA cache_size = KiB).
 /// Default 8 MiB — was 64 MiB which is too heavy for 4 GB laptops.
@@ -667,6 +688,10 @@ impl Database {
     self.backfill_demo_pubkeys()?;
     let conn = self.conn.lock().unwrap();
     crate::connect::seed_demo(&conn)?;
+    crate::escrow::seed_fashion_demo(&conn)?;
+    crate::events_ticketing::seed_service_events(&conn)?;
+    crate::club_activities::seed_demo(&conn)?;
+    crate::studio::seed_demo(&conn)?;
     Ok(())
   }
 
@@ -1245,10 +1270,20 @@ impl Database {
 
     // ProjectConnectBKSPC tables (idempotent)
     crate::connect::ensure_schema(&conn)?;
+    // Fashion/digital escrow + listing org columns
+    crate::escrow::ensure_schema(&conn)?;
+    // Yard event capacity / tickets / check-in
+    crate::events_ticketing::ensure_schema(&conn)?;
+    crate::club_activities::ensure_schema(&conn)?;
+    crate::studio::ensure_schema(&conn)?;
 
     let version = Self::schema_version(&conn)?;
     if version < SCHEMA_VERSION {
       Self::run_migrations(&conn)?;
+      crate::escrow::ensure_schema(&conn)?;
+      crate::events_ticketing::ensure_schema(&conn)?;
+      crate::club_activities::ensure_schema(&conn)?;
+      crate::studio::ensure_schema(&conn)?;
       Self::set_schema_version(&conn, SCHEMA_VERSION)?;
     }
 
@@ -2398,6 +2433,10 @@ impl Database {
 
     let total_karma = user.post_karma + user.comment_karma;
 
+    let yard_cred = crate::connect::get_yard_cred(&conn, handle)
+      .map(|c| c.score)
+      .unwrap_or(0);
+
     let post_count: i64 = conn.query_row(
       "SELECT COUNT(*) FROM posts WHERE author_handle = ?1",
       params![handle],
@@ -2447,6 +2486,11 @@ impl Database {
     if post_count < MIN_WITHDRAW_POSTS {
       reasons.push(format!(
         "Need at least {MIN_WITHDRAW_POSTS} posts ({post_count} now)"
+      ));
+    }
+    if yard_cred < MIN_WITHDRAW_YARD_CRED {
+      reasons.push(format!(
+        "Need at least {MIN_WITHDRAW_YARD_CRED} Yard Cred from ProjectConnect ({yard_cred} now)"
       ));
     }
     if days_until_next_withdraw > 0 {
@@ -2500,6 +2544,8 @@ impl Database {
       post_count,
       min_posts: MIN_WITHDRAW_POSTS,
       balance_wb: user.weix_bucks,
+      yard_cred,
+      min_yard_cred: MIN_WITHDRAW_YARD_CRED,
       wb_to_bkspc_ratio: WB_TO_BKSPC_RATIO,
       bkspc_symbol: BKSPC_SYMBOL.into(),
       bkspc_name: BKSPC_NAME.into(),
@@ -3563,25 +3609,60 @@ impl Database {
     description: Option<&str>,
     is_nft: bool,
     town_tag: Option<&str>,
-  ) -> Result<i64> {
+    fulfillment_mode: Option<&str>,
+    org_id: Option<&str>,
+    org_split_bps: Option<i64>,
+    delivery_hint: Option<&str>,
+  ) -> Result<i64, AppError> {
+    if !crate::escrow::is_valid_item_type(item_type) {
+      return Err(AppError::Validation(format!(
+        "Unknown item type: {item_type}"
+      )));
+    }
     let yard = town_tag
       .map(|s| s.trim().to_lowercase())
       .filter(|s| !s.is_empty())
       .unwrap_or_else(|| self.seller_town_tag(seller));
+    let mode = fulfillment_mode
+      .map(|s| s.trim().to_lowercase())
+      .filter(|s| s == "escrow" || s == "instant")
+      .unwrap_or_else(|| crate::escrow::default_fulfillment_mode(item_type).to_string());
+    let split = org_split_bps.unwrap_or(0).clamp(0, 5000);
     let conn = self.conn.lock().unwrap();
-    conn.execute(
-      "INSERT INTO marketplace_listings (seller_handle, item_type, item_ref, price, title, description, is_nft, town_tag) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-      params![
-        seller,
-        item_type,
-        item_ref,
-        price,
-        title,
-        description,
-        is_nft as i64,
-        yard
-      ],
-    )?;
+    if let Some(oid) = org_id {
+      let exists: i64 = conn
+        .query_row(
+          "SELECT COUNT(*) FROM connect_orgs WHERE id = ?1",
+          params![oid],
+          |r| r.get(0),
+        )
+        .map_err(AppError::from)?;
+      if exists == 0 {
+        return Err(AppError::Validation("Org not found".into()));
+      }
+    }
+    conn
+      .execute(
+        "INSERT INTO marketplace_listings
+          (seller_handle, item_type, item_ref, price, title, description, is_nft, town_tag,
+           fulfillment_mode, org_id, org_split_bps, delivery_hint)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        params![
+          seller,
+          item_type,
+          item_ref,
+          price,
+          title,
+          description,
+          is_nft as i64,
+          yard,
+          mode,
+          org_id,
+          split,
+          delivery_hint.unwrap_or("")
+        ],
+      )
+      .map_err(AppError::from)?;
     Ok(conn.last_insert_rowid())
   }
 
@@ -3692,7 +3773,15 @@ impl Database {
   pub fn list_marketplace(&self) -> Result<Vec<serde_json::Value>> {
     let conn = self.conn.lock().unwrap();
     let mut stmt = conn.prepare(
-      "SELECT id, seller_handle, item_type, item_ref, price, title, description, is_nft, sold_to, created_at, nft_mint, payment_tx, COALESCE(town_tag, 'tsu') FROM marketplace_listings WHERE sold_to IS NULL ORDER BY created_at DESC"
+      "SELECT l.id, l.seller_handle, l.item_type, l.item_ref, l.price, l.title, l.description,
+              l.is_nft, l.sold_to, l.created_at, l.nft_mint, l.payment_tx,
+              COALESCE(l.town_tag, 'tsu'),
+              COALESCE(l.fulfillment_mode, 'instant'), l.org_id, COALESCE(l.org_split_bps, 0),
+              COALESCE(l.delivery_hint, ''), o.name
+       FROM marketplace_listings l
+       LEFT JOIN connect_orgs o ON o.id = l.org_id
+       WHERE l.sold_to IS NULL
+       ORDER BY l.created_at DESC",
     )?;
     let rows = stmt.query_map((), |row| {
       Ok(serde_json::json!({
@@ -3709,10 +3798,17 @@ impl Database {
         "nftMint": row.get::<_, Option<String>>(10)?,
         "paymentTx": row.get::<_, Option<String>>(11)?,
         "townTag": row.get::<_, String>(12)?,
+        "fulfillmentMode": row.get::<_, String>(13)?,
+        "orgId": row.get::<_, Option<String>>(14)?,
+        "orgSplitBps": row.get::<_, i64>(15)?,
+        "deliveryHint": row.get::<_, String>(16)?,
+        "orgName": row.get::<_, Option<String>>(17)?,
       }))
     })?;
     let mut res = vec![];
-    for r in rows { res.push(r?); }
+    for r in rows {
+      res.push(r?);
+    }
     Ok(res)
   }
 
@@ -3958,6 +4054,28 @@ impl Database {
   }
 
   pub fn buy_marketplace_listing(&self, id: i64, buyer: &str) -> Result<serde_json::Value, AppError> {
+    let mode = {
+      let conn = self.conn.lock().unwrap();
+      conn
+        .query_row(
+          "SELECT COALESCE(fulfillment_mode, 'instant'), sold_to FROM marketplace_listings WHERE id = ?1",
+          params![id],
+          |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)),
+        )
+        .optional()
+        .map_err(AppError::from)?
+    };
+    let Some((mode, sold_to)) = mode else {
+      return Err(AppError::Validation("Listing not found".into()));
+    };
+    if sold_to.is_some() {
+      return Err(AppError::Validation("Listing already sold".into()));
+    }
+    if mode == "escrow" {
+      let conn = self.conn.lock().unwrap();
+      return crate::escrow::fund_escrow(&conn, id, buyer);
+    }
+
     let meta = {
       let conn = self.conn.lock().unwrap();
       conn
@@ -4028,9 +4146,77 @@ impl Database {
       "isNft": is_nft,
       "seller": seller,
       "price": price,
+      "fulfillmentMode": "instant",
       "nftTransferred": nft_transferred,
       "applied": applied,
     }))
+  }
+
+  pub fn escrow_mark_delivered(
+    &self,
+    escrow_id: i64,
+    seller: &str,
+    delivery_ref: &str,
+    delivery_note: Option<&str>,
+  ) -> Result<serde_json::Value, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::escrow::mark_delivered(&conn, escrow_id, seller, delivery_ref, delivery_note)
+  }
+
+  pub fn escrow_confirm_release(
+    &self,
+    escrow_id: i64,
+    buyer: &str,
+  ) -> Result<serde_json::Value, AppError> {
+    let conn = self.conn.lock().unwrap();
+    let result = crate::escrow::confirm_release(&conn, escrow_id, buyer)?;
+    drop(conn);
+
+    // Apply digital goods (theme etc.) if listing type needs it — for fashion types no-op.
+    if let Some(listing_id) = result.get("escrowId").and_then(|v| v.as_i64()) {
+      let _ = listing_id;
+    }
+    // Re-fetch listing to apply purchase side-effects for theme/logos after release
+    if let Ok(Some(esc)) = self.escrow_get(result["escrowId"].as_i64().unwrap_or(0)) {
+      let applied = self
+        .apply_marketplace_purchase(buyer, &esc.item_type, None)
+        .unwrap_or_else(|_| serde_json::json!({}));
+      let mut out = result;
+      if let Some(obj) = out.as_object_mut() {
+        obj.insert("applied".into(), applied);
+      }
+      return Ok(out);
+    }
+    Ok(result)
+  }
+
+  pub fn escrow_open_dispute(
+    &self,
+    escrow_id: i64,
+    actor: &str,
+    reason: Option<&str>,
+  ) -> Result<serde_json::Value, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::escrow::open_dispute(&conn, escrow_id, actor, reason)
+  }
+
+  pub fn escrow_refund(
+    &self,
+    escrow_id: i64,
+    actor: &str,
+  ) -> Result<serde_json::Value, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::escrow::refund_escrow(&conn, escrow_id, actor)
+  }
+
+  pub fn escrow_list_mine(&self, handle: &str) -> Result<Vec<crate::escrow::EscrowTrade>> {
+    let conn = self.conn.lock().unwrap();
+    crate::escrow::list_for_user(&conn, handle)
+  }
+
+  pub fn escrow_get(&self, escrow_id: i64) -> Result<Option<crate::escrow::EscrowTrade>> {
+    let conn = self.conn.lock().unwrap();
+    crate::escrow::get_escrow(&conn, escrow_id)
   }
 
   pub fn increment_relay_uptime(&self, handle: &str, hours: i64) -> Result<()> {
@@ -4592,7 +4778,45 @@ impl Database {
     Ok(count)
   }
 
-  // ─── Yard events (RSVP + calendar) ───────────────────────
+  // ─── Yard events (RSVP + tickets + guest list) ───────────
+
+  fn map_yard_event_row(
+    row: &crate::sqlite::Row,
+  ) -> std::result::Result<YardEvent, crate::sqlite::Error> {
+    let capacity: Option<i64> = row.get(11)?;
+    let going: i64 = row.get(12)?;
+    let waitlist: i64 = row.get(13)?;
+    let rsvp_count: i64 = row.get(9)?;
+    let spots = capacity.map(|c| (c - going).max(0));
+    let user_rsvp: Option<String> = row.get(10)?;
+    Ok(YardEvent {
+      id: row.get(0)?,
+      community_id: row.get(1)?,
+      title: row.get(2)?,
+      description: row.get(3)?,
+      location: row.get(4)?,
+      starts_at: row.get(5)?,
+      ends_at: row.get(6)?,
+      created_by: row.get(7)?,
+      created_by_display_name: row.get(8)?,
+      rsvp_count,
+      going_count: going,
+      waitlist_count: waitlist,
+      user_rsvp: user_rsvp.filter(|s| !s.is_empty()),
+      capacity,
+      org_id: row.get(14)?,
+      org_name: row.get(15)?,
+      requires_org_member: row.get::<_, i64>(16).unwrap_or(0) == 1,
+      ticket_price_wb: row.get::<_, i64>(17).unwrap_or(0),
+      event_kind: row
+        .get::<_, Option<String>>(18)?
+        .unwrap_or_else(|| "general".into()),
+      user_ticket_code: row.get(19)?,
+      user_waitlisted: row.get::<_, i64>(20).unwrap_or(0) == 1,
+      user_checked_in: row.get::<_, i64>(21).unwrap_or(0) == 1,
+      spots_remaining: spots,
+    })
+  }
 
   pub fn list_yard_events(
     &self,
@@ -4611,35 +4835,34 @@ impl Database {
       self.seed_yard_events_for_community(community_id)?;
     }
     let conn = self.conn.lock().unwrap();
+    let _ = crate::events_ticketing::seed_service_events(&conn);
     let sql = "
       SELECT e.id, e.community_id, e.title, e.description, e.location, e.starts_at, e.ends_at,
              e.created_by, COALESCE(u.display_name, e.created_by) AS display_name,
              (SELECT COUNT(*) FROM yard_event_rsvps r WHERE r.event_id = e.id) AS rsvp_count,
-             ur.status AS user_rsvp
+             ur.status AS user_rsvp,
+             e.capacity,
+             (SELECT COUNT(*) FROM yard_event_rsvps r
+              WHERE r.event_id = e.id AND r.status = 'going' AND COALESCE(r.waitlisted, 0) = 0) AS going_count,
+             (SELECT COUNT(*) FROM yard_event_rsvps r
+              WHERE r.event_id = e.id AND (r.status = 'waitlist' OR COALESCE(r.waitlisted, 0) = 1)) AS waitlist_count,
+             e.org_id, o.name,
+             COALESCE(e.requires_org_member, 0),
+             COALESCE(e.ticket_price_wb, 0),
+             COALESCE(e.event_kind, 'general'),
+             ur.ticket_code,
+             COALESCE(ur.waitlisted, 0),
+             COALESCE(ur.checked_in, 0)
       FROM yard_events e
       LEFT JOIN users u ON u.handle = e.created_by
+      LEFT JOIN connect_orgs o ON o.id = e.org_id
       LEFT JOIN yard_event_rsvps ur ON ur.event_id = e.id AND ur.handle = ?2
       WHERE e.community_id = ?1
       ORDER BY e.starts_at ASC
     ";
     let user_key = current_user.unwrap_or("");
     let mut stmt = conn.prepare(sql)?;
-    let rows = stmt.query_map(params![community_id, user_key], |row| {
-      let user_rsvp: Option<String> = row.get(10)?;
-      Ok(YardEvent {
-        id: row.get(0)?,
-        community_id: row.get(1)?,
-        title: row.get(2)?,
-        description: row.get(3)?,
-        location: row.get(4)?,
-        starts_at: row.get(5)?,
-        ends_at: row.get(6)?,
-        created_by: row.get(7)?,
-        created_by_display_name: row.get(8)?,
-        rsvp_count: row.get(9)?,
-        user_rsvp: user_rsvp.filter(|s| !s.is_empty()),
-      })
-    })?;
+    let rows = stmt.query_map(params![community_id, user_key], Self::map_yard_event_row)?;
     let mut events = Vec::new();
     for row in rows {
       events.push(row?);
@@ -4656,43 +4879,80 @@ impl Database {
     location: &str,
     starts_at: &str,
     ends_at: Option<&str>,
-  ) -> Result<YardEvent> {
+    capacity: Option<i64>,
+    org_id: Option<&str>,
+    requires_org_member: bool,
+    ticket_price_wb: i64,
+    event_kind: Option<&str>,
+  ) -> Result<YardEvent, AppError> {
     let title = title.trim();
     if title.is_empty() || title.len() > 200 {
-      return Err(crate::sqlite::Error::InvalidParameterName(
+      return Err(AppError::Validation(
         "Title must be 1-200 characters".into(),
       ));
     }
     if starts_at.trim().is_empty() {
-      return Err(crate::sqlite::Error::InvalidParameterName(
-        "Start time required".into(),
-      ));
+      return Err(AppError::Validation("Start time required".into()));
     }
-    if !self.is_yard_member(created_by, community_id)? {
-      return Err(crate::sqlite::Error::InvalidParameterName(
+    if !self
+      .is_yard_member(created_by, community_id)
+      .map_err(AppError::from)?
+    {
+      return Err(AppError::Validation(
         "Join the yard before creating events".into(),
       ));
     }
+    let price = ticket_price_wb.max(0);
+    let kind = event_kind
+      .map(|s| s.trim().to_lowercase())
+      .filter(|s| !s.is_empty())
+      .unwrap_or_else(|| "general".into());
+    let cap = capacity.filter(|&c| c > 0);
     let conn = self.conn.lock().unwrap();
-    conn.execute(
-      "INSERT INTO yard_events (community_id, title, description, location, starts_at, ends_at, created_by)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-      params![
-        community_id,
-        title,
-        description.trim(),
-        location.trim(),
-        starts_at.trim(),
-        ends_at.map(str::trim),
-        created_by
-      ],
-    )?;
+    if let Some(oid) = org_id {
+      let exists: i64 = conn
+        .query_row(
+          "SELECT COUNT(*) FROM connect_orgs WHERE id = ?1",
+          params![oid],
+          |r| r.get(0),
+        )
+        .map_err(AppError::from)?;
+      if exists == 0 {
+        return Err(AppError::Validation("Club/org not found".into()));
+      }
+    }
+    conn
+      .execute(
+        "INSERT INTO yard_events
+          (community_id, title, description, location, starts_at, ends_at, created_by,
+           capacity, org_id, requires_org_member, ticket_price_wb, event_kind)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        params![
+          community_id,
+          title,
+          description.trim(),
+          location.trim(),
+          starts_at.trim(),
+          ends_at.map(str::trim),
+          created_by,
+          cap,
+          org_id,
+          requires_org_member as i64,
+          price,
+          kind
+        ],
+      )
+      .map_err(AppError::from)?;
     let id = conn.last_insert_rowid();
-    let display_name: String = conn.query_row(
-      "SELECT display_name FROM users WHERE handle = ?1",
-      params![created_by],
-      |r| r.get(0),
-    )?;
+    let display_name: String = conn
+      .query_row(
+        "SELECT display_name FROM users WHERE handle = ?1",
+        params![created_by],
+        |r| r.get(0),
+      )
+      .map_err(AppError::from)?;
+    let o_name = org_id
+      .and_then(|id| crate::events_ticketing::org_name(&conn, id).ok().flatten());
     Ok(YardEvent {
       id,
       community_id: community_id.to_string(),
@@ -4704,7 +4964,19 @@ impl Database {
       created_by: created_by.to_string(),
       created_by_display_name: display_name,
       rsvp_count: 0,
+      going_count: 0,
+      waitlist_count: 0,
       user_rsvp: None,
+      capacity: cap,
+      org_id: org_id.map(|s| s.to_string()),
+      org_name: o_name,
+      requires_org_member,
+      ticket_price_wb: price,
+      event_kind: kind,
+      user_ticket_code: None,
+      user_waitlisted: false,
+      user_checked_in: false,
+      spots_remaining: cap,
     })
   }
 
@@ -4713,66 +4985,753 @@ impl Database {
     handle: &str,
     event_id: i64,
     status: &str,
-  ) -> Result<RsvpYardEventResult> {
-    let status = if status == "interested" {
-      "interested"
-    } else {
-      "going"
-    };
-    let community_id: String = {
+  ) -> Result<RsvpYardEventResult, AppError> {
+    let want_going = status != "interested";
+    let mut final_status = if want_going { "going" } else { "interested" };
+
+    let meta = {
       let conn = self.conn.lock().unwrap();
-      conn.query_row(
-        "SELECT community_id FROM yard_events WHERE id = ?1",
-        params![event_id],
-        |r| r.get(0),
-      )
-      .map_err(|_| {
-        crate::sqlite::Error::InvalidParameterName("Event not found".into())
-      })?
+      conn
+        .query_row(
+          "SELECT community_id, title, created_by, capacity, org_id,
+                  COALESCE(requires_org_member, 0), COALESCE(ticket_price_wb, 0)
+           FROM yard_events WHERE id = ?1",
+          params![event_id],
+          |r| {
+            Ok((
+              r.get::<_, String>(0)?,
+              r.get::<_, String>(1)?,
+              r.get::<_, String>(2)?,
+              r.get::<_, Option<i64>>(3)?,
+              r.get::<_, Option<String>>(4)?,
+              r.get::<_, i64>(5)?,
+              r.get::<_, i64>(6)?,
+            ))
+          },
+        )
+        .optional()
+        .map_err(AppError::from)?
     };
-    if !self.is_yard_member(handle, &community_id)? {
-      return Err(crate::sqlite::Error::InvalidParameterName(
+    let Some((community_id, title, host, capacity, org_id, requires_org, ticket_price)) = meta
+    else {
+      return Err(AppError::Validation("Event not found".into()));
+    };
+
+    if !self
+      .is_yard_member(handle, &community_id)
+      .map_err(AppError::from)?
+    {
+      return Err(AppError::Validation(
         "Join the yard before RSVPing".into(),
       ));
     }
+
     let conn = self.conn.lock().unwrap();
-    let inserted = conn.execute(
-      "INSERT OR IGNORE INTO yard_event_rsvps (event_id, handle, status) VALUES (?1, ?2, ?3)",
-      params![event_id, handle, status],
-    )?;
-    if inserted == 0 {
-      conn.execute(
-        "UPDATE yard_event_rsvps SET status = ?1 WHERE event_id = ?2 AND handle = ?3",
-        params![status, event_id, handle],
+
+    if requires_org == 1 {
+      let oid = org_id.as_deref().unwrap_or("");
+      if oid.is_empty()
+        || !crate::events_ticketing::is_org_member(&conn, oid, handle).map_err(AppError::from)?
+      {
+        return Err(AppError::Validation(
+          "This event is club-exclusive — join the club on ProjectConnect first".into(),
+        ));
+      }
+    }
+
+    // Existing RSVP?
+    let existing: Option<(String, i64, i64)> = conn
+      .query_row(
+        "SELECT status, COALESCE(paid_wb, 0), COALESCE(waitlisted, 0)
+         FROM yard_event_rsvps WHERE event_id = ?1 AND handle = ?2",
+        params![event_id, handle],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+      )
+      .optional()
+      .map_err(AppError::from)?;
+
+    let mut waitlisted = false;
+    if want_going {
+      if let Some(cap) = capacity {
+        let going = crate::events_ticketing::going_count(&conn, event_id).map_err(AppError::from)?;
+        let already_going = existing
+          .as_ref()
+          .map(|(s, _, w)| s == "going" && *w == 0)
+          .unwrap_or(false);
+        if !already_going && going >= cap {
+          final_status = "waitlist";
+          waitlisted = true;
+        }
+      }
+    }
+
+    let ticket_code = crate::events_ticketing::make_ticket_code(event_id, handle);
+    let mut paid_wb = existing.as_ref().map(|(_, p, _)| *p).unwrap_or(0);
+
+    // Charge ticket only when moving into confirmed going and price > 0 and not yet paid
+    if final_status == "going" && !waitlisted && ticket_price > 0 && paid_wb == 0 {
+      paid_wb = crate::events_ticketing::charge_ticket(
+        &conn,
+        handle,
+        &host,
+        ticket_price,
+        event_id,
+        &title,
       )?;
-      return Ok(RsvpYardEventResult {
-        rsvped: true,
-        status: status.to_string(),
-        earn: EarnResult::default(),
-      });
+    }
+
+    let pass_json = crate::events_ticketing::build_pass_json(
+      event_id,
+      &title,
+      &community_id,
+      handle,
+      final_status,
+      &ticket_code,
+      paid_wb,
+      waitlisted,
+    );
+
+    let is_new = existing.is_none();
+    if is_new {
+      conn
+        .execute(
+          "INSERT INTO yard_event_rsvps
+            (event_id, handle, status, ticket_code, paid_wb, waitlisted, pass_json)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+          params![
+            event_id,
+            handle,
+            final_status,
+            ticket_code,
+            paid_wb,
+            waitlisted as i64,
+            pass_json
+          ],
+        )
+        .map_err(AppError::from)?;
+    } else {
+      conn
+        .execute(
+          "UPDATE yard_event_rsvps
+           SET status = ?1, ticket_code = COALESCE(ticket_code, ?2),
+               paid_wb = ?3, waitlisted = ?4, pass_json = ?5
+           WHERE event_id = ?6 AND handle = ?7",
+          params![
+            final_status,
+            ticket_code,
+            paid_wb,
+            waitlisted as i64,
+            pass_json,
+            event_id,
+            handle
+          ],
+        )
+        .map_err(AppError::from)?;
     }
     drop(conn);
-    let quality = self.update_engagement_quality(handle).unwrap_or(1.0);
-    let wb_nominal = self.throttle_rewards(handle, 2.0, quality);
-    let throttled = self.rewards_throttled(handle);
-    let wb_actual = self.grant_weix_bucks(handle, wb_nominal, "Event RSVP")?;
-    if !throttled {
-      self.grant_karma(handle, &community_id, 0, 2, "Event RSVP")?;
-    }
+
+    let earn = if is_new {
+      let quality = self.update_engagement_quality(handle).unwrap_or(1.0);
+      let wb_nominal = self.throttle_rewards(handle, 2.0, quality);
+      let throttled = self.rewards_throttled(handle);
+      let wb_actual = self
+        .grant_weix_bucks(handle, wb_nominal, "Event RSVP")
+        .map_err(AppError::from)?;
+      if !throttled {
+        let _ = self.grant_karma(handle, &community_id, 0, 2, "Event RSVP");
+      }
+      EarnResult::build(wb_nominal, wb_actual, 0, 2, throttled)
+    } else {
+      EarnResult::default()
+    };
+
+    let pass: Option<serde_json::Value> = serde_json::from_str(&pass_json).ok();
     Ok(RsvpYardEventResult {
       rsvped: true,
-      status: status.to_string(),
-      earn: EarnResult::build(wb_nominal, wb_actual, 0, 2, throttled),
+      status: final_status.to_string(),
+      earn,
+      ticket_code: Some(ticket_code),
+      waitlisted,
+      paid_wb,
+      pass,
     })
   }
 
-  pub fn cancel_yard_event_rsvp(&self, handle: &str, event_id: i64) -> Result<bool> {
+  pub fn cancel_yard_event_rsvp(&self, handle: &str, event_id: i64) -> Result<bool, AppError> {
     let conn = self.conn.lock().unwrap();
-    let removed = conn.execute(
-      "DELETE FROM yard_event_rsvps WHERE event_id = ?1 AND handle = ?2",
-      params![event_id, handle],
-    )?;
+    let row: Option<(i64, String, String)> = conn
+      .query_row(
+        "SELECT COALESCE(r.paid_wb, 0), e.created_by, e.title
+         FROM yard_event_rsvps r
+         JOIN yard_events e ON e.id = r.event_id
+         WHERE r.event_id = ?1 AND r.handle = ?2",
+        params![event_id, handle],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+      )
+      .optional()
+      .map_err(AppError::from)?;
+    let Some((paid, host, _title)) = row else {
+      return Ok(false);
+    };
+    if paid > 0 {
+      crate::events_ticketing::refund_ticket(&conn, handle, &host, paid, event_id)?;
+    }
+    let removed = conn
+      .execute(
+        "DELETE FROM yard_event_rsvps WHERE event_id = ?1 AND handle = ?2",
+        params![event_id, handle],
+      )
+      .map_err(AppError::from)?;
     Ok(removed > 0)
+  }
+
+  pub fn list_event_guests(
+    &self,
+    caller: &str,
+    event_id: i64,
+  ) -> Result<Vec<crate::events_ticketing::EventGuest>, AppError> {
+    let conn = self.conn.lock().unwrap();
+    let (community_id, created_by): (String, String) = conn
+      .query_row(
+        "SELECT community_id, created_by FROM yard_events WHERE id = ?1",
+        params![event_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+      )
+      .optional()
+      .map_err(AppError::from)?
+      .ok_or_else(|| AppError::Validation("Event not found".into()))?;
+    drop(conn);
+
+    let role = self
+      .get_community_role(&community_id, caller)
+      .map_err(AppError::from)?;
+    let is_mod = role == "Admin" || role == "Yard Mod" || created_by == caller;
+    if !is_mod {
+      return Err(AppError::Validation(
+        "Only event host or yard mods can view the guest list".into(),
+      ));
+    }
+    let conn = self.conn.lock().unwrap();
+    crate::events_ticketing::list_guests(&conn, event_id).map_err(AppError::from)
+  }
+
+  pub fn check_in_event_guest(
+    &self,
+    caller: &str,
+    event_id: i64,
+    ticket_or_handle: &str,
+  ) -> Result<serde_json::Value, AppError> {
+    let conn = self.conn.lock().unwrap();
+    let (community_id, created_by): (String, String) = conn
+      .query_row(
+        "SELECT community_id, created_by FROM yard_events WHERE id = ?1",
+        params![event_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+      )
+      .optional()
+      .map_err(AppError::from)?
+      .ok_or_else(|| AppError::Validation("Event not found".into()))?;
+    drop(conn);
+    let role = self
+      .get_community_role(&community_id, caller)
+      .map_err(AppError::from)?;
+    if role != "Admin" && role != "Yard Mod" && created_by != caller {
+      return Err(AppError::Validation(
+        "Only host or yard mods can check in guests".into(),
+      ));
+    }
+    let conn = self.conn.lock().unwrap();
+    crate::events_ticketing::check_in(&conn, event_id, ticket_or_handle)
+  }
+
+  /// Students with Pro Profile openToWork or openToResearch (Billy outreach board).
+  pub fn list_open_to_opportunities(
+    &self,
+    filter: Option<&str>,
+  ) -> Result<Vec<serde_json::Value>> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT handle, display_name, university, town, COALESCE(pro_profile_json, '{}'),
+              COALESCE(post_karma, 0) + COALESCE(comment_karma, 0)
+       FROM users
+       WHERE pro_profile_json IS NOT NULL AND pro_profile_json != '' AND pro_profile_json != '{}'",
+    )?;
+    let rows = stmt.query_map((), |row| {
+      Ok((
+        row.get::<_, String>(0)?,
+        row.get::<_, String>(1)?,
+        row.get::<_, String>(2)?,
+        row.get::<_, String>(3)?,
+        row.get::<_, String>(4)?,
+        row.get::<_, i64>(5)?,
+      ))
+    })?;
+    let filter = filter.unwrap_or("all");
+    let mut out = Vec::new();
+    for row in rows {
+      let (handle, display_name, university, town, json, karma) = row?;
+      let v: serde_json::Value = serde_json::from_str(&json).unwrap_or(serde_json::json!({}));
+      let open_work = v.get("openToWork").and_then(|x| x.as_bool()).unwrap_or(false);
+      let open_research = v
+        .get("openToResearch")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+      if !open_work && !open_research {
+        continue;
+      }
+      if filter == "work" && !open_work {
+        continue;
+      }
+      if filter == "research" && !open_research {
+        continue;
+      }
+      out.push(serde_json::json!({
+        "handle": handle,
+        "displayName": display_name,
+        "university": university,
+        "town": town,
+        "headline": v.get("headline").and_then(|x| x.as_str()).unwrap_or(""),
+        "major": v.get("major").and_then(|x| x.as_str()).unwrap_or(""),
+        "skills": v.get("skills").cloned().unwrap_or(serde_json::json!([])),
+        "portfolioUrl": v.get("portfolioUrl").and_then(|x| x.as_str()).unwrap_or(""),
+        "experience": v.get("experience").and_then(|x| x.as_str()).unwrap_or(""),
+        "openToWork": open_work,
+        "openToResearch": open_research,
+        "graduationYear": v.get("graduationYear").and_then(|x| x.as_str()).unwrap_or(""),
+        "karma": karma,
+      }));
+    }
+    // Sort by karma desc
+    out.sort_by(|a, b| {
+      b["karma"]
+        .as_i64()
+        .unwrap_or(0)
+        .cmp(&a["karma"].as_i64().unwrap_or(0))
+    });
+    Ok(out)
+  }
+
+  // ─── Studio (portfolio + client delivery) ───
+
+  pub fn studio_create_collection(
+    &self,
+    owner: &str,
+    title: &str,
+    description: &str,
+    cover_ref: &str,
+    visibility: &str,
+  ) -> Result<crate::studio::StudioCollection, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::create_collection(&conn, owner, title, description, cover_ref, visibility)
+      .map_err(AppError::from)
+  }
+
+  pub fn studio_list_collections(
+    &self,
+    owner: &str,
+    viewer: Option<&str>,
+  ) -> Result<Vec<crate::studio::StudioCollection>> {
+    let public_only = viewer.map(|v| v != owner).unwrap_or(true);
+    let conn = self.conn.lock().unwrap();
+    crate::studio::list_collections(&conn, owner, public_only)
+  }
+
+  pub fn studio_add_collection_item(
+    &self,
+    owner: &str,
+    collection_id: i64,
+    media_ref: &str,
+    caption: &str,
+    kind: &str,
+  ) -> Result<crate::studio::StudioCollectionItem, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::add_collection_item(&conn, collection_id, owner, media_ref, caption, kind)
+      .map_err(AppError::from)
+  }
+
+  pub fn studio_list_collection_items(
+    &self,
+    collection_id: i64,
+  ) -> Result<Vec<crate::studio::StudioCollectionItem>> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::list_collection_items(&conn, collection_id)
+  }
+
+  pub fn studio_create_shoot(
+    &self,
+    owner: &str,
+    title: &str,
+    description: &str,
+    client_handle: &str,
+    client_label: &str,
+    access_mode: &str,
+    price_wb: i64,
+    pin_code: &str,
+  ) -> Result<crate::studio::StudioShoot, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::create_shoot(
+      &conn,
+      owner,
+      title,
+      description,
+      client_handle,
+      client_label,
+      access_mode,
+      price_wb,
+      pin_code,
+    )
+    .map_err(AppError::from)
+  }
+
+  pub fn studio_list_my_shoots(
+    &self,
+    handle: &str,
+  ) -> Result<Vec<crate::studio::StudioShoot>> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::list_shoots_for_owner(&conn, handle)
+  }
+
+  pub fn studio_list_client_deliveries(
+    &self,
+    handle: &str,
+  ) -> Result<Vec<crate::studio::StudioShoot>> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::list_shoots_for_client(&conn, handle)
+  }
+
+  pub fn studio_get_shoot(
+    &self,
+    shoot_id: i64,
+    viewer: &str,
+  ) -> Result<Option<crate::studio::StudioShoot>> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::get_shoot(&conn, shoot_id, viewer)
+  }
+
+  pub fn studio_add_asset(
+    &self,
+    owner: &str,
+    shoot_id: i64,
+    media_ref: &str,
+    filename: &str,
+    caption: &str,
+    kind: &str,
+  ) -> Result<crate::studio::StudioAsset, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::add_shoot_asset(&conn, shoot_id, owner, media_ref, filename, caption, kind)
+      .map_err(AppError::from)
+  }
+
+  pub fn studio_list_assets(
+    &self,
+    shoot_id: i64,
+    viewer: &str,
+  ) -> Result<Vec<crate::studio::StudioAsset>, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::list_shoot_assets(&conn, shoot_id, viewer)
+  }
+
+  pub fn studio_publish_shoot(
+    &self,
+    owner: &str,
+    shoot_id: i64,
+  ) -> Result<crate::studio::StudioShoot, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::publish_shoot(&conn, shoot_id, owner)
+  }
+
+  pub fn studio_grant_access(
+    &self,
+    owner: &str,
+    shoot_id: i64,
+    client_handle: &str,
+  ) -> Result<serde_json::Value, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::grant_access(&conn, shoot_id, owner, client_handle)
+  }
+
+  pub fn studio_purchase_access(
+    &self,
+    buyer: &str,
+    shoot_id: i64,
+  ) -> Result<serde_json::Value, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::purchase_access(&conn, shoot_id, buyer)
+  }
+
+  pub fn studio_export_manifest(
+    &self,
+    viewer: &str,
+    shoot_id: i64,
+  ) -> Result<serde_json::Value, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::studio::export_manifest(&conn, shoot_id, viewer)
+  }
+
+  // ─── Club activities (templates, reading, tournaments, broadcast) ───
+
+  pub fn list_club_templates(&self) -> Vec<crate::club_activities::ClubTemplate> {
+    crate::club_activities::templates()
+  }
+
+  pub fn apply_club_template(
+    &self,
+    community_id: &str,
+    template_id: &str,
+    applied_by: &str,
+  ) -> Result<serde_json::Value, AppError> {
+    if !self
+      .is_yard_member(applied_by, community_id)
+      .map_err(AppError::from)?
+    {
+      return Err(AppError::Validation("Join the yard first".into()));
+    }
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::apply_template(&conn, community_id, template_id, applied_by)
+      .map_err(AppError::from)
+  }
+
+  pub fn list_applied_club_templates(&self, community_id: &str) -> Result<Vec<String>> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::list_applied_templates(&conn, community_id)
+  }
+
+  pub fn list_reading_circles(
+    &self,
+    community_id: &str,
+  ) -> Result<Vec<crate::club_activities::ReadingCircle>> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::list_circles(&conn, community_id)
+  }
+
+  pub fn create_reading_circle(
+    &self,
+    community_id: &str,
+    created_by: &str,
+    title: &str,
+    media_type: &str,
+    description: &str,
+    current_work: &str,
+    org_id: Option<&str>,
+  ) -> Result<crate::club_activities::ReadingCircle, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::create_circle(
+      &conn,
+      community_id,
+      created_by,
+      title,
+      media_type,
+      description,
+      current_work,
+      org_id,
+    )
+    .map_err(AppError::from)
+  }
+
+  pub fn join_reading_circle(&self, circle_id: i64, handle: &str) -> Result<(), AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::join_circle(&conn, circle_id, handle).map_err(AppError::from)
+  }
+
+  pub fn set_reading_current(
+    &self,
+    circle_id: i64,
+    work: &str,
+    chapter: &str,
+  ) -> Result<(), AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::set_current_read(&conn, circle_id, work, chapter)
+      .map_err(AppError::from)
+  }
+
+  pub fn add_reading_entry(
+    &self,
+    circle_id: i64,
+    handle: &str,
+    entry_type: &str,
+    title: &str,
+    body: &str,
+    media_ref: &str,
+    chapter_label: &str,
+  ) -> Result<crate::club_activities::ReadingEntry, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::add_entry(
+      &conn,
+      circle_id,
+      handle,
+      entry_type,
+      title,
+      body,
+      media_ref,
+      chapter_label,
+    )
+    .map_err(AppError::from)
+  }
+
+  pub fn list_reading_entries(
+    &self,
+    circle_id: i64,
+  ) -> Result<Vec<crate::club_activities::ReadingEntry>> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::list_entries(&conn, circle_id)
+  }
+
+  pub fn list_tournaments(
+    &self,
+    community_id: &str,
+  ) -> Result<Vec<crate::club_activities::Tournament>> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::list_tournaments(&conn, community_id)
+  }
+
+  pub fn create_tournament(
+    &self,
+    community_id: &str,
+    created_by: &str,
+    title: &str,
+    game_title: &str,
+    description: &str,
+    max_players: i64,
+    prize_text: &str,
+    prize_wb: i64,
+    event_id: Option<i64>,
+  ) -> Result<crate::club_activities::Tournament, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::create_tournament(
+      &conn,
+      community_id,
+      created_by,
+      title,
+      game_title,
+      description,
+      max_players,
+      prize_text,
+      prize_wb,
+      event_id,
+    )
+    .map_err(AppError::from)
+  }
+
+  pub fn register_tournament(
+    &self,
+    tournament_id: i64,
+    handle: &str,
+  ) -> Result<serde_json::Value, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::register_entrant(&conn, tournament_id, handle).map_err(AppError::from)
+  }
+
+  pub fn list_tournament_entrants(
+    &self,
+    tournament_id: i64,
+  ) -> Result<Vec<serde_json::Value>> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::list_entrants(&conn, tournament_id)
+  }
+
+  pub fn generate_tournament_bracket(
+    &self,
+    tournament_id: i64,
+    host: &str,
+  ) -> Result<Vec<crate::club_activities::TournamentMatch>, AppError> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::generate_bracket(&conn, tournament_id, host).map_err(AppError::from)
+  }
+
+  pub fn list_tournament_matches(
+    &self,
+    tournament_id: i64,
+  ) -> Result<Vec<crate::club_activities::TournamentMatch>> {
+    let conn = self.conn.lock().unwrap();
+    crate::club_activities::list_matches(&conn, tournament_id)
+  }
+
+  pub fn report_tournament_match(
+    &self,
+    match_id: i64,
+    reporter: &str,
+    score_a: i64,
+    score_b: i64,
+  ) -> Result<crate::club_activities::TournamentMatch, AppError> {
+    let conn = self.conn.lock().unwrap();
+    let m = crate::club_activities::report_match_result(
+      &conn, match_id, reporter, score_a, score_b,
+    )
+    .map_err(AppError::from)?;
+    drop(conn);
+    // Soft prize: if tournament completed and prize_wb > 0, grant to last match winner
+    if m.status == "complete" {
+      if let Ok(Some((status, prize_wb, _title))) = self.tournament_prize_meta(m.tournament_id) {
+        if status == "completed" && prize_wb > 0 {
+          if let Some(ref w) = m.winner {
+            let _ = self.grant_weix_bucks(w, prize_wb, "Tournament prize");
+          }
+        }
+      }
+    }
+    Ok(m)
+  }
+
+  fn tournament_prize_meta(&self, tournament_id: i64) -> Result<Option<(String, i64, String)>> {
+    let conn = self.conn.lock().unwrap();
+    conn
+      .query_row(
+        "SELECT status, prize_wb, title FROM tournaments WHERE id = ?1",
+        params![tournament_id],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+      )
+      .optional()
+      .map_err(Into::into)
+  }
+
+  /// Faculty: post opportunity as a yard announcement post.
+  pub fn broadcast_opportunity_to_yard(
+    &self,
+    opportunity_id: i64,
+    broadcaster: &str,
+  ) -> Result<CreatePostResult, AppError> {
+    let conn = self.conn.lock().unwrap();
+    let row: Option<(String, String, String, String)> = conn
+      .query_row(
+        "SELECT p.title, p.description, o.name, o.yard_id
+         FROM connect_opportunities p
+         JOIN connect_orgs o ON o.id = p.org_id
+         WHERE p.id = ?1",
+        params![opportunity_id],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+      )
+      .optional()
+      .map_err(AppError::from)?;
+    let Some((title, desc, org_name, yard_id)) = row else {
+      return Err(AppError::Validation("Opportunity not found".into()));
+    };
+    // Must be org member to broadcast
+    let is_member: i64 = conn
+      .query_row(
+        "SELECT COUNT(*) FROM connect_org_members m
+         JOIN connect_opportunities p ON p.org_id = m.org_id
+         WHERE p.id = ?1 AND m.handle = ?2",
+        params![opportunity_id, broadcaster],
+        |r| r.get(0),
+      )
+      .map_err(AppError::from)?;
+    if is_member == 0 {
+      return Err(AppError::Validation(
+        "Join the org to broadcast this opportunity".into(),
+      ));
+    }
+    drop(conn);
+    let town = if yard_id.trim().is_empty() {
+      "tsu".to_string()
+    } else {
+      yard_id
+    };
+    let content = format!(
+      "📢 Opportunity from {org_name}\n\n{title}\n\n{desc}\n\n→ Apply on ProjectConnect · /connect/opportunities/{opportunity_id}"
+    );
+    self
+      .create_post(broadcaster, &content, &town, "announcements", &[])
+      .map_err(AppError::from)
   }
 
   fn seed_yard_events_for_community(&self, community_id: &str) -> Result<()> {

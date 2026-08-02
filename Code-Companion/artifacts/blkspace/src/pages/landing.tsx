@@ -17,6 +17,7 @@ import {
   Store,
 } from "lucide-react";
 import { BRAND } from "@/lib/brand";
+import { BrandMark } from "@/components/brand/BrandMark";
 
 export default function LandingPage() {
   return (
@@ -28,15 +29,17 @@ export default function LandingPage() {
           <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_top_right,var(--color-primary),transparent_50%)] opacity-10"></div>
           <div className="container relative z-10 mx-auto px-4 text-center">
             <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
-              <h1 className="text-6xl md:text-9xl font-black tracking-tighter mb-4 text-foreground">
-                {BRAND.name}
+              <h1 className="text-6xl md:text-9xl font-black tracking-tighter mb-4">
+                <span className="text-primary">B</span>
+                <span className="text-foreground">lkSpace</span>
               </h1>
               <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-2 font-medium">
                 {BRAND.tagline}
               </p>
               <p className="text-sm text-muted-foreground/70 max-w-2xl mx-auto mb-10">
-                Scroll for free. Earn WeixBucks. Cash out to {BRAND.symbol} on
-                Solana. Your account, your content, your earnings.
+                Scroll for free. Earn {BRAND.softCurrency}. Cash out to{" "}
+                {BRAND.symbol} ({BRAND.coinName}) on Solana when settlement is
+                gated-ready. Your account, your content, your earnings.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <Link href="/feed">

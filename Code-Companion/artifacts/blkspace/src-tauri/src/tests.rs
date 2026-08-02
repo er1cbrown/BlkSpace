@@ -1849,7 +1849,7 @@ mod tests {
     db.create_user("seller", "Seller", "").unwrap();
     db.create_user("buyer", "Buyer", "").unwrap();
     let listing_id = db
-      .create_marketplace_listing("seller", "mix", Some("cid123"), 100, "Test Mix", None, true, None)
+      .create_marketplace_listing("seller", "mix", Some("cid123"), 100, "Test Mix", None, true, None, None, None, None, None)
       .unwrap();
     let result = db
       .buy_marketplace_listing_bkspc(listing_id, "buyer", "burnTxSig123")
@@ -1869,10 +1869,10 @@ mod tests {
     db.create_user("buyer1", "Buyer 1", "").unwrap();
     db.create_user("buyer2", "Buyer 2", "").unwrap();
     let id1 = db
-      .create_marketplace_listing("seller", "mix", Some("cid1"), 100, "Mix 1", None, true, None)
+      .create_marketplace_listing("seller", "mix", Some("cid1"), 100, "Mix 1", None, true, None, None, None, None, None)
       .unwrap();
     let id2 = db
-      .create_marketplace_listing("seller", "mix", Some("cid2"), 100, "Mix 2", None, true, None)
+      .create_marketplace_listing("seller", "mix", Some("cid2"), 100, "Mix 2", None, true, None, None, None, None, None)
       .unwrap();
     db.buy_marketplace_listing_bkspc(id1, "buyer1", "sameBurnSig")
       .unwrap();
@@ -1887,7 +1887,7 @@ mod tests {
     let db = setup_test_db();
     db.create_user("seller", "Seller", "").unwrap();
     let listing_id = db
-      .create_marketplace_listing("seller", "theme", None, 50, "Theme", None, false, Some("tsu"))
+      .create_marketplace_listing("seller", "theme", None, 50, "Theme", None, false, Some("tsu"), None, None, None, None)
       .unwrap();
     let err = db.buy_marketplace_listing(listing_id, "seller").unwrap_err();
     assert!(err.to_string().contains("own listing"));
@@ -1908,6 +1908,10 @@ mod tests {
         None,
         false,
         Some("howard"),
+        None,
+        None,
+        None,
+        None,
       )
       .unwrap();
     let result = db.buy_marketplace_listing(listing_id, "buyer").unwrap();
@@ -1931,6 +1935,10 @@ mod tests {
         None,
         false,
         Some("tsu"),
+        None,
+        None,
+        None,
+        None,
       )
       .unwrap();
     let result = db.buy_marketplace_listing(listing_id, "buyer").unwrap();
@@ -1957,6 +1965,10 @@ mod tests {
         None,
         false,
         Some("tsu"),
+        None,
+        None,
+        None,
+        None,
       )
       .unwrap();
     let result = db.buy_marketplace_listing(listing_id, "buyer").unwrap();
@@ -2014,6 +2026,10 @@ mod tests {
         None,
         true,
         Some("tsu"),
+        None,
+        None,
+        None,
+        None,
       )
       .unwrap();
     db.set_listing_nft_mint(listing_id, "MintAddrNFT").unwrap();
@@ -2035,5 +2051,71 @@ mod tests {
     let owned = db.list_nft_mints_for_owner("buyer").unwrap();
     assert_eq!(owned.len(), 1);
     assert_eq!(owned[0]["mintAddress"].as_str(), Some("MintAddrNFT"));
+  }
+
+  #[test]
+  fn test_fashion_escrow_fund_deliver_release_with_org_split() {
+    let db = setup_test_db();
+    db.create_user("seller", "Seller", "").unwrap();
+    db.create_user("buyer", "Buyer", "").unwrap();
+    db.create_user("campus_king", "King", "").unwrap();
+    db.grant_weix_bucks("buyer", 200, "seed").unwrap();
+
+    // Minimal fashion club org
+    {
+      let conn = db.conn.lock().unwrap();
+      crate::connect::ensure_schema(&conn).unwrap();
+      crate::escrow::ensure_schema(&conn).unwrap();
+      conn
+        .execute(
+          "INSERT INTO connect_orgs (id, slug, name, org_type, yard_id, description, created_by)
+           VALUES ('org_fashion_tsu', 'fashion-tsu', 'TSU Fashion', 'club', 'tsu', 'demo', 'campus_king')",
+          (),
+        )
+        .unwrap();
+      conn
+        .execute(
+          "INSERT INTO connect_org_members (org_id, handle, role) VALUES ('org_fashion_tsu', 'campus_king', 'owner')",
+          (),
+        )
+        .unwrap();
+    }
+
+    let listing_id = db
+      .create_marketplace_listing(
+        "seller",
+        "mockup",
+        Some("fashion:mockup:tee"),
+        100,
+        "Tee Mockup",
+        None,
+        false,
+        Some("tsu"),
+        Some("escrow"),
+        Some("org_fashion_tsu"),
+        Some(1000), // 10% of post-platform to club
+        Some("CID"),
+      )
+      .unwrap();
+
+    let funded = db.buy_marketplace_listing(listing_id, "buyer").unwrap();
+    assert_eq!(funded["status"].as_str(), Some("funded"));
+    let escrow_id = funded["escrowId"].as_i64().unwrap();
+    let buyer_after_fund = db.get_user("buyer").unwrap().unwrap().weix_bucks;
+    // seed 100 + grant 200 = 300, minus 100 hold
+    assert_eq!(buyer_after_fund, 200);
+
+    db.escrow_mark_delivered(escrow_id, "seller", "bafyDemoCid123", Some("psd pack"))
+      .unwrap();
+    let released = db.escrow_confirm_release(escrow_id, "buyer").unwrap();
+    assert_eq!(released["status"].as_str(), Some("released"));
+
+    // platform 5% of 100 = 5; after = 95; org 10% of 95 = 9; seller net = 86
+    let seller = db.get_user("seller").unwrap().unwrap();
+    assert_eq!(seller.weix_bucks, 100 + 86);
+    let club_owner = db.get_user("campus_king").unwrap().unwrap();
+    assert_eq!(club_owner.weix_bucks, 100 + 9);
+    assert_eq!(released["sellerNet"].as_i64(), Some(86));
+    assert_eq!(released["orgFee"].as_i64(), Some(9));
   }
 }

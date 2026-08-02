@@ -1,13 +1,22 @@
-# BKSPC · BlkSpace
+<p align="center">
+  <img src="docs/assets/brand/blkspace-wordmark.svg" alt="BlkSpace — orange capital B product mark" width="420" />
+</p>
 
 <p align="center">
-  <img src="docs/assets/screenshots/01-welcome.png" alt="BKSPC welcome — The social network that pays you to post" width="920" />
+  <img src="docs/assets/brand/b-mark.svg" alt="BlkSpace B mark" width="72" />
 </p>
+
+<h1 align="center">BlkSpace · BKSPC</h1>
 
 <p align="center">
   <strong>The digital yard for HBCU students</strong><br/>
   Post on your campus · Customize MySpace-style · Earn WeixBucks<br/>
-  <em>One app · every major OS · Tier&nbsp;0 hardware first</em>
+  <em>One app · every major OS · Tier&nbsp;0 hardware first</em><br/>
+  <sub>Product mark <b>BlkSpace</b> (orange capital <b>B</b> above) · Coin ticker <b>BKSPC</b> = BlkSpace Coin</sub>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshots/01-welcome.png" alt="BlkSpace welcome — The social network that pays you to post" width="920" />
 </p>
 
 <p align="center">
@@ -95,12 +104,15 @@ Student guide: [`TIER0_USER.md`](TIER0_USER.md)
 
 ## Progress review (Aug 2026)
 
+**Product mark:** **BlkSpace** (UI / app / trademark path) · **Coin ticker:** **BKSPC** = BlkSpace Coin (gated settlement)
+
 ```
 Cross-platform desktop   █████████░  ~90%   Win + macOS + Linux CI (Yard & Full)
 Yard MVP                 ████████░░  ~80%   install → feed → profile → yards → wallet
-UI / UX                  █████████░  ~90%   dark theme, guest mode, MyYard, search
+UI / UX                  █████████░  ~90%   dark theme, guest mode, MyYard, Studio
 Data (Turso)             ████████░░  ~85%   embedded local DB, Tier 0 PRAGMAs
-Economy                  ████░░░░░░  ~40%   WeixBucks local · BKSPC devnet scaffold
+Campus use cases         ████████░░  ~80%   Connect · escrow · events · clubs · studio
+Economy                  █████░░░░░  ~50%   WeixBucks + escrow · BKSPC devnet scaffold
 Mesh                     ██████░░░░  ~60%   Nostr + optional Iroh (Full only)
 Mobile (iOS/Android)     ██░░░░░░░░  ~10%   Tauri mobile path planned, not shipping
 ```
@@ -109,24 +121,25 @@ Mobile (iOS/Android)     ██░░░░░░░░  ~10%   Tauri mobile pat
 |------|--------|----------------|
 | Auth · recovery · guest browse | ✅ | Same UX on all desktops |
 | Feed (Watch / Read / Following / My Yard) | ✅ | Proven on Tier 0 Windows; UI identical elsewhere |
-| Profile · themes · people on the yard | ✅ | — |
+| Profile · themes · **Studio** portfolio/delivery | ✅ | Free grant or paid all-in-one unlock |
 | Search | ✅ | — |
-| Wallet (WeixBucks) | ✅ | Guest-gated; local Turso on desktop |
-| Tier 0 boot | ✅ | Deferred seed, lite UI, no Iroh in Yard |
-| **Turso embedded DB** | ✅ | One engine, all OS packages |
-| **Yard CI** Win / Mac / Linux | ✅ | `build-tauri-yard` matrix |
-| **Full CI** Win / Mac / Linux | ✅ | `build-tauri-full` matrix |
-| **Release tags** arm64 + x64 Mac | ✅ | `release.yml` dual mac targets |
+| Wallet (WeixBucks) · Yard Cred withdraw gate | ✅ | Guest-gated; local Turso on desktop |
+| ProjectConnect · talent board · faculty broadcast | ✅ | Cred before finance |
+| Yard Sale escrow · fashion types · org split | ✅ | Soft WB; not mainnet BKSPC escrow |
+| Events · tickets · club exclusive · check-in | ✅ | Not full Eventbrite |
+| Clubs · reading circles · tournaments (no stream) | ✅ | No live streaming |
+| Tier 0 boot · **Turso** · multi-OS CI | ✅ | One engine, all OS packages |
 | Device B student sign-off | ⏳ | [`docs/YARD_RELEASE_CHECKLIST.md`](docs/YARD_RELEASE_CHECKLIST.md) |
-| BKSPC on-chain E2E | 🟡 | Devnet scaffold; NFT transfer pending |
+| **BKSPC** on-chain E2E / mainnet “rights” | 🟡 | Devnet scaffold; mainnet gated |
+| Live streaming | ⬜ | Out of product for now |
 | iOS / Android installers | ⬜ | After desktop Yard is tagged |
-| Phase 5 NLP / anti-abuse | ⬜ | After Yard is stable |
 
 **Next milestones**
 1. **Device B** smoke on Tier 0 Windows → tag **`v0.1.0-yard`**.  
-2. **Credibility layer — ProjectConnectBKSPC** (orgs, opportunities, Yard Cred) **before** mainnet coin — [spec](docs/features/project-connect-credibility-layer.md).  
-3. Phase 4 marketplace / **BKSPC (BlkSpace Coin)** settlement only after Cred gates.  
-4. Mobile (iOS/Android) after desktop multi-OS is trusted.
+2. Keep **BlkSpace** product mark consistent (GitHub + UI); counsel on trademark — [brand lock](docs/features/brand-trademark-and-bkspc-rights.md).  
+3. **Cred before coin** — ProjectConnect + Yard Cred **before** mainnet **BKSPC** — [rights path](docs/features/bkspc-rights-path.md).  
+4. Use-case log stays current: [`docs/features/use-case-capability-log.md`](docs/features/use-case-capability-log.md).  
+5. Mobile after desktop multi-OS is trusted.
 
 Full roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md) · Dashboard: [`docs/phase-0-status.md`](docs/phase-0-status.md)
 

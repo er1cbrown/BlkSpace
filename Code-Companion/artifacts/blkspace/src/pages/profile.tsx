@@ -76,6 +76,7 @@ import {
 } from "@/lib/myyard-layout";
 import { getYardTheme } from "@/lib/yard-themes";
 import { LogosDeckPlayer } from "@/components/profile/LogosDeckPlayer";
+import { StudioPanel } from "@/components/profile/StudioPanel";
 
 type ThemeKey = "classic" | "pro" | "vibrant" | "myspace";
 
@@ -492,6 +493,7 @@ export default function ProfilePage() {
                   <TabsTrigger value="wall">Wall (FB)</TabsTrigger>
                   <TabsTrigger value="posts">Posts</TabsTrigger>
                   <TabsTrigger value="pro">Pro</TabsTrigger>
+                  <TabsTrigger value="studio">Studio</TabsTrigger>
                   <TabsTrigger value="music">Music</TabsTrigger>
                   {isOwnProfile && (
                     <TabsTrigger value="customize">MyYard</TabsTrigger>
@@ -513,6 +515,13 @@ export default function ProfilePage() {
                       if (isTauri()) updateProProfile.mutate(json);
                       else toast.success("Saved locally (web preview)");
                     }}
+                  />
+                </TabsContent>
+
+                <TabsContent value="studio">
+                  <StudioPanel
+                    profileHandle={user.handle}
+                    isOwn={isOwnProfile}
                   />
                 </TabsContent>
 

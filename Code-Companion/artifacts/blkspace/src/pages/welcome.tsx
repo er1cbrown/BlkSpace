@@ -27,6 +27,7 @@ import {
 import { isTauri, tauriCreateUser } from "@/lib/tauri-api";
 import { markFirstRunComplete } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
+import { BrandMark } from "@/components/brand/BrandMark";
 
 export default function WelcomePage() {
   const [, navigate] = useLocation();
@@ -70,7 +71,7 @@ export default function WelcomePage() {
         <Globe className="w-10 h-10 text-primary" />
       </div>
       <h2 className="text-3xl font-bold font-serif tracking-tight">
-        Welcome to {BRAND.name}
+        Welcome to <BrandMark size="lg" className="inline-block align-middle" />
       </h2>
       <p className="text-lg text-muted-foreground">{BRAND.tagline}</p>
       <p className="text-sm text-muted-foreground">

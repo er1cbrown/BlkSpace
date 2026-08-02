@@ -20,80 +20,42 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   CalendarDays,
   MapPin,
   Users,
   Plus,
   Check,
   Star,
+  Ticket,
+  ClipboardList,
+  ScanLine,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getSessionToken } from "@/lib/auth";
 import { useGuestMode } from "@/lib/guest-mode";
-import { isTauri, type TauriYardEvent } from "@/lib/tauri-api";
+import { isTauri } from "@/lib/tauri-api";
 import {
   useTauriListYardEvents,
   useTauriListCommunityRoles,
   useTauriCreateYardEvent,
   useTauriRsvpYardEvent,
   useTauriCancelYardEventRsvp,
+  useEventGuests,
+  useCheckInEventGuest,
 } from "@/hooks/use-app-data";
 import { getCurrentHandle } from "@/lib/auth";
 import { showEarnFromResult } from "@/components/economy/EarnToast";
+import { listOrgs, type ConnectOrg } from "@/lib/project-connect";
+import { useQuery } from "@tanstack/react-query";
+import type { YardEvent as YardEventFull } from "@/lib/yard-events";
 
-type YardEventView = {
-  id: number;
-  title: string;
-  description: string;
-  location: string;
-  startsAt: string;
-  endsAt?: string | null;
-  createdBy: string;
-  createdByDisplayName: string;
-  rsvpCount: number;
-  userRsvp?: string | null;
-};
-
-const fallbackEvents: Record<string, YardEventView[]> = {
-  tsu: [
-    {
-      id: 1,
-      title: "Career Fair Prep & Networking",
-      description:
-        "Resume reviews and employer intros before the TSU career fair.",
-      location: "Kean Hall Lobby",
-      startsAt: "2026-06-22T18:00:00",
-      createdBy: "demo_user",
-      createdByDisplayName: "Demo User",
-      rsvpCount: 24,
-      userRsvp: null,
-    },
-    {
-      id: 2,
-      title: "Homecoming Watch Party",
-      description: "Tailgate vibes indoors with live game stream.",
-      location: "Student Center Ballroom",
-      startsAt: "2026-06-28T20:00:00",
-      createdBy: "jane_doe",
-      createdByDisplayName: "Jane Doe",
-      rsvpCount: 67,
-      userRsvp: null,
-    },
-  ],
-  howard: [
-    {
-      id: 1,
-      title: "Yard Networking Night",
-      description: "Meet founders, alumni, and creators on the yard.",
-      location: "Founders Library Plaza",
-      startsAt: "2026-06-24T19:00:00",
-      createdBy: "jane_doe",
-      createdByDisplayName: "Jane Doe",
-      rsvpCount: 41,
-      userRsvp: null,
-    },
-  ],
-};
+type YardEventView = YardEventFull;
 
 function formatEventDate(iso: string): string {
   try {
@@ -107,21 +69,6 @@ function formatEventDate(iso: string): string {
   } catch {
     return iso;
   }
-}
-
-function toView(event: TauriYardEvent): YardEventView {
-  return {
-    id: event.id,
-    title: event.title,
-    description: event.description,
-    location: event.location,
-    startsAt: event.startsAt,
-    endsAt: event.endsAt,
-    createdBy: event.createdBy,
-    createdByDisplayName: event.createdByDisplayName,
-    rsvpCount: event.rsvpCount,
-    userRsvp: event.userRsvp,
-  };
 }
 
 function defaultStartsAt(): string {
@@ -154,13 +101,28 @@ function CreateEventDialog({
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [startsAt, setStartsAt] = useState(defaultStartsAt());
+  const [capacity, setCapacity] = useState("");
+  const [ticketPrice, setTicketPrice] = useState("0");
+  const [eventKind, setEventKind] = useState("service");
+  const [orgId, setOrgId] = useState("__none__");
+  const [requiresOrg, setRequiresOrg] = useState(false);
   const createEvent = useTauriCreateYardEvent();
+
+  const { data: orgs = [] } = useQuery({
+    queryKey: ["connect", "orgs-events"],
+    queryFn: () => listOrgs(),
+  });
 
   const reset = () => {
     setTitle("");
     setDescription("");
     setLocation("");
     setStartsAt(defaultStartsAt());
+    setCapacity("");
+    setTicketPrice("0");
+    setEventKind("service");
+    setOrgId("__none__");
+    setRequiresOrg(false);
   };
 
   const handleCreate = () => {
@@ -172,24 +134,15 @@ function CreateEventDialog({
       toast.error("Start date required");
       return;
     }
-    if (!isTauri()) {
-      toast.success(`Event "${title}" created (demo preview)`);
-      setDialogOpen(false);
-      reset();
-      return;
-    }
-    if (!getSessionToken()) {
-      toast.error("Sign in required");
-      return;
-    }
-    if (!isMember) {
+    if (isTauri() && !isMember) {
       toast.error("Join the yard before creating events");
       return;
     }
-    if (!canCreateEvents) {
+    if (isTauri() && !canCreateEvents) {
       toast.error("Only yard owners and moderators can publish events");
       return;
     }
+    const cap = capacity ? parseInt(capacity, 10) : null;
     createEvent.mutate(
       {
         communityId,
@@ -197,6 +150,11 @@ function CreateEventDialog({
         description: description.trim(),
         location: location.trim(),
         startsAt: startsAt.trim(),
+        capacity: cap && cap > 0 ? cap : null,
+        orgId: orgId === "__none__" ? null : orgId,
+        requiresOrgMember: requiresOrg && orgId !== "__none__",
+        ticketPriceWb: parseInt(ticketPrice, 10) || 0,
+        eventKind,
       },
       {
         onSuccess: () => {
@@ -220,48 +178,44 @@ function CreateEventDialog({
           <Plus className="w-4 h-4" /> Create Event
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create yard event</DialogTitle>
+          <DialogTitle>Host a yard event</DialogTitle>
           <DialogDescription>
-            Homecoming watch parties, study halls, networking nights — members
-            earn WB when they RSVP.
+            Community service, mixers, club nights — members RSVP for a free or
+            paid pass. Track guests and check in at the door.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="space-y-1.5">
-            <Label htmlFor="event-title">Title</Label>
+            <Label>Title</Label>
             <Input
-              id="event-title"
-              placeholder="e.g. Yard Networking Night"
+              placeholder="e.g. First Campus Cleanup · Club XYZ"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={200}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="event-desc">Description</Label>
+            <Label>Description</Label>
             <Textarea
-              id="event-desc"
-              placeholder="What's happening? Who should come?"
+              placeholder="What's happening? Who should sign up?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="event-location">Location</Label>
+            <Label>Location</Label>
             <Input
-              id="event-location"
               placeholder="Student Center, Library Plaza..."
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="event-starts">Starts</Label>
+            <Label>Starts</Label>
             <Input
-              id="event-starts"
               type="datetime-local"
               value={startsAt.slice(0, 16)}
               onChange={(e) =>
@@ -271,16 +225,66 @@ function CreateEventDialog({
               }
             />
           </div>
-          {!isMember && isTauri() && (
-            <p className="text-xs text-amber-600">
-              Join this yard first to publish events.
-            </p>
-          )}
-          {isMember && !canCreateEvents && isTauri() && (
-            <p className="text-xs text-muted-foreground">
-              Yard owners and moderators can publish events. Ask an Admin to
-              promote you to Yard Mod.
-            </p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label>Capacity (optional)</Label>
+              <Input
+                type="number"
+                placeholder="e.g. 40"
+                value={capacity}
+                onChange={(e) => setCapacity(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Ticket (WB)</Label>
+              <Input
+                type="number"
+                value={ticketPrice}
+                onChange={(e) => setTicketPrice(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Kind</Label>
+            <Select value={eventKind} onValueChange={setEventKind}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="service">Community service</SelectItem>
+                <SelectItem value="study">Study / decompress hour</SelectItem>
+                <SelectItem value="social">Social</SelectItem>
+                <SelectItem value="career">Career / networking</SelectItem>
+                <SelectItem value="club">Club exclusive</SelectItem>
+                <SelectItem value="general">General</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Club brand (ProjectConnect)</Label>
+            <Select value={orgId} onValueChange={setOrgId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Optional club" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Open to yard</SelectItem>
+                {(orgs as ConnectOrg[]).map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {o.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {orgId !== "__none__" && (
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={requiresOrg}
+                onChange={(e) => setRequiresOrg(e.target.checked)}
+              />
+              Club members only (must join org on Connect to RSVP)
+            </label>
           )}
         </div>
         <DialogFooter>
@@ -296,39 +300,128 @@ function CreateEventDialog({
   );
 }
 
+function GuestListDialog({
+  event,
+  communityId,
+  canManage,
+}: {
+  event: YardEventView;
+  communityId: string;
+  canManage: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [scan, setScan] = useState("");
+  const { data: guests = [], refetch } = useEventGuests(open ? event.id : null);
+  const checkIn = useCheckInEventGuest();
+
+  if (!canManage) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" className="gap-1">
+          <ClipboardList className="w-3.5 h-3.5" />
+          Guest list
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Guests · {event.title}</DialogTitle>
+          <DialogDescription>
+            Track signups, passes, and door check-in (Posh/Eventbrite-style for
+            the yard).
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Ticket code or handle"
+            value={scan}
+            onChange={(e) => setScan(e.target.value)}
+            className="text-xs font-mono"
+          />
+          <Button
+            size="sm"
+            disabled={checkIn.isPending || !scan.trim()}
+            onClick={async () => {
+              try {
+                const r = await checkIn.mutateAsync({
+                  eventId: event.id,
+                  ticketOrHandle: scan.trim(),
+                  communityId,
+                });
+                toast.success(
+                  r.alreadyCheckedIn
+                    ? `Already checked in: @${r.handle}`
+                    : `Checked in @${r.handle}`,
+                );
+                setScan("");
+                refetch();
+              } catch (e) {
+                toast.error(String(e));
+              }
+            }}
+          >
+            <ScanLine className="w-3.5 h-3.5 mr-1" />
+            Check in
+          </Button>
+        </div>
+        <div className="space-y-2 text-sm">
+          {guests.length === 0 && (
+            <p className="text-muted-foreground text-xs">No RSVPs yet.</p>
+          )}
+          {guests.map((g) => (
+            <div
+              key={g.handle}
+              className="flex justify-between items-center border rounded p-2 text-xs gap-2"
+            >
+              <div className="min-w-0">
+                <div className="font-medium">
+                  {g.displayName} · @{g.handle}
+                </div>
+                <div className="text-muted-foreground font-mono truncate">
+                  {g.ticketCode || "—"} · {g.status}
+                  {g.waitlisted ? " · waitlist" : ""}
+                  {g.paidWb > 0 ? ` · ${g.paidWb} WB` : ""}
+                </div>
+              </div>
+              <Badge variant={g.checkedIn ? "default" : "secondary"}>
+                {g.checkedIn ? "In" : "Out"}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function EventCard({
   event,
   communityId,
   isMember,
+  canManage,
 }: {
   event: YardEventView;
   communityId: string;
   isMember: boolean;
+  canManage: boolean;
 }) {
   const rsvp = useTauriRsvpYardEvent();
   const cancelRsvp = useTauriCancelYardEventRsvp();
   const { isGuest } = useGuestMode();
+  const handle = getCurrentHandle();
 
   const handleRsvp = (status: "going" | "interested") => {
     if (isGuest) {
       toast("Create a free account to RSVP and earn WB.", {
-        action: { label: "Sign up", onClick: () => (window.location.hash = "/welcome") },
+        action: {
+          label: "Sign up",
+          onClick: () => (window.location.hash = "/welcome"),
+        },
       });
       return;
     }
-    if (!isTauri()) {
-      toast.success(
-        status === "going"
-          ? `You're going to "${event.title}" (demo)`
-          : `Marked interested in "${event.title}" (demo)`,
-      );
-      return;
-    }
-    if (!getSessionToken()) {
-      toast.error("Sign in to RSVP");
-      return;
-    }
-    if (!isMember) {
+    if (isTauri() && !isMember) {
       toast.error("Join the yard to RSVP and earn WB");
       return;
     }
@@ -336,9 +429,18 @@ function EventCard({
       { communityId, eventId: event.id, status },
       {
         onSuccess: (result) => {
+          if (result.waitlisted) {
+            toast.message("Added to waitlist — capacity full");
+          } else if (result.ticketCode) {
+            toast.success(
+              `Pass issued: ${result.ticketCode}${
+                result.paidWb ? ` · ${result.paidWb} WB` : " · free"
+              }`,
+            );
+          }
           if (result.earn?.wb) {
-            showEarnFromResult(result.earn, `RSVP: ${event.title}`);
-          } else {
+            showEarnFromResult(result.earn as any, `RSVP: ${event.title}`);
+          } else if (!result.ticketCode) {
             toast.success(
               status === "going" ? "You're going!" : "Marked interested",
             );
@@ -350,35 +452,54 @@ function EventCard({
   };
 
   const handleCancel = () => {
-    if (!isTauri()) {
-      toast.success("RSVP cancelled (demo)");
-      return;
-    }
     cancelRsvp.mutate(
       { communityId, eventId: event.id },
       {
-        onSuccess: () => toast.success("RSVP removed"),
+        onSuccess: () => toast.success("RSVP removed · ticket refunded if paid"),
         onError: (e) => toast.error(String(e)),
       },
     );
   };
 
-  const isGoing = event.userRsvp === "going";
+  const isGoing = event.userRsvp === "going" && !event.userWaitlisted;
+  const isWaitlist =
+    event.userRsvp === "waitlist" || event.userWaitlisted === true;
   const isInterested = event.userRsvp === "interested";
+  const going = event.goingCount ?? event.rsvpCount;
+  const hostOrMod =
+    canManage || event.createdBy === handle;
 
   return (
     <Card className="border-primary/10">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="text-base leading-snug">{event.title}</CardTitle>
-          {event.userRsvp && (
-            <Badge variant="secondary" className="shrink-0 capitalize">
-              {event.userRsvp}
-            </Badge>
-          )}
+          <div className="flex flex-wrap gap-1 justify-end">
+            {event.eventKind && event.eventKind !== "general" && (
+              <Badge variant="outline" className="text-[10px] capitalize">
+                {event.eventKind}
+              </Badge>
+            )}
+            {event.requiresOrgMember && (
+              <Badge variant="secondary" className="text-[10px]">
+                Club only
+              </Badge>
+            )}
+            {(event.ticketPriceWb ?? 0) > 0 && (
+              <Badge variant="outline" className="text-[10px]">
+                {event.ticketPriceWb} WB
+              </Badge>
+            )}
+            {event.userRsvp && (
+              <Badge variant="secondary" className="shrink-0 capitalize text-[10px]">
+                {isWaitlist ? "waitlist" : event.userRsvp}
+              </Badge>
+            )}
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
           Hosted by {event.createdByDisplayName} · @{event.createdBy}
+          {event.orgName ? ` · ${event.orgName}` : ""}
         </p>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
@@ -400,9 +521,31 @@ function EventCard({
           )}
           <span className="flex items-center gap-1">
             <Users className="w-3.5 h-3.5 text-primary" />
-            {event.rsvpCount} RSVP{event.rsvpCount === 1 ? "" : "s"}
+            {going} going
+            {event.capacity != null
+              ? ` / ${event.capacity}${
+                  event.spotsRemaining != null
+                    ? ` · ${event.spotsRemaining} left`
+                    : ""
+                }`
+              : ""}
+            {(event.waitlistCount ?? 0) > 0
+              ? ` · ${event.waitlistCount} waitlist`
+              : ""}
           </span>
+          {(event.ticketPriceWb ?? 0) === 0 && (
+            <span className="flex items-center gap-1">
+              <Ticket className="w-3.5 h-3.5 text-primary" />
+              Free pass
+            </span>
+          )}
         </div>
+        {event.userTicketCode && (
+          <div className="text-[11px] font-mono bg-muted/50 rounded px-2 py-1.5">
+            Pass · {event.userTicketCode}
+            {event.userCheckedIn ? " · checked in" : " · show at door"}
+          </div>
+        )}
         <div className="flex flex-wrap gap-2 pt-1">
           <Button
             size="sm"
@@ -412,7 +555,13 @@ function EventCard({
             onClick={() => handleRsvp("going")}
           >
             <Check className="w-3.5 h-3.5" />
-            {isGoing ? "Going" : "RSVP Going"}
+            {isGoing
+              ? "Going"
+              : isWaitlist
+                ? "On waitlist"
+                : (event.ticketPriceWb ?? 0) > 0
+                  ? `Get ticket (${event.ticketPriceWb} WB)`
+                  : "Sign up / Going"}
           </Button>
           <Button
             size="sm"
@@ -422,7 +571,7 @@ function EventCard({
             onClick={() => handleRsvp("interested")}
           >
             <Star className="w-3.5 h-3.5" />
-            {isInterested ? "Interested" : "Interested"}
+            Interested
           </Button>
           {event.userRsvp && (
             <Button
@@ -431,9 +580,14 @@ function EventCard({
               disabled={cancelRsvp.isPending}
               onClick={handleCancel}
             >
-              Cancel RSVP
+              Cancel
             </Button>
           )}
+          <GuestListDialog
+            event={event}
+            communityId={communityId}
+            canManage={!!hostOrMod}
+          />
         </div>
       </CardContent>
     </Card>
@@ -462,11 +616,9 @@ export function YardEventsPanel({
     : "";
   const canCreateEvents =
     !isTauri() || myRole === "Admin" || myRole === "Yard Mod";
+  const canManage = canCreateEvents;
 
-  const events: YardEventView[] =
-    isTauri() && tauriEvents
-      ? tauriEvents.map(toView)
-      : fallbackEvents[communityId] || fallbackEvents.tsu;
+  const events: YardEventView[] = tauriEvents || [];
 
   const upcoming = events.filter((e) => {
     try {
@@ -497,10 +649,9 @@ export function YardEventsPanel({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="font-medium">Yard events</p>
+          <h3 className="font-semibold text-sm">Yard events & tickets</h3>
           <p className="text-xs text-muted-foreground">
-            Homecoming watch parties, study halls, networking nights — RSVP to
-            earn WB.
+            RSVP · free/paid pass · capacity · club exclusive · guest check-in
           </p>
         </div>
         <CreateEventDialog
@@ -513,39 +664,37 @@ export function YardEventsPanel({
         />
       </div>
 
-      {isLoading && isTauri() ? (
-        <p className="text-sm text-muted-foreground text-center py-8">
-          Loading events...
-        </p>
-      ) : upcoming.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            No upcoming events yet. Be the first to host something on the yard.
+      {isLoading && (
+        <p className="text-sm text-muted-foreground">Loading events…</p>
+      )}
+
+      {!isLoading && upcoming.length === 0 && (
+        <Card className="border-dashed">
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            No upcoming events. Hosts can publish community service days, mixers,
+            and club nights with signup tracking.
           </CardContent>
         </Card>
-      ) : (
-        <div className="space-y-5">
-          {buckets.map(
-            (bucket) =>
-              bucket.items.length > 0 && (
-                <div key={bucket.label} className="space-y-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-1">
-                    {bucket.label}
-                  </h4>
-                  <div className="space-y-3">
-                    {bucket.items.map((event) => (
-                      <EventCard
-                        key={event.id}
-                        event={event}
-                        communityId={communityId}
-                        isMember={isMember}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ),
-          )}
-        </div>
+      )}
+
+      {buckets.map(
+        (b) =>
+          b.items.length > 0 && (
+            <div key={b.label} className="space-y-2">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                {b.label}
+              </p>
+              {b.items.map((e) => (
+                <EventCard
+                  key={e.id}
+                  event={e}
+                  communityId={communityId}
+                  isMember={isMember}
+                  canManage={canManage}
+                />
+              ))}
+            </div>
+          ),
       )}
     </div>
   );

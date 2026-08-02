@@ -31,7 +31,25 @@ export const YARD_SALE_ITEM_TYPES = [
   { value: "logos-deck", label: "Logos Deck set (scripture mix)" },
   { value: "service", label: "Service" },
   { value: "ticket", label: "Event ticket" },
+  { value: "art", label: "Art (digital illustration)" },
+  { value: "mockup", label: "Mockup (apparel / print)" },
+  { value: "blueprint", label: "Blueprint / tech pack" },
+  { value: "merch-digital", label: "Merch digital (stickers, assets)" },
+  { value: "fashion", label: "Fashion drop (capsule / look)" },
 ] as const;
+
+/** Fashion / digital goods default to 2-party escrow (pay → deliver → release). */
+export const ESCROW_DEFAULT_TYPES = [
+  "art",
+  "mockup",
+  "blueprint",
+  "merch-digital",
+  "fashion",
+] as const;
+
+export function isEscrowDefaultType(itemType: string): boolean {
+  return (ESCROW_DEFAULT_TYPES as readonly string[]).includes(itemType);
+}
 
 export function itemTypeLabel(itemType: string): string {
   const found = YARD_SALE_ITEM_TYPES.find((t) => t.value === itemType);

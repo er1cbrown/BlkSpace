@@ -10,6 +10,8 @@ import { toast } from "sonner";
 export interface ProProfileData {
   headline: string;
   openToWork: boolean;
+  /** Seeking research labs / faculty projects (Billy post-internship path) */
+  openToResearch: boolean;
   major: string;
   graduationYear: string;
   skills: string[];
@@ -23,6 +25,7 @@ export interface ProProfileData {
 const EMPTY: ProProfileData = {
   headline: "",
   openToWork: false,
+  openToResearch: false,
   major: "",
   graduationYear: "",
   skills: [],
@@ -65,9 +68,14 @@ export function ProProfileTab({ initialJson, isOwn, onSave }: ProProfileTabProps
         Handshake + LinkedIn style — internships, skills, open to work
       </div>
 
-      {data.openToWork && (
-        <Badge className="bg-green-600">Open to internships & collabs</Badge>
-      )}
+      <div className="flex flex-wrap gap-2">
+        {data.openToWork && (
+          <Badge className="bg-green-600">Open to internships & collabs</Badge>
+        )}
+        {data.openToResearch && (
+          <Badge className="bg-blue-600">Open to research / labs</Badge>
+        )}
+      </div>
 
       <Card>
         <CardHeader>
@@ -77,7 +85,7 @@ export function ProProfileTab({ initialJson, isOwn, onSave }: ProProfileTabProps
           {isOwn ? (
             <>
               <Input
-                placeholder="e.g. CS junior · TSU · seeking summer SWE internship"
+                placeholder="e.g. CS junior · TSU · finished summer internship · seeking research"
                 value={data.headline}
                 onChange={(e) => setData({ ...data, headline: e.target.value })}
               />
@@ -89,6 +97,19 @@ export function ProProfileTab({ initialJson, isOwn, onSave }: ProProfileTabProps
                 />
                 Open to work / internships
               </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={data.openToResearch}
+                  onChange={(e) =>
+                    setData({ ...data, openToResearch: e.target.checked })
+                  }
+                />
+                Open to research labs / faculty projects
+              </label>
+              <p className="text-[11px] text-muted-foreground">
+                Signals appear on ProjectConnect for org leads (credibility-before-finance).
+              </p>
             </>
           ) : (
             <p className="font-medium">{data.headline || "No headline yet"}</p>

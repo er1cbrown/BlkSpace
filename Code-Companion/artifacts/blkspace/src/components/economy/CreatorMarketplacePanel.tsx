@@ -33,11 +33,21 @@ import {
   MYARD_PROFILE_THEMES,
   YARD_PACK_THEMES,
   YARD_SALE_ITEM_TYPES,
+  isEscrowDefaultType,
 } from "@/lib/myyard-catalog";
 import { YARD_IDS, YARD_THEME_PACKS } from "@/lib/yard-themes";
 import { YardSaleListings } from "@/components/economy/YardSaleListings";
+import { EscrowTradesPanel } from "@/components/economy/EscrowTradesPanel";
+import { listOrgs, type ConnectOrg } from "@/lib/project-connect";
 
 const ALL_THEME_OPTIONS = [...MYARD_PROFILE_THEMES, ...YARD_PACK_THEMES];
+
+const FASHION_ORGS = [
+  { id: "org_fashion_tsu", name: "TSU Fashion Collective", split: 1000 },
+  { id: "org_fashion_howard", name: "Howard Style Lab", split: 800 },
+  { id: "org_fashion_spelman", name: "Spelman Atelier", split: 1200 },
+  { id: "org_club", name: "Yard Creatives Club", split: 500 },
+];
 
 export function CreatorMarketplacePanel() {
   const handle = getCurrentHandle();
@@ -53,6 +63,11 @@ export function CreatorMarketplacePanel() {
     queryKey: ["tauri", "bkspc-settlement-status"],
     queryFn: tauriGetBkspcSettlementStatus,
     enabled: isTauri(),
+  });
+
+  const { data: connectOrgs = [] } = useQuery({
+    queryKey: ["connect", "orgs-for-listing"],
+    queryFn: () => listOrgs(),
   });
 
   const bkspcWired = settlementStatus?.wired === true;
@@ -71,10 +86,21 @@ export function CreatorMarketplacePanel() {
     bpm: undefined as number | undefined,
     key: "",
     tracklist: "",
+    fulfillmentMode: "" as "" | "instant" | "escrow",
+    orgId: "",
+    orgSplitBps: 0,
+    deliveryHint: "",
   });
   const [userMedia, setUserMedia] = useState<any[]>([]);
 
   const marketplaceFeeBps = policy?.marketplaceFeeBps ?? 500;
+  const clubOptions: { id: string; name: string; split: number }[] = [
+    ...FASHION_ORGS,
+    ...(connectOrgs as ConnectOrg[])
+      .filter((o) => o.orgType === "club" || o.orgType === "professional")
+      .filter((o) => !FASHION_ORGS.some((f) => f.id === o.id))
+      .map((o) => ({ id: o.id, name: o.name, split: 500 })),
+  ];
 
   useEffect(() => {
     if ((user as { town?: string })?.town) {
@@ -107,8 +133,12 @@ export function CreatorMarketplacePanel() {
       (newItem.itemType === "media" || newItem.itemType === "mix") &&
       !!newItem.itemRef;
 
+    const mode =
+      newItem.fulfillmentMode ||
+      (isEscrowDefaultType(newItem.itemType) ? "escrow" : "instant");
+
     try {
-      if (newItem.itemType === "mix" && newItem.itemRef) {
+      if (newItem.itemType === "mix" && newItem.itemRef && isTauri()) {
         await publishMix.mutateAsync({
           cid: newItem.itemRef,
           title: newItem.title,
@@ -131,6 +161,10 @@ export function CreatorMarketplacePanel() {
         description: newItem.description || null,
         isNft,
         townTag,
+        fulfillmentMode: mode,
+        orgId: newItem.orgId || null,
+        orgSplitBps: newItem.orgId ? newItem.orgSplitBps || 500 : 0,
+        deliveryHint: newItem.deliveryHint || null,
       });
 
       if (
@@ -138,7 +172,8 @@ export function CreatorMarketplacePanel() {
         mintNftOnList &&
         connected &&
         publicKey &&
-        newItem.itemRef
+        newItem.itemRef &&
+        isTauri()
       ) {
         const minted = await mintNft.mutateAsync({
           recipientSolanaAddress: publicKey.toBase58(),
@@ -154,13 +189,15 @@ export function CreatorMarketplacePanel() {
         );
       } else {
         toast.success(
-          newItem.itemType === "mix"
-            ? "Mix published (30078) + listed. Connect wallet to mint NFT."
-            : newItem.itemType === "logos-deck"
-              ? "Logos Deck set listed on Yard Sale."
-              : isNft
-                ? "Listed! Connect wallet to mint Metaplex NFT."
-                : "Listed on Yard Sale.",
+          mode === "escrow"
+            ? `Listed with escrow (#${listingId}) — buyer pays, you deliver, they release.`
+            : newItem.itemType === "mix"
+              ? "Mix published (30078) + listed. Connect wallet to mint NFT."
+              : newItem.itemType === "logos-deck"
+                ? "Logos Deck set listed on Yard Sale."
+                : isNft
+                  ? "Listed! Connect wallet to mint Metaplex NFT."
+                  : "Listed on Yard Sale.",
         );
       }
 
@@ -174,6 +211,10 @@ export function CreatorMarketplacePanel() {
         bpm: undefined,
         key: "",
         tracklist: "",
+        fulfillmentMode: "",
+        orgId: "",
+        orgSplitBps: 0,
+        deliveryHint: "",
       });
     } catch (e) {
       toast.error(String(e));
@@ -188,10 +229,10 @@ export function CreatorMarketplacePanel() {
           <h4 className="font-bold">Yard Sale</h4>
         </div>
         <p className="text-sm text-muted-foreground mb-3">
-          Sell from your MyYard — media, DJ mixes, theme packs, Logos Deck sets,
-          merch, or tickets. Pay with earned WB or burn BKSPC on devnet when
-          settlement is wired. Platform fee{" "}
-          {formatFeePercent(marketplaceFeeBps)}.
+          Sell from your MyYard — media, mixes, themes, fashion mockups, art,
+          tech packs, merch digital. Fashion types use 2-party escrow (pay →
+          deliver → release). Optional club branding + revenue split. Platform
+          fee {formatFeePercent(marketplaceFeeBps)}.
           {bkspcWired ? (
             <span className="text-primary"> BKSPC devnet: active.</span>
           ) : (
@@ -375,6 +416,77 @@ export function CreatorMarketplacePanel() {
               </Select>
             )}
 
+            {(isEscrowDefaultType(newItem.itemType) ||
+              newItem.itemType === "service") && (
+              <>
+                <Input
+                  placeholder="Item ref / SKU (e.g. fashion:mockup:tee-v1)"
+                  value={newItem.itemRef}
+                  onChange={(e) =>
+                    setNewItem({ ...newItem, itemRef: e.target.value })
+                  }
+                />
+                <Input
+                  placeholder="Delivery hint (CID, drive link, shipping)"
+                  value={newItem.deliveryHint}
+                  onChange={(e) =>
+                    setNewItem({ ...newItem, deliveryHint: e.target.value })
+                  }
+                />
+              </>
+            )}
+
+            <Select
+              value={
+                newItem.fulfillmentMode ||
+                (isEscrowDefaultType(newItem.itemType) ? "escrow" : "instant")
+              }
+              onValueChange={(v) =>
+                setNewItem({
+                  ...newItem,
+                  fulfillmentMode: v as "instant" | "escrow",
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Fulfillment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="instant">Instant (theme/media style)</SelectItem>
+                <SelectItem value="escrow">
+                  Escrow (pay → deliver → release)
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={newItem.orgId || "__none__"}
+              onValueChange={(v) => {
+                if (v === "__none__") {
+                  setNewItem({ ...newItem, orgId: "", orgSplitBps: 0 });
+                  return;
+                }
+                const club = clubOptions.find((c) => c.id === v);
+                setNewItem({
+                  ...newItem,
+                  orgId: v,
+                  orgSplitBps: club?.split ?? 500,
+                });
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Club / org brand (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">No org brand</SelectItem>
+                {clubOptions.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} · {(c.split / 100).toFixed(0)}% split
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Input
               placeholder="Title"
               value={newItem.title}
@@ -426,6 +538,10 @@ export function CreatorMarketplacePanel() {
           bkspcWired={bkspcWired}
           emptyMessage="No listings yet. Be the first creator on the Yard Sale."
         />
+
+        <div className="mt-4">
+          <EscrowTradesPanel />
+        </div>
       </CardContent>
     </Card>
   );

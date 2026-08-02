@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="BlkSpace B">
+  <!-- Standalone orange capital B — primary product mark -->
+  <rect width="96" height="96" rx="20" fill="#0f172a"/>
+  <text
+    x="48"
+    y="70"
+    text-anchor="middle"
+    font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif"
+    font-size="72"
+    font-weight="800"
+    fill="#f97316"
+  >B</text>
+</svg>

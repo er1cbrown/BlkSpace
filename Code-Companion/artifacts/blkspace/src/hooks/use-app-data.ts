@@ -569,8 +569,23 @@ export function useTauriSearchCommunities(query: string, enabled = true) {
 export function useTauriMarketplace() {
   return useQuery({
     queryKey: ["tauri", "marketplace"],
-    queryFn: () => tauri.tauriListMarketplace(getSessionToken() || ""),
-    enabled: IS_TAURI,
+    queryFn: async () => {
+      const { listMarketplace } = await import("@/lib/marketplace-escrow");
+      return listMarketplace();
+    },
+    // Web demo store works without Tauri
+    enabled: true,
+  });
+}
+
+export function useMyEscrows() {
+  return useQuery({
+    queryKey: ["tauri", "escrows"],
+    queryFn: async () => {
+      const { listMyEscrows } = await import("@/lib/marketplace-escrow");
+      return listMyEscrows();
+    },
+    enabled: true,
   });
 }
 
@@ -605,7 +620,7 @@ export function useAppSendWeixBucks() {
 export function useAppCreateMarketplaceListing() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (args: {
+    mutationFn: async (args: {
       itemType: string;
       itemRef: string | null;
       price: number;
@@ -613,20 +628,32 @@ export function useAppCreateMarketplaceListing() {
       description: string | null;
       isNft: boolean;
       townTag?: string | null;
-    }) =>
-      tauri.tauriCreateMarketplaceListing(
-        getSessionToken() || "",
-        args.itemType,
-        args.itemRef,
-        args.price,
-        args.title,
-        args.description,
-        args.isNft,
-        args.townTag ?? null,
-      ),
+      fulfillmentMode?: string | null;
+      orgId?: string | null;
+      orgSplitBps?: number | null;
+      deliveryHint?: string | null;
+    }) => {
+      const { createMarketplaceListing } = await import(
+        "@/lib/marketplace-escrow"
+      );
+      return createMarketplaceListing({
+        itemType: args.itemType,
+        itemRef: args.itemRef,
+        price: args.price,
+        title: args.title,
+        description: args.description,
+        isNft: args.isNft,
+        townTag: args.townTag ?? null,
+        fulfillmentMode: (args.fulfillmentMode as "instant" | "escrow") ?? null,
+        orgId: args.orgId ?? null,
+        orgSplitBps: args.orgSplitBps ?? null,
+        deliveryHint: args.deliveryHint ?? null,
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
       qc.invalidateQueries({ queryKey: ["tauri", "ownedNfts"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "escrows"] });
     },
   });
 }
@@ -658,13 +685,85 @@ export function useTauriPublishMix() {
 export function useAppBuyMarketplaceListing() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (listingId: number) =>
-      tauri.tauriBuyMarketplaceListing(getSessionToken() || "", listingId),
+    mutationFn: async (listingId: number) => {
+      const { buyMarketplaceListing } = await import(
+        "@/lib/marketplace-escrow"
+      );
+      return buyMarketplaceListing(listingId);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
       qc.invalidateQueries({ queryKey: ["tauri", "wallet"] });
       qc.invalidateQueries({ queryKey: ["tauri", "user"] });
       qc.invalidateQueries({ queryKey: ["tauri", "ownedNfts"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "escrows"] });
+    },
+  });
+}
+
+export function useEscrowMarkDelivered() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      escrowId: number;
+      deliveryRef: string;
+      deliveryNote?: string | null;
+    }) => {
+      const { escrowMarkDelivered } = await import("@/lib/marketplace-escrow");
+      return escrowMarkDelivered(
+        args.escrowId,
+        args.deliveryRef,
+        args.deliveryNote,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "escrows"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
+    },
+  });
+}
+
+export function useEscrowConfirmRelease() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (escrowId: number) => {
+      const { escrowConfirmRelease } = await import("@/lib/marketplace-escrow");
+      return escrowConfirmRelease(escrowId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "escrows"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "wallet"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "user"] });
+    },
+  });
+}
+
+export function useEscrowOpenDispute() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { escrowId: number; reason?: string | null }) => {
+      const { escrowOpenDispute } = await import("@/lib/marketplace-escrow");
+      return escrowOpenDispute(args.escrowId, args.reason);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "escrows"] });
+    },
+  });
+}
+
+export function useEscrowRefund() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (escrowId: number) => {
+      const { escrowRefund } = await import("@/lib/marketplace-escrow");
+      return escrowRefund(escrowId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "escrows"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "marketplace"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "wallet"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "user"] });
     },
   });
 }
@@ -1386,34 +1485,32 @@ export function useTauriSetCommunityRole() {
 export function useTauriListYardEvents(communityId: string) {
   return useQuery({
     queryKey: ["tauri", "yardEvents", communityId],
-    queryFn: () =>
-      tauri.tauriListYardEvents(communityId, getCurrentHandle() || undefined),
-    enabled: IS_TAURI && !!communityId,
+    queryFn: async () => {
+      const { listYardEvents } = await import("@/lib/yard-events");
+      return listYardEvents(communityId, getCurrentHandle() || undefined);
+    },
+    enabled: !!communityId,
   });
 }
 
 export function useTauriCreateYardEvent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (args: {
+    mutationFn: async (args: {
       communityId: string;
       title: string;
       description: string;
       location: string;
       startsAt: string;
       endsAt?: string;
+      capacity?: number | null;
+      orgId?: string | null;
+      requiresOrgMember?: boolean;
+      ticketPriceWb?: number;
+      eventKind?: string;
     }) => {
-      const token = getSessionToken();
-      if (!token) throw new Error("Not signed in");
-      return tauri.tauriCreateYardEvent(
-        token,
-        args.communityId,
-        args.title,
-        args.description,
-        args.location,
-        args.startsAt,
-        args.endsAt,
-      );
+      const { createYardEvent } = await import("@/lib/yard-events");
+      return createYardEvent(args);
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({
@@ -1426,14 +1523,13 @@ export function useTauriCreateYardEvent() {
 export function useTauriRsvpYardEvent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (args: {
+    mutationFn: async (args: {
       communityId: string;
       eventId: number;
       status: "going" | "interested";
     }) => {
-      const token = getSessionToken();
-      if (!token) throw new Error("Not signed in");
-      return tauri.tauriRsvpYardEvent(token, args.eventId, args.status);
+      const { rsvpYardEvent } = await import("@/lib/yard-events");
+      return rsvpYardEvent(args.eventId, args.status);
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({
@@ -1441,6 +1537,49 @@ export function useTauriRsvpYardEvent() {
       });
       qc.invalidateQueries({ queryKey: ["tauri", "user"] });
       qc.invalidateQueries({ queryKey: ["tauri", "earnSummary"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "eventGuests"] });
+    },
+  });
+}
+
+export function useEventGuests(eventId: number | null) {
+  return useQuery({
+    queryKey: ["tauri", "eventGuests", eventId],
+    queryFn: async () => {
+      if (!eventId) return [];
+      const { listEventGuests } = await import("@/lib/yard-events");
+      return listEventGuests(eventId);
+    },
+    enabled: !!eventId,
+  });
+}
+
+export function useCheckInEventGuest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      eventId: number;
+      ticketOrHandle: string;
+      communityId: string;
+    }) => {
+      const { checkInEventGuest } = await import("@/lib/yard-events");
+      return checkInEventGuest(args.eventId, args.ticketOrHandle);
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["tauri", "eventGuests", vars.eventId] });
+      qc.invalidateQueries({
+        queryKey: ["tauri", "yardEvents", vars.communityId],
+      });
+    },
+  });
+}
+
+export function useOpenToBoard(filter: "all" | "work" | "research" = "all") {
+  return useQuery({
+    queryKey: ["connect", "open-to", filter],
+    queryFn: async () => {
+      const { listOpenToOpportunities } = await import("@/lib/yard-events");
+      return listOpenToOpportunities(filter);
     },
   });
 }
@@ -1448,15 +1587,15 @@ export function useTauriRsvpYardEvent() {
 export function useTauriCancelYardEventRsvp() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (args: { communityId: string; eventId: number }) => {
-      const token = getSessionToken();
-      if (!token) throw new Error("Not signed in");
-      return tauri.tauriCancelYardEventRsvp(token, args.eventId);
+    mutationFn: async (args: { communityId: string; eventId: number }) => {
+      const { cancelYardEventRsvp } = await import("@/lib/yard-events");
+      return cancelYardEventRsvp(args.eventId);
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({
         queryKey: ["tauri", "yardEvents", vars.communityId],
       });
+      qc.invalidateQueries({ queryKey: ["tauri", "eventGuests"] });
     },
   });
 }

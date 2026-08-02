@@ -1,7 +1,8 @@
 # BlkSpace / WeixNet Documentation Index
 
 **Status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ~90% · Phase 3 ~75% · Phase 4 in progress · Phase 5 not started  
-**Date:** 2026-06-23
+**Date:** 2026-08-02  
+**Product mark:** **BlkSpace** · **Coin ticker:** **BKSPC** (BlkSpace Coin)
 
 > **New here?** Read [`../README.md`](../README.md) first, then [`README.md`](README.md) (doc map) or [`ROADMAP.md`](ROADMAP.md) (what's next).
 
@@ -73,7 +74,10 @@
 
 | Document | Phase |
 |----------|-------|
-| [features/project-connect-credibility-layer.md](./features/project-connect-credibility-layer.md) | **Cred before finance** · ProjectConnectBKSPC · orgs/opportunities · pre-BKSPC |
+| [features/use-case-capability-log.md](./features/use-case-capability-log.md) | **Living log** — what campus use cases are Done / Partial / Out of scope |
+| [features/brand-trademark-and-bkspc-rights.md](./features/brand-trademark-and-bkspc-rights.md) | **BlkSpace** trademark intent · **BKSPC** coin ticker · naming lock |
+| [features/bkspc-rights-path.md](./features/bkspc-rights-path.md) | Cred → WB → gated BlkSpace Coin (BKSPC) |
+| [features/project-connect-credibility-layer.md](./features/project-connect-credibility-layer.md) | **Cred before finance** · ProjectConnect · orgs/opportunities · pre-coin |
 | [features/myyard-yard-sale-architecture.md](./features/myyard-yard-sale-architecture.md) | MyYard · Yard Sale · layers |
 | [features/logos-decks.md](./features/logos-decks.md) | 5 |
 | [features/nft-dj-mixes.md](./features/nft-dj-mixes.md) | 4 |
