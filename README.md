@@ -6,13 +6,16 @@
 
 <p align="center">
   <strong>The digital yard for HBCU students</strong><br/>
-  Post on your campus · Customize MySpace-style · Earn WeixBucks · Built for Tier&nbsp;0 laptops
+  Post on your campus · Customize MySpace-style · Earn WeixBucks<br/>
+  <em>One app · every major OS · Tier&nbsp;0 hardware first</em>
 </p>
 
 <p align="center">
   <a href="https://github.com/er1cbrown/BlkSpace/releases"><img src="https://img.shields.io/github/v/release/er1cbrown/BlkSpace?style=for-the-badge&label=Download&color=f97316" alt="Releases" /></a>
   <a href="https://github.com/er1cbrown/BlkSpace/actions"><img src="https://img.shields.io/github/actions/workflow/status/er1cbrown/BlkSpace/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI" /></a>
-  <img src="https://img.shields.io/badge/Tier%200-Windows%20%7C%20macOS%20%7C%20Linux-0f172a?style=for-the-badge" alt="Tier 0 multi-OS" />
+  <img src="https://img.shields.io/badge/Windows-✓-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Windows" />
+  <img src="https://img.shields.io/badge/macOS-✓-000000?style=for-the-badge&logo=apple&logoColor=white" alt="macOS" />
+  <img src="https://img.shields.io/badge/Linux-✓-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux" />
   <img src="https://img.shields.io/badge/DB-Turso%20embedded-0ea5e9?style=for-the-badge" alt="Turso" />
 </p>
 
@@ -32,54 +35,98 @@
   <img src="docs/assets/screenshots/hero-yard.png" alt="Campus yard — the metaphor for BlkSpace" width="720" />
 </p>
 
-> **Why this matters:** BlkSpace is designed for *shitty hardware on purpose* — 4–8&nbsp;GB Windows laptops that HBCU students actually use. If it runs smooth there, it runs anywhere.
+> **Why this matters:** BlkSpace is designed for *shitty hardware on purpose* — 4–8&nbsp;GB laptops that students actually use. Prove it on the weakest machine; ship the **same product** on Windows, Mac, and Linux.
+
+---
+
+## Every OS (desktop today · mobile next)
+
+BlkSpace is a **Tauri 2** app: one React UI + one Rust core, packaged natively per platform. CI builds **Yard** and **Full** on all three desktops every push to `main`.
+
+| OS | Yard (students) | Full (labs) | CI runners | Status |
+|----|-----------------|-------------|------------|--------|
+| **Windows** x64 | `.msi` | `.msi` | `windows-latest` | ✅ Primary Tier 0 path |
+| **macOS** Apple Silicon + Intel | `.dmg` (arm64 + x64 on release tags) | `.dmg` | `macos-latest` | ✅ MacBook-ready |
+| **Linux** x64 | `.AppImage` | `.AppImage` | `ubuntu-latest` | ✅ AppImage |
+| **Web preview** | Browser (`pnpm dev`) | same | any OS | ✅ UI/dev only (no local Turso) |
+| **iOS / Android** | Tauri mobile | — | planned | ⬜ After Yard desktop is solid |
+
+**Same codebase.** Installers differ only by OS package format — not a separate “Windows app” and “Mac app.”
+
+```
+         ┌─────────────────────────────────────┐
+         │     React UI  (identical on all)    │
+         └─────────────────┬───────────────────┘
+                           │
+         ┌─────────────────▼───────────────────┐
+         │  Tauri + Rust  ·  Turso local DB    │
+         │  Nostr mesh    ·  optional Iroh     │
+         └──────┬──────────┬──────────┬────────┘
+                │          │          │
+            Windows      macOS      Linux
+             .msi         .dmg     .AppImage
+```
 
 ---
 
 ## Download (students & demos)
 
-1. Open **[Releases](https://github.com/er1cbrown/BlkSpace/releases)** or the latest green **CI** run → Artifacts  
-2. Grab the build for your machine:
+1. Open **[Releases](https://github.com/er1cbrown/BlkSpace/releases)** or the latest green **[CI](https://github.com/er1cbrown/BlkSpace/actions)** run → **Artifacts**  
+2. Grab the build for **your** machine:
 
 | Platform | Yard (students / Tier 0) | Full (labs / creators) |
 |----------|--------------------------|-------------------------|
 | **Windows** | `BlkSpace-Yard-Windows-x64.msi` | `BlkSpace-Full-Windows-x64.msi` |
-| **macOS** | `BlkSpace-Yard-macOS.dmg` | `BlkSpace-Full-macOS.dmg` |
+| **macOS** (CI) | `BlkSpace-Yard-macOS.dmg` | `BlkSpace-Full-macOS.dmg` |
+| **macOS** (tagged release) | `…-macOS-arm64.dmg` + `…-macOS-x64.dmg` | same |
 | **Linux** | `BlkSpace-Yard-Linux.AppImage` | `BlkSpace-Full-Linux.AppImage` |
 
 3. Install → read [`FIRST_RUN.md`](FIRST_RUN.md) (save your **12-word recovery phrase**).
 
-**MacBook tip:** after a push to `main`, wait for CI `build-tauri-yard` → download the macOS artifact. Or clone + `pnpm tauri:dev:tier0` if you develop.
+| Device | What to do |
+|--------|------------|
+| **MacBook** | CI artifact `BlkSpace-Yard-macos-latest` or clone + `pnpm tauri:dev:tier0` |
+| **Windows Tier 0** | Prefer **Yard** `.msi` — no Iroh, smaller, faster boot |
+| **Linux lab** | `.AppImage` — chmod +x and run |
 
 Student guide: [`TIER0_USER.md`](TIER0_USER.md)
 
 ---
 
-## Progress at a glance (Aug 2026)
+## Progress review (Aug 2026)
 
 ```
-Yard MVP  ████████░░  ~80%   install → feed → profile → yards → wallet
-Economy   ████░░░░░░  ~40%   WeixBucks local · BKSPC devnet scaffolded
-UI / UX   █████████░  polish  dark theme, guest mode, MyYard, search
-Data      ████████░░  Turso   embedded local DB (Tier 0 optimized)
-Mesh      ██████░░░░  Nostr   + optional Iroh (Full build only)
+Cross-platform desktop   █████████░  ~90%   Win + macOS + Linux CI (Yard & Full)
+Yard MVP                 ████████░░  ~80%   install → feed → profile → yards → wallet
+UI / UX                  █████████░  ~90%   dark theme, guest mode, MyYard, search
+Data (Turso)             ████████░░  ~85%   embedded local DB, Tier 0 PRAGMAs
+Economy                  ████░░░░░░  ~40%   WeixBucks local · BKSPC devnet scaffold
+Mesh                     ██████░░░░  ~60%   Nostr + optional Iroh (Full only)
+Mobile (iOS/Android)     ██░░░░░░░░  ~10%   Tauri mobile path planned, not shipping
 ```
 
-| Area | Status | Notes |
-|------|--------|--------|
-| Auth · recovery · guest browse | ✅ | Create free account or just browse |
-| Feed (Watch / Read / Following / My Yard) | ✅ | Guest CTA, MIDF flag toggle |
-| Profile · themes · people on the yard | ✅ | MySpace-style customization |
-| Search | ✅ | Users, posts, communities |
-| Wallet (WeixBucks) | ✅ | Simulated economy; gated for guests |
+| Area | Status | Multi-OS note |
+|------|--------|----------------|
+| Auth · recovery · guest browse | ✅ | Same UX on all desktops |
+| Feed (Watch / Read / Following / My Yard) | ✅ | Proven on Tier 0 Windows; UI identical elsewhere |
+| Profile · themes · people on the yard | ✅ | — |
+| Search | ✅ | — |
+| Wallet (WeixBucks) | ✅ | Guest-gated; local Turso on desktop |
 | Tier 0 boot | ✅ | Deferred seed, lite UI, no Iroh in Yard |
-| **Turso embedded DB** | ✅ | Replaces rusqlite; low-RAM PRAGMAs |
-| Yard + Full CI installers | ✅ | Windows / macOS / Linux |
+| **Turso embedded DB** | ✅ | One engine, all OS packages |
+| **Yard CI** Win / Mac / Linux | ✅ | `build-tauri-yard` matrix |
+| **Full CI** Win / Mac / Linux | ✅ | `build-tauri-full` matrix |
+| **Release tags** arm64 + x64 Mac | ✅ | `release.yml` dual mac targets |
 | Device B student sign-off | ⏳ | [`docs/YARD_RELEASE_CHECKLIST.md`](docs/YARD_RELEASE_CHECKLIST.md) |
 | BKSPC on-chain E2E | 🟡 | Devnet scaffold; NFT transfer pending |
+| iOS / Android installers | ⬜ | After desktop Yard is tagged |
 | Phase 5 NLP / anti-abuse | ⬜ | After Yard is stable |
 
-**Next milestone:** tag **`v0.1.0-yard`** after Device B passes → install from Releases on campus machines.
+**Next milestones**
+1. **Device B** smoke on Tier 0 Windows → tag **`v0.1.0-yard`** (all three OS installers on Releases).  
+2. Confirm **MacBook** install from CI artifact / release DMG.  
+3. Finish Phase 4 marketplace E2E (devnet).  
+4. Mobile (iOS/Android) only after desktop multi-OS is trusted.
 
 Full roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md) · Dashboard: [`docs/phase-0-status.md`](docs/phase-0-status.md)
 

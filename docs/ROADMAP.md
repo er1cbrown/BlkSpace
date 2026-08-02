@@ -1,21 +1,25 @@
 # BlkSpace Roadmap (plain English)
 
-**Last updated:** June 2026 · **Repo:** `main`
+**Last updated:** August 2026 · **Repo:** `main`
 
-This doc answers: *what works today, what “BlkSpace-Full” means, and what Tier C / Phase 5 are.*
+This doc answers: *what works today, multi-OS status, what “BlkSpace-Full” means, and what Tier C / Phase 5 are.*
 
 ---
 
 ## Where we are
 
 ```
-Yard MVP (~80%)  ████████░░  Students can install & use core social loop
-Economy MVP (~40%) ████░░░░░░  WB simulated; BKSPC devnet scaffolded
+Cross-OS desktop (~90%) █████████░  Windows + macOS + Linux (Yard & Full via CI)
+Yard MVP (~80%)         ████████░░  Students can install & use core social loop
+Economy MVP (~40%)      ████░░░░░░  WB simulated; BKSPC devnet scaffolded
+Mobile (~10%)           ██░░░░░░░░  Planned (Tauri); not shipping yet
 ```
 
-**Works today:** install → welcome wizard → browse feed (guest or account) → post → profile **MyYard** themes → yards → wallet (simulated WB) → **Yard Sale** (WB + BKSPC with devnet build).
+**Works today:** install on **Windows / macOS / Linux** → welcome wizard → browse feed (guest or account) → post → profile **MyYard** themes → yards → wallet (simulated WB) → **Yard Sale** (WB + BKSPC with devnet build). Local DB is **Turso** (embedded) on desktop.
 
 **Not ready for real money yet:** NFT ownership transfer on purchase, full devnet E2E proof, Device B sign-off on a 4 GB Windows laptop.
+
+**Multi-OS principle:** one codebase (Tauri 2 + React). If it runs on Tier 0 Windows, the same product ships to MacBook and Linux labs.
 
 ---
 

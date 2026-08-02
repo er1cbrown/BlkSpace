@@ -9,8 +9,23 @@
 ## Status line
 
 ```
-Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | M1 hub-sync ✅ | P4–P5 ✅ | P6 earn ✅ | P7 bridge ✅ | Guest mode ✅ | M0 manual ⏳
+Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | M1 hub-sync ✅ | P4–P5 ✅ | P6 earn ✅ | P7 bridge ✅ | Guest mode ✅ | Turso DB ✅ | Multi-OS CI ✅ | M0 manual ⏳
 ```
+
+---
+
+## Cross-platform (every OS) — desktop shipping path
+
+| Surface | Windows | macOS | Linux | Notes |
+|---------|---------|-------|-------|--------|
+| Yard CI installer | ✅ MSI | ✅ DMG | ✅ AppImage | `build-tauri-yard` |
+| Full CI installer | ✅ MSI | ✅ DMG | ✅ AppImage | `build-tauri-full` |
+| Tagged release dual Mac (arm64 + x64) | — | ✅ | — | `release.yml` |
+| Web UI preview | ✅ | ✅ | ✅ | `pnpm dev` (no Turso) |
+| Turso local DB (desktop) | ✅ | ✅ | ✅ | Tier 0 PRAGMAs |
+| iOS / Android | ⬜ | ⬜ | — | After `v0.1.0-yard` |
+
+**Goal:** connect students and contributors on **whatever OS they have** — weak Windows, MacBook, Linux lab — without a separate fork.
 
 ---
 
