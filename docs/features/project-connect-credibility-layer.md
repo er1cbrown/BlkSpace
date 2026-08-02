@@ -1,6 +1,6 @@
 # ProjectConnectBKSPC · Credibility Layer (before finance)
 
-**Status:** Design / feature review — implement **before** mainnet BKSPC finance  
+**Status:** **C0 demo implemented** (UI + Turso schema + seed) — still before mainnet finance  
 **Last updated:** 2026-08-02  
 **Codename:** ProjectConnectBKSPC (legacy: ProjectConnectTSU · Team SET · NSBE 2024)  
 **Depends on:** Yards, profiles, karma, guest mode, Turso local DB  

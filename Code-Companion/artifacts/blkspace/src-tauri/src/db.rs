@@ -620,7 +620,7 @@ pub struct Database {
 }
 
 /// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
-const SCHEMA_VERSION: i32 = 2;
+const SCHEMA_VERSION: i32 = 3;
 
 /// Tier 0 page cache in KiB (negative PRAGMA cache_size = KiB).
 /// Default 8 MiB — was 64 MiB which is too heavy for 4 GB laptops.
@@ -664,7 +664,132 @@ impl Database {
   /// Idempotent demo content + pubkey backfill (safe to call from background seed thread).
   pub fn ensure_seeded(&self) -> Result<()> {
     self.seed()?;
-    self.backfill_demo_pubkeys()
+    self.backfill_demo_pubkeys()?;
+    let conn = self.conn.lock().unwrap();
+    crate::connect::seed_demo(&conn)?;
+    Ok(())
+  }
+
+  // ─── ProjectConnectBKSPC ─────────────────────────────────
+
+  pub fn connect_list_orgs(
+    &self,
+    org_type: Option<&str>,
+  ) -> Result<Vec<crate::connect::ConnectOrg>> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::list_orgs(&conn, org_type)
+  }
+
+  pub fn connect_get_org(&self, id: &str) -> Result<Option<crate::connect::ConnectOrg>> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::get_org(&conn, id)
+  }
+
+  pub fn connect_create_org(
+    &self,
+    id: &str,
+    slug: &str,
+    name: &str,
+    org_type: &str,
+    yard_id: &str,
+    description: &str,
+    created_by: &str,
+  ) -> Result<crate::connect::ConnectOrg> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::create_org(&conn, id, slug, name, org_type, yard_id, description, created_by)
+  }
+
+  pub fn connect_list_opportunities(
+    &self,
+    org_id: Option<&str>,
+    org_type: Option<&str>,
+  ) -> Result<Vec<crate::connect::ConnectOpportunity>> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::list_opportunities(&conn, org_id, org_type)
+  }
+
+  pub fn connect_get_opportunity(
+    &self,
+    id: i64,
+  ) -> Result<Option<crate::connect::ConnectOpportunity>> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::get_opportunity(&conn, id)
+  }
+
+  pub fn connect_create_opportunity(
+    &self,
+    org_id: &str,
+    title: &str,
+    description: &str,
+    duration_text: &str,
+    tags_json: &str,
+    created_by: &str,
+  ) -> Result<crate::connect::ConnectOpportunity> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::create_opportunity(
+      &conn,
+      org_id,
+      title,
+      description,
+      duration_text,
+      tags_json,
+      created_by,
+    )
+  }
+
+  pub fn connect_express_interest(
+    &self,
+    opportunity_id: i64,
+    handle: &str,
+    message: &str,
+    skills: &str,
+    classification: &str,
+  ) -> Result<crate::connect::ConnectInterest> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::express_interest(
+      &conn,
+      opportunity_id,
+      handle,
+      message,
+      skills,
+      classification,
+    )
+  }
+
+  pub fn connect_list_interests(
+    &self,
+    opportunity_id: i64,
+  ) -> Result<Vec<crate::connect::ConnectInterest>> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::list_interests_for_opportunity(&conn, opportunity_id)
+  }
+
+  pub fn connect_inbox(
+    &self,
+    lead_handle: &str,
+  ) -> Result<Vec<crate::connect::ConnectInterest>> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::list_inbox_for_lead(&conn, lead_handle)
+  }
+
+  pub fn connect_set_interest_status(&self, interest_id: i64, status: &str) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::set_interest_status(&conn, interest_id, status)
+  }
+
+  pub fn connect_complete_interest(
+    &self,
+    interest_id: i64,
+    from_handle: &str,
+    note: &str,
+  ) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::complete_interest(&conn, interest_id, from_handle, note)
+  }
+
+  pub fn connect_yard_cred(&self, handle: &str) -> Result<crate::connect::YardCred> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::get_yard_cred(&conn, handle)
   }
 
   fn open(app_dir: PathBuf, seed_now: bool) -> Result<Self> {
@@ -1113,6 +1238,9 @@ impl Database {
       CREATE INDEX IF NOT EXISTS idx_economy_appeals_handle ON economy_appeals(handle);
       "
     )?;
+
+    // ProjectConnectBKSPC tables (idempotent)
+    crate::connect::ensure_schema(&conn)?;
 
     let version = Self::schema_version(&conn)?;
     if version < SCHEMA_VERSION {

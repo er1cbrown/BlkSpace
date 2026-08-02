@@ -1,0 +1,554 @@
+//! ProjectConnectBKSPC — credibility layer (orgs, opportunities, interests).
+//! Demo-ready for promo; gates finance later via Yard Cred.
+
+use crate::sqlite::{params, Connection, Result};
+use serde::Serialize;
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectOrg {
+  pub id: String,
+  pub slug: String,
+  pub name: String,
+  pub org_type: String,
+  pub yard_id: String,
+  pub description: String,
+  pub created_by: String,
+  pub member_count: i64,
+  pub opportunity_count: i64,
+  pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectOpportunity {
+  pub id: i64,
+  pub org_id: String,
+  pub org_name: String,
+  pub org_type: String,
+  pub title: String,
+  pub description: String,
+  pub duration_text: String,
+  pub tags_json: String,
+  pub status: String,
+  pub created_by: String,
+  pub interest_count: i64,
+  pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectInterest {
+  pub id: i64,
+  pub opportunity_id: i64,
+  pub opportunity_title: String,
+  pub org_name: String,
+  pub handle: String,
+  pub display_name: String,
+  pub message: String,
+  pub skills_snapshot: String,
+  pub classification: String,
+  pub status: String,
+  pub created_at: String,
+  pub yard_cred: i64,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct YardCred {
+  pub handle: String,
+  pub score: i64,
+  pub karma: i64,
+  pub completions: i64,
+  pub endorsements: i64,
+  pub orgs_joined: i64,
+  pub interests: i64,
+}
+
+pub fn ensure_schema(conn: &Connection) -> Result<()> {
+  conn.execute_batch(
+    "
+    CREATE TABLE IF NOT EXISTS connect_orgs (
+      id TEXT PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      org_type TEXT NOT NULL,
+      yard_id TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      created_by TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS connect_org_members (
+      org_id TEXT NOT NULL,
+      handle TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'member',
+      joined_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (org_id, handle)
+    );
+    CREATE TABLE IF NOT EXISTS connect_opportunities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      org_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      duration_text TEXT DEFAULT '',
+      tags_json TEXT DEFAULT '[]',
+      status TEXT DEFAULT 'open',
+      created_by TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS connect_interests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      opportunity_id INTEGER NOT NULL,
+      handle TEXT NOT NULL,
+      message TEXT DEFAULT '',
+      skills_snapshot TEXT DEFAULT '',
+      classification TEXT DEFAULT '',
+      status TEXT DEFAULT 'pending',
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(opportunity_id, handle)
+    );
+    CREATE TABLE IF NOT EXISTS connect_endorsements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_handle TEXT NOT NULL,
+      to_handle TEXT NOT NULL,
+      opportunity_id INTEGER NOT NULL,
+      note TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(from_handle, to_handle, opportunity_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_connect_opp_org ON connect_opportunities(org_id, status);
+    CREATE INDEX IF NOT EXISTS idx_connect_interest_opp ON connect_interests(opportunity_id);
+    CREATE INDEX IF NOT EXISTS idx_connect_interest_handle ON connect_interests(handle);
+    ",
+  )?;
+  Ok(())
+}
+
+pub fn seed_demo(conn: &Connection) -> Result<()> {
+  let n: i64 = conn
+    .query_row("SELECT COUNT(*) FROM connect_orgs", (), |r| r.get(0))
+    .unwrap_or(0);
+  if n > 0 {
+    return Ok(());
+  }
+
+  conn.execute_batch(
+    r#"
+    INSERT INTO connect_orgs (id, slug, name, org_type, yard_id, description, created_by) VALUES
+      ('org_nsbe_tsu', 'nsbe-tsu', 'NSBE @ TSU', 'professional', 'tsu',
+       'National Society of Black Engineers — TSU chapter. Career prep, hackathons, peer mentorship.',
+       'demo_user'),
+      ('org_lab_ai', 'tsu-ai-lab', 'TSU AI Research Lab', 'research', 'tsu',
+       'Faculty-led research on ML, privacy, and secure systems. Open to motivated students.',
+       'demo_user'),
+      ('org_service', 'tiger-service', 'Tiger Community Service Hub', 'service', 'tsu',
+       'Volunteer projects with Nashville partners — tutoring, food drives, campus clean-ups.',
+       'jane_doe'),
+      ('org_club', 'yard-creatives', 'Yard Creatives Club', 'club', 'tsu',
+       'DJ mixes, design collabs, content nights. For-fun creator energy on the yard.',
+       'campus_king'),
+      ('org_peer', 'study-cohort', 'Peer Study Cohort', 'peer', 'howard',
+       'Cross-major study groups and project squads. Peer-led, open enrollment.',
+       'hbcustudent');
+
+    INSERT INTO connect_org_members (org_id, handle, role) VALUES
+      ('org_nsbe_tsu', 'demo_user', 'owner'),
+      ('org_nsbe_tsu', 'campus_king', 'member'),
+      ('org_lab_ai', 'demo_user', 'lead'),
+      ('org_lab_ai', 'jane_doe', 'member'),
+      ('org_service', 'jane_doe', 'owner'),
+      ('org_club', 'campus_king', 'owner'),
+      ('org_peer', 'hbcustudent', 'owner');
+
+    INSERT INTO connect_opportunities (org_id, title, description, duration_text, tags_json, status, created_by) VALUES
+      ('org_lab_ai', 'Privacy-Preserving Financial Transactions',
+       'Develop secure methods for private financial transactions using multi-party computation (MPC). Great for students interested in crypto-security research.',
+       '6 months', '["research","security","MPC"]', 'open', 'demo_user'),
+      ('org_lab_ai', 'Fraud Detection with ML',
+       'Build machine learning solutions to detect and prevent fraud. Python + data pipelines. Join to shape safer digital payments.',
+       '9 months', '["ML","python","research"]', 'open', 'demo_user'),
+      ('org_nsbe_tsu', 'NSBE Region Conference Crew',
+       'Help organize workshops and logistics for the regional conference. Leadership + ops experience.',
+       '3 months', '["professional","leadership"]', 'open', 'demo_user'),
+      ('org_service', 'Saturday STEM Tutoring',
+       'Tutor middle-school STEM in Nashville. Flexible 2-hour Saturday shifts. Community service hours available.',
+       'ongoing', '["service","tutoring"]', 'open', 'jane_doe'),
+      ('org_club', 'Homecoming Mix Collab',
+       'Co-produce a yard mix for homecoming week. Need producers, vocalists, and cover art designers.',
+       '6 weeks', '["club","music","creative"]', 'open', 'campus_king'),
+      ('org_peer', 'Algorithms Study Sprint',
+       'Weekly peer sessions for interviews + class. Bring a laptop and one problem to share.',
+       '8 weeks', '["peer","study"]', 'open', 'hbcustudent');
+    "#,
+  )?;
+  Ok(())
+}
+
+fn map_org(row: &crate::sqlite::Row) -> Result<ConnectOrg> {
+  Ok(ConnectOrg {
+    id: row.get(0)?,
+    slug: row.get(1)?,
+    name: row.get(2)?,
+    org_type: row.get(3)?,
+    yard_id: row.get(4)?,
+    description: row.get(5)?,
+    created_by: row.get(6)?,
+    member_count: row.get(7)?,
+    opportunity_count: row.get(8)?,
+    created_at: row.get(9)?,
+  })
+}
+
+pub fn list_orgs(conn: &Connection, org_type: Option<&str>) -> Result<Vec<ConnectOrg>> {
+  let sql = "
+    SELECT o.id, o.slug, o.name, o.org_type, o.yard_id, o.description, o.created_by,
+           (SELECT COUNT(*) FROM connect_org_members m WHERE m.org_id = o.id),
+           (SELECT COUNT(*) FROM connect_opportunities p WHERE p.org_id = o.id AND p.status = 'open'),
+           o.created_at
+    FROM connect_orgs o
+    WHERE (?1 = '' OR o.org_type = ?1)
+    ORDER BY o.name
+  ";
+  let filter = org_type.unwrap_or("");
+  let mut stmt = conn.prepare(sql)?;
+  let rows = stmt.query_map(params![filter, filter], map_org)?;
+  let mut out = Vec::new();
+  for r in rows {
+    out.push(r?);
+  }
+  Ok(out)
+}
+
+pub fn get_org(conn: &Connection, id: &str) -> Result<Option<ConnectOrg>> {
+  let sql = "
+    SELECT o.id, o.slug, o.name, o.org_type, o.yard_id, o.description, o.created_by,
+           (SELECT COUNT(*) FROM connect_org_members m WHERE m.org_id = o.id),
+           (SELECT COUNT(*) FROM connect_opportunities p WHERE p.org_id = o.id AND p.status = 'open'),
+           o.created_at
+    FROM connect_orgs o WHERE o.id = ?1 OR o.slug = ?1
+  ";
+  let mut stmt = conn.prepare(sql)?;
+  let mut rows = stmt.query(params![id])?;
+  match rows.next()? {
+    Some(row) => Ok(Some(map_org(&row)?)),
+    None => Ok(None),
+  }
+}
+
+pub fn create_org(
+  conn: &Connection,
+  id: &str,
+  slug: &str,
+  name: &str,
+  org_type: &str,
+  yard_id: &str,
+  description: &str,
+  created_by: &str,
+) -> Result<ConnectOrg> {
+  conn.execute(
+    "INSERT INTO connect_orgs (id, slug, name, org_type, yard_id, description, created_by)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+    params![id, slug, name, org_type, yard_id, description, created_by],
+  )?;
+  conn.execute(
+    "INSERT INTO connect_org_members (org_id, handle, role) VALUES (?1, ?2, 'owner')",
+    params![id, created_by],
+  )?;
+  get_org(conn, id)?.ok_or_else(|| crate::sqlite::Error::QueryReturnedNoRows)
+}
+
+pub fn list_opportunities(
+  conn: &Connection,
+  org_id: Option<&str>,
+  org_type: Option<&str>,
+) -> Result<Vec<ConnectOpportunity>> {
+  let sql = "
+    SELECT p.id, p.org_id, o.name, o.org_type, p.title, p.description, p.duration_text,
+           p.tags_json, p.status, p.created_by,
+           (SELECT COUNT(*) FROM connect_interests i WHERE i.opportunity_id = p.id),
+           p.created_at
+    FROM connect_opportunities p
+    JOIN connect_orgs o ON o.id = p.org_id
+    WHERE (?1 = '' OR p.org_id = ?1)
+      AND (?2 = '' OR o.org_type = ?2)
+      AND p.status = 'open'
+    ORDER BY p.created_at DESC
+  ";
+  let oid = org_id.unwrap_or("");
+  let otype = org_type.unwrap_or("");
+  let mut stmt = conn.prepare(sql)?;
+  let rows = stmt.query_map(params![oid, oid, otype, otype], |row| {
+    Ok(ConnectOpportunity {
+      id: row.get(0)?,
+      org_id: row.get(1)?,
+      org_name: row.get(2)?,
+      org_type: row.get(3)?,
+      title: row.get(4)?,
+      description: row.get(5)?,
+      duration_text: row.get(6)?,
+      tags_json: row.get(7)?,
+      status: row.get(8)?,
+      created_by: row.get(9)?,
+      interest_count: row.get(10)?,
+      created_at: row.get(11)?,
+    })
+  })?;
+  let mut out = Vec::new();
+  for r in rows {
+    out.push(r?);
+  }
+  Ok(out)
+}
+
+pub fn get_opportunity(conn: &Connection, id: i64) -> Result<Option<ConnectOpportunity>> {
+  let sql = "
+    SELECT p.id, p.org_id, o.name, o.org_type, p.title, p.description, p.duration_text,
+           p.tags_json, p.status, p.created_by,
+           (SELECT COUNT(*) FROM connect_interests i WHERE i.opportunity_id = p.id),
+           p.created_at
+    FROM connect_opportunities p
+    JOIN connect_orgs o ON o.id = p.org_id
+    WHERE p.id = ?1
+  ";
+  let mut stmt = conn.prepare(sql)?;
+  let mut rows = stmt.query(params![id])?;
+  match rows.next()? {
+    Some(row) => Ok(Some(ConnectOpportunity {
+      id: row.get(0)?,
+      org_id: row.get(1)?,
+      org_name: row.get(2)?,
+      org_type: row.get(3)?,
+      title: row.get(4)?,
+      description: row.get(5)?,
+      duration_text: row.get(6)?,
+      tags_json: row.get(7)?,
+      status: row.get(8)?,
+      created_by: row.get(9)?,
+      interest_count: row.get(10)?,
+      created_at: row.get(11)?,
+    })),
+    None => Ok(None),
+  }
+}
+
+pub fn create_opportunity(
+  conn: &Connection,
+  org_id: &str,
+  title: &str,
+  description: &str,
+  duration_text: &str,
+  tags_json: &str,
+  created_by: &str,
+) -> Result<ConnectOpportunity> {
+  conn.execute(
+    "INSERT INTO connect_opportunities (org_id, title, description, duration_text, tags_json, created_by)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+    params![org_id, title, description, duration_text, tags_json, created_by],
+  )?;
+  let id = conn.last_insert_rowid();
+  get_opportunity(conn, id)?.ok_or_else(|| crate::sqlite::Error::QueryReturnedNoRows)
+}
+
+pub fn express_interest(
+  conn: &Connection,
+  opportunity_id: i64,
+  handle: &str,
+  message: &str,
+  skills_snapshot: &str,
+  classification: &str,
+) -> Result<ConnectInterest> {
+  conn.execute(
+    "INSERT INTO connect_interests (opportunity_id, handle, message, skills_snapshot, classification)
+     VALUES (?1, ?2, ?3, ?4, ?5)
+     ON CONFLICT(opportunity_id, handle) DO UPDATE SET
+       message = excluded.message,
+       skills_snapshot = excluded.skills_snapshot,
+       classification = excluded.classification,
+       status = 'pending'",
+    params![opportunity_id, handle, message, skills_snapshot, classification],
+  )?;
+  list_interests_for_opportunity(conn, opportunity_id)?
+    .into_iter()
+    .find(|i| i.handle == handle)
+    .ok_or_else(|| crate::sqlite::Error::QueryReturnedNoRows)
+}
+
+pub fn list_interests_for_opportunity(
+  conn: &Connection,
+  opportunity_id: i64,
+) -> Result<Vec<ConnectInterest>> {
+  let sql = "
+    SELECT i.id, i.opportunity_id, p.title, o.name, i.handle,
+           COALESCE(u.display_name, i.handle),
+           i.message, i.skills_snapshot, i.classification, i.status, i.created_at,
+           COALESCE(u.post_karma,0) + COALESCE(u.comment_karma,0)
+    FROM connect_interests i
+    JOIN connect_opportunities p ON p.id = i.opportunity_id
+    JOIN connect_orgs o ON o.id = p.org_id
+    LEFT JOIN users u ON u.handle = i.handle
+    WHERE i.opportunity_id = ?1
+    ORDER BY i.created_at DESC
+  ";
+  let mut stmt = conn.prepare(sql)?;
+  let rows = stmt.query_map(params![opportunity_id], |row| {
+    let karma: i64 = row.get(11)?;
+    Ok(ConnectInterest {
+      id: row.get(0)?,
+      opportunity_id: row.get(1)?,
+      opportunity_title: row.get(2)?,
+      org_name: row.get(3)?,
+      handle: row.get(4)?,
+      display_name: row.get(5)?,
+      message: row.get(6)?,
+      skills_snapshot: row.get(7)?,
+      classification: row.get(8)?,
+      status: row.get(9)?,
+      created_at: row.get(10)?,
+      yard_cred: compute_cred_from_parts(karma, 0, 0, 0, 1),
+    })
+  })?;
+  let mut out = Vec::new();
+  for r in rows {
+    out.push(r?);
+  }
+  Ok(out)
+}
+
+pub fn list_inbox_for_lead(conn: &Connection, lead_handle: &str) -> Result<Vec<ConnectInterest>> {
+  let sql = "
+    SELECT i.id, i.opportunity_id, p.title, o.name, i.handle,
+           COALESCE(u.display_name, i.handle),
+           i.message, i.skills_snapshot, i.classification, i.status, i.created_at,
+           COALESCE(u.post_karma,0) + COALESCE(u.comment_karma,0)
+    FROM connect_interests i
+    JOIN connect_opportunities p ON p.id = i.opportunity_id
+    JOIN connect_orgs o ON o.id = p.org_id
+    LEFT JOIN users u ON u.handle = i.handle
+    WHERE p.created_by = ?1 OR EXISTS (
+      SELECT 1 FROM connect_org_members m
+      WHERE m.org_id = o.id AND m.handle = ?1 AND m.role IN ('owner','lead')
+    )
+    ORDER BY i.created_at DESC
+  ";
+  let mut stmt = conn.prepare(sql)?;
+  let rows = stmt.query_map(params![lead_handle, lead_handle], |row| {
+    let karma: i64 = row.get(11)?;
+    Ok(ConnectInterest {
+      id: row.get(0)?,
+      opportunity_id: row.get(1)?,
+      opportunity_title: row.get(2)?,
+      org_name: row.get(3)?,
+      handle: row.get(4)?,
+      display_name: row.get(5)?,
+      message: row.get(6)?,
+      skills_snapshot: row.get(7)?,
+      classification: row.get(8)?,
+      status: row.get(9)?,
+      created_at: row.get(10)?,
+      yard_cred: compute_cred_from_parts(karma, 0, 0, 0, 1),
+    })
+  })?;
+  let mut out = Vec::new();
+  for r in rows {
+    out.push(r?);
+  }
+  Ok(out)
+}
+
+pub fn set_interest_status(
+  conn: &Connection,
+  interest_id: i64,
+  status: &str,
+) -> Result<()> {
+  conn.execute(
+    "UPDATE connect_interests SET status = ?1 WHERE id = ?2",
+    params![status, interest_id],
+  )?;
+  Ok(())
+}
+
+pub fn complete_interest(
+  conn: &Connection,
+  interest_id: i64,
+  from_handle: &str,
+  note: &str,
+) -> Result<()> {
+  let (opp_id, to_handle): (i64, String) = conn.query_row(
+    "SELECT opportunity_id, handle FROM connect_interests WHERE id = ?1",
+    params![interest_id],
+    |r| Ok((r.get(0)?, r.get(1)?)),
+  )?;
+  conn.execute(
+    "UPDATE connect_interests SET status = 'completed' WHERE id = ?1",
+    params![interest_id],
+  )?;
+  let _ = conn.execute(
+    "INSERT OR IGNORE INTO connect_endorsements (from_handle, to_handle, opportunity_id, note)
+     VALUES (?1, ?2, ?3, ?4)",
+    params![from_handle, to_handle, opp_id, note],
+  );
+  Ok(())
+}
+
+/// Simple 0–100 Yard Cred composite for promo (see credibility-layer doc).
+pub fn compute_cred_from_parts(
+  karma: i64,
+  completions: i64,
+  endorsements: i64,
+  orgs: i64,
+  interests: i64,
+) -> i64 {
+  let k = (karma.min(500) as f64 / 500.0) * 25.0;
+  let c = (completions.min(10) as f64 / 10.0) * 30.0;
+  let e = (endorsements.min(10) as f64 / 10.0) * 20.0;
+  let o = (orgs.min(5) as f64 / 5.0) * 15.0;
+  let i = (interests.min(10) as f64 / 10.0) * 10.0;
+  (k + c + e + o + i).round() as i64
+}
+
+pub fn get_yard_cred(conn: &Connection, handle: &str) -> Result<YardCred> {
+  let karma: i64 = conn
+    .query_row(
+      "SELECT COALESCE(post_karma,0) + COALESCE(comment_karma,0) FROM users WHERE handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )
+    .unwrap_or(0);
+  let completions: i64 = conn
+    .query_row(
+      "SELECT COUNT(*) FROM connect_interests WHERE handle = ?1 AND status = 'completed'",
+      params![handle],
+      |r| r.get(0),
+    )
+    .unwrap_or(0);
+  let endorsements: i64 = conn
+    .query_row(
+      "SELECT COUNT(*) FROM connect_endorsements WHERE to_handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )
+    .unwrap_or(0);
+  let orgs: i64 = conn
+    .query_row(
+      "SELECT COUNT(*) FROM connect_org_members WHERE handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )
+    .unwrap_or(0);
+  let interests: i64 = conn
+    .query_row(
+      "SELECT COUNT(*) FROM connect_interests WHERE handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )
+    .unwrap_or(0);
+  Ok(YardCred {
+    handle: handle.to_string(),
+    score: compute_cred_from_parts(karma, completions, endorsements, orgs, interests),
+    karma,
+    completions,
+    endorsements,
+    orgs_joined: orgs,
+    interests,
+  })
+}

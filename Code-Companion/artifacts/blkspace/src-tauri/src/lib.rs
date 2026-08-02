@@ -1,6 +1,7 @@
 #[macro_use]
 mod sqlite;
 mod db;
+mod connect;
 mod blob_store;
 mod key_store;
 mod relay_manager;
@@ -1946,6 +1947,194 @@ fn get_communities(state: State<AppState>) -> Vec<Community> {
   state.db.get_communities()
 }
 
+// ─── ProjectConnectBKSPC (credibility layer) ─────────────
+
+#[tauri::command]
+fn connect_list_orgs(
+  state: State<AppState>,
+  org_type: Option<String>,
+) -> Result<Vec<connect::ConnectOrg>, String> {
+  state
+    .db
+    .connect_list_orgs(org_type.as_deref())
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn connect_get_org(
+  state: State<AppState>,
+  id: String,
+) -> Result<Option<connect::ConnectOrg>, String> {
+  state.db.connect_get_org(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn connect_create_org(
+  state: State<AppState>,
+  session_token: String,
+  name: String,
+  org_type: String,
+  yard_id: String,
+  description: String,
+) -> Result<connect::ConnectOrg, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  let slug = name
+    .to_lowercase()
+    .chars()
+    .map(|c| if c.is_alphanumeric() { c } else { '-' })
+    .collect::<String>()
+    .trim_matches('-')
+    .chars()
+    .take(40)
+    .collect::<String>();
+  let id = format!("org_{}", uuid::Uuid::new_v4().simple());
+  let slug = if slug.is_empty() {
+    id.clone()
+  } else {
+    format!("{}-{}", slug, &id[id.len().saturating_sub(6)..])
+  };
+  state
+    .db
+    .connect_create_org(
+      &id,
+      &slug,
+      &name,
+      &org_type,
+      &yard_id,
+      &description,
+      &handle,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn connect_list_opportunities(
+  state: State<AppState>,
+  org_id: Option<String>,
+  org_type: Option<String>,
+) -> Result<Vec<connect::ConnectOpportunity>, String> {
+  state
+    .db
+    .connect_list_opportunities(org_id.as_deref(), org_type.as_deref())
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn connect_get_opportunity(
+  state: State<AppState>,
+  id: i64,
+) -> Result<Option<connect::ConnectOpportunity>, String> {
+  state
+    .db
+    .connect_get_opportunity(id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn connect_create_opportunity(
+  state: State<AppState>,
+  session_token: String,
+  org_id: String,
+  title: String,
+  description: String,
+  duration_text: String,
+  tags_json: String,
+) -> Result<connect::ConnectOpportunity, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .connect_create_opportunity(
+      &org_id,
+      &title,
+      &description,
+      &duration_text,
+      &tags_json,
+      &handle,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn connect_express_interest(
+  state: State<AppState>,
+  session_token: String,
+  opportunity_id: i64,
+  message: String,
+  skills_snapshot: String,
+  classification: String,
+) -> Result<connect::ConnectInterest, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .connect_express_interest(
+      opportunity_id,
+      &handle,
+      &message,
+      &skills_snapshot,
+      &classification,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn connect_list_interests(
+  state: State<AppState>,
+  opportunity_id: i64,
+) -> Result<Vec<connect::ConnectInterest>, String> {
+  state
+    .db
+    .connect_list_interests(opportunity_id)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn connect_inbox(
+  state: State<AppState>,
+  session_token: String,
+) -> Result<Vec<connect::ConnectInterest>, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state.db.connect_inbox(&handle).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn connect_set_interest_status(
+  state: State<AppState>,
+  session_token: String,
+  interest_id: i64,
+  status: String,
+) -> Result<(), String> {
+  let _ = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .connect_set_interest_status(interest_id, &status)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn connect_complete_interest(
+  state: State<AppState>,
+  session_token: String,
+  interest_id: i64,
+  note: String,
+) -> Result<(), String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .connect_complete_interest(interest_id, &handle, &note)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn connect_yard_cred(
+  state: State<AppState>,
+  handle: String,
+) -> Result<connect::YardCred, String> {
+  state
+    .db
+    .connect_yard_cred(&handle)
+    .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn list_channels(state: State<AppState>, community_id: String) -> Vec<db::Channel> {
   state.db.list_channels(&community_id)
@@ -3872,6 +4061,18 @@ pub fn run() {
       get_earn_summary,
       repost_post,
       list_following_reposts,
+      connect_list_orgs,
+      connect_get_org,
+      connect_create_org,
+      connect_list_opportunities,
+      connect_get_opportunity,
+      connect_create_opportunity,
+      connect_express_interest,
+      connect_list_interests,
+      connect_inbox,
+      connect_set_interest_status,
+      connect_complete_interest,
+      connect_yard_cred,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

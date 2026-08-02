@@ -47,6 +47,15 @@ export default function LandingPage() {
                     Enter the Yard <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </Link>
+                <Link href="/connect">
+                  <Button
+                    size="lg"
+                    variant="secondary"
+                    className="text-lg px-8 rounded-full h-14 font-bold"
+                  >
+                    ProjectConnect
+                  </Button>
+                </Link>
                 <Link href="/welcome">
                   <Button
                     size="lg"

@@ -17,6 +17,7 @@ import {
   Settings,
   Code2,
   Trophy,
+  Handshake,
 } from "lucide-react";
 import { getCurrentHandle } from "@/lib/auth";
 import { useAppGetUser, useAppGetTrendingFeed } from "@/hooks/use-app-data";
@@ -71,6 +72,12 @@ export function YardSidebar() {
           <Link href="/wallet">
             <Button variant="outline" size="sm" className="w-full">
               My Earnings
+            </Button>
+          </Link>
+          <Link href="/connect">
+            <Button size="sm" className="w-full gap-1.5">
+              <Handshake className="w-3.5 h-3.5" />
+              ProjectConnect
             </Button>
           </Link>
         </CardContent>

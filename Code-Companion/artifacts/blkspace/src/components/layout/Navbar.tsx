@@ -13,6 +13,7 @@ export function Navbar() {
 
   const navItems = [
     { href: "/feed", label: "Feed" },
+    { href: "/connect", label: "Connect" },
     { href: "/media", label: "Media" },
     { href: "/communities", label: "Communities" },
     { href: "/relays", label: "Network" },

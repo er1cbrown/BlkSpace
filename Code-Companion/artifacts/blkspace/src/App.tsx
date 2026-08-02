@@ -33,6 +33,7 @@ const MediaPage = React.lazy(() => import("@/pages/media"));
 const CreatePage = React.lazy(() => import("@/pages/create"));
 const LeaderboardPage = React.lazy(() => import("@/pages/leaderboard"));
 const MeshTestPage = React.lazy(() => import("@/pages/mesh-test"));
+const ConnectPage = React.lazy(() => import("@/pages/connect"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -110,6 +111,10 @@ function Router() {
         <Route path="/notifications" component={NotificationsPage} />
         <Route path="/communities" component={CommunitiesPage} />
         <Route path="/communities/:id" component={CommunityPage} />
+        <Route path="/connect" component={ConnectPage} />
+        <Route path="/connect/inbox" component={ConnectPage} />
+        <Route path="/connect/orgs/:id" component={ConnectPage} />
+        <Route path="/connect/opportunities/:id" component={ConnectPage} />
         <Route path="/search" component={SearchPage} />
         <Route path="/wallet" component={() => <GuestRoute component={WalletPage} />} />
         <Route path="/create" component={() => <GuestRoute component={CreatePage} />} />
