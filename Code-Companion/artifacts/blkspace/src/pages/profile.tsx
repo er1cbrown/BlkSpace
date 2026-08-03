@@ -26,7 +26,6 @@ import {
   Users,
   Store,
   BookOpen,
-  Disc3,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -65,19 +64,24 @@ import {
 } from "@/hooks/use-app-data";
 import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { MYARD_PROFILE_THEMES } from "@/lib/myyard-catalog";
 import {
   parseMyYardLayout,
   mergeMyYardLayout,
   serializeMyYardLayout,
+  DEFAULT_AESTHETIC,
   type MyYardLayout,
 } from "@/lib/myyard-layout";
+import { loadLocalMyYard, saveLocalMyYard } from "@/lib/myyard-storage";
 import { getYardTheme } from "@/lib/yard-themes";
 import { LogosDeckPlayer } from "@/components/profile/LogosDeckPlayer";
 import { StudioPanel } from "@/components/profile/StudioPanel";
 import { getFacultyBadge } from "@/lib/faculty-desk";
+import {
+  ProfileAestheticShell,
+  MyYardBanner,
+} from "@/components/profile/ProfileAestheticShell";
+import { ProfileGallery } from "@/components/profile/ProfileGallery";
+import { CustomizeStation } from "@/components/profile/CustomizeStation";
 
 type ThemeKey = "classic" | "pro" | "vibrant" | "myspace";
 
@@ -118,6 +122,9 @@ export default function ProfilePage() {
   const [profileTheme, setProfileTheme] = useState<ThemeKey>("classic");
   const [profileSong, setProfileSong] = useState<string | null>(null);
   const [audioBlobs, setAudioBlobs] = useState<TauriBlobInfo[]>([]);
+  const [imageBlobs, setImageBlobs] = useState<TauriBlobInfo[]>([]);
+  const [localLayoutOverride, setLocalLayoutOverride] =
+    useState<MyYardLayout | null>(null);
   const [profileTab, setProfileTab] = useState("grid");
   const profileTabsRef = useRef<HTMLDivElement>(null);
   const [audioSrc, setAudioSrc] = useState<string | null>(null); // for real Iroh play
@@ -133,17 +140,41 @@ export default function ProfilePage() {
       "border-fuchsia-600 bg-gradient-to-br from-purple-900 to-black text-white border-4",
   };
 
-  const themeLabel = Object.fromEntries(
-    MYARD_PROFILE_THEMES.map((t) => [t.id, t.label]),
-  ) as Record<ThemeKey, string>;
+  const profileHandle = handle || currentUser;
 
-  const myyardLayout = useMemo(
-    () =>
-      parseMyYardLayout(
-        (user as { profileLayoutJson?: string })?.profileLayoutJson,
-      ),
-    [user],
-  );
+  const myyardLayout = useMemo(() => {
+    if (localLayoutOverride) return localLayoutOverride;
+    const fromDb = parseMyYardLayout(
+      (user as { profileLayoutJson?: string })?.profileLayoutJson,
+    );
+    const local = loadLocalMyYard(profileHandle);
+    // Prefer richer local aesthetic if DB is empty shell
+    if (
+      local &&
+      (!fromDb.aesthetic?.mood &&
+        !fromDb.aesthetic?.about &&
+        !fromDb.aesthetic?.galleryHashes?.length &&
+        !fromDb.aesthetic?.customCss)
+    ) {
+      return local;
+    }
+    if (local?.aesthetic && fromDb.aesthetic) {
+      return mergeMyYardLayout(fromDb, {
+        aesthetic: {
+          ...fromDb.aesthetic,
+          ...local.aesthetic,
+          galleryDataUrls: {
+            ...fromDb.aesthetic.galleryDataUrls,
+            ...local.aesthetic.galleryDataUrls,
+          },
+        },
+      });
+    }
+    return local || fromDb;
+  }, [user, localLayoutOverride, profileHandle]);
+
+  const aesthetic = myyardLayout.aesthetic || DEFAULT_AESTHETIC;
+
   const yardPack = myyardLayout.yardPackId
     ? getYardTheme(myyardLayout.yardPackId)
     : null;
@@ -172,48 +203,52 @@ export default function ProfilePage() {
     const token = getSessionToken();
     if (!token) return;
     tauriListUserBlobs(token)
-      .then((blobs) =>
-        setAudioBlobs(blobs.filter((b) => b.mimeType.startsWith("audio/"))),
-      )
-      .catch(() => setAudioBlobs([]));
+      .then((blobs) => {
+        setAudioBlobs(blobs.filter((b) => b.mimeType.startsWith("audio/")));
+        setImageBlobs(blobs.filter((b) => b.mimeType.startsWith("image/")));
+      })
+      .catch(() => {
+        setAudioBlobs([]);
+        setImageBlobs([]);
+      });
   }, [isOwnProfile, user?.handle]);
 
   const persistMyYardLayout = (next: MyYardLayout) => {
+    setLocalLayoutOverride(next);
+    saveLocalMyYard(profileHandle, next);
     if (!isTauri()) {
-      toast.success("Saved locally (web preview mode)");
+      toast.success("MyYard look saved in this browser");
       return;
     }
     updateProfileLayout.mutate(serializeMyYardLayout(next), {
-      onSuccess: () => toast.success("MyYard modules saved"),
+      onSuccess: () => toast.success("MyYard look saved"),
       onError: (e) => toast.error(String(e)),
     });
-  };
-
-  const setModuleToggle = (
-    key: "logosDeck" | "bibleNlp",
-    enabled: boolean,
-  ) => {
-    const next = mergeMyYardLayout(myyardLayout, {
-      modules: { ...myyardLayout.modules, [key]: enabled },
-    });
-    persistMyYardLayout(next);
   };
 
   const saveCustomization = (theme: ThemeKey, music: string | null) => {
     setProfileTheme(theme);
     setProfileSong(music);
     if (!isTauri()) {
-      toast.success("Saved locally (web preview mode)");
+      toast.success("Theme & music saved locally");
       return;
     }
     updateCustomization.mutate(
       { theme, musicHash: music || "" },
       {
-        onSuccess: () =>
-          toast.success("Profile theme & music saved to DB + Nostr kind 0"),
+        onSuccess: () => toast.success("Theme & music saved"),
         onError: (e) => toast.error(String(e)),
       },
     );
+  };
+
+  const saveStation = (next: {
+    layout: MyYardLayout;
+    theme: ThemeKey;
+    musicHash: string | null;
+  }) => {
+    persistMyYardLayout(next.layout);
+    saveCustomization(next.theme, next.musicHash);
   };
 
   useEffect(() => {
@@ -235,12 +270,33 @@ export default function ProfilePage() {
     tauriGetBlobBytes(token, profileSong)
       .then((b64) => {
         if (b64) {
-          // assume audio/mpeg or from blob mime, for demo
           setAudioSrc(`data:audio/mpeg;base64,${b64}`);
         }
       })
       .catch(() => setAudioSrc(null));
   }, [profileSong]);
+
+  // Banner image from blob hash
+  useEffect(() => {
+    const hash = aesthetic.bannerImageHash;
+    if (!hash || aesthetic.bannerImageDataUrl || !isTauri()) return;
+    const token = getSessionToken();
+    if (!token) return;
+    tauriGetBlobBytes(token, hash)
+      .then((b64) => {
+        if (!b64) return;
+        setLocalLayoutOverride((prev) => {
+          const base = prev || myyardLayout;
+          return mergeMyYardLayout(base, {
+            aesthetic: {
+              ...(base.aesthetic || DEFAULT_AESTHETIC),
+              bannerImageDataUrl: `data:image/jpeg;base64,${b64}`,
+            },
+          });
+        });
+      })
+      .catch(() => {});
+  }, [aesthetic.bannerImageHash, aesthetic.bannerImageDataUrl]);
 
   const topFriends: TopFriend[] = (() => {
     try {
@@ -264,33 +320,25 @@ export default function ProfilePage() {
         {isLoading ? (
           <div className="h-64 bg-muted/50 animate-pulse rounded-2xl mb-8"></div>
         ) : user ? (
-          <div
-            className={
-              themeClasses[profileTheme] +
-              " rounded-3xl overflow-hidden shadow-xl border mb-8 transition-all"
-            }
+          <ProfileAestheticShell
+            aesthetic={aesthetic}
+            themeClassName={themeClasses[profileTheme]}
           >
-            {/* Header Banner (MyYard customizable feel) */}
-            <div
-              className={
-                yardPack
-                  ? `h-40 bg-gradient-to-br ${yardPack.gradient} relative opacity-95`
-                  : "h-40 bg-gradient-to-r from-primary/40 via-primary/10 to-primary/40 relative"
-              }
-            >
+            {/* Header Banner — fully customizable */}
+            <MyYardBanner aesthetic={aesthetic}>
               {yardPack && (
-                <div className="absolute top-3 left-3 text-xs text-white/90 font-medium drop-shadow">
+                <div className="absolute top-3 left-3 text-xs text-white/90 font-medium drop-shadow z-10">
                   {yardPack.mascot} · {yardPack.name} pack
                 </div>
               )}
-              <div className="absolute -bottom-14 left-8 flex items-end gap-4">
-                <Avatar className="h-28 w-28 border-4 border-card ring-2 ring-primary/30">
+              <div className="absolute -bottom-14 left-8 flex items-end gap-4 z-10">
+                <Avatar className="h-28 w-28 border-4 border-card ring-2 ring-primary/30 myyard-accent-border">
                   <AvatarImage src={user.avatarUrl || ""} />
                   <AvatarFallback className="text-4xl bg-primary/80">
                     {user.displayName?.charAt(0) ?? "?"}
                   </AvatarFallback>
                 </Avatar>
-                {profileSong && (
+                {profileSong && aesthetic.showMusic && (
                   <div className="mb-3 hidden md:block">
                     <ProfileMusicPlayer
                       hash={profileSong}
@@ -305,7 +353,7 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
-              <div className="absolute top-4 right-4 flex gap-2">
+              <div className="absolute top-4 right-4 flex gap-2 z-10">
                 {isOwnProfile && (
                   <Button
                     variant="secondary"
@@ -319,7 +367,7 @@ export default function ProfilePage() {
                       });
                     }}
                   >
-                    <Palette className="w-4 h-4 mr-1" /> Customize MyYard
+                    <Palette className="w-4 h-4 mr-1" /> Customize
                   </Button>
                 )}
                 {!isOwnProfile && (
@@ -373,9 +421,9 @@ export default function ProfilePage() {
                   </Button>
                 )}
               </div>
-            </div>
+            </MyYardBanner>
 
-            <div className="pt-16 px-8 pb-8">
+            <div className="pt-16 px-6 sm:px-8 pb-8">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h1 className="text-4xl font-bold tracking-tighter">
@@ -384,6 +432,11 @@ export default function ProfilePage() {
                   <p className="text-xl text-muted-foreground">
                     @{user.handle ?? "unknown"}
                   </p>
+                  {aesthetic.mood ? (
+                    <p className="text-sm mt-1 myyard-accent-text font-medium">
+                      {aesthetic.mood}
+                    </p>
+                  ) : null}
                   {getFacultyBadge(user.handle ?? currentUser) && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       <Badge className="bg-violet-600/90 text-white text-xs">
@@ -406,9 +459,16 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <p className="text-lg mb-4 max-w-2xl">
+              <p className="text-lg mb-2 max-w-2xl">
                 {user.bio || "No bio yet. Edit to tell your story."}
               </p>
+              {aesthetic.about ? (
+                <p className="text-sm text-muted-foreground mb-4 max-w-2xl whitespace-pre-wrap">
+                  {aesthetic.about}
+                </p>
+              ) : (
+                <div className="mb-4" />
+              )}
 
               {/* Stats like FB + WeixBucks */}
               <div className="flex flex-wrap gap-8 py-4 border-t border-b mb-6 text-sm">
@@ -441,27 +501,40 @@ export default function ProfilePage() {
                 displayName={user.displayName ?? user.handle ?? "User"}
               />
 
-              <div className="mb-6">
-                <TopFriends
-                  friends={topFriends}
-                  editable={isOwnProfile}
-                  onEdit={() => {
-                    const handles = prompt(
-                      "Top friends (comma handles)",
-                      topFriends.map((f) => f.handle).join(","),
-                    );
-                    if (!handles) return;
-                    const next = handles.split(",").map((h, i) => ({
-                      handle: h.trim(),
-                      label: h.trim().split("_")[0] || `Friend ${i + 1}`,
-                    }));
-                    if (isTauri()) {
-                      updateTopFriends.mutate(JSON.stringify(next));
-                    }
-                    toast.success("Top friends updated");
-                  }}
+              {aesthetic.showGallery && (
+                <ProfileGallery
+                  aesthetic={aesthetic}
+                  emptyHint={
+                    isOwnProfile
+                      ? "Add photos in Customize → Photos so visitors see your gallery."
+                      : undefined
+                  }
                 />
-              </div>
+              )}
+
+              {aesthetic.showTopFriends && (
+                <div className="mb-6">
+                  <TopFriends
+                    friends={topFriends}
+                    editable={isOwnProfile}
+                    onEdit={() => {
+                      const handles = prompt(
+                        "Top friends (comma handles)",
+                        topFriends.map((f) => f.handle).join(","),
+                      );
+                      if (!handles) return;
+                      const next = handles.split(",").map((h, i) => ({
+                        handle: h.trim(),
+                        label: h.trim().split("_")[0] || `Friend ${i + 1}`,
+                      }));
+                      if (isTauri()) {
+                        updateTopFriends.mutate(JSON.stringify(next));
+                      }
+                      toast.success("Top friends updated");
+                    }}
+                  />
+                </div>
+              )}
 
               {myyardLayout.modules?.logosDeck && (
                 <div className="mb-6">
@@ -503,14 +576,17 @@ export default function ProfilePage() {
                 className="mt-2"
               >
                 <TabsList className="mb-4 w-full justify-start flex-wrap h-auto">
-                  <TabsTrigger value="grid">Grid (IG)</TabsTrigger>
-                  <TabsTrigger value="wall">Wall (FB)</TabsTrigger>
+                  <TabsTrigger value="grid">Photos</TabsTrigger>
+                  <TabsTrigger value="wall">Wall</TabsTrigger>
                   <TabsTrigger value="posts">Posts</TabsTrigger>
+                  <TabsTrigger value="music">Music</TabsTrigger>
                   <TabsTrigger value="pro">Pro</TabsTrigger>
                   <TabsTrigger value="studio">Studio</TabsTrigger>
-                  <TabsTrigger value="music">Music</TabsTrigger>
                   {isOwnProfile && (
-                    <TabsTrigger value="customize">MyYard</TabsTrigger>
+                    <TabsTrigger value="customize" className="gap-1">
+                      <Palette className="w-3.5 h-3.5" />
+                      Customize
+                    </TabsTrigger>
                   )}
                 </TabsList>
 
@@ -806,132 +882,32 @@ export default function ProfilePage() {
                 </TabsContent>
 
                 {isOwnProfile && (
-                  <TabsContent value="customize">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>MyYard</CardTitle>
-                        <CardDescription>
-                          Your creator space — themes, music, and optional
-                          modules. Visitors browse your Grid; you sell from Yard
-                          Sale in Wallet.
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <div>
-                          <div className="text-sm font-medium mb-2">
-                            Profile Theme
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {(
-                              ["classic", "pro", "vibrant", "myspace"] as const
-                            ).map((t) => (
-                              <Button
-                                key={t}
-                                variant={
-                                  profileTheme === t ? "default" : "outline"
-                                }
-                                size="sm"
-                                onClick={() =>
-                                  saveCustomization(t, profileSong)
-                                }
-                                disabled={updateCustomization.isPending}
-                              >
-                                {themeLabel[t]}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="space-y-3 pt-2 border-t">
-                          <div className="text-sm font-medium">
-                            Yard modules (opt-in)
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Each creator chooses what appears on their MyYard.
-                            Campus yards stay independent — TSU norms ≠ your
-                            personal modules.
-                          </p>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <Card className="border-dashed border-primary/30">
-                              <CardContent className="pt-4 pb-4 space-y-3">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 font-medium text-sm">
-                                    <Disc3 className="w-4 h-4 text-primary" />
-                                    Logos Deck
-                                  </div>
-                                  <Switch
-                                    id="mod-logos-deck"
-                                    checked={!!myyardLayout.modules?.logosDeck}
-                                    onCheckedChange={(v) =>
-                                      setModuleToggle("logosDeck", v)
-                                    }
-                                    disabled={updateProfileLayout.isPending}
-                                  />
-                                </div>
-                                <Label
-                                  htmlFor="mod-logos-deck"
-                                  className="text-xs text-muted-foreground font-normal cursor-pointer"
-                                >
-                                  Show DJ-style scripture deck on your public
-                                  MyYard. Buy sets on Yard Sale to auto-enable.
-                                </Label>
-                              </CardContent>
-                            </Card>
-                            <Card className="border-dashed border-primary/30">
-                              <CardContent className="pt-4 pb-4 space-y-3">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 font-medium text-sm">
-                                    <BookOpen className="w-4 h-4 text-primary" />
-                                    Bible NLP
-                                  </div>
-                                  <Switch
-                                    id="mod-bible-nlp"
-                                    checked={!!myyardLayout.modules?.bibleNlp}
-                                    onCheckedChange={(v) =>
-                                      setModuleToggle("bibleNlp", v)
-                                    }
-                                    disabled={updateProfileLayout.isPending}
-                                  />
-                                </div>
-                                <Label
-                                  htmlFor="mod-bible-nlp"
-                                  className="text-xs text-muted-foreground font-normal cursor-pointer"
-                                >
-                                  Opt-in study tags on profile — never injected
-                                  into feed without consent.
-                                </Label>
-                              </CardContent>
-                            </Card>
-                          </div>
-                          {myyardLayout.modules?.logosDeck && (
-                            <LogosDeckPlayer
-                              setTitle={myyardLayout.logosDeck?.setTitle}
-                              audioHash={myyardLayout.logosDeck?.audioHash}
-                              trackIds={myyardLayout.logosDeck?.trackIds}
-                            />
-                          )}
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href="/wallet">
-                              <Store className="w-4 h-4 mr-1" />
-                              Open Yard Sale (sell from MyYard)
-                            </Link>
-                          </Button>
-                        </div>
-
-                        <Button
-                          onClick={() => saveCustomization("classic", null)}
-                          disabled={updateCustomization.isPending}
-                        >
-                          Reset to default
-                        </Button>
-                      </CardContent>
-                    </Card>
+                  <TabsContent value="customize" className="space-y-4">
+                    <CustomizeStation
+                      key={`station-${profileHandle}`}
+                      layout={myyardLayout}
+                      profileTheme={profileTheme}
+                      profileSong={profileSong}
+                      audioBlobs={audioBlobs}
+                      imageBlobs={imageBlobs}
+                      saving={
+                        updateProfileLayout.isPending ||
+                        updateCustomization.isPending
+                      }
+                      onSave={saveStation}
+                    />
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href="/wallet">
+                        <Store className="w-4 h-4 mr-1" />
+                        Yard Sale — sell from MyYard
+                      </Link>
+                    </Button>
                   </TabsContent>
                 )}
               </Tabs>
               </div>
             </div>
-          </div>
+          </ProfileAestheticShell>
         ) : (
           <div className="text-center py-20 text-muted-foreground">
             Profile not found.
