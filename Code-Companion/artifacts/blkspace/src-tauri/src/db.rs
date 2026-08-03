@@ -1421,8 +1421,16 @@ impl Database {
       Self::set_schema_version(&conn, SCHEMA_VERSION)?;
     }
 
-    // Always upsert catalog (idempotent; picks up generator refreshes)
-    Self::seed_hbcus_catalog(&conn)?;
+    // Catalog seed is heavy (100+ upserts). Skip when already full so cold/warm
+    // MSI boot does not block the window on every launch. Re-seed only if empty
+    // or short (schema bump / partial install).
+    let hbcu_n: i64 = conn
+      .query_row("SELECT COUNT(*) FROM hbcus", (), |r| r.get(0))
+      .unwrap_or(0);
+    let expected = crate::hbcu_catalog_seed::HBCU_SEED.len() as i64;
+    if hbcu_n < expected {
+      Self::seed_hbcus_catalog(&conn)?;
+    }
     // Backfill memberships from users.town → yard_memberships
     Self::backfill_yard_memberships_from_users(&conn)?;
 
