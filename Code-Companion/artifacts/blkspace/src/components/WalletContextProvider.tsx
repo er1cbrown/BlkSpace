@@ -10,6 +10,7 @@ import {
 } from "@solana/wallet-adapter-wallets";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { clusterApiUrl } from "@solana/web3.js";
+import { getBkspcConfig, solanaRpcUrl } from "@/lib/bkspc-config";
 
 // Lazily load CSS to prevent render blocking on slow drives
 try {
@@ -21,15 +22,19 @@ try {
 export const WalletContextProvider: FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  // Standardizing on Devnet for development to prevent real loss of funds
-  const network = WalletAdapterNetwork.Devnet;
+  // Cluster from bkspc-config (devnet default; mainnet-beta when ops set it)
+  const cfg = getBkspcConfig();
+  const network =
+    cfg.cluster === "mainnet-beta"
+      ? WalletAdapterNetwork.Mainnet
+      : WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => {
     try {
       return clusterApiUrl(network);
     } catch (e) {
-      return "https://api.devnet.solana.com";
+      return solanaRpcUrl(cfg.cluster);
     }
-  }, [network]);
+  }, [network, cfg.cluster]);
 
   const wallets = useMemo(
     () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],

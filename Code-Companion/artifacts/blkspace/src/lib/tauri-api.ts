@@ -972,6 +972,77 @@ export function tauriGetBlobMetadata(
   return invoke("get_blob_metadata", { sessionToken, hash });
 }
 
+/** Sendme-inspired content ticket (blkspace1.…). */
+export interface TauriBlobSharePayload {
+  v: number;
+  hash: string;
+  cid?: string | null;
+  name: string;
+  mime: string;
+  size: number;
+  src: string;
+}
+
+export interface TauriBlobShareTicket {
+  ticket: string;
+  payload: TauriBlobSharePayload;
+  bytesAvailable: boolean;
+  p2pHint: string;
+}
+
+export interface TauriReceiveShareResult {
+  hash: string;
+  cid?: string | null;
+  filename: string;
+  mimeType: string;
+  fileSize: number;
+  source: string;
+  message: string;
+}
+
+export interface TauriSendmeCliInfo {
+  installed: boolean;
+  path?: string | null;
+  version?: string | null;
+  sendExample: string;
+  receiveExample: string;
+  installHint: string;
+  note: string;
+}
+
+export function tauriCreateBlobShareTicket(
+  sessionToken: string,
+  hash: string,
+): Promise<TauriBlobShareTicket> {
+  return invoke("create_blob_share_ticket", { sessionToken, hash });
+}
+
+export function tauriReceiveBlobShareTicket(
+  sessionToken: string,
+  ticket: string,
+): Promise<TauriReceiveShareResult> {
+  return invoke("receive_blob_share_ticket", { sessionToken, ticket });
+}
+
+export function tauriGetSendmeCliInfo(): Promise<TauriSendmeCliInfo> {
+  return invoke("get_sendme_cli_info");
+}
+
+export function tauriGetSendmeCliCommands(
+  path?: string | null,
+  ticket?: string | null,
+): Promise<{
+  send?: string | null;
+  receive?: string | null;
+  install: string;
+  docs: string;
+}> {
+  return invoke("get_sendme_cli_commands", {
+    path: path ?? null,
+    ticket: ticket ?? null,
+  });
+}
+
 export function tauriLinkPubkey(
   handle: string,
   newPubkey: string,

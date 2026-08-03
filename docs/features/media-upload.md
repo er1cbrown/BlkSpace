@@ -55,3 +55,4 @@ Absolute ceiling: **50 MB** (`MAX_UPLOAD_SIZE` in Rust).
 | `src/components/ui/media-display.tsx` | Render image/video/audio/pdf/file |
 | `src-tauri/src/lib.rs` | `upload_blob`, mime map, size cap |
 | `src-tauri/src/blob_store.rs` | On-disk content-addressed store |
+| [sendme-iroh-transfer.md](./sendme-iroh-transfer.md) | Share/receive tickets (sendme-style drop) |

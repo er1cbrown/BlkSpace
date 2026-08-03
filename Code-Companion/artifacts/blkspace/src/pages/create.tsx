@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/layout/AppShell";
 import { PostComposer } from "@/components/social/PostComposer";
+import { SendmeSharePanel } from "@/components/media/SendmeSharePanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
 import { useState } from "react";
@@ -132,6 +133,10 @@ export default function CreatePage() {
           <p>Yard chat: +{WB_EARN.yardChannelPost + WB_EARN.yardEngagementBonus} WB · yard karma</p>
         </CardContent>
       </Card>
+
+      <div className="mt-6">
+        <SendmeSharePanel />
+      </div>
     </AppShell>
   );
 }

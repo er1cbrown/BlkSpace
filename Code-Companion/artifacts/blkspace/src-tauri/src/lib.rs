@@ -11,6 +11,7 @@ mod secure_dm;
 mod blob_store;
 mod key_store;
 mod relay_manager;
+mod sendme_share;
 mod tier0_benchmark;
 
 #[cfg(feature = "iroh")]
@@ -3862,6 +3863,204 @@ fn get_blob_metadata(state: State<AppState>, session_token: String, hash: String
   state.db.get_blob_record(&hash).map_err(|e| AppError::from(e).to_string())
 }
 
+// ─── Sendme-inspired share tickets (content-addressed drop) ───
+
+fn blob_bytes_available(state: &AppState, hash: &str, cid: Option<&str>) -> bool {
+  if state.blob_store.blob_exists(hash) {
+    return true;
+  }
+  #[cfg(feature = "iroh")]
+  if let Some(iroh) = state.iroh.lock().unwrap().as_ref() {
+    if let Ok(rt) = tokio::runtime::Runtime::new() {
+      let key = cid.unwrap_or(hash);
+      if rt.block_on(iroh.has_blob(key)).unwrap_or(false) {
+        return true;
+      }
+      if let Some(c) = cid {
+        if c != hash && rt.block_on(iroh.has_blob(c)).unwrap_or(false) {
+          return true;
+        }
+      }
+    }
+  }
+  let _ = cid;
+  false
+}
+
+#[tauri::command]
+fn create_blob_share_ticket(
+  state: State<AppState>,
+  session_token: String,
+  hash: String,
+) -> Result<sendme_share::BlobShareTicket, String> {
+  check_session_rate_limit(&state, &session_token)?;
+  validate_blob_hash(&hash)?;
+  let rec = state
+    .db
+    .get_blob_record(&hash)
+    .map_err(|e| AppError::from(e).to_string())?
+    .ok_or_else(|| "Blob not found — upload first, then share".to_string())?;
+
+  let payload = sendme_share::BlobSharePayload {
+    v: 1,
+    hash: rec.hash.clone(),
+    cid: rec.cid.clone(),
+    name: rec.filename.clone(),
+    mime: rec.mime_type.clone(),
+    size: rec.file_size,
+    src: "blkspace".to_string(),
+  };
+  let ticket = payload.encode_ticket()?;
+  let available = blob_bytes_available(&state, &rec.hash, rec.cid.as_deref());
+  let p2p_hint = if available {
+    "Bytes are on this device. Peer can receive via ticket if they already sync this content, or use sendme CLI for live P2P.".to_string()
+  } else {
+    "Metadata only — re-upload or keep the app online so peers with the same content hash can materialize.".to_string()
+  };
+
+  Ok(sendme_share::BlobShareTicket {
+    ticket,
+    payload,
+    bytes_available: available,
+    p2p_hint,
+  })
+}
+
+#[tauri::command]
+fn receive_blob_share_ticket(
+  state: State<AppState>,
+  session_token: String,
+  ticket: String,
+) -> Result<sendme_share::ReceiveShareResult, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  let raw = ticket.trim();
+  if sendme_share::looks_like_external_blob_ticket(raw) {
+    let info = sendme_share::detect_sendme_cli();
+    let cmd = sendme_share::sendme_receive_command(raw);
+    return Err(format!(
+      "External sendme/iroh ticket. Run on this machine:\n  {}\n{}",
+      cmd,
+      if info.installed {
+        format!("(sendme found{})", info.version.map(|v| format!(": {v}")).unwrap_or_default())
+      } else {
+        format!("Install with: {}", info.install_hint)
+      }
+    ));
+  }
+
+  let payload = sendme_share::BlobSharePayload::decode_ticket(raw)?;
+  let hash = if !payload.hash.is_empty() {
+    payload.hash.clone()
+  } else {
+    payload
+      .cid
+      .clone()
+      .ok_or_else(|| "Ticket has no hash or cid".to_string())?
+  };
+
+  // Already local?
+  if let Some(bytes) = state.blob_store.get_blob(&hash) {
+    let cid = payload.cid.as_deref();
+    let (record, _) = state
+      .db
+      .insert_blob(
+        &hash,
+        cid,
+        &payload.name,
+        &payload.mime,
+        bytes.len() as i64,
+        &handle,
+      )
+      .map_err(|e| AppError::from(e).to_string())?;
+    return Ok(sendme_share::ReceiveShareResult {
+      hash: record.hash,
+      cid: record.cid,
+      filename: record.filename,
+      mime_type: record.mime_type,
+      file_size: record.file_size,
+      source: "local".to_string(),
+      message: "Materialized from local blob store".to_string(),
+    });
+  }
+
+  // Iroh store (Full build)
+  #[cfg(feature = "iroh")]
+  if let Some(iroh) = state.iroh.lock().unwrap().as_ref() {
+    let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {e}"))?;
+    let keys: Vec<String> = [
+      payload.cid.clone(),
+      Some(hash.clone()),
+      Some(payload.hash.clone()),
+    ]
+    .into_iter()
+    .flatten()
+    .filter(|k| !k.is_empty())
+    .collect::<std::collections::HashSet<_>>()
+    .into_iter()
+    .collect();
+
+    for key in keys {
+      match rt.block_on(iroh.get_blob(&key)) {
+        Ok(Some(bytes)) => {
+          let local_hash = state.blob_store.store_blob(&bytes)?;
+          let cid = payload.cid.clone().or(Some(key));
+          let (record, _) = state
+            .db
+            .insert_blob(
+              &local_hash,
+              cid.as_deref(),
+              &payload.name,
+              &payload.mime,
+              bytes.len() as i64,
+              &handle,
+            )
+            .map_err(|e| AppError::from(e).to_string())?;
+          return Ok(sendme_share::ReceiveShareResult {
+            hash: record.hash,
+            cid: record.cid,
+            filename: record.filename,
+            mime_type: record.mime_type,
+            file_size: record.file_size,
+            source: "iroh".to_string(),
+            message: "Materialized from Iroh content store".to_string(),
+          });
+        }
+        Ok(None) => {}
+        Err(e) => log::warn!("receive ticket iroh get {}: {}", key, e),
+      }
+    }
+  }
+
+  let cli = sendme_share::detect_sendme_cli();
+  Err(format!(
+    "Content not on this device yet (hash {}). \
+     Keep sender online with the same mesh/Iroh store, re-sync account content, \
+     or use sendme CLI for live P2P: `{}`. {}",
+    if hash.len() > 12 { &hash[..12] } else { &hash },
+    cli.receive_example,
+    if cli.installed {
+      "sendme is installed on PATH."
+    } else {
+      "Install: cargo install sendme"
+    }
+  ))
+}
+
+#[tauri::command]
+fn get_sendme_cli_info() -> sendme_share::SendmeCliInfo {
+  sendme_share::detect_sendme_cli()
+}
+
+#[tauri::command]
+fn get_sendme_cli_commands(path: Option<String>, ticket: Option<String>) -> serde_json::Value {
+  serde_json::json!({
+    "send": path.map(|p| sendme_share::sendme_send_command(&p)),
+    "receive": ticket.map(|t| sendme_share::sendme_receive_command(&t)),
+    "install": "cargo install sendme",
+    "docs": "https://github.com/n0-computer/sendme",
+  })
+}
+
 // ─── Karma, yards, profile extensions ───────────────────
 
 #[tauri::command]
@@ -4940,6 +5139,10 @@ pub fn run() {
       list_user_blobs,
       delete_blob,
       get_blob_metadata,
+      create_blob_share_ticket,
+      receive_blob_share_ticket,
+      get_sendme_cli_info,
+      get_sendme_cli_commands,
       link_pubkey,
       connect_to_relay,
       disconnect_from_relay,

@@ -54,6 +54,8 @@ import { OwnedNftsPanel } from "@/components/economy/OwnedNftsPanel";
 import { formatFeePercent, FEE_BPS } from "@/lib/tokenomics";
 import { toast } from "sonner";
 import { WalletContextProvider } from "@/components/WalletContextProvider";
+import { BkspcMainnetPanel } from "@/components/economy/BkspcMainnetPanel";
+import { getBkspcConfig } from "@/lib/bkspc-config";
 
 const mockTxHistory = [
   {
@@ -387,14 +389,20 @@ function WithdrawDialog({ balance }: { balance: number }) {
               />
             </div>
             <WithdrawEligibilityPanel eligibility={eligibility} />
-            {settlementStatus && (
-              <p className="text-[10px] text-muted-foreground">
-                On-chain settlement:{" "}
-                {settlementStatus.wired
-                  ? `devnet live (mint ${settlementStatus.mint?.slice(0, 8)}…)`
-                  : settlementStatus.reason ?? "simulated until devnet manifest is configured"}
-              </p>
-            )}
+            {(() => {
+              const cfg = getBkspcConfig();
+              return (
+                <p className="text-[10px] text-muted-foreground">
+                  On-chain settlement ({cfg.cluster}):{" "}
+                  {settlementStatus?.wired
+                    ? `wired (mint ${(settlementStatus.mint || cfg.mint || "").slice(0, 8)}…)`
+                    : cfg.isMintConfigured
+                      ? `mint set on ${cfg.cluster} — Cred gates still apply`
+                      : settlementStatus?.reason ??
+                        "simulated until mint is configured"}
+                </p>
+              );
+            })()}
             <p className="text-xs text-muted-foreground">
               Available balance: {balance.toLocaleString()} WB
             </p>
@@ -476,6 +484,10 @@ function WalletPageContent() {
         </div>
 
         <WalletDisclaimer />
+
+        <div className="mb-8">
+          <BkspcMainnetPanel wbBalance={balance} />
+        </div>
 
         <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20 shadow-lg mb-8">
           <CardContent className="p-8">

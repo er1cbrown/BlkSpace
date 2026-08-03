@@ -36,6 +36,7 @@ import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { YardEventsPanel } from "@/components/community/YardEventsPanel";
 import { YardMembersPanel } from "@/components/community/YardMembersPanel";
 import { YardSaleTab } from "@/components/community/YardSaleTab";
+import { YardLiveRooms } from "@/components/community/YardLiveRooms";
 import {
   ClubActivitiesPanel,
   StudyHourHint,
@@ -509,14 +510,22 @@ export default function CommunityPage() {
               onValueChange={setActiveTab}
               className="w-full"
             >
-              <TabsList className="mb-4">
+              <TabsList className="mb-4 flex flex-wrap h-auto gap-1">
                 <TabsTrigger value="chat">{activeChannel} Chat</TabsTrigger>
+                <TabsTrigger value="live">Live</TabsTrigger>
                 <TabsTrigger value="members">Members</TabsTrigger>
                 <TabsTrigger value="events">Events</TabsTrigger>
                 <TabsTrigger value="clubs">Clubs</TabsTrigger>
                 <TabsTrigger value="yard-sale">Yard Sale</TabsTrigger>
                 <TabsTrigger value="about">About</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="live">
+                <YardLiveRooms
+                  yardId={yardId}
+                  communityName={community.name}
+                />
+              </TabsContent>
 
               <TabsContent value="chat">
                 <Card>

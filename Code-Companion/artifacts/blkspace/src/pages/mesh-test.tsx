@@ -47,6 +47,7 @@ import {
   AlertCircle,
   Network,
 } from "lucide-react";
+import { SendmeSharePanel } from "@/components/media/SendmeSharePanel";
 
 export default function DeviceMeshTestPage() {
   const [activeTab, setActiveTab] = useState("sync");
@@ -234,13 +235,18 @@ export default function DeviceMeshTestPage() {
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="grid grid-cols-5 w-full max-w-3xl">
+          <TabsList className="grid grid-cols-6 w-full max-w-4xl">
             <TabsTrigger value="sync">Sync</TabsTrigger>
+            <TabsTrigger value="drop">Drop</TabsTrigger>
             <TabsTrigger value="recovery">Recovery</TabsTrigger>
             <TabsTrigger value="offline">Offline</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="rewards">Rewards</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="drop" className="space-y-6">
+            <SendmeSharePanel />
+          </TabsContent>
 
           <TabsContent value="sync" className="space-y-6">
             <Card className="border-primary/20">
