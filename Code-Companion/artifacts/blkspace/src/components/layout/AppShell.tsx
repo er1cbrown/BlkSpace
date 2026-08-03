@@ -41,12 +41,12 @@ interface AppShellProps {
   fullWidth?: boolean;
 }
 
-/** Student core — five primary destinations. */
+/** Student core — five primary destinations (plain language). */
 const PRIMARY_NAV = [
-  { href: "/feed", label: "Home", icon: Home },
-  { href: "/communities", label: "Yards", icon: Users },
-  { href: "/create", label: "Create", icon: Clapperboard },
-  { href: "/connect", label: "Connect", icon: Handshake },
+  { href: "/feed", label: "Home", sub: "Your feed", icon: Home },
+  { href: "/communities", label: "Yards", sub: "Campuses", icon: Users },
+  { href: "/create", label: "Create", sub: "New post", icon: Clapperboard },
+  { href: "/connect", label: "Connect", sub: "Jobs & opps", icon: Handshake },
 ] as const;
 
 const MOBILE_NAV = [
@@ -54,17 +54,19 @@ const MOBILE_NAV = [
   { href: "/communities", label: "Yards", icon: Users },
   { href: "/create", label: "Create", icon: Plus, accent: true },
   { href: "/connect", label: "Connect", icon: Handshake },
-  { href: "/profile", label: "Profile", icon: User, profile: true },
+  { href: "/profile", label: "You", icon: User, profile: true },
 ] as const;
 
 function NavItem({
   href,
   label,
+  sub,
   icon: Icon,
   active,
 }: {
   href: string;
   label: string;
+  sub?: string;
   icon: typeof Home;
   active: boolean;
 }) {
@@ -78,9 +80,22 @@ function NavItem({
             ? "bg-primary/15 text-primary"
             : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
         )}
+        title={sub}
       >
         <Icon className="h-5 w-5 shrink-0" />
-        {label}
+        <span className="flex flex-col min-w-0">
+          <span>{label}</span>
+          {sub ? (
+            <span
+              className={cn(
+                "text-[10px] font-normal leading-tight truncate",
+                active ? "text-primary/70" : "text-muted-foreground/80",
+              )}
+            >
+              {sub}
+            </span>
+          ) : null}
+        </span>
       </span>
     </Link>
   );
@@ -150,6 +165,7 @@ export function AppShell({
     { href: "/leaderboard", label: "Leaderboard", icon: Trophy, show: true },
     { href: "/settings", label: "Settings", icon: Settings, show: !isGuest },
   ].filter((i) => i.show);
+  // Hub stays under More — not a first-day destination
 
   const mobileNav = isGuest
     ? MOBILE_NAV.filter((item) => item.href !== "/create")
@@ -206,9 +222,13 @@ export function AppShell({
             <BrandMark size="md" />
           </Link>
           {yardTheme && (
-            <p className="px-3 mb-3 text-[11px] text-muted-foreground truncate">
-              {yardTheme.mascot} · {yardTheme.name}
-            </p>
+            <Link href={`/communities/${homeYard}`}>
+              <p className="px-3 mb-3 text-[11px] text-muted-foreground truncate hover:text-primary cursor-pointer">
+                <span className="font-medium text-foreground/80">Your campus · </span>
+                {yardTheme.school || yardTheme.name}
+                {yardTheme.mascot ? ` · ${yardTheme.mascot}` : ""}
+              </p>
+            </Link>
           )}
 
           <nav className="space-y-1 flex-1">
@@ -221,12 +241,13 @@ export function AppShell({
             ))}
             <NavItem
               href={isGuest ? "/welcome" : profileHref}
-              label="Profile"
+              label="You"
+              sub="Profile"
               icon={User}
               active={isActive("/profile")}
             />
 
-            {/* More — secondary destinations */}
+            {/* More — secondary destinations (hide jargon until opened) */}
             <div className="pt-1">
               <button
                 type="button"
@@ -239,7 +260,12 @@ export function AppShell({
                 )}
               >
                 <MoreHorizontal className="h-5 w-5 shrink-0" />
-                More
+                <span className="flex flex-col items-start min-w-0">
+                  <span>More</span>
+                  <span className="text-[10px] font-normal text-muted-foreground/80">
+                    Earnings, settings…
+                  </span>
+                </span>
               </button>
               {moreOpen && (
                 <div className="mt-1 ml-2 pl-2 border-l border-border/50 space-y-0.5">

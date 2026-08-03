@@ -71,6 +71,7 @@ export default function CommunitiesPage() {
   const [control, setControl] = useState<"all" | HbcuControl>("all");
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const homeYard = loadUiPrefs().homeYardId;
+  const homeTheme = homeYard ? getYardTheme(homeYard) : null;
   const stats = catalogStats();
 
   const tauriMapped =
@@ -151,16 +152,31 @@ export default function CommunitiesPage() {
         <Users className="w-7 h-7 text-primary" />
         <h1 className="text-3xl font-bold">Yards</h1>
         <Badge variant="outline" className="text-xs font-normal">
-          {stats.total} HBCUs · {stats.public} public · {stats.private} private
+          {stats.total} campuses
         </Badge>
         {!isTauri() && <SampleBadge>Web preview</SampleBadge>}
-        {BETA_FEATURES.isWebPreview() && (
-          <SampleBadge>Mesh counts not live</SampleBadge>
-        )}
       </div>
-      <p className="text-muted-foreground text-base mb-6">
-        Every public and private HBCU has a yard. Find yours and connect.
+      <p className="text-muted-foreground text-base mb-2">
+        A <strong className="text-foreground font-medium">yard</strong> is one
+        HBCU campus space — feed, chat, events, Live. Your home yard is sorted
+        first.
       </p>
+      {homeTheme && homeYard && (
+        <p className="text-sm mb-6">
+          <span className="text-muted-foreground">You joined: </span>
+          <Link
+            href={`/communities/${homeYard}`}
+            className="text-primary font-semibold hover:underline"
+          >
+            {homeTheme.school || homeTheme.name}
+          </Link>
+          <span className="text-muted-foreground">
+            {" "}
+            — open it anytime from here.
+          </span>
+        </p>
+      )}
+      {!homeTheme && <div className="mb-6" />}
 
       <div className="flex flex-col sm:flex-row gap-2 mb-6">
         <div className="relative flex-1">

@@ -37,6 +37,7 @@ import { getYardTheme } from "@/lib/yard-themes";
 import { YardPicker } from "@/components/ui-prefs/YardPicker";
 import { loadUiPrefs, saveUiPrefs } from "@/lib/ui-prefs";
 import { ensureIntranetConnected } from "@/lib/hbcu-intranet";
+import { markJustJoined } from "@/lib/yard-orientation";
 import { cn } from "@/lib/utils";
 
 type OnboardingPath = "general" | "med_focus" | "faculty";
@@ -132,6 +133,7 @@ export default function WelcomePage() {
       }
 
       markFirstRunComplete();
+      markJustJoined(yardId || "tsu");
       navigate(
         path === "med_focus"
           ? "/focus"
@@ -156,23 +158,23 @@ export default function WelcomePage() {
       </h2>
       <p className="text-lg text-muted-foreground">{BRAND.tagline}</p>
       <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-        Pick your HBCU yard, post freely, earn WeixBucks. Campus first — not
-        campus only.
+        Think Instagram for your HBCU — pick a campus, scroll Home, post, earn
+        soft credits. Nothing crypto until you want cash-out later.
       </p>
       <div className="grid grid-cols-3 gap-3 text-sm pt-2">
         <div className="bg-card p-3 rounded-xl border">
           <Users className="w-5 h-5 text-primary mx-auto mb-1.5" />
-          <p className="font-medium text-xs">Your yard</p>
-          <p className="text-muted-foreground text-[11px]">100+ HBCUs</p>
+          <p className="font-medium text-xs">Pick a campus</p>
+          <p className="text-muted-foreground text-[11px]">e.g. TSU</p>
         </div>
         <div className="bg-card p-3 rounded-xl border">
           <Sparkles className="w-5 h-5 text-primary mx-auto mb-1.5" />
-          <p className="font-medium text-xs">Your posts</p>
-          <p className="text-muted-foreground text-[11px]">You own them</p>
+          <p className="font-medium text-xs">Scroll & post</p>
+          <p className="text-muted-foreground text-[11px]">Home feed</p>
         </div>
         <div className="bg-card p-3 rounded-xl border">
           <Coins className="w-5 h-5 text-primary mx-auto mb-1.5" />
-          <p className="font-medium text-xs">Earn</p>
+          <p className="font-medium text-xs">Earn points</p>
           <p className="text-muted-foreground text-[11px]">WeixBucks</p>
         </div>
       </div>
@@ -180,10 +182,11 @@ export default function WelcomePage() {
 
     <div className="space-y-5" key="path">
       <h2 className="text-2xl font-bold font-serif text-center">
-        How do you want to start?
+        Your campus & how you start
       </h2>
       <p className="text-center text-sm text-muted-foreground">
-        Pick a path — you can always open Feed, Hub, or Focus later.
+        Most students pick <strong className="text-foreground">Student</strong>{" "}
+        and their school. You&apos;ll land on Home with a short guide.
       </p>
       <div className="grid gap-3">
         <button
@@ -201,10 +204,10 @@ export default function WelcomePage() {
         >
           <div className="flex items-center gap-2 font-medium text-sm">
             <Sparkles className="w-4 h-4 text-primary" />
-            Full yard social
+            Student · social home
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Feed, Hub, Connect, events — classic amalgamation home.
+            Recommended — feed, post, yards, events. Like other social apps.
           </p>
         </button>
         <button
@@ -225,8 +228,8 @@ export default function WelcomePage() {
             Med school · Focus Path
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Meharry / HBCU med: study refresh, low-bandwidth ProjectConnect,
-            time + money effort — not a second residency.
+            Optional — med school study tools (Meharry-first). Skip if you just
+            want the social feed.
           </p>
         </button>
         <button
@@ -244,33 +247,35 @@ export default function WelcomePage() {
         >
           <div className="flex items-center gap-2 font-medium text-sm">
             <Building2 className="w-4 h-4 text-primary" />
-            Faculty · provide opportunities
+            Faculty · post opportunities
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Private uni / partner faculty: ProjectConnect Desk — post RA roles,
-            meet Meharry & HBCU students where they already are.
+            Optional — for staff posting jobs/research for students.
           </p>
         </button>
       </div>
       <div className="space-y-2">
         <Label className="flex items-center gap-1.5">
           <GraduationCap className="w-3.5 h-3.5" />
-          Home yard — any public or private HBCU
+          Your school (home yard)
         </Label>
+        <p className="text-[11px] text-muted-foreground">
+          This is your default campus feed — you can visit other yards anytime.
+        </p>
         <YardPicker value={yardId} onChange={setYardId} maxVisible={8} />
       </div>
     </div>,
 
     <div className="space-y-6" key="profile">
       <h2 className="text-2xl font-bold font-serif text-center">
-        Join the Yard
+        Pick a name & handle
       </h2>
       <p className="text-center text-muted-foreground text-sm">
         {path === "med_focus"
-          ? "After you join, we open Focus Path with study refresh + efficient Connect."
+          ? "Next screen: Focus tools for study. You can open Home anytime."
           : path === "faculty"
-            ? "After you join, we open Faculty Desk to post opportunities for underrepresented students."
-            : "Pick a handle and you're in. No wallet, no setup — just post and earn."}
+            ? "Next: Faculty desk to post opportunities."
+            : "Then you land on Home for your school — post when you're ready. No wallet needed."}
       </p>
       <div className="space-y-4">
         <div className="space-y-2">

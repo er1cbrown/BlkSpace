@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clapperboard, Image, MessageCircle, Film } from "lucide-react";
+import { Clapperboard, Image, MessageCircle, Film, ChevronDown } from "lucide-react";
 import { useAppCreatePost } from "@/hooks/use-app-data";
 import { getCurrentHandle } from "@/lib/auth";
 import {
@@ -14,14 +14,19 @@ import {
 } from "@/components/economy/EarnToast";
 import { WB_EARN, KARMA_EARN } from "@/lib/earn-sources";
 import { getListPostsQueryKey } from "@workspace/api-client-react";
+import { loadUiPrefs } from "@/lib/ui-prefs";
+import { getYardTheme } from "@/lib/yard-themes";
 
 export default function CreatePage() {
   const queryClient = useQueryClient();
   const handle = getCurrentHandle();
+  const homeYard = loadUiPrefs().homeYardId || "tsu";
+  const yardName = getYardTheme(homeYard)?.school || homeYard.toUpperCase();
   const [content, setContent] = useState("");
-  const [town, setTown] = useState("tsu");
+  const [town, setTown] = useState(homeYard);
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
   const [mode, setMode] = useState<"post" | "reel" | "story">("post");
+  const [showDrop, setShowDrop] = useState(false);
   const createPost = useAppCreatePost();
 
   const submit = () => {
@@ -70,14 +75,14 @@ export default function CreatePage() {
     <AppShell>
       <h1 className="text-2xl font-bold mb-2 flex items-center gap-2">
         <Clapperboard className="h-6 w-6 text-primary" />
-        Create
+        Create a post
       </h1>
       <p className="text-sm text-muted-foreground mb-6">
-        Social-style create — photos, video, audio, PDF, docs. Attachments bind to{" "}
+        Posts go to your campus feed ({yardName}) and your profile{" "}
         <Link href={`/profile/${handle}`} className="text-primary hover:underline">
           @{handle}
         </Link>
-        . Desktop app required for file upload.
+        . Text is enough — photos/files work best in the desktop app.
       </p>
 
       <div className="flex gap-2 mb-4">
@@ -125,17 +130,33 @@ export default function CreatePage() {
 
       <Card className="mt-6 border-primary/15">
         <CardHeader>
-          <CardTitle className="text-sm">Earn while you create</CardTitle>
+          <CardTitle className="text-sm">You earn when you post</CardTitle>
         </CardHeader>
         <CardContent className="text-xs text-muted-foreground space-y-1">
-          <p>Post: +{WB_EARN.feedPost} WB · +{KARMA_EARN.feedPost} karma</p>
-          <p>Upload: +{WB_EARN.mediaUpload} WB · +{KARMA_EARN.mediaCreation} karma</p>
-          <p>Yard chat: +{WB_EARN.yardChannelPost + WB_EARN.yardEngagementBonus} WB · yard karma</p>
+          <p>
+            Soft credits (WeixBucks) — not real money yet. Example: post +
+            {WB_EARN.feedPost} WB.
+          </p>
+          <p>Upload media +{WB_EARN.mediaUpload} WB · likes boost others too.</p>
         </CardContent>
       </Card>
 
       <div className="mt-6">
-        <SendmeSharePanel />
+        <button
+          type="button"
+          onClick={() => setShowDrop((v) => !v)}
+          className="flex w-full items-center justify-between rounded-xl border border-dashed px-3 py-2.5 text-sm text-muted-foreground hover:bg-muted/40"
+        >
+          <span>Advanced · send a file privately (optional)</span>
+          <ChevronDown
+            className={`h-4 w-4 transition-transform ${showDrop ? "rotate-180" : ""}`}
+          />
+        </button>
+        {showDrop && (
+          <div className="mt-3">
+            <SendmeSharePanel compact />
+          </div>
+        )}
       </div>
     </AppShell>
   );

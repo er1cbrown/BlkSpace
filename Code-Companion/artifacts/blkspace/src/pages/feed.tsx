@@ -82,6 +82,9 @@ import { toast } from "sonner";
 import { BETA_FEATURES } from "@/lib/beta-features";
 import { getHomeYardId, loadFocusPrefs } from "@/lib/focus-mode";
 import { HeartPulse, GraduationCap } from "lucide-react";
+import { YardOrientationCard } from "@/components/social/YardOrientationCard";
+import { markFirstPostDone } from "@/lib/yard-orientation";
+import { getYardTheme } from "@/lib/yard-themes";
 
 export default function FeedPage() {
   const queryClient = useQueryClient();
@@ -214,6 +217,7 @@ export default function FeedPage() {
         onSuccess: (result: any) => {
           setContent("");
           setMediaHashes([]);
+          markFirstPostDone();
           if (offline) {
             toast.success("Post queued — will sync when you're back online");
           } else if (result?.earn) {
@@ -338,8 +342,32 @@ export default function FeedPage() {
   const showBridge = BETA_FEATURES.showBridgeTab();
   const showTrending = BETA_FEATURES.showTrendingTab();
 
+  const yardTheme = getYardTheme(selectedTown);
+  const yardLabel = yardTheme?.school || yardTheme?.name || selectedTown.toUpperCase();
+
   return (
     <AppShell>
+      <YardOrientationCard />
+
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Home</h1>
+          <p className="text-xs text-muted-foreground">
+            Feed for{" "}
+            <Link
+              href={`/communities/${selectedTown}`}
+              className="text-primary font-medium hover:underline"
+            >
+              {yardLabel}
+            </Link>
+            {" · "}
+            <span className="text-muted-foreground">
+              tabs below switch what you see
+            </span>
+          </p>
+        </div>
+      </div>
+
       {(focusPrefs?.persona === "meharry_med" ||
         focusPrefs?.studyOnlyFeed ||
         selectedTown === "meharry") && (
@@ -351,8 +379,7 @@ export default function FeedPage() {
                 Focus Path active
               </p>
               <p className="text-xs text-muted-foreground">
-                Study refresh + low-bandwidth ProjectConnect — protect rotations
-                while staying on the yard.
+                Study tools on — open Focus when you need quiet mode.
               </p>
             </div>
             <div className="flex gap-2 shrink-0">
@@ -360,11 +387,6 @@ export default function FeedPage() {
                 <Button size="sm" variant="default" className="gap-1">
                   <GraduationCap className="w-3.5 h-3.5" />
                   Open Focus
-                </Button>
-              </Link>
-              <Link href="/hub">
-                <Button size="sm" variant="outline">
-                  Hub
                 </Button>
               </Link>
             </div>
@@ -377,22 +399,19 @@ export default function FeedPage() {
         onValueChange={setActiveTab}
         className="mb-6"
       >
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          {(activeTab === "following" ||
-            activeTab === "local" ||
-            activeTab === "trending" ||
-            activeTab === "bridge") && (
-            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={showFlagged}
-                onChange={(e) => setShowFlagged(e.target.checked)}
-                className="rounded border-border"
-              />
-              Show flagged content (MIDF &gt; 0.7)
-            </label>
-          )}
-        </div>
+        <p className="text-[11px] text-muted-foreground mb-2">
+          {activeTab === "local"
+            ? `My Yard — only ${yardLabel}`
+            : activeTab === "watch"
+              ? "Watch — video-first scroll (like Reels)"
+              : activeTab === "read"
+                ? "Read — text & photo posts"
+                : activeTab === "following"
+                  ? "Following — people you follow"
+                  : activeTab === "bridge"
+                    ? "Bridge — other campuses (advanced)"
+                    : "Trending across the network"}
+        </p>
 
         <TabsList
           className={`grid w-full mb-4 h-11 ${
@@ -401,6 +420,9 @@ export default function FeedPage() {
               : "grid-cols-4"
           }`}
         >
+          <TabsTrigger value="local" className="text-xs sm:text-sm font-bold">
+            My Yard
+          </TabsTrigger>
           <TabsTrigger value="watch" className="text-xs sm:text-sm font-bold">
             Watch
           </TabsTrigger>
@@ -409,9 +431,6 @@ export default function FeedPage() {
           </TabsTrigger>
           <TabsTrigger value="following" className="text-xs sm:text-sm font-bold">
             Following
-          </TabsTrigger>
-          <TabsTrigger value="local" className="text-xs sm:text-sm font-bold">
-            My Yard
           </TabsTrigger>
           {showBridge && (
             <TabsTrigger value="bridge" className="text-xs sm:text-sm font-bold hidden sm:flex">
@@ -443,7 +462,7 @@ export default function FeedPage() {
           ) : (
             <>
               {/* Desktop: inline composer */}
-              <div className="hidden md:block">
+              <div className="hidden md:block" id="yard-composer">
                 <PostComposer
                   content={content}
                   onContentChange={setContent}
@@ -462,11 +481,11 @@ export default function FeedPage() {
                 <DialogTrigger asChild>
                   <button
                     type="button"
-                    className="md:hidden fixed right-4 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl flex items-center justify-center"
+                    className="md:hidden fixed right-4 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl flex items-center justify-center text-2xl font-light"
                     style={{ bottom: "5.5rem" }}
                     aria-label="Create post"
                   >
-                    <Heart className="w-6 h-6 rotate-45" />
+                    +
                   </button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
