@@ -1,7 +1,7 @@
 //! ProjectConnectBKSPC — credibility layer (orgs, opportunities, interests).
 //! Demo-ready for promo; gates finance later via Yard Cred.
 
-use crate::sqlite::{params, Connection, Result};
+use crate::sqlite::{Connection, Result};
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Clone)]

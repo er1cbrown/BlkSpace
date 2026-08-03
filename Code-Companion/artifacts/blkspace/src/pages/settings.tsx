@@ -48,7 +48,7 @@ import {
   clearIdentity,
   getStoredPubkey,
 } from "@/lib/auth";
-import { Eye, EyeOff, Shield, Key, LogOut, GraduationCap } from "lucide-react";
+import { Eye, EyeOff, Shield, Key, LogOut, GraduationCap, AlertTriangle } from "lucide-react";
 import {
   GPA_VISIBILITY_HELP,
   type GpaVisibility,

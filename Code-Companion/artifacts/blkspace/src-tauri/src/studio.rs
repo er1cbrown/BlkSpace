@@ -4,7 +4,7 @@
 //! - Free distribute (grant) or sell (WB unlock)
 
 use crate::db::{calc_platform_fee, AppError, MARKETPLACE_PLATFORM_FEE_BPS};
-use crate::sqlite::{params, Connection, OptionalExtension, Result};
+use crate::sqlite::{Connection, OptionalExtension, Result};
 use serde::Serialize;
 use serde_json::json;
 

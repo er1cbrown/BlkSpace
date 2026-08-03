@@ -4,7 +4,7 @@
 //! - Tournaments (brackets, 1v1 matches, scores, prizes) — no live stream
 //! - Faculty opportunity broadcast → yard feed post
 
-use crate::sqlite::{params, Connection, OptionalExtension, Result};
+use crate::sqlite::{Connection, OptionalExtension, Result};
 use serde::Serialize;
 use serde_json::json;
 

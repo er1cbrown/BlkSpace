@@ -642,6 +642,10 @@ impl Transaction<'_> {
     self.conn.prepare(sql)
   }
 
+  pub fn last_insert_rowid(&self) -> i64 {
+    self.conn.last_insert_rowid()
+  }
+
   pub fn commit(mut self) -> Result<()> {
     self.conn.execute("COMMIT", ())?;
     self.committed = true;
