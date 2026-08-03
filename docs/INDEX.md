@@ -80,6 +80,8 @@
 | [features/bkspc-rights-path.md](./features/bkspc-rights-path.md) | Cred → WB → gated BlkSpace Coin (BKSPC) |
 | [features/sendme-iroh-transfer.md](./features/sendme-iroh-transfer.md) | **sendme-inspired** content tickets + optional n0 CLI P2P |
 | [features/myyard-customize-station.md](./features/myyard-customize-station.md) | **MyYard** profile personalization hub (MySpace-class, safe) |
+| [ieee-features-review.md](./ieee-features-review.md) | **IEEE** streamlined features matrix + evaluation criteria |
+| [ieee-review-brief.md](./ieee-review-brief.md) | IEEE one-page pitch + architecture pointer |
 | [features/project-connect-credibility-layer.md](./features/project-connect-credibility-layer.md) | **Cred before finance** · ProjectConnect · orgs/opportunities · pre-coin |
 | [features/myyard-yard-sale-architecture.md](./features/myyard-yard-sale-architecture.md) | MyYard · Yard Sale · layers |
 | [features/logos-decks.md](./features/logos-decks.md) | 5 |

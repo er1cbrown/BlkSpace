@@ -1,5 +1,7 @@
 # BlkSpace — IEEE Review Brief
 
+**Streamlined features matrix (primary for program review):** [`ieee-features-review.md`](ieee-features-review.md) · **Updated:** 2026-08-03  
+
 **One-sentence pitch:** BlkSpace is a decentralized social network for HBCU creators that runs on low-end student hardware and settles value through a federated Nostr/Iroh mesh, with an optional Solana token layer.
 
 ---
@@ -96,4 +98,4 @@ BlkSpace/
 
 ---
 
-*Last updated: 2026-06-21*
+*Last updated: 2026-08-03 — prefer `ieee-features-review.md` for feature grades.*
