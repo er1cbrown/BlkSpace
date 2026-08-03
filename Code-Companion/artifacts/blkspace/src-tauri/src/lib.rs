@@ -4462,27 +4462,31 @@ pub fn run() {
       let relay_delay_ms = if full_mesh { 0 } else { 300 };
       let iroh_delay_ms = if full_mesh { 0 } else { 600 };
 
-      // Deferred Nostr relay connect (1 relay in yard mode, parallel + timeout in full mesh).
-      tauri::async_runtime::spawn(async move {
+      // Deferred Nostr relay connect on a plain OS thread (not a tokio worker).
+      // Nesting Runtime::new() on Tauri's multi-thread workers panics:
+      // "Cannot start a runtime from within a runtime".
+      std::thread::spawn(move || {
         if relay_delay_ms > 0 {
-          tokio::time::sleep(std::time::Duration::from_millis(relay_delay_ms)).await;
+          std::thread::sleep(std::time::Duration::from_millis(relay_delay_ms));
         }
+        let state = handle.state::<AppState>();
         let connected = {
-          let state = handle.state::<AppState>();
           let mut manager = state.relay_manager.lock().unwrap();
           manager.connect_startup_relays_blocking(full_mesh)
         };
-        if let Ok(urls) = connected {
-          log::info!(
-            "Deferred relay connect: {} relay(s) (full_mesh={full_mesh})",
-            urls.len()
-          );
-          let state = handle.state::<AppState>();
-          for url in &urls {
-            let _ = state
-              .db
-              .upsert_relay_connection(url, "Public", "global", "connected");
+        match connected {
+          Ok(urls) => {
+            log::info!(
+              "Deferred relay connect: {} relay(s) (full_mesh={full_mesh})",
+              urls.len()
+            );
+            for url in &urls {
+              let _ = state
+                .db
+                .upsert_relay_connection(url, "Public", "global", "connected");
+            }
           }
+          Err(e) => log::warn!("Deferred relay connect failed: {e}"),
         }
       });
 

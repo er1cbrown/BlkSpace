@@ -139,9 +139,18 @@ impl RelayManager {
     Ok(connected)
   }
 
-  /// Blocking wrapper for deferred background thread startup (no mutex held across await).
+  /// Blocking wrapper for startup / non-async callers.
+  /// Never nests a new Runtime inside an existing Tokio context (that panics with
+  /// "Cannot start a runtime from within a runtime" on Tauri's multi-thread pool).
   pub fn connect_startup_relays_blocking(&mut self, full_mesh: bool) -> Result<Vec<String>, String> {
-    let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {e}"))?;
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+      // Reuse the live runtime (Tauri default = multi-thread).
+      return tokio::task::block_in_place(|| handle.block_on(self.connect_startup_relays(full_mesh)));
+    }
+    let rt = tokio::runtime::Builder::new_current_thread()
+      .enable_all()
+      .build()
+      .map_err(|e| format!("Runtime error: {e}"))?;
     rt.block_on(self.connect_startup_relays(full_mesh))
   }
 
