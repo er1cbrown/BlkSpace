@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SafeContent } from "@/components/ui/safe-content";
 import { KarmaBadge } from "@/components/economy/KarmaBadge";
-import { RiskBadge } from "@/components/ui/risk-badge";
-import { SignatureBadge } from "@/components/ui/signature-badge";
+import { TrustChip } from "@/components/ui/trust-chip";
 import type { TauriPost } from "@/lib/tauri-api";
 
 interface ReadFeedProps {
@@ -44,15 +43,17 @@ export function ReadFeed({ posts, authorKarma = {}, onLike, onRepost }: ReadFeed
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-bold text-sm">{post.authorDisplayName}</span>
-                  <span className="text-muted-foreground text-sm">@{post.authorHandle}</span>
+                  <span className="text-muted-foreground text-xs">@{post.authorHandle}</span>
                   {karma && (
                     <KarmaBadge postKarma={karma.post} commentKarma={karma.comment} compact />
                   )}
-                  <RiskBadge
-                    riskLevel={post.riskLevel}
-                    maliciousScore={post.maliciousScore}
-                  />
-                  {post.nostrEventId && <SignatureBadge eventId={post.nostrEventId} />}
+                  <div className="ml-auto">
+                    <TrustChip
+                      riskLevel={post.riskLevel}
+                      maliciousScore={post.maliciousScore}
+                      nostrEventId={post.nostrEventId}
+                    />
+                  </div>
                 </div>
                 <span className="text-xs text-primary">{post.townTag}</span>
               </div>

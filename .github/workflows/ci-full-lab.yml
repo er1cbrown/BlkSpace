@@ -1,0 +1,102 @@
+# Lab-only Full mesh + Iroh builds.
+# Not on every push — Iroh is heavy and breaks Tier 0 / Windows link budgets.
+# Trigger: Actions → "CI Full Lab" → Run workflow
+name: CI Full Lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Which OS to build (lab machines only)"
+        required: true
+        default: ubuntu-latest
+        type: choice
+        options:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+      run_iroh_tests:
+        description: "Run Iroh cargo tests (Ubuntu only)"
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: full-lab-${{ github.ref }}-${{ inputs.platform }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 10
+  NODE_VERSION: 22
+  PORT: "24442"
+  BASE_PATH: /
+
+jobs:
+  build-full:
+    name: Full mesh (${{ inputs.platform }})
+    runs-on: ${{ inputs.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: Code-Companion/pnpm-lock.yaml
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install system deps (Linux)
+        if: inputs.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libsecret-1-dev
+      - run: pnpm install --frozen-lockfile
+        working-directory: ./Code-Companion
+      - name: Iroh unit tests
+        if: inputs.run_iroh_tests && inputs.platform == 'ubuntu-latest'
+        run: pnpm --filter @workspace/blkspace run test:iroh
+        working-directory: ./Code-Companion
+      - run: pnpm build:full
+        working-directory: ./Code-Companion/artifacts/blkspace
+      - run: pnpm tauri build
+        working-directory: ./Code-Companion/artifacts/blkspace
+      - name: Rename Full installers
+        shell: bash
+        run: |
+          BUNDLE="Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle"
+          if [ -d "$BUNDLE/msi" ]; then
+            shopt -s nullglob
+            for f in "$BUNDLE/msi"/*.msi; do
+              cp "$f" "$BUNDLE/msi/BlkSpace-Full-Windows-x64.msi"
+            done
+          fi
+          if [ -d "$BUNDLE/dmg" ]; then
+            shopt -s nullglob
+            for f in "$BUNDLE/dmg"/*.dmg; do
+              cp "$f" "$BUNDLE/dmg/BlkSpace-Full-macOS.dmg"
+            done
+          fi
+          if [ -d "$BUNDLE/appimage" ]; then
+            shopt -s nullglob
+            for f in "$BUNDLE/appimage"/*.AppImage; do
+              cp "$f" "$BUNDLE/appimage/BlkSpace-Full-Linux.AppImage"
+            done
+          fi
+      - name: Upload Full artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlkSpace-Full-${{ inputs.platform }}
+          path: |
+            Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/msi/BlkSpace-Full-Windows-x64.msi
+            Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/dmg/BlkSpace-Full-macOS.dmg
+            Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/appimage/BlkSpace-Full-Linux.AppImage
+          if-no-files-found: error
+          retention-days: 14

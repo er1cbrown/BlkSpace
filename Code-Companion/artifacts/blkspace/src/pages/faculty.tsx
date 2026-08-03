@@ -40,7 +40,8 @@ import { useOpenToBoard } from "@/hooks/use-app-data";
 import { getCurrentHandle } from "@/lib/auth";
 import { useGuestMode } from "@/lib/guest-mode";
 import { BRAND } from "@/lib/brand";
-import { FEATURED_YARD_THEME_IDS, getYardTheme } from "@/lib/yard-themes";
+import { getYardTheme } from "@/lib/yard-themes";
+import { FEATURED_YARD_IDS } from "@/lib/hbcu-catalog";
 import { allTownOptions } from "@/lib/towns";
 import {
   ArrowRight,
@@ -443,13 +444,13 @@ export default function FacultyPage() {
                     persist({ ...prefs, targetYardId: e.target.value })
                   }
                 >
-                  {FEATURED_YARD_THEME_IDS.map((id) => (
+                  {FEATURED_YARD_IDS.map((id) => (
                     <option key={id} value={id}>
                       {getYardTheme(id)?.name || id}
                     </option>
                   ))}
                   {allTownOptions()
-                    .filter((t) => !FEATURED_YARD_THEME_IDS.includes(t.id))
+                    .filter((t) => !FEATURED_YARD_IDS.includes(t.id))
                     .map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.label}

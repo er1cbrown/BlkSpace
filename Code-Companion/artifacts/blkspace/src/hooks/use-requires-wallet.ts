@@ -13,11 +13,13 @@ export function useRequiresWallet() {
 
   const requireWallet = (action: string): boolean => {
     if (!isGuest) return true;
-    toast(`Create a free account to ${action}.`, {
+    toast.error(`Create a free account to ${action}.`, {
+      description: "Guests can browse — posting needs a handle.",
       action: {
-        label: "Sign up",
+        label: "Join free",
         onClick: () => navigate("/welcome"),
       },
+      duration: 6000,
     });
     return false;
   };

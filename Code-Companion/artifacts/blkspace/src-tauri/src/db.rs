@@ -58,6 +58,19 @@ pub fn validate_content(content: &str) -> Result<(), AppError> {
   Ok(())
 }
 
+/// Text and/or media — social posts can be media-only.
+pub fn validate_post_body(content: &str, media_count: usize) -> Result<(), AppError> {
+  if content.len() > 5000 {
+    return Err(AppError::Validation("Content must be under 5000 characters".into()));
+  }
+  if content.trim().is_empty() && media_count == 0 {
+    return Err(AppError::Validation(
+      "Write something or attach a file to post".into(),
+    ));
+  }
+  Ok(())
+}
+
 pub fn validate_bio(bio: &str) -> Result<(), AppError> {
   if bio.len() > 500 {
     return Err(AppError::Validation("Bio must be under 500 characters".into()));

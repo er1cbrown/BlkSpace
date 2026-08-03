@@ -1545,12 +1545,6 @@ export function tauriIsYardMember(
   return invoke("is_yard_member", { sessionToken, communityId });
 }
 
-export function tauriListYardMembers(
-  communityId: string,
-): Promise<string[]> {
-  return invoke("list_yard_members", { communityId });
-}
-
 export function tauriListCommunityRoles(
   communityId: string,
 ): Promise<TauriCommunityRoleEntry[]> {

@@ -1,3 +1,5 @@
+# Student releases: Yard (Tier 0, no Iroh) is the default on every v* tag.
+# Full mesh assets only when tag contains "full" or dispatch input include_full=true.
 name: Release
 
 on:
@@ -7,9 +9,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to rebuild (e.g. v0.1.0-yard)"
+        description: "Existing tag to rebuild (e.g. v0.1.1-yard)"
         required: true
         type: string
+      include_full:
+        description: "Also build Full mesh (Iroh) lab installers"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,6 +32,7 @@ jobs:
     outputs:
       upload_url: ${{ steps.create-release.outputs.upload_url }}
       tag: ${{ steps.meta.outputs.tag }}
+      want_full: ${{ steps.meta.outputs.want_full }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,35 +41,44 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            TAG="${{ inputs.tag }}"
+            WANT_FULL="${{ inputs.include_full }}"
           else
-            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            TAG="${GITHUB_REF_NAME}"
+            # Tag with "full" in the name (e.g. v0.1.0-full) attaches Full assets
+            if echo "$TAG" | grep -qi full; then
+              WANT_FULL="true"
+            else
+              WANT_FULL="false"
+            fi
           fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "want_full=$WANT_FULL" >> "$GITHUB_OUTPUT"
       - id: create-release
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
-          # Student Yard tags ship as published releases (not draft)
           draft: false
-          prerelease: ${{ contains(steps.meta.outputs.tag, 'yard') || contains(steps.meta.outputs.tag, 'alpha') || contains(steps.meta.outputs.tag, 'rc') }}
+          prerelease: ${{ contains(steps.meta.outputs.tag, 'yard') || contains(steps.meta.outputs.tag, 'alpha') || contains(steps.meta.outputs.tag, 'rc') || contains(steps.meta.outputs.tag, 'full') }}
           generate_release_notes: true
           name: BlkSpace ${{ steps.meta.outputs.tag }}
           body: |
             ## BlkSpace ${{ steps.meta.outputs.tag }}
 
-            **Product mark:** BlkSpace (orange capital **B**) · **Coin ticker:** BKSPC (gated settlement)
+            **Product mark:** BlkSpace (orange capital **B**) · **Coin ticker:** BKSPC
 
-            ### Students (Yard build — Tier 0)
-            Download **BlkSpace-Yard-*** assets below (Windows `.msi`, macOS `.dmg`, Linux `.AppImage`).
+            ### Students — download **Yard** (Tier 0, default)
+            **BlkSpace-Yard-*** installers below (Windows `.msi`, macOS `.dmg`, Linux `.AppImage`).
 
-            - Install guide: [TIER0_USER.md](https://github.com/er1cbrown/BlkSpace/blob/main/TIER0_USER.md)
-            - First run / recovery phrase: [FIRST_RUN.md](https://github.com/er1cbrown/BlkSpace/blob/main/FIRST_RUN.md)
-            - Release notes: [docs/releases/v0.1.0-yard.md](https://github.com/er1cbrown/BlkSpace/blob/main/docs/releases/v0.1.0-yard.md)
+            - Install: [TIER0_USER.md](https://github.com/er1cbrown/BlkSpace/blob/main/TIER0_USER.md)
+            - First run: [FIRST_RUN.md](https://github.com/er1cbrown/BlkSpace/blob/main/FIRST_RUN.md)
+            - Web campus demo (no MSI): GitHub Pages after main deploy
 
-            ### Not included
-            Live streaming · mainnet BKSPC rights · Full mesh build is separate (**BlkSpace-Full-*** assets if attached).
+            ### Lab only — **Full** mesh (Iroh)
+            Only attached when this tag includes `full` or release was dispatched with Full mesh enabled.
+            Not for 4–8 GB student laptops.
 
   build-yard:
     name: Release Yard (${{ matrix.os }})
@@ -69,6 +86,10 @@ jobs:
     strategy:
       matrix:
         include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            ext: msi
+            arch: x64
           - os: macos-latest
             target: aarch64-apple-darwin
             ext: dmg
@@ -80,10 +101,6 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             ext: appimage
-            arch: x64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            ext: msi
             arch: x64
       fail-fast: false
     runs-on: ${{ matrix.os }}
@@ -141,17 +158,10 @@ jobs:
   build-full:
     name: Release Full (${{ matrix.os }})
     needs: create-release
+    if: needs.create-release.outputs.want_full == 'true'
     strategy:
       matrix:
         include:
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            ext: dmg
-            arch: arm64
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            ext: dmg
-            arch: x64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             ext: appimage
@@ -160,6 +170,10 @@ jobs:
             target: x86_64-pc-windows-msvc
             ext: msi
             arch: x64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            ext: dmg
+            arch: arm64
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:

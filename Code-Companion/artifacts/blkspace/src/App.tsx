@@ -12,6 +12,7 @@ import { OfflineSyncProvider } from "@/lib/offline-sync";
 import { GuestModeProvider, useGuestMode } from "@/lib/guest-mode";
 import { GuestCTA } from "@/components/social/GuestCTA";
 import { UiPrefsProvider } from "@/components/ui-prefs/UiPrefsProvider";
+import { BLoader } from "@/components/brand/BLoader";
 import React from "react";
 
 // Lazy load non-initial pages so a bad import/module in one of them
@@ -69,21 +70,77 @@ class ErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
+      const msg = this.state.error?.message || "";
+      const isChunk =
+        /Failed to fetch dynamically imported module|Loading chunk|Importing a module script failed/i.test(
+          msg,
+        );
       return (
         <div
           style={{
-            padding: 20,
-            background: "#fee",
-            color: "#900",
-            fontFamily: "monospace",
-            whiteSpace: "pre-wrap",
+            padding: 24,
+            background: isChunk ? "#0c0a09" : "#1c0a0a",
+            color: isChunk ? "#fafaf9" : "#fecaca",
+            fontFamily: "system-ui, sans-serif",
             height: "100vh",
             overflow: "auto",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            gap: 12,
           }}
         >
-          <h1 style={{ color: "#c00" }}>App crashed (white screen fix)</h1>
-          <p>Open DevTools (right-click → Inspect) for full stack.</p>
-          <pre>{this.state.error?.stack || this.state.error?.message}</pre>
+          <div
+            style={{
+              fontSize: 48,
+              fontWeight: 800,
+              color: "#f97316",
+              letterSpacing: "-0.06em",
+            }}
+          >
+            B
+          </div>
+          <h1 style={{ margin: 0, fontSize: 20 }}>
+            {isChunk ? "Page didn’t load" : "Something went wrong"}
+          </h1>
+          <p style={{ margin: 0, opacity: 0.7, maxWidth: 420, fontSize: 14 }}>
+            {isChunk
+              ? "The dev server may have restarted or a route chunk failed. Reload usually fixes it."
+              : "Open DevTools (right-click → Inspect) for the full stack."}
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: 8,
+              padding: "10px 20px",
+              borderRadius: 999,
+              border: "none",
+              background: "#f97316",
+              color: "#fff",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Reload BlkSpace
+          </button>
+          {!isChunk && (
+            <pre
+              style={{
+                marginTop: 16,
+                textAlign: "left",
+                fontSize: 11,
+                fontFamily: "monospace",
+                whiteSpace: "pre-wrap",
+                maxWidth: "90%",
+                opacity: 0.8,
+              }}
+            >
+              {this.state.error?.stack || msg}
+            </pre>
+          )}
         </div>
       );
     }
@@ -95,11 +152,7 @@ function Router() {
   const firstRun = isFirstRun();
   return (
     <React.Suspense
-      fallback={
-        <div style={{ padding: 40, textAlign: "center", opacity: 0.7 }}>
-          Loading page...
-        </div>
-      }
+      fallback={<BLoader fullScreen label="Opening yard" size="lg" />}
     >
       <Switch>
         <Route path="/" component={firstRun ? WelcomePage : LandingPage} />

@@ -24,12 +24,17 @@ export default function CreatePage() {
   const createPost = useAppCreatePost();
 
   const submit = () => {
-    if (!content.trim() && mediaHashes.length === 0) return;
+    const body = content.trim();
+    const media = mediaHashes.filter(Boolean);
+    if (!body && media.length === 0) return;
+    const postContent =
+      body ||
+      (mode === "reel" ? "🎬 New reel" : mode === "story" ? "📸" : "📎");
     createPost.mutate(
       {
-        content: content || (mode === "reel" ? "🎬 New reel" : "📸"),
+        content: postContent,
         town_tag: town,
-        media_hashes: mediaHashes.length > 0 ? mediaHashes : undefined,
+        media_hashes: media.length > 0 ? media : undefined,
       },
       {
         onSuccess: (result: any) => {
@@ -48,9 +53,13 @@ export default function CreatePage() {
             }
           }
           queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
+          queryClient.invalidateQueries({ queryKey: ["web", "posts"] });
           queryClient.invalidateQueries({
             queryKey: getListPostsQueryKey({ town }),
           });
+        },
+        onError: (e: unknown) => {
+          console.error(e);
         },
       },
     );
@@ -63,11 +72,11 @@ export default function CreatePage() {
         Create
       </h1>
       <p className="text-sm text-muted-foreground mb-6">
-        Instagram-style creation — uploads bind to{" "}
+        Social-style create — photos, video, audio, PDF, docs. Attachments bind to{" "}
         <Link href={`/profile/${handle}`} className="text-primary hover:underline">
           @{handle}
         </Link>
-        , not a global media tab.
+        . Desktop app required for file upload.
       </p>
 
       <div className="flex gap-2 mb-4">

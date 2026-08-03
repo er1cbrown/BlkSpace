@@ -30,18 +30,16 @@ import {
 import { useTauriGetCommunities } from "@/hooks/use-app-data";
 import { isTauri, type TauriCommunity } from "@/lib/tauri-api";
 import { BETA_FEATURES } from "@/lib/beta-features";
+import { getYardTheme, resolveCommunityYardTheme } from "@/lib/yard-themes";
 import {
-  FEATURED_YARD_THEME_IDS,
-  getYardTheme,
-  resolveCommunityYardTheme,
-} from "@/lib/yard-themes";
-import {
+  FEATURED_YARD_IDS,
   HBCU_STATES,
   catalogStats,
   searchHbcus,
   type HbcuControl,
 } from "@/lib/hbcu-catalog";
 import { loadUiPrefs } from "@/lib/ui-prefs";
+import { SampleBadge } from "@/components/ui/sample-badge";
 
 function mapCommunity(c: TauriCommunity) {
   const packActive = c.packActive ?? false;
@@ -104,7 +102,7 @@ export default function CommunitiesPage() {
         );
       }
       if (featuredOnly) {
-        const feat = new Set(FEATURED_YARD_THEME_IDS);
+        const feat = new Set(FEATURED_YARD_IDS);
         list = list.filter((c) => feat.has(c.id));
       }
       return [...list].sort((a, b) => {
@@ -120,7 +118,7 @@ export default function CommunitiesPage() {
       control,
     });
     if (featuredOnly) {
-      const feat = new Set(FEATURED_YARD_THEME_IDS);
+      const feat = new Set(FEATURED_YARD_IDS);
       list = list.filter((h) => feat.has(h.id));
     }
     list = [...list].sort((a, b) => {
@@ -155,16 +153,12 @@ export default function CommunitiesPage() {
         <Badge variant="outline" className="text-xs font-normal">
           {stats.total} HBCUs · {stats.public} public · {stats.private} private
         </Badge>
+        {!isTauri() && <SampleBadge>Web preview</SampleBadge>}
         {BETA_FEATURES.isWebPreview() && (
-          <Badge
-            variant="outline"
-            className="text-xs font-normal text-muted-foreground"
-          >
-            Sample mesh counts
-          </Badge>
+          <SampleBadge>Mesh counts not live</SampleBadge>
         )}
       </div>
-      <p className="text-muted-foreground text-lg mb-6">
+      <p className="text-muted-foreground text-base mb-6">
         Every public and private HBCU has a yard. Find yours and connect.
       </p>
 

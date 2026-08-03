@@ -10,7 +10,11 @@ import {
   hbcuLocation,
   type FeaturedYardId,
 } from "@/lib/hbcu-catalog";
-import { yardAccentHsl } from "@/lib/ui-prefs";
+import { yardAccentHsl } from "@/lib/yard-colors";
+
+/** Featured yard ids (re-export for pages; prefer FEATURED_YARD_IDS from catalog). */
+export { FEATURED_YARD_IDS };
+export const FEATURED_YARD_THEME_IDS: string[] = [...FEATURED_YARD_IDS];
 
 export type YardId = string;
 
@@ -267,8 +271,6 @@ export const YARD_IDS: string[] = [
     (id) => !(FEATURED_YARD_IDS as readonly string[]).includes(id as FeaturedYardId),
   ),
 ];
-
-export const FEATURED_YARD_THEME_IDS = [...FEATURED_YARD_IDS] as string[];
 
 export function getYardTheme(yardId: string): YardThemePack | null {
   if (yardId in YARD_THEME_PACKS) return YARD_THEME_PACKS[yardId];

@@ -17,8 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SafeContent } from "@/components/ui/safe-content";
-import { RiskBadge } from "@/components/ui/risk-badge";
-import { ConsensusBadge } from "@/components/ui/consensus-badge";
+import { TrustChip } from "@/components/ui/trust-chip";
 import { ArrowRightLeft, ExternalLink, Radio } from "lucide-react";
 import type { TauriCrossTownEvent } from "@/lib/tauri-api";
 
@@ -149,15 +148,14 @@ export function BridgeFeed({
                           </Badge>
                         </Link>
                       )}
-                      <RiskBadge
+                      <TrustChip
                         riskLevel={item.riskLevel}
                         maliciousScore={item.maliciousScore}
-                      />
-                      <ConsensusBadge
                         consensusValid={item.consensusValid}
                         consensusAgreement={item.consensusAgreement}
+                        nostrEventId={item.eventId}
                       />
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {new Date(
                           item.createdAtUnix * 1000,
                         ).toLocaleDateString()}

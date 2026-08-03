@@ -45,7 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Heart, MessageSquare, Repeat2, MoreHorizontal, BadgeCheck } from "lucide-react";
+import { Heart, MessageSquare, Repeat2, MoreHorizontal } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -57,10 +57,9 @@ import {
 } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SafeContent } from "@/components/ui/safe-content";
-import { SignatureBadge } from "@/components/ui/signature-badge";
-import { RiskBadge } from "@/components/ui/risk-badge";
-import { ConsensusBadge } from "@/components/ui/consensus-badge";
+import { TrustChip } from "@/components/ui/trust-chip";
 import { MediaDisplay } from "@/components/ui/media-display";
+import { BLoader } from "@/components/brand/BLoader";
 import { getListPostsQueryKey } from "@workspace/api-client-react";
 import {
   useAppListPosts,
@@ -103,7 +102,6 @@ export default function FeedPage() {
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
   const [showFlagged, setShowFlagged] = useState(false);
   const [bridgeTownFilter, setBridgeTownFilter] = useState("all");
-  const [expandedBadges, setExpandedBadges] = useState<Record<number | string, boolean>>({});
   const [localFollowed, setLocalFollowed] = useState<string[]>(() => {
     const saved = localStorage.getItem("blkspace_followed") || "[]";
     return JSON.parse(saved);
@@ -143,10 +141,8 @@ export default function FeedPage() {
   );
 
   const feedPanelFallback = (
-    <div className="space-y-4 animate-pulse">
-      {[1, 2, 3].map((i) => (
-        <Card key={i} className="h-40 bg-muted/50" />
-      ))}
+    <div className="py-16 flex justify-center">
+      <BLoader label="Loading feed" size="md" />
     </div>
   );
 
@@ -199,13 +195,20 @@ export default function FeedPage() {
 
   const handleSubmit = () => {
     if (!requireWallet("post")) return;
-    if (!content.trim()) return;
+    const body = content.trim();
+    const media = mediaHashes.filter(Boolean);
+    if (!body && media.length === 0) {
+      toast.error("Write something or attach a file first");
+      return;
+    }
+    // Media-only: send a short caption so backends never see empty body
+    const postContent = body || (media.length > 0 ? "📎" : "");
     const offline = isTauri() && !navigator.onLine;
     createPost.mutate(
       {
-        content,
+        content: postContent,
         town_tag: selectedTown,
-        media_hashes: mediaHashes.length > 0 ? mediaHashes : undefined,
+        media_hashes: media.length > 0 ? media : undefined,
       },
       {
         onSuccess: (result: any) => {
@@ -215,12 +218,21 @@ export default function FeedPage() {
             toast.success("Post queued — will sync when you're back online");
           } else if (result?.earn) {
             showPostEarnCelebration(result.earn);
+          } else {
+            toast.success("Posted to the yard");
           }
+          // Stay on My Yard so the new post is visible
+          setActiveTab("local");
           queryClient.invalidateQueries({ queryKey: ["tauri", "user"] });
           queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
+          queryClient.invalidateQueries({ queryKey: ["web", "posts"] });
           queryClient.invalidateQueries({
             queryKey: getListPostsQueryKey({ town: selectedTown }),
           });
+        },
+        onError: (e: unknown) => {
+          const msg = e instanceof Error ? e.message : String(e);
+          toast.error(msg || "Could not post — try again");
         },
       },
     );
@@ -559,103 +571,78 @@ export default function FeedPage() {
                         reposted
                       </div>
                     )}
-                    <CardHeader className="pb-2 flex flex-row items-start gap-4">
-                      <Avatar className="h-12 w-12 border border-primary/20">
+                    <CardHeader className="pb-2 flex flex-row items-start gap-3">
+                      <Avatar className="h-10 w-10 border border-primary/20">
                         <AvatarFallback>
                           {isCrossTown
-                            ? "🌉"
+                            ? "B"
                             : (item as any).authorDisplayName?.charAt(0) || "?"}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1">
-                        <CardTitle className="text-base flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span className="font-bold">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-sm flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <span className="font-bold truncate">
                             {isCrossTown
-                              ? `${crossTownItem.pubkey.slice(0, 8)}…${crossTownItem.pubkey.slice(-4)}`
+                              ? `${crossTownItem.pubkey.slice(0, 8)}…`
                               : (item as any).authorDisplayName}
                           </span>
-                          <div className="flex items-center gap-1.5 ml-auto">
-                            {(isCrossTown || (!isCrossTown && (item as any).nostrEventId)) && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setExpandedBadges((p) => ({
-                                    ...p,
-                                    [item.id]: !p[item.id],
-                                  }))
-                                }
-                                className="text-muted-foreground hover:text-primary transition-colors"
-                                aria-label="Security verification"
-                              >
-                                <BadgeCheck className="w-4 h-4" />
-                              </button>
-                            )}
-                            {expandedBadges[item.id] && (
-                              <div className="flex items-center gap-1 flex-wrap">
-                                {!isCrossTown && (
-                                  <RiskBadge
-                                    riskLevel={(item as any).riskLevel}
-                                    maliciousScore={(item as any).maliciousScore}
-                                  />
-                                )}
-                                {isCrossTown && (
-                                  <>
-                                    <RiskBadge
-                                      riskLevel={crossTownItem.riskLevel}
-                                      maliciousScore={crossTownItem.maliciousScore}
-                                    />
-                                    <ConsensusBadge
-                                      consensusValid={crossTownItem.consensusValid}
-                                      consensusAgreement={
-                                        crossTownItem.consensusAgreement
-                                      }
-                                    />
-                                  </>
-                                )}
-                                {!isCrossTown && (item as any).nostrEventId && (
-                                  <SignatureBadge
-                                    eventId={(item as any).nostrEventId}
-                                  />
-                                )}
-                              </div>
-                            )}
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(
-                                item.createdAt ||
-                                  crossTownItem.createdAtUnix * 1000,
-                              ).toLocaleDateString()}
-                            </span>
+                          <span className="text-xs text-muted-foreground font-normal">
+                            {new Date(
+                              item.createdAt ||
+                                crossTownItem.createdAtUnix * 1000,
+                            ).toLocaleDateString()}
+                          </span>
+                          <div className="ml-auto">
+                            <TrustChip
+                              riskLevel={
+                                isCrossTown
+                                  ? crossTownItem.riskLevel
+                                  : (item as any).riskLevel
+                              }
+                              maliciousScore={
+                                isCrossTown
+                                  ? crossTownItem.maliciousScore
+                                  : (item as any).maliciousScore
+                              }
+                              nostrEventId={
+                                isCrossTown
+                                  ? crossTownItem.eventId
+                                  : (item as any).nostrEventId
+                              }
+                              consensusValid={
+                                isCrossTown
+                                  ? crossTownItem.consensusValid
+                                  : undefined
+                              }
+                              consensusAgreement={
+                                isCrossTown
+                                  ? crossTownItem.consensusAgreement
+                                  : undefined
+                              }
+                            />
                           </div>
                         </CardTitle>
-                        <div className="text-sm text-muted-foreground flex gap-2 items-center mt-1">
-                          {isCrossTown && (
-                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                              ⛓️{" "}
-                              {crossTownItem.relayUrl
-                                ?.replace("wss://", "")
-                                .slice(0, 20)}
-                            </span>
-                          )}
+                        <div className="text-xs text-muted-foreground flex gap-1.5 items-center mt-0.5">
                           {!isCrossTown && (
                             <span>@{(item as any).authorHandle}</span>
                           )}
-                          <span>•</span>
+                          {!isCrossTown && <span>·</span>}
                           <span className="text-primary font-medium">
                             {isCrossTown
-                              ? crossTownItem.townTag || "unknown"
+                              ? crossTownItem.townTag || "yard"
                               : (item as any).townTag}
                           </span>
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="pl-20 pb-2">
+                    <CardContent className="pl-[3.25rem] pb-2">
                       <SafeContent
                         text={displayContent}
-                        className="text-[17px]"
+                        className="text-[15px] sm:text-[16px] leading-snug"
                       />
                       <MediaDisplay hashes={(item as any).mediaBlobs || []} />
                     </CardContent>
-                    <CardFooter className="pl-20 pt-2 flex gap-6 text-sm text-muted-foreground border-none">
+                    <CardFooter className="pl-[3.25rem] pt-1 flex gap-1 sm:gap-4 text-sm text-muted-foreground border-none">
                       <Link href={`/posts/${item.id}`}>
                         <Button
                           variant="ghost"

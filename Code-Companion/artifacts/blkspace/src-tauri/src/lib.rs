@@ -52,7 +52,7 @@ use db::{
   MARKETPLACE_PLATFORM_FEE_BPS,
   calc_platform_fee,
   RelayConnectionRecord, RelayEventRecord,
-  validate_handle, validate_display_name, validate_content, validate_bio, validate_town,
+  validate_handle, validate_display_name, validate_content, validate_post_body, validate_bio, validate_town,
 };
 use relay_manager::{RelayManager, RelayStatus, NostrEventData};
 #[cfg(feature = "iroh")]
@@ -1805,23 +1805,29 @@ fn create_post(
   media_hashes: Option<String>,
 ) -> Result<CreatePostResult, String> {
   let author_handle = check_session_rate_limit(&state, &session_token)?;
-  validate_content(&content).map_err(map_err)?;
-  validate_town(&town_tag).map_err(map_err)?;
   let hashes: Vec<String> = media_hashes
     .map(|j| serde_json::from_str(&j).unwrap_or_default())
     .unwrap_or_default();
   let hashes: Vec<String> = hashes.into_iter().take(10).collect();
+  validate_post_body(&content, hashes.len()).map_err(map_err)?;
+  validate_town(&town_tag).map_err(map_err)?;
+  // Media-only posts need a non-empty body for legacy text validators / UI
+  let body = if content.trim().is_empty() && !hashes.is_empty() {
+    "📎".to_string()
+  } else {
+    content
+  };
   let ch = channel_id.unwrap_or_default();
   let result = state
     .db
-    .create_post(&author_handle, &content, &town_tag, &ch, &hashes)
+    .create_post(&author_handle, &body, &town_tag, &ch, &hashes)
     .map_err(|e| AppError::from(e).to_string())?;
 
   publish_post_to_nostr(
     &state,
     &author_handle,
     result.post.id,
-    &content,
+    &body,
     &town_tag,
     &ch,
     &hashes,
@@ -3631,7 +3637,8 @@ fn recalculate_all_malicious_intent_scores(
 
 // ─── Blob (Media) Commands ───────────────────────────────
 
-const MAX_UPLOAD_SIZE: usize = 20 * 1024 * 1024;
+/// Social uploads: images / video / audio / PDF / docs (Tier 0–friendly ceiling).
+const MAX_UPLOAD_SIZE: usize = 50 * 1024 * 1024;
 
 fn mime_from_filename(filename: &str) -> String {
   let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
@@ -3641,17 +3648,40 @@ fn mime_from_filename(filename: &str) -> String {
     "gif" => "image/gif".into(),
     "webp" => "image/webp".into(),
     "svg" => "image/svg+xml".into(),
-    "mp4" => "video/mp4".into(),
+    "heic" | "heif" => "image/heic".into(),
+    "avif" => "image/avif".into(),
+    "bmp" => "image/bmp".into(),
+    "mp4" | "m4v" => "video/mp4".into(),
     "webm" => "video/webm".into(),
     "mov" => "video/quicktime".into(),
     "avi" => "video/x-msvideo".into(),
+    "mkv" => "video/x-matroska".into(),
     "mp3" => "audio/mpeg".into(),
-    "ogg" => "audio/ogg".into(),
+    "m4a" | "aac" => "audio/mp4".into(),
+    "ogg" | "opus" => "audio/ogg".into(),
     "wav" => "audio/wav".into(),
     "flac" => "audio/flac".into(),
     "pdf" => "application/pdf".into(),
+    "doc" => "application/msword".into(),
+    "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document".into(),
+    "txt" | "md" => "text/plain".into(),
+    "csv" => "text/csv".into(),
+    "json" => "application/json".into(),
+    "zip" => "application/zip".into(),
+    "rtf" => "application/rtf".into(),
     _ => "application/octet-stream".into(),
   }
+}
+
+fn is_allowed_upload_ext(filename: &str) -> bool {
+  let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
+  matches!(
+    ext.as_str(),
+    "jpg" | "jpeg" | "png" | "gif" | "webp" | "svg" | "heic" | "heif" | "avif" | "bmp"
+      | "mp4" | "m4v" | "webm" | "mov" | "avi" | "mkv"
+      | "mp3" | "m4a" | "aac" | "ogg" | "opus" | "wav" | "flac"
+      | "pdf" | "doc" | "docx" | "txt" | "md" | "csv" | "json" | "zip" | "rtf"
+  )
 }
 
 #[tauri::command]
@@ -3669,6 +3699,12 @@ fn upload_blob(
   if !filename.contains('.') {
     return Err("Filename must have an extension".to_string());
   }
+  if !is_allowed_upload_ext(&filename) {
+    return Err(
+      "Unsupported file type. Use images, video (mp4/webm/mov), audio (mp3/wav), PDF, or common docs."
+        .to_string(),
+    );
+  }
 
   let bytes = base64::Engine::decode(
     &base64::engine::general_purpose::STANDARD,
@@ -3679,7 +3715,10 @@ fn upload_blob(
     return Err("Empty file".to_string());
   }
   if bytes.len() > MAX_UPLOAD_SIZE {
-    return Err(format!("File too large — maximum is {}MB", MAX_UPLOAD_SIZE / 1024 / 1024));
+    return Err(format!(
+      "File too large — maximum is {}MB",
+      MAX_UPLOAD_SIZE / 1024 / 1024
+    ));
   }
 
   let mime_type = mime_from_filename(&filename);

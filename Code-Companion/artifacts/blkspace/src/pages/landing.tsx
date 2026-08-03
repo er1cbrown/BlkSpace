@@ -41,33 +41,28 @@ export default function LandingPage() {
                 {BRAND.symbol} ({BRAND.coinName}) on Solana when settlement is
                 gated-ready. Your account, your content, your earnings.
               </p>
-              <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <div className="flex flex-col items-center gap-4">
                 <Link href="/feed">
                   <Button
                     size="lg"
-                    className="text-lg px-8 rounded-full h-14 font-bold shadow-lg"
+                    className="text-lg px-10 rounded-full h-14 font-bold shadow-lg"
                   >
                     Enter the Yard <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </Link>
-                <Link href="/connect">
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    className="text-lg px-8 rounded-full h-14 font-bold"
-                  >
-                    ProjectConnect
-                  </Button>
-                </Link>
-                <Link href="/welcome">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="text-lg px-8 rounded-full h-14 font-bold"
-                  >
+                <p className="text-sm text-muted-foreground">
+                  <Link href="/welcome" className="text-primary font-medium hover:underline">
                     Create free account
-                  </Button>
-                </Link>
+                  </Link>
+                  <span className="mx-2 opacity-40">·</span>
+                  <Link href="/login" className="hover:underline">
+                    Sign in
+                  </Link>
+                  <span className="mx-2 opacity-40">·</span>
+                  <Link href="/connect" className="hover:underline">
+                    ProjectConnect
+                  </Link>
+                </p>
               </div>
             </div>
           </div>

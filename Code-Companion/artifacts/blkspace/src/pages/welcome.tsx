@@ -155,27 +155,25 @@ export default function WelcomePage() {
         Welcome to <BrandMark size="lg" className="inline-block align-middle" />
       </h2>
       <p className="text-lg text-muted-foreground">{BRAND.tagline}</p>
-      <p className="text-sm text-muted-foreground">
-        Amalgamation social for underrepresented networks — yards, media,
-        Connect, soft earn literacy. Campus first, not campus only.
+      <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+        Pick your HBCU yard, post freely, earn WeixBucks. Campus first — not
+        campus only.
       </p>
-      <div className="grid grid-cols-3 gap-4 text-sm pt-4">
-        <div className="bg-card p-4 rounded-xl border">
-          <Users className="w-6 h-6 text-primary mx-auto mb-2" />
-          <p className="font-medium">Your Yard</p>
-          <p className="text-muted-foreground text-xs">
-            100+ public & private HBCUs
-          </p>
+      <div className="grid grid-cols-3 gap-3 text-sm pt-2">
+        <div className="bg-card p-3 rounded-xl border">
+          <Users className="w-5 h-5 text-primary mx-auto mb-1.5" />
+          <p className="font-medium text-xs">Your yard</p>
+          <p className="text-muted-foreground text-[11px]">100+ HBCUs</p>
         </div>
-        <div className="bg-card p-4 rounded-xl border">
-          <Sparkles className="w-6 h-6 text-primary mx-auto mb-2" />
-          <p className="font-medium">Your Posts</p>
-          <p className="text-muted-foreground text-xs">Nobody can take them down</p>
+        <div className="bg-card p-3 rounded-xl border">
+          <Sparkles className="w-5 h-5 text-primary mx-auto mb-1.5" />
+          <p className="font-medium text-xs">Your posts</p>
+          <p className="text-muted-foreground text-[11px]">You own them</p>
         </div>
-        <div className="bg-card p-4 rounded-xl border">
-          <Coins className="w-6 h-6 text-primary mx-auto mb-2" />
-          <p className="font-medium">Your Earnings</p>
-          <p className="text-muted-foreground text-xs">Earn WeixBucks to post</p>
+        <div className="bg-card p-3 rounded-xl border">
+          <Coins className="w-5 h-5 text-primary mx-auto mb-1.5" />
+          <p className="font-medium text-xs">Earn</p>
+          <p className="text-muted-foreground text-[11px]">WeixBucks</p>
         </div>
       </div>
     </div>,

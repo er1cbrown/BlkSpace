@@ -40,7 +40,8 @@ import {
   ClubActivitiesPanel,
   StudyHourHint,
 } from "@/components/community/ClubActivitiesPanel";
-import { resolveCommunityYardTheme } from "@/lib/yard-themes";
+import { getYardTheme, resolveCommunityYardTheme } from "@/lib/yard-themes";
+import { getHbcu, hbcuLocation, searchHbcus } from "@/lib/hbcu-catalog";
 import { YardCommunitySkin } from "@/components/community/YardCommunitySkin";
 import { SafeContent } from "@/components/ui/safe-content";
 import { RiskBadge } from "@/components/ui/risk-badge";
@@ -56,61 +57,54 @@ import {
 } from "@/lib/tauri-api";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { useRequiresWallet } from "@/hooks/use-requires-wallet";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-const fallbackCommunityData: Record<
-  string,
-  {
-    name: string;
-    school: string;
-    location: string;
-    members: number;
-    description: string;
-  }
-> = {
-  tsu: {
-    name: "TSU Yard",
-    school: "Tennessee State University",
-    location: "Nashville, TN",
-    members: 2847,
-    description:
-      "The official TSU community. Home of the Tigers. Connect with fellow students, alumni, and Nashville locals.",
-  },
-  howard: {
-    name: "Howard Yard",
-    school: "Howard University",
-    location: "Washington, DC",
-    members: 4521,
-    description:
-      "Howard University's digital yard. The Mecca of HBCU culture and excellence.",
-  },
-  spelman: {
-    name: "Spelman Yard",
-    school: "Spelman College",
-    location: "Atlanta, GA",
-    members: 3190,
-    description:
-      "Spelman College community. Where Black women lead, achieve, and uplift.",
-  },
-  famu: {
-    name: "FAMU Yard",
-    school: "Florida A&M University",
-    location: "Tallahassee, FL",
-    members: 5632,
-    description:
-      "Florida A&M — the largest HBCU by enrollment. Rattler nation stays connected.",
-  },
-  morehouse: {
-    name: "Morehouse Yard",
-    school: "Morehouse College",
-    location: "Atlanta, GA",
-    members: 2904,
-    description:
-      "Morehouse College. Building Black men who lead with integrity and purpose.",
-  },
+type CommunityView = {
+  id: string;
+  name: string;
+  school: string;
+  location: string;
+  members: number;
+  description: string;
+  packActive?: boolean;
+  purchaseCount?: number;
+  color?: string;
 };
+
+/** Resolve any catalog HBCU (albany-st, tsu, …) — not just 5 hard-coded yards. */
+function resolveCommunityFromCatalog(rawId: string): CommunityView | null {
+  if (!rawId) return null;
+  const id = decodeURIComponent(rawId).trim().toLowerCase();
+
+  let hbcu = getHbcu(id);
+  // Fuzzy: "albany", "albany state", "albany-state" → albany-st
+  if (!hbcu) {
+    const hits = searchHbcus(id.replace(/-/g, " "));
+    hbcu = hits[0] ?? null;
+  }
+  if (!hbcu) {
+    const hits = searchHbcus(id);
+    hbcu = hits.find((h) => h.id === id || h.shortName.toLowerCase().includes(id)) ?? hits[0] ?? null;
+  }
+  if (!hbcu) return null;
+
+  const theme = getYardTheme(hbcu.id);
+  return {
+    id: hbcu.id,
+    name: hbcu.yardLabel,
+    school: hbcu.school,
+    location: hbcuLocation(hbcu),
+    members: 0,
+    description:
+      theme?.tagline ||
+      `${hbcu.shortName} — ${hbcu.control} HBCU · est. ${hbcu.founded}. Join the yard and post.`,
+    packActive: false,
+    purchaseCount: 0,
+    color: theme?.gradient,
+  };
+}
 
 export default function CommunityPage() {
   const [, params] = useRoute("/communities/:id");
@@ -122,14 +116,17 @@ export default function CommunityPage() {
   const [postReplies, setPostReplies] = useState<Record<number, any[]>>({});
 
   const { data: tauriCommunities } = useTauriGetCommunities();
-  const { data: tauriChannelsData } = useTauriListChannels(id);
+  // Normalize route param early (albany-st, Albany%20State, etc.)
+  const routeYardKey = (id || "").trim().toLowerCase();
+
+  const { data: tauriChannelsData } = useTauriListChannels(routeYardKey);
   const { data: tauriChannelPosts = [] } = useTauriListPostsForChannel(
     activeChannel.replace(/^#/, "").replace(/-hall$/, ""),
   ); // id e.g. "general" or "study" from channel name
   const createPost = useAppCreatePost();
   const joinYard = useTauriJoinYard();
   const { requireWallet } = useRequiresWallet();
-  const { data: isMember = false } = useTauriIsYardMember(id);
+  const { data: isMember = false } = useTauriIsYardMember(routeYardKey);
   const qc = useQueryClient();
 
   const handleCreateChannel = async () => {
@@ -141,8 +138,8 @@ export default function CommunityPage() {
       return;
     }
     try {
-      await tauriCreateChannel(token, id, nm.trim());
-      qc.invalidateQueries({ queryKey: ["tauri", "channels", id] });
+      await tauriCreateChannel(token, yardId || id, nm.trim());
+      qc.invalidateQueries({ queryKey: ["tauri", "channels", yardId || id] });
       toast.success("Channel created");
     } catch (e) {
       toast.error(String(e));
@@ -174,7 +171,7 @@ export default function CommunityPage() {
     createPost.mutate(
       {
         content: text.trim(),
-        town_tag: id,
+        town_tag: yardId || id,
         channel_id: channelId,
       },
       {
@@ -225,12 +222,38 @@ export default function CommunityPage() {
     }
   };
 
-  const community =
-    isTauri() && Array.isArray(tauriCommunities)
-      ? tauriCommunities.find((c: TauriCommunity) => c.id === id)
-      : fallbackCommunityData[id];
+  const community: CommunityView | null = useMemo(() => {
+    const key = (id || "").trim().toLowerCase();
+    if (!key) return null;
 
-  // Real channels when in Tauri (from DB via list_channels); fallback hardcoded for web/demo
+    // 1) Live Tauri communities (full hbcus table when seeded)
+    if (isTauri() && Array.isArray(tauriCommunities)) {
+      const hit = tauriCommunities.find(
+        (c: TauriCommunity) => c.id.toLowerCase() === key,
+      );
+      if (hit) {
+        return {
+          id: hit.id,
+          name: hit.name,
+          school: hit.school,
+          location: hit.location,
+          members: hit.members,
+          description: hit.description,
+          packActive: hit.packActive,
+          purchaseCount: hit.purchaseCount,
+          color: hit.color,
+        };
+      }
+    }
+
+    // 2) Full HBCU catalog (Albany State = albany-st, etc.)
+    return resolveCommunityFromCatalog(key);
+  }, [id, tauriCommunities]);
+
+  // Canonical id for membership / posts (catalog may fuzzy-match)
+  const yardId = community?.id || id;
+
+  // Real channels when in Tauri (from DB via list_channels); default set for every HBCU
   const channels =
     isTauri() && tauriChannelsData && tauriChannelsData.length > 0
       ? tauriChannelsData.map((c: any) => c.name)
@@ -246,8 +269,20 @@ export default function CommunityPage() {
   if (!community) {
     return (
       <AppShell>
-        <div className="text-center py-20 text-muted-foreground">
-          Community not found.
+        <div className="text-center py-20 space-y-3 px-4">
+          <p className="text-muted-foreground">
+            Yard not found for <code className="text-xs">{id || "—"}</code>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Pick a school from the Yards directory (e.g. Albany State →{" "}
+            <code className="text-xs">albany-st</code>).
+          </p>
+          <Link href="/communities">
+            <Button variant="outline" className="mt-2">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Yards
+            </Button>
+          </Link>
         </div>
       </AppShell>
     );
@@ -287,11 +322,19 @@ export default function CommunityPage() {
 
   const tauriCommunity =
     isTauri() && Array.isArray(tauriCommunities)
-      ? tauriCommunities.find((c: TauriCommunity) => c.id === id)
+      ? tauriCommunities.find(
+          (c: TauriCommunity) => c.id.toLowerCase() === yardId.toLowerCase(),
+        )
       : undefined;
-  const packActive = tauriCommunity?.packActive ?? false;
-  const purchaseCount = tauriCommunity?.purchaseCount ?? 0;
-  const yardTheme = resolveCommunityYardTheme(id, packActive, purchaseCount);
+  const packActive =
+    tauriCommunity?.packActive ?? community.packActive ?? false;
+  const purchaseCount =
+    tauriCommunity?.purchaseCount ?? community.purchaseCount ?? 0;
+  const yardTheme = resolveCommunityYardTheme(
+    yardId,
+    packActive,
+    purchaseCount,
+  );
 
   return (
     <AppShell fullWidth hideRightRail>
@@ -354,7 +397,7 @@ export default function CommunityPage() {
                 disabled={joinYard.isPending || isMember}
                 onClick={() => {
                   if (!requireWallet("join yards")) return;
-                  joinYard.mutate(id, {
+                  joinYard.mutate(yardId, {
                     onSuccess: (result) => {
                       if (result.joined && result.earn) {
                         showEarnFromResult(
@@ -607,7 +650,7 @@ export default function CommunityPage() {
 
               <TabsContent value="members">
                 <YardMembersPanel
-                  communityId={id}
+                  communityId={yardId}
                   communityName={community.name}
                   isMember={isMember}
                 />
@@ -617,7 +660,7 @@ export default function CommunityPage() {
                 <div className="space-y-3">
                   <StudyHourHint />
                   <YardEventsPanel
-                    communityId={id}
+                    communityId={yardId}
                     communityName={community.name}
                     isMember={isMember}
                     createDialogOpen={createEventOpen}
@@ -638,13 +681,13 @@ export default function CommunityPage() {
                     </p>
                   </CardHeader>
                   <CardContent>
-                    <ClubActivitiesPanel communityId={id} />
+                    <ClubActivitiesPanel communityId={yardId} />
                   </CardContent>
                 </Card>
               </TabsContent>
 
               <TabsContent value="yard-sale">
-                <YardSaleTab yardId={id} communityName={community.name} />
+                <YardSaleTab yardId={yardId} communityName={community.name} />
               </TabsContent>
 
               <TabsContent value="about">

@@ -17,15 +17,14 @@ import {
   Settings,
   Code2,
   Trophy,
-  Handshake,
 } from "lucide-react";
 import { getCurrentHandle } from "@/lib/auth";
 import { useAppGetUser, useAppGetTrendingFeed } from "@/hooks/use-app-data";
 import { townGradient, townLabel } from "@/lib/towns";
-import { isTauri } from "@/lib/tauri-api";
 import { BETA_FEATURES } from "@/lib/beta-features";
 
 import { SEED_SUGGESTED_PEOPLE } from "@/lib/seed-content";
+import { SampleBadge } from "@/components/ui/sample-badge";
 
 export function YardSidebar() {
   const handle = getCurrentHandle();
@@ -37,11 +36,13 @@ export function YardSidebar() {
 
   const town = user?.town ?? "tsu";
   const wb = user?.weixBucks ?? 0;
+  // Seed list is always demo content until a live people graph is wired
+  const peopleAreSample = true;
 
   return (
     <aside className="space-y-4 sticky top-4">
       <Card className="overflow-hidden border-primary/15 shadow-md">
-        <div className={`h-16 bg-gradient-to-br ${townGradient(town)}`} />
+        <div className={`h-16 bg-gradient-to-br yard-skin-gradient ${townGradient(town)}`} />
         <CardHeader className="pb-2 -mt-8">
           <div className="flex items-end gap-3">
             <Avatar className="h-14 w-14 border-2 border-background shadow-md">
@@ -64,20 +65,14 @@ export function YardSidebar() {
               <MapPin className="w-3.5 h-3.5" />
               {townLabel(town)}
             </span>
-            <Badge variant="secondary" className="gap-1 font-semibold">
+            <Badge variant="secondary" className="gap-1 font-semibold text-xs">
               <Coins className="w-3.5 h-3.5 text-accent" />
               {wb.toLocaleString()} WB
             </Badge>
           </div>
           <Link href="/wallet">
             <Button variant="outline" size="sm" className="w-full">
-              My Earnings
-            </Button>
-          </Link>
-          <Link href="/connect">
-            <Button size="sm" className="w-full gap-1.5">
-              <Handshake className="w-3.5 h-3.5" />
-              ProjectConnect
+              Earnings
             </Button>
           </Link>
         </CardContent>
@@ -85,15 +80,16 @@ export function YardSidebar() {
 
       <Card className="border-border/60">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
+          <CardTitle className="text-sm flex items-center gap-2 flex-wrap">
             <UserPlus className="w-4 h-4 text-primary" />
             People on the yard
-            {!isTauri() && (
-              <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-                Sample
-              </Badge>
-            )}
+            {peopleAreSample && <SampleBadge />}
           </CardTitle>
+          {peopleAreSample && (
+            <p className="text-[11px] text-muted-foreground font-normal pt-1">
+              Demo profiles for layout — not live yard members.
+            </p>
+          )}
         </CardHeader>
         <CardContent className="space-y-3">
           {SEED_SUGGESTED_PEOPLE.filter((p) => p.handle !== handle)

@@ -31,6 +31,7 @@ import {
 import * as tauri from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { getSeedPosts } from "@/lib/seed-content";
+import { createWebUserPost, listWebUserPosts } from "@/lib/web-posts";
 
 export const IS_TAURI =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -38,7 +39,10 @@ export const IS_TAURI =
 const MOCK_POSTS = getSeedPosts();
 
 function getMockPosts(town?: string) {
-  return getSeedPosts(town);
+  const seed = getSeedPosts(town);
+  const mine = listWebUserPosts(town);
+  // User posts first so "Post to yard" is immediately visible
+  return [...mine, ...seed];
 }
 
 function getMockUser(handle: string) {
@@ -111,7 +115,8 @@ export function useAppListPosts(
     queryKey: ["web", "posts", town],
     queryFn: () => Promise.resolve(getMockPosts(town)),
     enabled: !IS_TAURI && enabled,
-    staleTime: Infinity,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   if (IS_TAURI) {
@@ -370,6 +375,12 @@ export function useAppCreatePost() {
           },
           opts?: any,
         ) => {
+          const token = getSessionToken();
+          if (!token) {
+            const err = new Error("Sign in to post — open Welcome or Log in");
+            opts?.onError?.(err);
+            return;
+          }
           if (isOffline()) {
             queueMut.mutate(
               JSON.stringify({
@@ -384,7 +395,7 @@ export function useAppCreatePost() {
           }
           tauriMut.mutate(
             {
-              session_token: getSessionToken() || "",
+              session_token: token,
               content: input.content,
               town_tag: input.town_tag,
               channel_id: input.channel_id,
@@ -395,17 +406,37 @@ export function useAppCreatePost() {
             opts,
           );
         }
-      : (input: any, opts?: any) =>
-          web.mutate(
-            {
-              data: {
-                content: input.content,
-                authorHandle: "demo_user",
-                townTag: input.town_tag,
+      : (
+          input: {
+            content: string;
+            town_tag: string;
+            channel_id?: string;
+            media_hashes?: string[];
+          },
+          opts?: any,
+        ) => {
+          // Browser: local posts (no API server required)
+          try {
+            const post = createWebUserPost({
+              content: input.content,
+              townTag: input.town_tag,
+              mediaHashes: input.media_hashes,
+            });
+            qc.invalidateQueries({ queryKey: ["web", "posts"] });
+            opts?.onSuccess?.({
+              post,
+              earn: {
+                wb: 5,
+                wbNominal: 5,
+                karmaPost: 3,
+                karmaComment: 0,
+                throttled: false,
               },
-            },
-            opts,
-          ),
+            });
+          } catch (e) {
+            opts?.onError?.(e);
+          }
+        },
     isPending: IS_TAURI
       ? tauriMut.isPending || queueMut.isPending
       : web.isPending,

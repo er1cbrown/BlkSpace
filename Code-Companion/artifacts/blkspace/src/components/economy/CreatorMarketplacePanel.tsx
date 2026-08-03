@@ -35,7 +35,8 @@ import {
   YARD_SALE_ITEM_TYPES,
   isEscrowDefaultType,
 } from "@/lib/myyard-catalog";
-import { FEATURED_YARD_THEME_IDS, YARD_THEME_PACKS, getYardTheme } from "@/lib/yard-themes";
+import { YARD_THEME_PACKS, getYardTheme } from "@/lib/yard-themes";
+import { FEATURED_YARD_IDS } from "@/lib/hbcu-catalog";
 import { allTownOptions } from "@/lib/towns";
 import { YardSaleListings } from "@/components/economy/YardSaleListings";
 import { EscrowTradesPanel } from "@/components/economy/EscrowTradesPanel";
@@ -275,13 +276,13 @@ export function CreatorMarketplacePanel() {
                 <SelectValue placeholder="Campus yard tag" />
               </SelectTrigger>
               <SelectContent className="max-h-64">
-                {FEATURED_YARD_THEME_IDS.map((id) => (
+                {FEATURED_YARD_IDS.map((id) => (
                   <SelectItem key={id} value={id}>
                     {YARD_THEME_PACKS[id]?.name ?? getYardTheme(id)?.name ?? id}
                   </SelectItem>
                 ))}
                 {allTownOptions()
-                  .filter((t) => !FEATURED_YARD_THEME_IDS.includes(t.id))
+                  .filter((t) => !FEATURED_YARD_IDS.includes(t.id))
                   .slice(0, 40)
                   .map((t) => (
                     <SelectItem key={t.id} value={t.id}>

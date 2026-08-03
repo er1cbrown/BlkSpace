@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SafeContent } from "@/components/ui/safe-content";
 import { MediaDisplay } from "@/components/ui/media-display";
-import { RiskBadge } from "@/components/ui/risk-badge";
-import { SignatureBadge } from "@/components/ui/signature-badge";
+import { TrustChip } from "@/components/ui/trust-chip";
 import { KarmaBadge } from "@/components/economy/KarmaBadge";
 import type { TauriPost } from "@/lib/tauri-api";
 
@@ -84,13 +83,11 @@ export function WatchFeed({ posts, authorKarma = {}, onLike }: WatchFeedProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <p className="font-bold truncate">@{post.authorHandle}</p>
-                      <RiskBadge
+                      <TrustChip
                         riskLevel={post.riskLevel}
                         maliciousScore={post.maliciousScore}
+                        nostrEventId={post.nostrEventId}
                       />
-                      {post.nostrEventId && (
-                        <SignatureBadge eventId={post.nostrEventId} />
-                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">{post.townTag} yard</p>
                     {post.mediaBlobs?.length === 0 && (

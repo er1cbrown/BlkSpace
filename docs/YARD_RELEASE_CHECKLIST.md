@@ -95,7 +95,9 @@ git push origin v0.1.0-yard
 | macOS | `BlkSpace-Yard-macOS.dmg` |
 | Linux | `BlkSpace-Yard-Linux.AppImage` |
 
-**Not** `BlkSpace-Full` — that's for lab machines with Iroh mesh (separate CI job `build-tauri-full`).
+**Not** `BlkSpace-Full` — lab/Iroh only via **CI Full Lab** workflow or a `*-full` release tag.
+
+**Campus demo without MSI:** GitHub Pages web preview (`Deploy Web Preview` workflow) after Pages is enabled — see `DEVOPS.md`.
 
 ---
 

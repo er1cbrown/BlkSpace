@@ -1,12 +1,17 @@
-name: Deploy to GitHub Pages
+# Campus web preview — no MSI required.
+# https://er1cbrown.github.io/BlkSpace/  (after GitHub Pages is enabled on the repo)
+name: Deploy Web Preview (Pages)
 
 on:
   push:
     branches: [main]
+    paths:
+      - "Code-Companion/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 env:
-  PNPM_VERSION: 9
+  PNPM_VERSION: 10
   NODE_VERSION: 22
 
 permissions:
@@ -20,7 +25,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build web app
+    name: Build web preview
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,12 +39,22 @@ jobs:
           cache-dependency-path: Code-Companion/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
         working-directory: ./Code-Companion
-      - name: Build frontend
-        run: pnpm build
-        working-directory: ./Code-Companion/artifacts/blkspace
+      - name: Build frontend (project Pages base)
+        run: pnpm --filter @workspace/blkspace run build
+        working-directory: ./Code-Companion
         env:
           PORT: 24442
-          BASE_PATH: /
+          # Project site: https://<user>.github.io/BlkSpace/
+          BASE_PATH: /BlkSpace/
+      - name: Write campus demo index note
+        run: |
+          PUB="Code-Companion/artifacts/blkspace/dist/public"
+          if [ ! -d "$PUB" ]; then
+            # Vite outDir may be dist only
+            PUB="Code-Companion/artifacts/blkspace/dist"
+          fi
+          echo "<!-- BlkSpace campus web preview · Tier 0 UI · uploads/post need desktop Yard MSI for full features -->" >> "$PUB/index.html"
+          ls -la "$PUB" | head -20
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
