@@ -274,6 +274,22 @@ export interface TauriCommunity {
   packActive?: boolean;
   purchaseCount?: number;
   packId?: string;
+  /** public | private */
+  control?: string;
+  state?: string;
+  founded?: number;
+  shortName?: string;
+}
+
+export interface TauriHbcu {
+  id: string;
+  school: string;
+  shortName: string;
+  city: string;
+  state: string;
+  founded: number;
+  control: string;
+  yardLabel: string;
 }
 
 export interface TauriChannel {
@@ -861,6 +877,34 @@ export function tauriGetCommunities(): Promise<TauriCommunity[]> {
   return invoke("get_communities");
 }
 
+export function tauriGetCommunity(id: string): Promise<TauriCommunity | null> {
+  return invoke("get_community", { id });
+}
+
+export function tauriListHbcus(opts?: {
+  query?: string;
+  stateFilter?: string;
+  control?: string;
+}): Promise<TauriHbcu[]> {
+  return invoke("list_hbcus", {
+    query: opts?.query ?? null,
+    stateFilter: opts?.stateFilter ?? null,
+    control: opts?.control ?? null,
+  });
+}
+
+export function tauriGetHbcu(id: string): Promise<TauriHbcu | null> {
+  return invoke("get_hbcu", { id });
+}
+
+export function tauriCountHbcus(): Promise<number> {
+  return invoke("count_hbcus");
+}
+
+export function tauriListYardMembers(communityId: string): Promise<string[]> {
+  return invoke("list_yard_members", { communityId });
+}
+
 export function tauriListChannels(
   communityId: string,
 ): Promise<TauriChannel[]> {
@@ -1116,6 +1160,29 @@ export function tauriUnsubscribeFromTown(
 
 export function tauriListSubscribedTowns(): Promise<string[]> {
   return invoke("list_subscribed_towns");
+}
+
+export function tauriJoinHbcuIntranet(
+  sessionToken: string,
+  homeYard?: string | null,
+): Promise<string[]> {
+  return invoke("join_hbcu_intranet", {
+    sessionToken,
+    homeYard: homeYard || null,
+  });
+}
+
+export function tauriGetHbcuIntranetStatus(): Promise<{
+  connected: boolean;
+  relayCount: number;
+  hasIntranetTag: boolean;
+  subscriptions: string[];
+  yardSubscriptions: string[];
+  platformTags: string[];
+  model: string;
+  description: string;
+}> {
+  return invoke("get_hbcu_intranet_status");
 }
 
 // ─── Cross-Town Feed ──────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import {
   Card,
@@ -29,6 +29,12 @@ import type { Tier0BenchmarkReport } from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { isTauri } from "@/lib/tauri-api";
 import {
+  ensureIntranetConnected,
+  getIntranetStatus,
+  intranetTopologySummary,
+  type IntranetStatus,
+} from "@/lib/hbcu-intranet";
+import {
   Smartphone,
   Laptop,
   Wifi,
@@ -39,6 +45,7 @@ import {
   ArrowRightLeft,
   CheckCircle2,
   AlertCircle,
+  Network,
 } from "lucide-react";
 
 export default function DeviceMeshTestPage() {
@@ -67,11 +74,18 @@ export default function DeviceMeshTestPage() {
     null,
   );
   const [lastRelaySyncAt, setLastRelaySyncAt] = useState<string | null>(null);
+  const [intranet, setIntranet] = useState<IntranetStatus | null>(null);
+  const [intranetMsg, setIntranetMsg] = useState("");
+  const topo = intranetTopologySummary();
 
   const connectedRelays =
     relayStatuses?.filter((r) => r.connected).length ?? 0;
   const totalRelays = relayStatuses?.length ?? 0;
   const userTown = accountData?.user?.town as string | undefined;
+
+  useEffect(() => {
+    getIntranetStatus().then(setIntranet);
+  }, [connectedRelays]);
 
   const handleSync = () => {
     const start = performance.now();
@@ -101,30 +115,58 @@ export default function DeviceMeshTestPage() {
 
   const handleRelaySync = () => {
     const town = userTown || "tsu";
+    // Backbone first, then home yard — full intranet pull
     syncTown.mutate(
-      { town },
+      { town: "hbcu-intranet" },
       {
-        onSuccess: (events) => {
-          setLastRelaySyncAt(new Date().toLocaleTimeString());
-          logDeviceSync.mutate({
-            deviceId,
-            syncType: "relay_sync",
-            itemsCount: events.length,
-            durationMs: 0,
-            success: true,
-          });
+        onSuccess: () => {
+          syncTown.mutate(
+            { town },
+            {
+              onSuccess: (events) => {
+                setLastRelaySyncAt(new Date().toLocaleTimeString());
+                logDeviceSync.mutate({
+                  deviceId,
+                  syncType: "relay_sync",
+                  itemsCount: events.length,
+                  durationMs: 0,
+                  success: true,
+                });
+                getIntranetStatus().then(setIntranet);
+              },
+              onError: () => {
+                logDeviceSync.mutate({
+                  deviceId,
+                  syncType: "relay_sync",
+                  itemsCount: 0,
+                  durationMs: 0,
+                  success: false,
+                });
+              },
+            },
+          );
         },
         onError: () => {
-          logDeviceSync.mutate({
-            deviceId,
-            syncType: "relay_sync",
-            itemsCount: 0,
-            durationMs: 0,
-            success: false,
-          });
+          // Fall back to yard-only
+          syncTown.mutate({ town });
         },
       },
     );
+  };
+
+  const handleJoinIntranet = async () => {
+    setIntranetMsg("Joining…");
+    const res = await ensureIntranetConnected(userTown || "tsu");
+    if (res.ok) {
+      setIntranet(res.status ?? null);
+      setIntranetMsg(
+        res.status?.connected
+          ? "Intranet connected — backbone + home yard subscribed."
+          : "Subscriptions set; connect relays if not online.",
+      );
+    } else {
+      setIntranetMsg(res.error || "Join failed");
+    }
   };
 
   const handleFlushQueue = () => {
@@ -160,8 +202,9 @@ export default function DeviceMeshTestPage() {
             </h1>
           </div>
           <p className="text-lg opacity-90 max-w-2xl">
-            Cross-device sync, recovery, and performance testing — Nostr relays,
-            Iroh media, and offline queue (hub-sync mesh).
+            Cross-device sync + HBCU intranet — {topo.totalYards} yards on one
+            shared relay wire (not {topo.pairwiseLinksIfFullMesh.toLocaleString()}{" "}
+            pairwise links). Nostr tags, Iroh media, offline queue.
           </p>
           <div className="flex items-center gap-2 mt-4 text-sm">
             <Badge variant="outline" className="bg-background/20">
@@ -200,6 +243,65 @@ export default function DeviceMeshTestPage() {
           </TabsList>
 
           <TabsContent value="sync" className="space-y-6">
+            <Card className="border-primary/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Network className="w-4 h-4 text-primary" />
+                  HBCU Intranet ({topo.totalYards} yards)
+                </CardTitle>
+                <CardDescription>
+                  Shared-relay mesh — backbone tags connect every public &
+                  private HBCU without pairwise tunnels.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex flex-wrap gap-2">
+                  <Badge
+                    variant={intranet?.connected ? "default" : "outline"}
+                  >
+                    {intranet?.connected ? "Connected" : "Not fully connected"}
+                  </Badge>
+                  <Badge variant="secondary">
+                    Relays: {intranet?.relayCount ?? connectedRelays}
+                  </Badge>
+                  <Badge variant="secondary">
+                    Subs: {intranet?.subscriptions?.length ?? "—"}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Tags:{" "}
+                  <code className="text-[10px]">t:hbcu-intranet</code> ·{" "}
+                  <code className="text-[10px]">t:blkspace</code> ·{" "}
+                  <code className="text-[10px]">t:hbcu-town:&lt;id&gt;</code>
+                </p>
+                {intranet?.yardSubscriptions?.length ? (
+                  <p className="text-xs">
+                    Yard filters: {intranet.yardSubscriptions.join(", ")}
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleJoinIntranet}
+                    disabled={!sessionToken || !isDesktop}
+                  >
+                    Join / refresh intranet
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleRelaySync}
+                    disabled={!sessionToken || !isDesktop}
+                  >
+                    Sync backbone + home yard
+                  </Button>
+                </div>
+                {intranetMsg && (
+                  <p className="text-xs text-muted-foreground">{intranetMsg}</p>
+                )}
+              </CardContent>
+            </Card>
+
             <div className="grid md:grid-cols-3 gap-4">
               <Card>
                 <CardHeader className="pb-2">

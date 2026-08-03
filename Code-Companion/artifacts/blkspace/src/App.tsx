@@ -11,6 +11,7 @@ import { isFirstRun } from "@/lib/auth";
 import { OfflineSyncProvider } from "@/lib/offline-sync";
 import { GuestModeProvider, useGuestMode } from "@/lib/guest-mode";
 import { GuestCTA } from "@/components/social/GuestCTA";
+import { UiPrefsProvider } from "@/components/ui-prefs/UiPrefsProvider";
 import React from "react";
 
 // Lazy load non-initial pages so a bad import/module in one of them
@@ -149,12 +150,14 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <OfflineSyncProvider>
             <GuestModeProvider>
-              <TooltipProvider>
-                <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                  <Router />
-                </WouterRouter>
-                <Toaster />
-              </TooltipProvider>
+              <UiPrefsProvider>
+                <TooltipProvider>
+                  <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                    <Router />
+                  </WouterRouter>
+                  <Toaster />
+                </TooltipProvider>
+              </UiPrefsProvider>
             </GuestModeProvider>
           </OfflineSyncProvider>
         </QueryClientProvider>

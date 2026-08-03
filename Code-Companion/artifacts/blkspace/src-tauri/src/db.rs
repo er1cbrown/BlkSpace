@@ -66,8 +66,19 @@ pub fn validate_bio(bio: &str) -> Result<(), AppError> {
 }
 
 pub fn validate_town(town: &str) -> Result<(), AppError> {
-  if town.len() > 30 {
-    return Err(AppError::Validation("Town tag must be under 30 characters".into()));
+  // Catalog ids up to 32 chars (e.g. morehouse-school-of-medicine); leave headroom.
+  if town.is_empty() || town.len() > 48 {
+    return Err(AppError::Validation(
+      "Town / yard id must be 1-48 characters".into(),
+    ));
+  }
+  if !town
+    .chars()
+    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+  {
+    return Err(AppError::Validation(
+      "Town / yard id can only contain letters, numbers, underscores, and hyphens".into(),
+    ));
   }
   Ok(())
 }
@@ -399,6 +410,30 @@ pub struct Community {
   pub pack_active: bool,
   pub purchase_count: i64,
   pub pack_id: String,
+  /// public | private (from hbcus catalog table)
+  #[serde(default)]
+  pub control: String,
+  /// US state / territory code
+  #[serde(default)]
+  pub state: String,
+  #[serde(default)]
+  pub founded: i64,
+  #[serde(default)]
+  pub short_name: String,
+}
+
+/// Directory row for HBCU catalog (DB-backed).
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct HbcuRow {
+  pub id: String,
+  pub school: String,
+  pub short_name: String,
+  pub city: String,
+  pub state: String,
+  pub founded: i64,
+  pub control: String,
+  pub yard_label: String,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -641,7 +676,7 @@ pub struct Database {
 }
 
 /// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
-const SCHEMA_VERSION: i32 = 7;
+const SCHEMA_VERSION: i32 = 8;
 
 /// Tier 0 page cache in KiB (negative PRAGMA cache_size = KiB).
 /// Default 8 MiB — was 64 MiB which is too heavy for 4 GB laptops.
@@ -1359,6 +1394,8 @@ impl Database {
     crate::events_ticketing::ensure_schema(&conn)?;
     crate::club_activities::ensure_schema(&conn)?;
     crate::studio::ensure_schema(&conn)?;
+    // Full HBCU directory (103 public+private) — DB-backed yards
+    Self::ensure_hbcus_schema(&conn)?;
 
     let version = Self::schema_version(&conn)?;
     if version < SCHEMA_VERSION {
@@ -1367,10 +1404,120 @@ impl Database {
       crate::events_ticketing::ensure_schema(&conn)?;
       crate::club_activities::ensure_schema(&conn)?;
       crate::studio::ensure_schema(&conn)?;
+      Self::ensure_hbcus_schema(&conn)?;
       Self::set_schema_version(&conn, SCHEMA_VERSION)?;
     }
 
+    // Always upsert catalog (idempotent; picks up generator refreshes)
+    Self::seed_hbcus_catalog(&conn)?;
+    // Backfill memberships from users.town → yard_memberships
+    Self::backfill_yard_memberships_from_users(&conn)?;
+
     Ok(())
+  }
+
+  fn ensure_hbcus_schema(conn: &Connection) -> Result<()> {
+    conn.execute_batch(
+      "
+      CREATE TABLE IF NOT EXISTS hbcus (
+        id TEXT PRIMARY KEY,
+        school TEXT NOT NULL,
+        short_name TEXT NOT NULL,
+        city TEXT NOT NULL,
+        state TEXT NOT NULL,
+        founded INTEGER NOT NULL DEFAULT 0,
+        control TEXT NOT NULL DEFAULT 'public',
+        yard_label TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_hbcus_state ON hbcus(state);
+      CREATE INDEX IF NOT EXISTS idx_hbcus_control ON hbcus(control);
+      CREATE INDEX IF NOT EXISTS idx_hbcus_school ON hbcus(school);
+      CREATE INDEX IF NOT EXISTS idx_posts_town_tag ON posts(town_tag);
+      CREATE INDEX IF NOT EXISTS idx_yard_memberships_handle ON yard_memberships(handle);
+      ",
+    )?;
+    Ok(())
+  }
+
+  /// Upsert all catalog rows from `hbcu_catalog_seed` (source: frontend catalog).
+  fn seed_hbcus_catalog(conn: &Connection) -> Result<()> {
+    let mut stmt = conn.prepare(
+      "INSERT INTO hbcus (id, school, short_name, city, state, founded, control, yard_label)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+       ON CONFLICT(id) DO UPDATE SET
+         school = excluded.school,
+         short_name = excluded.short_name,
+         city = excluded.city,
+         state = excluded.state,
+         founded = excluded.founded,
+         control = excluded.control,
+         yard_label = excluded.yard_label",
+    )?;
+    for h in crate::hbcu_catalog_seed::HBCU_SEED {
+      stmt.execute(params![
+        h.id,
+        h.school,
+        h.short_name,
+        h.city,
+        h.state,
+        h.founded,
+        h.control,
+        h.yard_label,
+      ])?;
+    }
+    Ok(())
+  }
+
+  /// Ensure every user's home town is a yard membership row.
+  fn backfill_yard_memberships_from_users(conn: &Connection) -> Result<()> {
+    conn.execute(
+      "INSERT OR IGNORE INTO yard_memberships (community_id, handle)
+       SELECT lower(trim(town)), handle FROM users
+       WHERE town IS NOT NULL AND length(trim(town)) > 0
+         AND EXISTS (SELECT 1 FROM hbcus WHERE id = lower(trim(users.town)))",
+      (),
+    )?;
+    Ok(())
+  }
+
+  /// Deterministic Tailwind gradient for a yard id (matches frontend hash palette).
+  fn yard_gradient_for_id(id: &str) -> String {
+    const PALETTE: &[&str] = &[
+      "from-blue-600 to-blue-800",
+      "from-red-600 to-red-800",
+      "from-green-600 to-green-800",
+      "from-orange-500 to-orange-700",
+      "from-purple-600 to-purple-800",
+      "from-teal-600 to-cyan-800",
+      "from-rose-600 to-rose-800",
+      "from-amber-600 to-amber-800",
+      "from-indigo-600 to-indigo-800",
+      "from-emerald-600 to-emerald-800",
+    ];
+    let mut h: u32 = 0;
+    for b in id.bytes() {
+      h = h.wrapping_mul(31).wrapping_add(u32::from(b));
+    }
+    PALETTE[(h as usize) % PALETTE.len()].to_string()
+  }
+
+  fn featured_gradient(id: &str) -> Option<&'static str> {
+    match id {
+      "tsu" => Some("from-blue-600 to-blue-800"),
+      "howard" => Some("from-red-600 to-red-800"),
+      "spelman" => Some("from-green-600 to-green-800"),
+      "famu" => Some("from-orange-500 to-orange-700"),
+      "morehouse" => Some("from-purple-600 to-purple-800"),
+      "meharry" => Some("from-teal-600 to-cyan-800"),
+      "ncat" => Some("from-blue-700 to-amber-500"),
+      "hampton" => Some("from-blue-800 to-slate-400"),
+      "tuskegee" => Some("from-amber-600 to-red-800"),
+      "jsu" => Some("from-blue-700 to-blue-950"),
+      "grambling" => Some("from-zinc-900 to-amber-600"),
+      "pvamu" => Some("from-purple-700 to-amber-500"),
+      _ => None,
+    }
   }
 
   fn seed(&self) -> Result<()> {
@@ -1689,11 +1836,25 @@ impl Database {
   }
 
   pub fn update_user(&self, handle: &str, display_name: &str, bio: &str, town: &str) -> Result<()> {
+    let town = town.trim().to_lowercase();
+    if !town.is_empty() {
+      validate_town(&town).map_err(|e| {
+        crate::sqlite::Error::InvalidParameterName(e.to_string())
+      })?;
+      // Allow known catalog yards; unknown ids still allowed for forward-compat
+      // but preferred path is catalog id.
+    }
     let conn = self.conn.lock().unwrap();
     conn.execute(
       "UPDATE users SET display_name = ?1, bio = ?2, town = ?3 WHERE handle = ?4",
       params![display_name, bio, town, handle],
     )?;
+    if !town.is_empty() {
+      let _ = conn.execute(
+        "INSERT OR IGNORE INTO yard_memberships (community_id, handle) VALUES (?1, ?2)",
+        params![town, handle],
+      );
+    }
     Ok(())
   }
 
@@ -2855,91 +3016,169 @@ impl Database {
     Ok(())
   }
 
+  /// All HBCU yards from SQLite `hbcus` + live membership / pack state.
   pub fn get_communities(&self) -> Vec<Community> {
-    let bases = vec![
-      Community {
-        id: "tsu".into(),
-        name: "TSU Yard".into(),
-        school: "Tennessee State University".into(),
-        location: "Nashville, TN".into(),
-        description: "The official TSU community. Home of the Tigers.".into(),
-        members: 2847,
-        color: "from-blue-600 to-blue-800".into(),
-        pack_active: false,
-        purchase_count: 0,
-        pack_id: String::new(),
-      },
-      Community {
-        id: "howard".into(),
-        name: "Howard Yard".into(),
-        school: "Howard University".into(),
-        location: "Washington, DC".into(),
-        description: "Howard University's digital yard. The Mecca of HBCU culture.".into(),
-        members: 4521,
-        color: "from-red-600 to-red-800".into(),
-        pack_active: false,
-        purchase_count: 0,
-        pack_id: String::new(),
-      },
-      Community {
-        id: "spelman".into(),
-        name: "Spelman Yard".into(),
-        school: "Spelman College".into(),
-        location: "Atlanta, GA".into(),
-        description: "Spelman College community. Where Black women lead.".into(),
-        members: 3190,
-        color: "from-green-600 to-green-800".into(),
-        pack_active: false,
-        purchase_count: 0,
-        pack_id: String::new(),
-      },
-      Community {
-        id: "famu".into(),
-        name: "FAMU Yard".into(),
-        school: "Florida A&M University".into(),
-        location: "Tallahassee, FL".into(),
-        description: "Florida A&M — the largest HBCU by enrollment.".into(),
-        members: 5632,
-        color: "from-orange-500 to-orange-700".into(),
-        pack_active: false,
-        purchase_count: 0,
-        pack_id: String::new(),
-      },
-      Community {
-        id: "morehouse".into(),
-        name: "Morehouse Yard".into(),
-        school: "Morehouse College".into(),
-        location: "Atlanta, GA".into(),
-        description: "Morehouse College. Building Black men who lead.".into(),
-        members: 2904,
-        color: "from-purple-600 to-purple-800".into(),
-        pack_active: false,
-        purchase_count: 0,
-        pack_id: String::new(),
-      },
-      Community {
-        id: "meharry".into(),
-        name: "Meharry Yard".into(),
-        school: "Meharry Medical College".into(),
-        location: "Nashville, TN".into(),
-        description: "Meharry Medical College — HBCU medicine, service, and underrepresented excellence. Focus Path friendly.".into(),
-        members: 1840,
-        color: "from-teal-600 to-cyan-800".into(),
-        pack_active: false,
-        purchase_count: 0,
-        pack_id: String::new(),
-      },
-    ];
-    bases
+    let rows = match self.list_hbcus(None, None, None) {
+      Ok(r) => r,
+      Err(_) => return Vec::new(),
+    };
+    rows
       .into_iter()
-      .map(|mut c| {
-        let (active, count) = self.community_pack_state(&c.id);
-        c.pack_active = active;
-        c.purchase_count = count;
-        c.pack_id = if active { c.id.clone() } else { String::new() };
-        c
-      })
+      .map(|h| self.community_from_hbcu(&h))
       .collect()
+  }
+
+  pub fn get_community(&self, id: &str) -> Option<Community> {
+    let h = self.get_hbcu(id).ok().flatten()?;
+    Some(self.community_from_hbcu(&h))
+  }
+
+  fn community_from_hbcu(&self, h: &HbcuRow) -> Community {
+    let members = self
+      .count_yard_members(&h.id)
+      .unwrap_or(0);
+    let (active, count) = self.community_pack_state(&h.id);
+    let color = Self::featured_gradient(&h.id)
+      .map(|s| s.to_string())
+      .unwrap_or_else(|| Self::yard_gradient_for_id(&h.id));
+    let control_label = if h.control == "private" {
+      "Private HBCU"
+    } else {
+      "Public HBCU"
+    };
+    Community {
+      id: h.id.clone(),
+      name: h.yard_label.clone(),
+      school: h.school.clone(),
+      location: format!("{}, {}", h.city, h.state),
+      description: format!(
+        "{} — {} · est. {} · {}",
+        h.short_name, control_label, h.founded, h.state
+      ),
+      members,
+      color,
+      pack_active: active,
+      purchase_count: count,
+      pack_id: if active {
+        h.id.clone()
+      } else {
+        String::new()
+      },
+      control: h.control.clone(),
+      state: h.state.clone(),
+      founded: h.founded,
+      short_name: h.short_name.clone(),
+    }
+  }
+
+  pub fn list_hbcus(
+    &self,
+    query: Option<&str>,
+    state: Option<&str>,
+    control: Option<&str>,
+  ) -> Result<Vec<HbcuRow>> {
+    // ~100 rows — load all, filter in process (simple + reliable on Turso facade)
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT id, school, short_name, city, state, founded, control, yard_label
+       FROM hbcus ORDER BY school ASC",
+    )?;
+    let rows = stmt.query_map((), |row| {
+      Ok(HbcuRow {
+        id: row.get(0)?,
+        school: row.get(1)?,
+        short_name: row.get(2)?,
+        city: row.get(3)?,
+        state: row.get(4)?,
+        founded: row.get(5)?,
+        control: row.get(6)?,
+        yard_label: row.get(7)?,
+      })
+    })?;
+    let mut out = Vec::new();
+    for r in rows {
+      out.push(r?);
+    }
+    drop(stmt);
+    drop(conn);
+
+    let state_f = state
+      .map(|s| s.trim().to_uppercase())
+      .filter(|s| !s.is_empty() && s != "ALL");
+    let control_f = control
+      .map(|c| c.trim().to_lowercase())
+      .filter(|c| c == "public" || c == "private");
+    let q = query
+      .map(|s| s.trim().to_lowercase())
+      .filter(|s| !s.is_empty());
+
+    out.retain(|h| {
+      if let Some(ref st) = state_f {
+        if h.state.to_uppercase() != *st {
+          return false;
+        }
+      }
+      if let Some(ref c) = control_f {
+        if h.control != *c {
+          return false;
+        }
+      }
+      if let Some(ref qq) = q {
+        let hay = format!(
+          "{} {} {} {} {} {}",
+          h.id, h.school, h.short_name, h.city, h.state, h.yard_label
+        )
+        .to_lowercase();
+        if !hay.contains(qq.as_str()) {
+          return false;
+        }
+      }
+      true
+    });
+    Ok(out)
+  }
+
+  pub fn get_hbcu(&self, id: &str) -> Result<Option<HbcuRow>> {
+    let id = id.trim().to_lowercase();
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+      "SELECT id, school, short_name, city, state, founded, control, yard_label FROM hbcus WHERE id = ?1",
+    )?;
+    let mut rows = stmt.query_map(params![id], |row| {
+      Ok(HbcuRow {
+        id: row.get(0)?,
+        school: row.get(1)?,
+        short_name: row.get(2)?,
+        city: row.get(3)?,
+        state: row.get(4)?,
+        founded: row.get(5)?,
+        control: row.get(6)?,
+        yard_label: row.get(7)?,
+      })
+    })?;
+    match rows.next() {
+      Some(Ok(r)) => Ok(Some(r)),
+      Some(Err(e)) => Err(e),
+      None => Ok(None),
+    }
+  }
+
+  pub fn hbcu_exists(&self, id: &str) -> Result<bool> {
+    Ok(self.get_hbcu(id)?.is_some())
+  }
+
+  pub fn count_hbcus(&self) -> Result<i64> {
+    let conn = self.conn.lock().unwrap();
+    conn.query_row("SELECT COUNT(*) FROM hbcus", (), |r| r.get(0))
+  }
+
+  pub fn count_yard_members(&self, community_id: &str) -> Result<i64> {
+    let conn = self.conn.lock().unwrap();
+    conn.query_row(
+      "SELECT COUNT(*) FROM yard_memberships WHERE community_id = ?1",
+      params![community_id],
+      |r| r.get(0),
+    )
   }
 
   pub fn create_channel(&self, community_id: &str, id: &str, name: &str, description: &str) -> Result<Channel> {
@@ -5916,22 +6155,36 @@ impl Database {
   // ─── Yard membership, wall, profile extensions, karma ───
 
   pub fn join_yard(&self, handle: &str, community_id: &str) -> Result<JoinYardResult> {
+    let community_id = community_id.trim().to_lowercase();
+    validate_town(&community_id).map_err(|e| {
+      crate::sqlite::Error::InvalidParameterName(e.to_string())
+    })?;
+    if !self.hbcu_exists(&community_id)? {
+      return Err(crate::sqlite::Error::InvalidParameterName(format!(
+        "Unknown HBCU yard id: {community_id}"
+      )));
+    }
     let conn = self.conn.lock().unwrap();
     let inserted = conn.execute(
       "INSERT OR IGNORE INTO yard_memberships (community_id, handle) VALUES (?1, ?2)",
-      params![community_id, handle],
+      params![&community_id, handle],
     )?;
+    // Keep home town aligned when joining
+    let _ = conn.execute(
+      "UPDATE users SET town = ?1 WHERE handle = ?2 AND (town IS NULL OR town = '' OR town = 'tsu')",
+      params![&community_id, handle],
+    );
     drop(conn);
     if inserted > 0 {
-      if !self.community_has_owner(community_id)? {
-        self.set_community_role(community_id, handle, "Admin")?;
+      if !self.community_has_owner(&community_id)? {
+        self.set_community_role(&community_id, handle, "Admin")?;
       }
       let quality = self.update_engagement_quality(handle).unwrap_or(1.0);
       let wb_nominal = self.throttle_rewards(handle, 5.0, quality);
       let throttled = self.rewards_throttled(handle);
       let wb_actual = self.grant_weix_bucks(handle, wb_nominal, "Joined yard")?;
       if !throttled {
-        self.grant_karma(handle, community_id, 0, 3, "Joined yard")?;
+        self.grant_karma(handle, &community_id, 0, 3, "Joined yard")?;
       }
       Ok(JoinYardResult {
         joined: true,

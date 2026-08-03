@@ -256,6 +256,41 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    font-size: calc(1rem * var(--ui-font-scale, 1));
+  }
+
+  /* Per-user UI prefs (applied via ui-prefs.ts → documentElement) */
+  html {
+    --ui-font-scale: 1;
+    --ui-density: 1;
+    --ui-radius: 0.75rem;
+  }
+
+  html[data-reduce-motion="1"] *,
+  html[data-reduce-motion="1"] *::before,
+  html[data-reduce-motion="1"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  html[data-density="compact"] .ui-density-pad {
+    padding: calc(0.75rem * var(--ui-density, 0.75));
+  }
+
+  html[data-feed-layout="compact"] [data-feed-card] {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  html[data-feed-layout="magazine"] [data-feed-card] {
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
+  }
+
+  html[data-calm-campus="1"] .yard-skin-gradient {
+    filter: saturate(0.65) brightness(0.95);
   }
 }
 

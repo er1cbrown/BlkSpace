@@ -22,23 +22,28 @@ import { ConsensusBadge } from "@/components/ui/consensus-badge";
 import { ArrowRightLeft, ExternalLink, Radio } from "lucide-react";
 import type { TauriCrossTownEvent } from "@/lib/tauri-api";
 
+import { FEATURED_YARD_IDS, getHbcu } from "@/lib/hbcu-catalog";
+import { yardIdFromTownTag } from "@/lib/hbcu-intranet";
+
 const YARDS = [
-  { id: "all", label: "All yards" },
-  { id: "tsu", label: "TSU" },
-  { id: "howard", label: "Howard" },
-  { id: "spelman", label: "Spelman" },
-  { id: "famu", label: "FAMU" },
-  { id: "morehouse", label: "Morehouse" },
+  { id: "all", label: "All yards (intranet)" },
+  ...FEATURED_YARD_IDS.map((id) => ({
+    id,
+    label: getHbcu(id)?.shortName ?? id.toUpperCase(),
+  })),
 ] as const;
 
 export function parseYardId(townTag: string): string {
-  if (!townTag) return "";
-  if (townTag.includes(":")) return townTag.split(":").pop() || townTag;
-  return townTag.replace(/^hbcu-town-?/i, "").toLowerCase();
+  return yardIdFromTownTag(townTag);
 }
 
 export function yardLabel(yardId: string): string {
-  return YARDS.find((y) => y.id === yardId)?.label || yardId.toUpperCase();
+  if (yardId === "all") return "All yards";
+  return (
+    getHbcu(yardId)?.shortName ||
+    YARDS.find((y) => y.id === yardId)?.label ||
+    yardId.toUpperCase()
+  );
 }
 
 export function BridgeFeed({
@@ -68,9 +73,10 @@ export function BridgeFeed({
           Cross-yard Bridge
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Nostr kind-1 notes from connected relays, tagged with{" "}
-          <code className="text-[10px]">hbcu-town:*</code>. Discover other HBCU
-          yards without leaving your feed.
+          Shared HBCU intranet: notes carry{" "}
+          <code className="text-[10px]">t:hbcu-intranet</code> +{" "}
+          <code className="text-[10px]">t:hbcu-town:&lt;id&gt;</code> on common
+          relays — all 100+ yards on one wire, not 5,000 pairwise links.
         </p>
       </div>
 

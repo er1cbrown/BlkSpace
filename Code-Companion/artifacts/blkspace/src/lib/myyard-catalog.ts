@@ -1,6 +1,7 @@
 /** Sellable MyYard themes and Yard Sale item metadata. */
 
-import { YARD_THEME_PACKS, type YardId } from "@/lib/yard-themes";
+import { FEATURED_YARD_IDS } from "@/lib/hbcu-catalog";
+import { YARD_THEME_PACKS } from "@/lib/yard-themes";
 
 export type ProfileThemeId = "classic" | "pro" | "vibrant" | "myspace";
 
@@ -15,14 +16,19 @@ export const MYARD_PROFILE_THEMES: {
   { id: "myspace", label: "MyYard Classic", itemRef: "theme:myyard" },
 ];
 
-export const YARD_PACK_THEMES = (Object.keys(YARD_THEME_PACKS) as YardId[]).map(
-  (id) => ({
+/** Featured campus packs for Yard Sale (full catalog via getYardTheme). */
+export const YARD_PACK_THEMES = FEATURED_YARD_IDS.map((id) => {
+  const pack = YARD_THEME_PACKS[id] ?? {
+    name: id,
+    tagline: "Campus pack",
+  };
+  return {
     id,
-    label: `${YARD_THEME_PACKS[id].name} Pack`,
+    label: `${pack.name} Pack`,
     itemRef: `theme:yard:${id}`,
-    description: YARD_THEME_PACKS[id].tagline,
-  }),
-);
+    description: pack.tagline,
+  };
+});
 
 export const YARD_SALE_ITEM_TYPES = [
   { value: "media", label: "Media (photo/video/audio)" },

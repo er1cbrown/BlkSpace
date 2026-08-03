@@ -33,7 +33,10 @@ import { BRAND } from "@/lib/brand";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { applyMedSchoolOnboarding } from "@/lib/focus-mode";
 import { applyFacultyOnboarding } from "@/lib/faculty-desk";
-import { YARD_IDS, getYardTheme } from "@/lib/yard-themes";
+import { getYardTheme } from "@/lib/yard-themes";
+import { YardPicker } from "@/components/ui-prefs/YardPicker";
+import { loadUiPrefs, saveUiPrefs } from "@/lib/ui-prefs";
+import { ensureIntranetConnected } from "@/lib/hbcu-intranet";
 import { cn } from "@/lib/utils";
 
 type OnboardingPath = "general" | "med_focus" | "faculty";
@@ -77,6 +80,8 @@ export default function WelcomePage() {
       }
       try {
         localStorage.setItem("blkspace_home_yard", yardId);
+        const prefs = loadUiPrefs();
+        saveUiPrefs({ ...prefs, homeYardId: yardId });
       } catch {
         /* ignore */
       }
@@ -90,6 +95,13 @@ export default function WelcomePage() {
         });
         try {
           localStorage.setItem("blkspace_home_yard", homeYard);
+          const prefs = loadUiPrefs();
+          saveUiPrefs({
+            ...prefs,
+            homeYardId: homeYard,
+            showFocusNav: true,
+            startPath: "/focus",
+          });
         } catch {
           /* ignore */
         }
@@ -100,6 +112,23 @@ export default function WelcomePage() {
           targetYardId: yardId === "tsu" ? "meharry" : yardId,
           department: "Research / Public Health",
         });
+        try {
+          const prefs = loadUiPrefs();
+          saveUiPrefs({
+            ...prefs,
+            showFacultyNav: true,
+            startPath: "/connect",
+          });
+        } catch {
+          /* ignore */
+        }
+      }
+
+      // Join HBCU intranet backbone (shared relays + all-yard tags)
+      try {
+        await ensureIntranetConnected(yardId);
+      } catch {
+        /* mesh optional on first join if offline */
       }
 
       markFirstRunComplete();
@@ -135,7 +164,7 @@ export default function WelcomePage() {
           <Users className="w-6 h-6 text-primary mx-auto mb-2" />
           <p className="font-medium">Your Yard</p>
           <p className="text-muted-foreground text-xs">
-            TSU, Howard, Meharry + more
+            100+ public & private HBCUs
           </p>
         </div>
         <div className="bg-card p-4 rounded-xl border">
@@ -228,29 +257,9 @@ export default function WelcomePage() {
       <div className="space-y-2">
         <Label className="flex items-center gap-1.5">
           <GraduationCap className="w-3.5 h-3.5" />
-          Home yard
+          Home yard — any public or private HBCU
         </Label>
-        <div className="grid grid-cols-2 gap-2">
-          {YARD_IDS.map((id) => {
-            const y = getYardTheme(id)!;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setYardId(id)}
-                className={cn(
-                  "rounded-lg border px-2 py-2 text-left text-xs transition-colors",
-                  yardId === id
-                    ? "border-primary bg-primary/10"
-                    : "border-border hover:border-primary/30",
-                )}
-              >
-                <div className="font-medium">{y.name}</div>
-                <div className="text-muted-foreground truncate">{y.school}</div>
-              </button>
-            );
-          })}
-        </div>
+        <YardPicker value={yardId} onChange={setYardId} maxVisible={8} />
       </div>
     </div>,
 

@@ -1,6 +1,7 @@
 #[macro_use]
 mod sqlite;
 mod db;
+mod hbcu_catalog_seed;
 mod connect;
 mod escrow;
 mod events_ticketing;
@@ -41,7 +42,7 @@ use blob_store::BlobStore;
 use key_store::KeyStore;
 use db::{
   AppError, ApproveWallPostResult, BlobRecord, Community, CreatePostResult, CreateReplyResult,
-  CrossTownEvent, Database, EarnResult, EarnSummary, JoinYardResult, KarmaLeaderboardEntry,
+  CrossTownEvent, Database, EarnResult, EarnSummary, HbcuRow, JoinYardResult, KarmaLeaderboardEntry,
   PaginatedPosts,
   CommunityRoleEntry, RepostFeedItem, RepostResult, RsvpYardEventResult, ToggleLikeResult,
   YardEvent,
@@ -343,12 +344,38 @@ fn format_hbcu_town_tag(town: &str) -> String {
   }
 }
 
+/// Normalize a mesh subscription tag.
+/// - Yard ids → `hbcu-town:<id>`
+/// - Platform intranet tags stay as-is (`blkspace`, `hbcu-intranet`)
+fn normalize_subscription_tag(input: &str) -> String {
+  let t = input.trim().to_lowercase();
+  if t.is_empty() {
+    return "hbcu-intranet".to_string();
+  }
+  // Platform backbone — shared by every HBCU yard (the intranet wire)
+  if t == "blkspace" || t == "hbcu-intranet" || t.starts_with("blkspace:") {
+    return t;
+  }
+  if t.starts_with("hbcu-town:") {
+    return t;
+  }
+  // Alias: "intranet" / "mesh" → backbone
+  if t == "intranet" || t == "mesh" || t == "all" {
+    return "hbcu-intranet".to_string();
+  }
+  format_hbcu_town_tag(&t)
+}
+
 fn town_id_from_tag(town_tag: &str) -> String {
   town_tag
     .strip_prefix("hbcu-town:")
     .unwrap_or(town_tag)
     .to_string()
 }
+
+/// Platform tags every BlkSpace post should carry so all HBCUs share one intranet.
+const PLATFORM_INTRANET_TAG: &str = "hbcu-intranet";
+const PLATFORM_APP_TAG: &str = "blkspace";
 
 /// Validate signature, town tags, then persist relay event + consensus record.
 fn ingest_validated_relay_event(
@@ -884,7 +911,8 @@ fn publish_profile_to_nostr(state: &AppState, handle: &str) {
       use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
       let mut tag_vecs: Vec<Vec<String>> = vec![
         vec!["t".to_string(), format!("hbcu-town:{}", user.town)],
-        vec!["t".to_string(), "blkspace".to_string()],
+        vec!["t".to_string(), PLATFORM_APP_TAG.to_string()],
+        vec!["t".to_string(), PLATFORM_INTRANET_TAG.to_string()],
         vec!["theme".to_string(), theme_name.to_string()],
       ];
       if !user.music_hash.is_empty() {
@@ -1677,9 +1705,13 @@ fn build_post_nostr_tags(
   channel_id: &str,
   media_hashes: &[String],
 ) -> Vec<Vec<String>> {
+  // Dual-tag mesh: local yard + platform intranet backbone.
+  // All 100+ HBCUs publish to the same `hbcu-intranet` wire on shared relays;
+  // `hbcu-town:<id>` keeps campus feeds partitionable without O(N²) links.
   let mut tags: Vec<Vec<String>> = vec![
     vec!["t".to_string(), format!("hbcu-town:{}", town_tag)],
-    vec!["t".to_string(), "blkspace".to_string()],
+    vec!["t".to_string(), PLATFORM_APP_TAG.to_string()],
+    vec!["t".to_string(), PLATFORM_INTRANET_TAG.to_string()],
   ];
   if !channel_id.is_empty() {
     tags.push(vec![
@@ -2103,6 +2135,39 @@ fn get_communities(state: State<AppState>) -> Vec<Community> {
   state.db.get_communities()
 }
 
+#[tauri::command]
+fn get_community(state: State<AppState>, id: String) -> Option<Community> {
+  state.db.get_community(&id)
+}
+
+/// Full HBCU catalog from SQLite (103 public + private).
+#[tauri::command]
+fn list_hbcus(
+  state: State<AppState>,
+  query: Option<String>,
+  state_filter: Option<String>,
+  control: Option<String>,
+) -> Result<Vec<HbcuRow>, String> {
+  state
+    .db
+    .list_hbcus(
+      query.as_deref(),
+      state_filter.as_deref(),
+      control.as_deref(),
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_hbcu(state: State<AppState>, id: String) -> Result<Option<HbcuRow>, String> {
+  state.db.get_hbcu(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn count_hbcus(state: State<AppState>) -> Result<i64, String> {
+  state.db.count_hbcus().map_err(|e| e.to_string())
+}
+
 // ─── ProjectConnectBKSPC (credibility layer) ─────────────
 
 #[tauri::command]
@@ -2493,12 +2558,18 @@ fn sync_town_events(
   town: String,
 ) -> Result<Vec<NostrEventData>, String> {
   get_handle_from_session(&state, &session_token)?;
-  let town_tag = format_hbcu_town_tag(&town);
+  let town_tag = normalize_subscription_tag(&town);
   let town_id = town_id_from_tag(&town_tag);
   let mut manager = state.relay_manager.lock().unwrap();
   if manager.relay_count() == 0 {
     return Err("No relays connected. Connect to a relay first.".to_string());
   }
+  // Platform tags have no yard constraint on ingest
+  let relay_town = if town_tag == PLATFORM_INTRANET_TAG || town_tag == PLATFORM_APP_TAG {
+    None
+  } else {
+    Some(town_id.as_str())
+  };
   let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
   rt.block_on(async {
     manager.subscribe_tag_filter("t", &town_tag, 3600).await?;
@@ -2518,7 +2589,7 @@ fn sync_town_events(
       if event.event_json.is_empty() {
         continue;
       }
-      let _ = ingest_validated_relay_event(&state, &event.event_json, "synced", Some(&town_id));
+      let _ = ingest_validated_relay_event(&state, &event.event_json, "synced", relay_town);
     }
     Ok(events)
   })
@@ -2552,7 +2623,7 @@ fn list_relay_events_with_consensus(
 #[tauri::command]
 fn subscribe_to_town(state: State<AppState>, session_token: String, town: String) -> Result<(), String> {
   get_handle_from_session(&state, &session_token)?;
-  let town_tag = format_hbcu_town_tag(&town);
+  let town_tag = normalize_subscription_tag(&town);
   let mut subs = state.relay_town_subscriptions.lock().unwrap();
   if !subs.contains(&town_tag) {
     subs.push(town_tag);
@@ -2563,7 +2634,7 @@ fn subscribe_to_town(state: State<AppState>, session_token: String, town: String
 #[tauri::command]
 fn unsubscribe_from_town(state: State<AppState>, session_token: String, town: String) -> Result<(), String> {
   get_handle_from_session(&state, &session_token)?;
-  let town_tag = format_hbcu_town_tag(&town);
+  let town_tag = normalize_subscription_tag(&town);
   let mut subs = state.relay_town_subscriptions.lock().unwrap();
   subs.retain(|t| t != &town_tag);
   Ok(())
@@ -2572,6 +2643,57 @@ fn unsubscribe_from_town(state: State<AppState>, session_token: String, town: St
 #[tauri::command]
 fn list_subscribed_towns(state: State<AppState>) -> Vec<String> {
   state.relay_town_subscriptions.lock().unwrap().clone()
+}
+
+/// Join the HBCU intranet backbone: platform tags + optional home yard.
+/// Does **not** open 100 pairwise yard links — one shared wire + local yard filter.
+#[tauri::command]
+fn join_hbcu_intranet(
+  state: State<AppState>,
+  session_token: String,
+  home_yard: Option<String>,
+) -> Result<Vec<String>, String> {
+  get_handle_from_session(&state, &session_token)?;
+  let mut subs = state.relay_town_subscriptions.lock().unwrap();
+  for tag in [PLATFORM_INTRANET_TAG, PLATFORM_APP_TAG] {
+    let t = tag.to_string();
+    if !subs.contains(&t) {
+      subs.push(t);
+    }
+  }
+  if let Some(yard) = home_yard {
+    let y = yard.trim();
+    if !y.is_empty() {
+      let town_tag = format_hbcu_town_tag(y);
+      if !subs.contains(&town_tag) {
+        subs.push(town_tag);
+      }
+    }
+  }
+  Ok(subs.clone())
+}
+
+/// Intranet mesh status for UI / Sync Test.
+#[tauri::command]
+fn get_hbcu_intranet_status(state: State<AppState>) -> serde_json::Value {
+  let subs = state.relay_town_subscriptions.lock().unwrap().clone();
+  let relay_count = state.relay_manager.lock().unwrap().relay_count();
+  let has_intranet = subs.iter().any(|s| s == PLATFORM_INTRANET_TAG || s == PLATFORM_APP_TAG);
+  let yard_subs: Vec<String> = subs
+    .iter()
+    .filter(|s| s.starts_with("hbcu-town:"))
+    .cloned()
+    .collect();
+  serde_json::json!({
+    "connected": relay_count > 0 && has_intranet,
+    "relayCount": relay_count,
+    "hasIntranetTag": has_intranet,
+    "subscriptions": subs,
+    "yardSubscriptions": yard_subs,
+    "platformTags": [PLATFORM_INTRANET_TAG, PLATFORM_APP_TAG],
+    "model": "shared-relay-intranet",
+    "description": "All HBCU yards share public Nostr relays. Posts carry t:hbcu-intranet + t:hbcu-town:<id>. Bridge reads intranet; home yard filters campus feed."
+  })
 }
 
 #[tauri::command]
@@ -4530,7 +4652,12 @@ pub fn run() {
       challenges: Mutex::new(HashMap::new()),
       rate_limiter: Mutex::new(HashMap::new()),
       relay_manager: Mutex::new(relay_manager),
-      relay_town_subscriptions: Mutex::new(Vec::new()),
+      // Always seed platform intranet tags so background sync covers all HBCUs
+      // once relays connect — not only a single home yard.
+      relay_town_subscriptions: Mutex::new(vec![
+        PLATFORM_INTRANET_TAG.to_string(),
+        PLATFORM_APP_TAG.to_string(),
+      ]),
     })
     .setup(move |app| {
       if cfg!(debug_assertions) {
@@ -4765,6 +4892,10 @@ pub fn run() {
       list_relays,
       get_recent_activity,
       get_communities,
+      get_community,
+      list_hbcus,
+      get_hbcu,
+      count_hbcus,
       upload_blob,
       get_blob_bytes,
       list_user_blobs,
@@ -4785,6 +4916,8 @@ pub fn run() {
       subscribe_to_town,
       unsubscribe_from_town,
       list_subscribed_towns,
+      join_hbcu_intranet,
+      get_hbcu_intranet_status,
       list_combined_feed,
       publish_relay_list,
       fetch_user_relay_list,

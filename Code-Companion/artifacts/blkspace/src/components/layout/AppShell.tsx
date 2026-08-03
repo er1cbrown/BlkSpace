@@ -20,6 +20,7 @@ import {
   Handshake,
   Layers,
   HeartPulse,
+  Building2,
 } from "lucide-react";
 import { getCurrentHandle } from "@/lib/auth";
 import { useAppGetUser } from "@/hooks/use-app-data";
@@ -27,6 +28,7 @@ import { useGuestMode } from "@/lib/guest-mode";
 import { YardSidebar } from "@/components/layout/YardSidebar";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { loadUiPrefs } from "@/lib/ui-prefs";
 
 interface AppShellProps {
   children: ReactNode;
@@ -102,9 +104,25 @@ export function AppShell({
   const { data: user } = useAppGetUser(handle, shellReady);
   const profileHref = `/profile/${handle}`;
 
-  const primaryNav = isGuest
+  const [uiPrefs, setUiPrefs] = useState(() => loadUiPrefs());
+  useEffect(() => {
+    const sync = () => setUiPrefs(loadUiPrefs());
+    window.addEventListener("blkspace-ui-prefs", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("blkspace-ui-prefs", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  const primaryNav = (isGuest
     ? PRIMARY_NAV.filter((item) => item.href !== "/create" && item.href !== "/wallet")
-    : PRIMARY_NAV;
+    : [...PRIMARY_NAV]
+  ).filter((item) => {
+    if (item.href === "/focus" && !uiPrefs.showFocusNav) return false;
+    return true;
+  });
+  // Faculty is opt-in via appearance prefs
+  const showFaculty = !isGuest && uiPrefs.showFacultyNav;
   const mobileNav: readonly (typeof MOBILE_NAV)[number][] = isGuest
     ? MOBILE_NAV.filter((item) => item.href !== "/create")
     : MOBILE_NAV;
@@ -151,6 +169,14 @@ export function AppShell({
                 active={isActive(item.href)}
               />
             ))}
+            {showFaculty && (
+              <NavItem
+                href="/faculty"
+                label="Faculty"
+                icon={Building2}
+                active={isActive("/faculty")}
+              />
+            )}
             <NavItem
               href={isGuest ? "/welcome" : profileHref}
               label="Profile"

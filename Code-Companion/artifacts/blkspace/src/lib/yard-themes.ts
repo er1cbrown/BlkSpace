@@ -1,15 +1,21 @@
-/** Campus Yard theme packs — each mesh can look and feel distinct. */
+/**
+ * Campus Yard theme packs — every HBCU in the catalog gets a yard skin.
+ * Featured schools keep hand-tuned gradients/norms; others are generated.
+ */
 
-export type YardId =
-  | "tsu"
-  | "howard"
-  | "spelman"
-  | "famu"
-  | "morehouse"
-  | "meharry";
+import {
+  FEATURED_YARD_IDS,
+  HBCU_CATALOG,
+  getHbcu,
+  hbcuLocation,
+  type FeaturedYardId,
+} from "@/lib/hbcu-catalog";
+import { yardAccentHsl } from "@/lib/ui-prefs";
+
+export type YardId = string;
 
 export interface YardThemePack {
-  id: YardId;
+  id: string;
   name: string;
   school: string;
   location: string;
@@ -21,14 +27,63 @@ export interface YardThemePack {
   norms: string[];
   weatherHint: string;
   fanbase: string;
+  control?: "public" | "private";
+  state?: string;
+  featured?: boolean;
 }
 
-export const YARD_THEME_PACKS: Record<YardId, YardThemePack> = {
+/** Tailwind gradient pairs keyed by color family index */
+const GRADIENT_PAIRS = [
+  "from-blue-600 to-blue-800",
+  "from-red-600 to-red-800",
+  "from-green-600 to-green-800",
+  "from-orange-500 to-orange-700",
+  "from-purple-600 to-purple-800",
+  "from-teal-600 to-cyan-800",
+  "from-rose-600 to-rose-800",
+  "from-amber-600 to-amber-800",
+  "from-indigo-600 to-indigo-800",
+  "from-emerald-600 to-emerald-800",
+] as const;
+
+const ACCENT_CLASSES = [
+  "text-blue-600 dark:text-blue-400",
+  "text-red-600 dark:text-red-400",
+  "text-green-600 dark:text-green-400",
+  "text-orange-600 dark:text-orange-400",
+  "text-purple-600 dark:text-purple-400",
+  "text-teal-600 dark:text-teal-400",
+  "text-rose-600 dark:text-rose-400",
+  "text-amber-600 dark:text-amber-400",
+  "text-indigo-600 dark:text-indigo-400",
+  "text-emerald-600 dark:text-emerald-400",
+] as const;
+
+const BORDER_CLASSES = [
+  "border-blue-500/20",
+  "border-red-500/20",
+  "border-green-500/20",
+  "border-orange-500/20",
+  "border-purple-500/20",
+  "border-teal-500/20",
+  "border-rose-500/20",
+  "border-amber-500/20",
+  "border-indigo-500/20",
+  "border-emerald-500/20",
+] as const;
+
+function colorIndex(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return h % GRADIENT_PAIRS.length;
+}
+
+/** Hand-tuned packs for flagship yards */
+const FEATURED_OVERRIDES: Record<
+  FeaturedYardId,
+  Partial<YardThemePack> & { mascot: string; tagline: string; norms: string[]; weatherHint: string; fanbase: string; gradient: string; accentClass: string; cardBorderClass: string }
+> = {
   tsu: {
-    id: "tsu",
-    name: "TSU Yard",
-    school: "Tennessee State University",
-    location: "Nashville, TN",
     mascot: "🐯 Tigers",
     gradient: "from-blue-600 to-blue-800",
     accentClass: "text-blue-600 dark:text-blue-400",
@@ -39,10 +94,6 @@ export const YARD_THEME_PACKS: Record<YardId, YardThemePack> = {
     fanbase: "Tiger nation",
   },
   howard: {
-    id: "howard",
-    name: "Howard Yard",
-    school: "Howard University",
-    location: "Washington, DC",
     mascot: "🦁 Bison",
     gradient: "from-red-600 to-red-800",
     accentClass: "text-red-600 dark:text-red-400",
@@ -53,10 +104,6 @@ export const YARD_THEME_PACKS: Record<YardId, YardThemePack> = {
     fanbase: "Bison pride",
   },
   spelman: {
-    id: "spelman",
-    name: "Spelman Yard",
-    school: "Spelman College",
-    location: "Atlanta, GA",
     mascot: "🦋 Jaguars",
     gradient: "from-green-600 to-green-800",
     accentClass: "text-green-600 dark:text-green-400",
@@ -67,10 +114,6 @@ export const YARD_THEME_PACKS: Record<YardId, YardThemePack> = {
     fanbase: "Jaguar sisterhood",
   },
   famu: {
-    id: "famu",
-    name: "FAMU Yard",
-    school: "Florida A&M University",
-    location: "Tallahassee, FL",
     mascot: "🐍 Rattlers",
     gradient: "from-orange-500 to-orange-700",
     accentClass: "text-orange-600 dark:text-orange-400",
@@ -81,10 +124,6 @@ export const YARD_THEME_PACKS: Record<YardId, YardThemePack> = {
     fanbase: "Rattler nation",
   },
   morehouse: {
-    id: "morehouse",
-    name: "Morehouse Yard",
-    school: "Morehouse College",
-    location: "Atlanta, GA",
     mascot: "🦅 Maroon Tigers",
     gradient: "from-purple-600 to-purple-800",
     accentClass: "text-purple-600 dark:text-purple-400",
@@ -95,10 +134,6 @@ export const YARD_THEME_PACKS: Record<YardId, YardThemePack> = {
     fanbase: "Maroon Tigers",
   },
   meharry: {
-    id: "meharry",
-    name: "Meharry Yard",
-    school: "Meharry Medical College",
-    location: "Nashville, TN",
     mascot: "🩺 Meharry Med",
     gradient: "from-teal-600 to-cyan-800",
     accentClass: "text-teal-600 dark:text-teal-400",
@@ -108,19 +143,169 @@ export const YARD_THEME_PACKS: Record<YardId, YardThemePack> = {
     weatherHint: "Same city energy as TSU · clinic-first calendars",
     fanbase: "Meharry network",
   },
+  ncat: {
+    mascot: "🐐 Aggies",
+    gradient: "from-blue-700 to-amber-500",
+    accentClass: "text-blue-700 dark:text-blue-400",
+    cardBorderClass: "border-blue-600/20",
+    tagline: "Aggie pride — STEM, service, and Greensboro fire",
+    norms: ["Aggie Fest", "Blue & gold", "Engineering powerhouse"],
+    weatherHint: "Piedmont four seasons",
+    fanbase: "Aggie nation",
+  },
+  hampton: {
+    mascot: "⚓ Pirates",
+    gradient: "from-blue-800 to-slate-400",
+    accentClass: "text-blue-800 dark:text-blue-300",
+    cardBorderClass: "border-blue-700/20",
+    tagline: "Home by the sea — excellence since 1868",
+    norms: ["Waterfront campus", "Pirate pride", "Blue & white"],
+    weatherHint: "Coastal VA · mild winters",
+    fanbase: "Pirate nation",
+  },
+  tuskegee: {
+    mascot: "🦅 Golden Tigers",
+    gradient: "from-amber-600 to-red-800",
+    accentClass: "text-amber-600 dark:text-amber-400",
+    cardBorderClass: "border-amber-500/20",
+    tagline: "Booker T. legacy — aviation, vet med, Tuskegee Airmen",
+    norms: ["Crimson & gold", "Vet med", "History on the yard"],
+    weatherHint: "Alabama heat · fall homecoming",
+    fanbase: "Golden Tiger pride",
+  },
+  jsu: {
+    mascot: "🐯 Tigers",
+    gradient: "from-blue-700 to-blue-950",
+    accentClass: "text-blue-700 dark:text-blue-400",
+    cardBorderClass: "border-blue-600/20",
+    tagline: "Thee I Love — Jackson excellence",
+    norms: ["Sonic Boom", "Blue & white", "Mississippi heart"],
+    weatherHint: "Hot summers · mild winters",
+    fanbase: "Tiger nation",
+  },
+  grambling: {
+    mascot: "🐯 Tigers",
+    gradient: "from-zinc-900 to-amber-600",
+    accentClass: "text-amber-500 dark:text-amber-400",
+    cardBorderClass: "border-amber-500/20",
+    tagline: "World Famed Tiger Marching Band",
+    norms: ["Black & gold", "Bayou Classic", "GSU pride"],
+    weatherHint: "Louisiana humidity",
+    fanbase: "Tiger pride",
+  },
+  pvamu: {
+    mascot: "🐴 Panthers",
+    gradient: "from-purple-700 to-amber-500",
+    accentClass: "text-purple-700 dark:text-purple-400",
+    cardBorderClass: "border-purple-600/20",
+    tagline: "Prairie View A&M — purple and gold excellence",
+    norms: ["Pantherland", "ROTC legacy", "Texas A&M system"],
+    weatherHint: "Texas heat",
+    fanbase: "Panther nation",
+  },
 };
 
-export const YARD_IDS = Object.keys(YARD_THEME_PACKS) as YardId[];
+function buildPackFromCatalog(id: string): YardThemePack | null {
+  const h = getHbcu(id);
+  if (!h) return null;
+  const idx = colorIndex(id);
+  const featured = (FEATURED_YARD_IDS as readonly string[]).includes(id);
+  const override = featured
+    ? FEATURED_OVERRIDES[id as FeaturedYardId]
+    : null;
+
+  const base: YardThemePack = {
+    id: h.id,
+    name: h.yardLabel,
+    school: h.school,
+    location: hbcuLocation(h),
+    mascot: h.control === "public" ? "🎓 Public HBCU" : "🏛️ Private HBCU",
+    gradient: GRADIENT_PAIRS[idx],
+    accentClass: ACCENT_CLASSES[idx],
+    cardBorderClass: BORDER_CLASSES[idx],
+    tagline: `${h.shortName} yard — ${h.control} HBCU · est. ${h.founded}`,
+    norms: [
+      h.control === "public" ? "State HBCU" : "Private HBCU",
+      h.state,
+      `Founded ${h.founded}`,
+    ],
+    weatherHint: "Join the yard to set local norms",
+    fanbase: `${h.shortName} family`,
+    control: h.control,
+    state: h.state,
+    featured,
+  };
+
+  if (override) {
+    return {
+      ...base,
+      ...override,
+      id: h.id,
+      name: h.yardLabel,
+      school: h.school,
+      location: hbcuLocation(h),
+      featured: true,
+      control: h.control,
+      state: h.state,
+    };
+  }
+  return base;
+}
+
+/** All yards — full catalog, featured first. */
+export const YARD_THEME_PACKS: Record<string, YardThemePack> = Object.fromEntries(
+  HBCU_CATALOG.map((h) => {
+    const pack = buildPackFromCatalog(h.id)!;
+    return [h.id, pack];
+  }),
+);
+
+/** Featured + commonly used IDs for onboarding grids (not full 100+). */
+export const YARD_IDS: string[] = [
+  ...FEATURED_YARD_IDS,
+  ...HBCU_CATALOG.map((h) => h.id).filter(
+    (id) => !(FEATURED_YARD_IDS as readonly string[]).includes(id as FeaturedYardId),
+  ),
+];
+
+export const FEATURED_YARD_THEME_IDS = [...FEATURED_YARD_IDS] as string[];
 
 export function getYardTheme(yardId: string): YardThemePack | null {
-  if (yardId in YARD_THEME_PACKS) {
-    return YARD_THEME_PACKS[yardId as YardId];
-  }
-  return null;
+  if (yardId in YARD_THEME_PACKS) return YARD_THEME_PACKS[yardId];
+  return buildPackFromCatalog(yardId);
 }
 
 export function yardGradient(yardId: string): string {
   return getYardTheme(yardId)?.gradient ?? "from-primary to-primary/50";
+}
+
+export function listYardThemes(opts?: {
+  featuredOnly?: boolean;
+  state?: string;
+  control?: "public" | "private";
+  query?: string;
+}): YardThemePack[] {
+  let list = HBCU_CATALOG.map((h) => YARD_THEME_PACKS[h.id]).filter(Boolean);
+  if (opts?.featuredOnly) {
+    list = list.filter((y) => y.featured);
+  }
+  if (opts?.state) {
+    list = list.filter((y) => y.state === opts.state);
+  }
+  if (opts?.control) {
+    list = list.filter((y) => y.control === opts.control);
+  }
+  if (opts?.query?.trim()) {
+    const q = opts.query.trim().toLowerCase();
+    list = list.filter(
+      (y) =>
+        y.name.toLowerCase().includes(q) ||
+        y.school.toLowerCase().includes(q) ||
+        y.location.toLowerCase().includes(q) ||
+        y.id.includes(q),
+    );
+  }
+  return list;
 }
 
 export type CommunitySkinTier = "preview" | "live";
@@ -158,4 +343,9 @@ export function resolveCommunityYardTheme(
     skinTier: "preview",
     purchaseCount: 0,
   };
+}
+
+/** CSS primary HSL for yard-accent mode (shared with ui-prefs). */
+export function yardPrimaryHsl(yardId: string): string {
+  return yardAccentHsl(yardId);
 }
