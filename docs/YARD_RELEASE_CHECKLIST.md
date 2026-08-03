@@ -23,24 +23,36 @@
 
 Use a **Windows 10+ laptop with 4–8 GB RAM** (Device B ideal).
 
+**Preferred path (TSU + MyYard + Live):** follow the fill-in form  
+→ [`device-b-student-smoke.md`](device-b-student-smoke.md)  
+(Install → guest → join TSU → post → Customize → Live.)
+
 ### A1. Install
 
-- [ ] Download `BlkSpace-Yard-Windows-x64.msi` from [Actions artifacts](https://github.com/er1cbrown/BlkSpace/actions) or Releases
+- [ ] Download `BlkSpace-Yard-Windows-x64.msi` from [Actions artifacts](https://github.com/er1cbrown/BlkSpace/actions) or [Releases](https://github.com/er1cbrown/BlkSpace/releases)
+- [ ] Or use local: `downloads/BlkSpace-Yard-Windows-x64.msi` (workspace)
 - [ ] Double-click install (no admin required)
 - [ ] App opens within **5 seconds** of first launch (second launch faster)
 
 ### A2. Guest browse
 
 - [ ] Welcome screen → **"Just browse the yard as a guest"**
-- [ ] Feed loads on **Local** tab without crash
+- [ ] Feed loads on **Local / My Yard** tab without crash
 - [ ] Tap Like → "Create free account" prompt (no error toast)
 
-### A3. Create account
+### A3. Create account (TSU)
 
-- [ ] Complete welcome wizard
-- [ ] Write recovery phrase on **paper** (see [`../FIRST_RUN.md`](../FIRST_RUN.md))
-- [ ] Land on feed; post one short message
-- [ ] Post appears on Local tab
+- [ ] Complete welcome wizard — path **Student · social home**
+- [ ] Home yard **TSU**
+- [ ] Write recovery phrase on **paper** if prompted (see [`../FIRST_RUN.md`](../FIRST_RUN.md))
+- [ ] Land on feed; orientation card OK to dismiss
+- [ ] Post one short message → appears on **My Yard**
+
+### A3b. Customize + Live (HEAD builds)
+
+- [ ] Profile → **Customize** — change banner + mood → Save
+- [ ] **Yards → TSU → Live** — Stage/Voice opens without crash  
+  _(Skip A3b if MSI is older than commit `267cf41`.)_
 
 ### A4. Tier 0 benchmark
 

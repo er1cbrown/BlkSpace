@@ -34,8 +34,9 @@ v0.1.0-yard 🏷️ | BKSPC mainnet ⬜ | Live stream ⬜ | M0 Device B smoke �
 
 ## Device B M0 run (in progress)
 
+**Student path (TSU · post · Customize · Live):** [`device-b-student-smoke.md`](device-b-student-smoke.md) ← start here  
 **Quick gate:** [`YARD_RELEASE_CHECKLIST.md`](YARD_RELEASE_CHECKLIST.md) (student smoke + tag)  
-**Full runbook:** [`device-b-m0-results.md`](device-b-m0-results.md) (fill as you go)
+**Full runbook:** [`device-b-m0-results.md`](device-b-m0-results.md) (mesh/mod/offline)
 
 | Step | Task | Status |
 |------|------|--------|
