@@ -33,7 +33,6 @@ import {
   useTauriJoinYard,
   useTauriIsYardMember,
 } from "@/hooks/use-app-data";
-import { getCurrentHandle } from "@/lib/auth";
 import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { YardEventsPanel } from "@/components/community/YardEventsPanel";
 import { YardMembersPanel } from "@/components/community/YardMembersPanel";
