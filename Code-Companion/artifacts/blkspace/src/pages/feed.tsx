@@ -81,6 +81,8 @@ import { isTauri, type TauriCrossTownEvent } from "@/lib/tauri-api";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { BETA_FEATURES } from "@/lib/beta-features";
+import { getHomeYardId, loadFocusPrefs } from "@/lib/focus-mode";
+import { HeartPulse, GraduationCap } from "lucide-react";
 
 export default function FeedPage() {
   const queryClient = useQueryClient();
@@ -89,7 +91,14 @@ export default function FeedPage() {
   const [activeTab, setActiveTab] = useState(
     BETA_FEATURES.tier0Lite ? "local" : "watch",
   );
-  const [selectedTown, setSelectedTown] = useState("tsu");
+  const [selectedTown, setSelectedTown] = useState(() => getHomeYardId() || "tsu");
+  const focusPrefs = useMemo(() => {
+    try {
+      return loadFocusPrefs();
+    } catch {
+      return null;
+    }
+  }, []);
   const [content, setContent] = useState("");
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
   const [showFlagged, setShowFlagged] = useState(false);
@@ -319,6 +328,37 @@ export default function FeedPage() {
 
   return (
     <AppShell>
+      {(focusPrefs?.persona === "meharry_med" ||
+        focusPrefs?.studyOnlyFeed ||
+        selectedTown === "meharry") && (
+        <Card className="mb-4 border-teal-500/30 bg-teal-500/5">
+          <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+            <div className="space-y-0.5 text-sm">
+              <p className="font-medium flex items-center gap-1.5">
+                <HeartPulse className="w-4 h-4 text-teal-500" />
+                Focus Path active
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Study refresh + low-bandwidth ProjectConnect — protect rotations
+                while staying on the yard.
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Link href="/focus">
+                <Button size="sm" variant="default" className="gap-1">
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  Open Focus
+                </Button>
+              </Link>
+              <Link href="/hub">
+                <Button size="sm" variant="outline">
+                  Hub
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       <Tabs
         defaultValue="watch"
         value={activeTab}

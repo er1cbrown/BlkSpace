@@ -6,6 +6,7 @@ mod escrow;
 mod events_ticketing;
 mod club_activities;
 mod studio;
+mod secure_dm;
 mod blob_store;
 mod key_store;
 mod relay_manager;
@@ -726,6 +727,15 @@ pub(crate) fn authorize_create_yard_event(
   if community_id.is_empty() {
     return Err("Community ID required".to_string());
   }
+  // Faculty / org leads may host events on the yard their lab targets
+  // even before full yard membership (they still join if possible).
+  if db
+    .connect_is_org_lead_on_yard(caller, community_id)
+    .unwrap_or(false)
+  {
+    let _ = db.join_yard(caller, community_id);
+    return Ok(());
+  }
   if !db
     .is_yard_member(caller, community_id)
     .map_err(|e| e.to_string())?
@@ -738,7 +748,9 @@ pub(crate) fn authorize_create_yard_event(
   if is_community_moderator_or_owner(&role) {
     return Ok(());
   }
-  Err("Only yard owners and moderators can create events".to_string())
+  // Self-attested faculty who joined the yard may host educational events
+  // (office hours, info sessions) — not silent drive-by spam: still need membership.
+  Err("Only yard owners, moderators, or org leads on this yard can create events".to_string())
 }
 
 // ─── User Commands ───────────────────────────────────────
@@ -2271,6 +2283,88 @@ fn connect_complete_interest(
   state
     .db
     .connect_complete_interest(interest_id, &handle, &note)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn send_secure_dm(
+  state: State<AppState>,
+  session_token: String,
+  to_handle: String,
+  body: String,
+  phi_ack: bool,
+  ethical_ack: bool,
+) -> Result<secure_dm::SecureDmMessage, String> {
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  state
+    .db
+    .send_secure_dm(&handle, &to_handle, &body, phi_ack, ethical_ack)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_secure_dm_threads(
+  state: State<AppState>,
+  session_token: String,
+) -> Result<Vec<secure_dm::SecureDmThread>, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .list_secure_dm_threads(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_secure_dm_messages(
+  state: State<AppState>,
+  session_token: String,
+  peer_handle: String,
+) -> Result<Vec<secure_dm::SecureDmMessage>, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .list_secure_dm_messages(&handle, &peer_handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn block_secure_dm(
+  state: State<AppState>,
+  session_token: String,
+  peer_handle: String,
+) -> Result<(), String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .block_secure_dm(&handle, &peer_handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn upsert_institutional_claim(
+  state: State<AppState>,
+  session_token: String,
+  institution: String,
+  role: String,
+  email_domain: String,
+  claim_level: String,
+  no_phi_ack: bool,
+  ethical_ack: bool,
+  contact_email: String,
+) -> Result<(), String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .upsert_institutional_claim(
+      &handle,
+      &institution,
+      &role,
+      &email_domain,
+      &claim_level,
+      no_phi_ack,
+      ethical_ack,
+      &contact_email,
+    )
     .map_err(|e| e.to_string())
 }
 
@@ -4797,6 +4891,11 @@ pub fn run() {
       connect_set_interest_status,
       connect_complete_interest,
       connect_yard_cred,
+      send_secure_dm,
+      list_secure_dm_threads,
+      list_secure_dm_messages,
+      block_secure_dm,
+      upsert_institutional_claim,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -30,11 +30,17 @@ Trademark intent: protect **BlkSpace** as product. **BKSPC** is the short ticker
 | 1 | Multi-campus fashion majors · P2P sell art/mockups/tech packs · club split | **Done** | Yard Sale types, 2-party escrow, org split, Cred withdraw gate | Physical shipping, card payments, mainnet BKSPC escrow |
 | 2 | ProjectConnect · research / NSBE-style · GPA privacy | **Done** | Orgs, opportunities, interest, inbox, endorsements, Yard Cred, GPA modes | Official campus SSO / SIS |
 | 3 | Billy post-internship · open to work / research · find labs | **Done** | Pro Profile flags, Connect talent board, express interest | Fortune-500 cold outreach, LinkedIn Recruiter |
+| 3b | Meharry med · busy · study refresh + Connect + time/money | **Done** | `/focus` Path; **Meharry Yard** seed; welcome **Med school · Focus Path**; feed Focus banner; home yard prefs | Official LMS, Anki, SIS, native schedule import |
 | 4 | Club XYZ exclusive service day · RSVP · headcount | **Done** | Yard Events, capacity/waitlist, club-only RSVP, guest list, check-in, free/paid pass | Full Eventbrite tiers, Stripe, public city discovery |
 | 5 | Anime club · book group · publish manga pages | **Done** | Club kit, reading circles, publish/notes/recs | Licensed streaming, page-flip comic reader, series CMS |
-| 6 | Gaming tournament · 1v1 · rewards · merch (no stream) | **Done** | Tournament register, R1 bracket, score report, prize text/WB, Yard Sale merch | Live stream, multi-round auto-bracket, prize escrow pot |
+| 6 | Gaming / chess tournament · 1v1 · rewards · merch | **Partial** | Register, R1 bracket, scores, prize WB, **play URL** (Lichess) + **live link-out**, Chess club kit | Native board, multi-round auto-bracket, prize escrow pot, stream ingest |
+| 6b | Content Hub · topic media (chess, fashion, live, pro…) | **Done** | `/hub` topic shelf, publish, earn-angle copy, live/stream kinds | Full CDN, feed auto-mirror, native player |
+| 6c | Financial literacy · how you make money | **Done** | Earnings → How to Earn: paths (create/community/live/compete/sell/portfolio/coin) | Interactive lessons, quizzes |
+| 6d | Live as social basic | **Partial** | Event + tournament + Hub **link-out** (Twitch/YT/IG/Discord) | Native ingest / player / stream chat |
 | 7 | Sarah · midterm study / decompress hour | **Done** | Event kind `study`, free pass, capacity, Study club kit | Voice rooms, Google Calendar sync |
 | 8 | Faculty · scholarships / research / internships to campus | **Done** | Connect opps, lead inbox, Faculty kit, **broadcast to yard** | Official award disbursement, mass email, registrar proof |
+| 8b | Private-uni faculty · pipeline to Meharry/HBCU via ProjectConnect | **Done** | Faculty Desk; host **yard events**; owner post gate; interest notify; Faculty badge; pipeline seed; broadcast | Full Workday ATS, campus IdP SSO |
+| 8c | Secure handle DMs + ethical institutional identity | **Done** | `/messages` handle DMs, No-PHI filter, IEEE-aligned principles, domain-declared claims (not fake SSO), block | End-to-end NIP-44 production, real email delivery, registrar SSO |
 | 9 | Billy photo/video studio · portfolio · client delivery · sell or free all-in-one | **Done** | Studio tab: portfolio collections, shoots, grant free access, paid WB unlock, export JSON | Pixieset CDN, ZIP host, proofing UI, contracts/invoices |
 | 10 | Soft economy · tips · marketplace fees · withdraw gates | **Partial** | WB ledger, fees, Yard Cred on withdraw, marketplace | Mainnet BKSPC cash-out “rights” live for public |
 | 11 | Live streaming (games, event, class) | **Not in product** | Link-out in event description only | Native ingest / player / stream chat |
@@ -88,6 +94,12 @@ BlkSpace product use (yards, Connect, studio, escrow)
 
 | Date | Note |
 |------|------|
+| 2026-08-03 | Faculty events + secure handle DMs + ethical identity (No-PHI, IEEE principles, claim levels) |
+| 2026-08-03 | Faculty harden: org lead post auth, connect_interest notify, faculty badge, Rust pipeline seed, broadcast-after-post |
+| 2026-08-03 | Faculty Desk: private-uni → Meharry/HBCU pipeline; welcome faculty path; Connect CTA |
+| 2026-08-03 | Meharry Yard + welcome med path → Focus; feed Focus banner; home yard prefs |
+| 2026-08-03 | Focus Path: Meharry med / busy student — time budget, study refresh, low-bandwidth ProjectConnect, finance literacy |
+| 2026-08-03 | Amalgamation: Content Hub, financial literacy panel, live/play link-out, chess + creators club kits |
 | 2026-08-02 | Initial log: fashion escrow, Connect, events, clubs, studio; brand lock BlkSpace vs BKSPC |
 
 Update this file whenever a major persona use case lands or is ruled out.

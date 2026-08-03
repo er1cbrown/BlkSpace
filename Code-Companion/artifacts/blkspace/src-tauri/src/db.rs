@@ -687,12 +687,95 @@ impl Database {
     self.seed()?;
     self.backfill_demo_pubkeys()?;
     let conn = self.conn.lock().unwrap();
+    let _ = crate::secure_dm::ensure_schema(&conn);
     crate::connect::seed_demo(&conn)?;
     crate::escrow::seed_fashion_demo(&conn)?;
     crate::events_ticketing::seed_service_events(&conn)?;
     crate::club_activities::seed_demo(&conn)?;
     crate::studio::seed_demo(&conn)?;
     Ok(())
+  }
+
+  /// Faculty / org lead whose lab targets this yard can host events.
+  pub fn connect_is_org_lead_on_yard(&self, handle: &str, yard_id: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let n: i64 = conn.query_row(
+      "SELECT COUNT(*) FROM connect_orgs o
+       WHERE o.yard_id = ?1 AND (
+         o.created_by = ?2
+         OR EXISTS (
+           SELECT 1 FROM connect_org_members m
+           WHERE m.org_id = o.id AND m.handle = ?2 AND m.role IN ('owner','lead')
+         )
+       )",
+      params![yard_id, handle],
+      |r| r.get(0),
+    )?;
+    Ok(n > 0)
+  }
+
+  pub fn send_secure_dm(
+    &self,
+    from: &str,
+    to: &str,
+    body: &str,
+    phi_ack: bool,
+    ethical_ack: bool,
+  ) -> Result<crate::secure_dm::SecureDmMessage> {
+    let conn = self.conn.lock().unwrap();
+    let _ = crate::secure_dm::ensure_schema(&conn);
+    crate::secure_dm::send_dm(&conn, from, to, body, phi_ack, ethical_ack)
+  }
+
+  pub fn list_secure_dm_threads(
+    &self,
+    me: &str,
+  ) -> Result<Vec<crate::secure_dm::SecureDmThread>> {
+    let conn = self.conn.lock().unwrap();
+    let _ = crate::secure_dm::ensure_schema(&conn);
+    crate::secure_dm::list_threads(&conn, me)
+  }
+
+  pub fn list_secure_dm_messages(
+    &self,
+    me: &str,
+    peer: &str,
+  ) -> Result<Vec<crate::secure_dm::SecureDmMessage>> {
+    let conn = self.conn.lock().unwrap();
+    let _ = crate::secure_dm::ensure_schema(&conn);
+    crate::secure_dm::list_messages(&conn, me, peer)
+  }
+
+  pub fn block_secure_dm(&self, me: &str, peer: &str) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    let _ = crate::secure_dm::ensure_schema(&conn);
+    crate::secure_dm::block_user(&conn, me, peer)
+  }
+
+  pub fn upsert_institutional_claim(
+    &self,
+    handle: &str,
+    institution: &str,
+    role: &str,
+    email_domain: &str,
+    claim_level: &str,
+    no_phi: bool,
+    ethical: bool,
+    contact_email: &str,
+  ) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    let _ = crate::secure_dm::ensure_schema(&conn);
+    crate::secure_dm::upsert_institutional_claim(
+      &conn,
+      handle,
+      institution,
+      role,
+      email_domain,
+      claim_level,
+      no_phi,
+      ethical,
+      contact_email,
+    )
   }
 
   // ─── ProjectConnectBKSPC ─────────────────────────────────
@@ -2830,6 +2913,18 @@ impl Database {
         description: "Morehouse College. Building Black men who lead.".into(),
         members: 2904,
         color: "from-purple-600 to-purple-800".into(),
+        pack_active: false,
+        purchase_count: 0,
+        pack_id: String::new(),
+      },
+      Community {
+        id: "meharry".into(),
+        name: "Meharry Yard".into(),
+        school: "Meharry Medical College".into(),
+        location: "Nashville, TN".into(),
+        description: "Meharry Medical College — HBCU medicine, service, and underrepresented excellence. Focus Path friendly.".into(),
+        members: 1840,
+        color: "from-teal-600 to-cyan-800".into(),
         pack_active: false,
         purchase_count: 0,
         pack_id: String::new(),

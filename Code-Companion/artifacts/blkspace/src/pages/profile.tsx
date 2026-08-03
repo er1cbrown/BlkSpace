@@ -77,6 +77,7 @@ import {
 import { getYardTheme } from "@/lib/yard-themes";
 import { LogosDeckPlayer } from "@/components/profile/LogosDeckPlayer";
 import { StudioPanel } from "@/components/profile/StudioPanel";
+import { getFacultyBadge } from "@/lib/faculty-desk";
 
 type ThemeKey = "classic" | "pro" | "vibrant" | "myspace";
 
@@ -383,6 +384,19 @@ export default function ProfilePage() {
                   <p className="text-xl text-muted-foreground">
                     @{user.handle ?? "unknown"}
                   </p>
+                  {getFacultyBadge(user.handle ?? currentUser) && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <Badge className="bg-violet-600/90 text-white text-xs">
+                        Faculty
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] max-w-[220px] truncate">
+                        {getFacultyBadge(user.handle ?? currentUser)?.institution}
+                      </Badge>
+                      <span className="text-[10px] text-muted-foreground self-center">
+                        self-attested
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="text-right text-sm text-muted-foreground">
                   <div>{user.university}</div>

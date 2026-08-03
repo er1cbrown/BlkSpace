@@ -18,6 +18,8 @@ import {
   Compass,
   ArrowRight,
   Handshake,
+  Layers,
+  HeartPulse,
 } from "lucide-react";
 import { getCurrentHandle } from "@/lib/auth";
 import { useAppGetUser } from "@/hooks/use-app-data";
@@ -38,6 +40,8 @@ interface AppShellProps {
 
 const PRIMARY_NAV = [
   { href: "/feed", label: "Home", icon: Home },
+  { href: "/hub", label: "Hub", icon: Layers },
+  { href: "/focus", label: "Focus", icon: HeartPulse },
   { href: "/connect", label: "Connect", icon: Handshake },
   { href: "/create", label: "Create", icon: Clapperboard },
   { href: "/communities", label: "Yards", icon: Users },
@@ -46,7 +50,7 @@ const PRIMARY_NAV = [
 
 const MOBILE_NAV = [
   { href: "/feed", label: "Home", icon: Home },
-  { href: "/connect", label: "Connect", icon: Handshake },
+  { href: "/hub", label: "Hub", icon: Layers },
   { href: "/create", label: "Create", icon: Plus, accent: true },
   { href: "/communities", label: "Yards", icon: Users },
   { href: "/profile", label: "Profile", icon: User, profile: true },

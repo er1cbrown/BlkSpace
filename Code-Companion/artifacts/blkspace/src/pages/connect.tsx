@@ -34,7 +34,6 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getCurrentHandle } from "@/lib/auth";
 import { useGuestMode } from "@/lib/guest-mode";
 import { GuestCTA } from "@/components/social/GuestCTA";
 import { useOpenToBoard } from "@/hooks/use-app-data";
@@ -42,6 +41,7 @@ import { broadcastOpportunityToYard } from "@/lib/club-activities";
 import {
   ORG_TYPES,
   completeInterest,
+  canPostOpportunitiesForOrg,
   createOpportunity,
   createOrg,
   expressInterest,
@@ -56,6 +56,7 @@ import {
   type ConnectOpportunity,
   type OrgType,
 } from "@/lib/project-connect";
+import { getCurrentHandle } from "@/lib/auth";
 import {
   canShareGpaOnConnect,
   loadPrivacySettings,
@@ -169,6 +170,16 @@ function ConnectHub() {
               credibility is real — soft WeixBucks today, settlement later.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
+              <Link href="/focus">
+                <Button variant="secondary" size="sm" className="gap-1.5">
+                  <Sparkles className="h-4 w-4" /> Focus Path · med / busy
+                </Button>
+              </Link>
+              <Link href="/faculty">
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <FlaskConical className="h-4 w-4" /> Faculty Desk
+                </Button>
+              </Link>
               <Link href="/connect/inbox">
                 <Button variant="default" size="sm" className="gap-1.5">
                   <Inbox className="h-4 w-4" /> Lead inbox
@@ -544,6 +555,8 @@ function OrgDetailPage({ orgId }: { orgId: string }) {
   }
 
   const Icon = typeIcon(org.orgType);
+  const me = getCurrentHandle();
+  const canPost = !isGuest && canPostOpportunitiesForOrg(org, me);
 
   return (
     <AppShell wide>
@@ -571,16 +584,25 @@ function OrgDetailPage({ orgId }: { orgId: string }) {
               </div>
             </div>
           </CardHeader>
-          <CardFooter className="gap-2">
-            {!isGuest && (
+          <CardFooter className="gap-2 flex-wrap">
+            {canPost && (
               <Button size="sm" onClick={() => setShowOpp((v) => !v)}>
                 <Plus className="h-4 w-4 mr-1" /> Post opportunity
               </Button>
             )}
+            {!isGuest && !canPost && (
+              <p className="text-xs text-muted-foreground">
+                Only org owners/leads can post roles here. Create your lab from{" "}
+                <Link href="/faculty" className="text-primary hover:underline">
+                  Faculty Desk
+                </Link>
+                .
+              </p>
+            )}
           </CardFooter>
         </Card>
 
-        {showOpp && !isGuest && (
+        {showOpp && canPost && (
           <Card className="border-primary/25">
             <CardHeader>
               <CardTitle className="text-base">New opportunity</CardTitle>
@@ -894,11 +916,12 @@ function InboxPage() {
                     variant="default"
                     onClick={async () => {
                       await setInterestStatus(item.id, "accepted");
-                      toast.success("Accepted — connect in chat next");
+                      toast.success("Accepted — open secure DM by handle");
                       qc.invalidateQueries({ queryKey: ["connect"] });
+                      window.location.href = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/messages?to=${encodeURIComponent(item.handle)}`;
                     }}
                   >
-                    Accept / Connect
+                    Accept · Message @{item.handle}
                   </Button>
                   <Button
                     size="sm"

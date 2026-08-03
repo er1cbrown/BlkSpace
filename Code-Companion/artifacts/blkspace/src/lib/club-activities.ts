@@ -125,11 +125,59 @@ const TEMPLATES: ClubTemplate[] = [
     ],
     suggestedEventKind: "career",
   },
+  {
+    id: "chess",
+    name: "Chess / Strategy Club",
+    description:
+      "Campus chess: lessons on Content Hub, Lichess/OTB play links, brackets + prize WB, coach portfolios.",
+    channels: [
+      "general",
+      "lessons",
+      "lfg-otb",
+      "tournament",
+      "analysis",
+      "coach-board",
+    ],
+    suggestedEventKind: "social",
+  },
+  {
+    id: "creators",
+    name: "Creators / Media Collective",
+    description:
+      "Amalgamation media kit — drops, live link-outs, portfolio shares, collabs.",
+    channels: [
+      "general",
+      "drops",
+      "live-links",
+      "collabs",
+      "feedback",
+      "monetize",
+    ],
+    suggestedEventKind: "social",
+  },
+  {
+    id: "med",
+    name: "Med / Meharry Focus",
+    description:
+      "Rotations-aware: async study refresh, low-bandwidth research, wellness, SNMA energy — not a second LMS.",
+    channels: [
+      "general",
+      "study-refresh",
+      "research-async",
+      "wellness",
+      "pipeline",
+      "finance-lite",
+    ],
+    suggestedEventKind: "study",
+  },
 ];
 
 function defaultDemo(): Demo {
   return {
-    applied: { tsu: ["anime", "gaming", "study"] },
+    applied: {
+      tsu: ["anime", "gaming", "study"],
+      meharry: ["med", "study"],
+    },
     circles: [
       {
         id: 1,
@@ -179,7 +227,7 @@ function defaultDemo(): Demo {
         title: "TSU Friday Night Fighters",
         gameTitle: "Street Fighter 6",
         description:
-          "Single-elim campus cup. Report scores in #match-reports. Prizes + merch on Yard Sale.",
+          "Single-elim campus cup. Report scores in #match-reports. Prizes + merch on Yard Sale.\n[[live:https://www.twitch.tv/]]",
         status: "open",
         maxPlayers: 8,
         prizeText: "1st: 50 WB + sticker pack · 2nd: 20 WB",
@@ -188,14 +236,30 @@ function defaultDemo(): Demo {
         entrantCount: 4,
         createdAt: new Date().toISOString(),
       },
+      {
+        id: 2,
+        communityId: "tsu",
+        title: "HBCU Chess Classic · R1",
+        gameTitle: "Chess",
+        description:
+          "Campus cup. Play on Lichess or OTB; report scores here. Lessons on Content Hub.\n[[play:https://lichess.org/]]",
+        status: "open",
+        maxPlayers: 16,
+        prizeText: "1st: 80 WB · 2nd: 40 WB · coach shout-out",
+        prizeWb: 80,
+        createdBy: "campus_king",
+        entrantCount: 3,
+        createdAt: new Date().toISOString(),
+      },
     ],
     entrants: {
       1: ["demo_user", "campus_king", "jane_doe", "hbcustudent"],
+      2: ["campus_king", "demo_user", "jane_doe"],
     },
     matches: [],
     nextCircle: 2,
     nextEntry: 3,
-    nextTour: 2,
+    nextTour: 3,
     nextMatch: 1,
   };
 }

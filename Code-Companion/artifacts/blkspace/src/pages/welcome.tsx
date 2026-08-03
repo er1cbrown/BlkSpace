@@ -17,6 +17,9 @@ import {
   Coins,
   Users,
   Sparkles,
+  HeartPulse,
+  GraduationCap,
+  Building2,
 } from "lucide-react";
 import {
   createNostrIdentity,
@@ -24,20 +27,28 @@ import {
   authenticateWithNostr,
   enterGuestMode,
 } from "@/lib/auth";
-import { isTauri, tauriCreateUser } from "@/lib/tauri-api";
+import { isTauri, tauriCreateUser, tauriUpdateUser } from "@/lib/tauri-api";
 import { markFirstRunComplete } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { applyMedSchoolOnboarding } from "@/lib/focus-mode";
+import { applyFacultyOnboarding } from "@/lib/faculty-desk";
+import { YARD_IDS, getYardTheme } from "@/lib/yard-themes";
+import { cn } from "@/lib/utils";
+
+type OnboardingPath = "general" | "med_focus" | "faculty";
 
 export default function WelcomePage() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(0);
   const [displayName, setDisplayName] = useState("");
   const [handle, setHandle] = useState("");
+  const [path, setPath] = useState<OnboardingPath>("general");
+  const [yardId, setYardId] = useState("tsu");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const totalSteps = 2;
+  const totalSteps = 3;
 
   const joinYard = async () => {
     const cleanHandle = handle.trim() || `user_${Date.now().toString(36)}`;
@@ -56,8 +67,49 @@ export default function WelcomePage() {
         identity.nsecHex,
         cleanName,
       );
+      // Persist home yard / town when possible
+      if (isTauri() && token) {
+        try {
+          await tauriUpdateUser(token, cleanName, "", yardId);
+        } catch {
+          /* town update optional on first join */
+        }
+      }
+      try {
+        localStorage.setItem("blkspace_home_yard", yardId);
+      } catch {
+        /* ignore */
+      }
+
+      if (path === "med_focus") {
+        const homeYard = yardId || "meharry";
+        const theme = getYardTheme(homeYard);
+        applyMedSchoolOnboarding({
+          campusLabel: theme?.school || "Meharry Medical College",
+          yardId: homeYard,
+        });
+        try {
+          localStorage.setItem("blkspace_home_yard", homeYard);
+        } catch {
+          /* ignore */
+        }
+      }
+      if (path === "faculty") {
+        applyFacultyOnboarding({
+          institution: "Private University (Nashville region)",
+          targetYardId: yardId === "tsu" ? "meharry" : yardId,
+          department: "Research / Public Health",
+        });
+      }
+
       markFirstRunComplete();
-      navigate("/feed");
+      navigate(
+        path === "med_focus"
+          ? "/focus"
+          : path === "faculty"
+            ? "/faculty"
+            : "/feed",
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not create account");
     } finally {
@@ -75,14 +127,16 @@ export default function WelcomePage() {
       </h2>
       <p className="text-lg text-muted-foreground">{BRAND.tagline}</p>
       <p className="text-sm text-muted-foreground">
-        Works on any laptop or phone. Campus yards are where we started — the
-        network is for everyone.
+        Amalgamation social for underrepresented networks — yards, media,
+        Connect, soft earn literacy. Campus first, not campus only.
       </p>
       <div className="grid grid-cols-3 gap-4 text-sm pt-4">
         <div className="bg-card p-4 rounded-xl border">
           <Users className="w-6 h-6 text-primary mx-auto mb-2" />
           <p className="font-medium">Your Yard</p>
-          <p className="text-muted-foreground text-xs">TSU, Howard, FAMU + more</p>
+          <p className="text-muted-foreground text-xs">
+            TSU, Howard, Meharry + more
+          </p>
         </div>
         <div className="bg-card p-4 rounded-xl border">
           <Sparkles className="w-6 h-6 text-primary mx-auto mb-2" />
@@ -97,13 +151,119 @@ export default function WelcomePage() {
       </div>
     </div>,
 
+    <div className="space-y-5" key="path">
+      <h2 className="text-2xl font-bold font-serif text-center">
+        How do you want to start?
+      </h2>
+      <p className="text-center text-sm text-muted-foreground">
+        Pick a path — you can always open Feed, Hub, or Focus later.
+      </p>
+      <div className="grid gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setPath("general");
+            if (yardId === "meharry") setYardId("tsu");
+          }}
+          className={cn(
+            "text-left rounded-xl border p-4 transition-colors",
+            path === "general"
+              ? "border-primary bg-primary/10"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <div className="flex items-center gap-2 font-medium text-sm">
+            <Sparkles className="w-4 h-4 text-primary" />
+            Full yard social
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Feed, Hub, Connect, events — classic amalgamation home.
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setPath("med_focus");
+            setYardId("meharry");
+          }}
+          className={cn(
+            "text-left rounded-xl border p-4 transition-colors",
+            path === "med_focus"
+              ? "border-primary bg-primary/10"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <div className="flex items-center gap-2 font-medium text-sm">
+            <HeartPulse className="w-4 h-4 text-primary" />
+            Med school · Focus Path
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Meharry / HBCU med: study refresh, low-bandwidth ProjectConnect,
+            time + money effort — not a second residency.
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setPath("faculty");
+            setYardId("meharry");
+          }}
+          className={cn(
+            "text-left rounded-xl border p-4 transition-colors",
+            path === "faculty"
+              ? "border-primary bg-primary/10"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <div className="flex items-center gap-2 font-medium text-sm">
+            <Building2 className="w-4 h-4 text-primary" />
+            Faculty · provide opportunities
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Private uni / partner faculty: ProjectConnect Desk — post RA roles,
+            meet Meharry & HBCU students where they already are.
+          </p>
+        </button>
+      </div>
+      <div className="space-y-2">
+        <Label className="flex items-center gap-1.5">
+          <GraduationCap className="w-3.5 h-3.5" />
+          Home yard
+        </Label>
+        <div className="grid grid-cols-2 gap-2">
+          {YARD_IDS.map((id) => {
+            const y = getYardTheme(id)!;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setYardId(id)}
+                className={cn(
+                  "rounded-lg border px-2 py-2 text-left text-xs transition-colors",
+                  yardId === id
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/30",
+                )}
+              >
+                <div className="font-medium">{y.name}</div>
+                <div className="text-muted-foreground truncate">{y.school}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>,
+
     <div className="space-y-6" key="profile">
       <h2 className="text-2xl font-bold font-serif text-center">
         Join the Yard
       </h2>
-      <p className="text-center text-muted-foreground">
-        Pick a handle and you&apos;re in. No wallet, no setup — just post and
-        earn.
+      <p className="text-center text-muted-foreground text-sm">
+        {path === "med_focus"
+          ? "After you join, we open Focus Path with study refresh + efficient Connect."
+          : path === "faculty"
+            ? "After you join, we open Faculty Desk to post opportunities for underrepresented students."
+            : "Pick a handle and you're in. No wallet, no setup — just post and earn."}
       </p>
       <div className="space-y-4">
         <div className="space-y-2">
@@ -127,7 +287,8 @@ export default function WelcomePage() {
             className="font-mono"
           />
           <p className="text-xs text-muted-foreground">
-            You&apos;ll show up as @{handle || "your_handle"}
+            You&apos;ll show up as @{handle || "your_handle"} · yard{" "}
+            <span className="text-primary">{yardId}</span>
           </p>
         </div>
         <p className="text-xs text-muted-foreground text-center">
@@ -179,13 +340,19 @@ export default function WelcomePage() {
                 <div />
               )}
 
-              {step === 1 ? (
+              {step === 2 ? (
                 <Button
                   onClick={joinYard}
                   disabled={!handle.trim() || saving}
                   className="rounded-full h-12 px-6 font-bold bg-green-600 hover:bg-green-700"
                 >
-                  {saving ? "Joining..." : "Join the Yard"}
+                  {saving
+                    ? "Joining..."
+                    : path === "med_focus"
+                      ? "Join · open Focus"
+                      : path === "faculty"
+                        ? "Join · open Faculty Desk"
+                        : "Join the Yard"}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               ) : (

@@ -135,14 +135,139 @@ pub fn ensure_schema(conn: &Connection) -> Result<()> {
   Ok(())
 }
 
+/// True if handle is org owner/lead (or created the org row).
+pub fn is_org_lead(conn: &Connection, org_id: &str, handle: &str) -> Result<bool> {
+  let n: i64 = conn.query_row(
+    "SELECT COUNT(*) FROM connect_org_members
+     WHERE org_id = ?1 AND handle = ?2 AND role IN ('owner','lead')",
+    params![org_id, handle],
+    |r| r.get(0),
+  )?;
+  if n > 0 {
+    return Ok(true);
+  }
+  let owner: i64 = conn
+    .query_row(
+      "SELECT COUNT(*) FROM connect_orgs WHERE id = ?1 AND created_by = ?2",
+      params![org_id, handle],
+      |r| r.get(0),
+    )
+    .unwrap_or(0);
+  Ok(owner > 0)
+}
+
+fn notify_user(
+  conn: &Connection,
+  user_handle: &str,
+  notification_type: &str,
+  from_handle: &str,
+  message: &str,
+) {
+  let _ = conn.execute(
+    "INSERT INTO notifications (user_handle, notification_type, from_handle, message)
+     VALUES (?1, ?2, ?3, ?4)",
+    params![user_handle, notification_type, from_handle, message],
+  );
+}
+
+/// Additive faculty / private-uni pipeline seeds (safe when core seed already ran).
+pub fn seed_faculty_pipeline(conn: &Connection) -> Result<()> {
+  conn.execute_batch(
+    r#"
+    INSERT OR IGNORE INTO connect_orgs (id, slug, name, org_type, yard_id, description, created_by) VALUES
+      ('org_private_uni_bridge', 'private-uni-hbcu-bridge', 'Private University · HBCU Research Bridge', 'research', 'meharry',
+       'Faculty from a private university (Nashville region) meeting Meharry & HBCU students on BlkSpace ProjectConnect — RA roles, summer research, pipeline mentorship.',
+       'demo_user'),
+      ('org_vandy_public_health', 'partner-public-health-lab', 'Partner Public Health Lab (private uni)', 'research', 'meharry',
+       'Cross-town public health lab seeking underrepresented med/undergrad talent. Posts live where Meharry students already refresh and connect.',
+       'demo_user'),
+      ('org_meharry_research', 'meharry-med-research', 'Meharry Medical Research Network', 'research', 'meharry',
+       'Faculty + student research for Meharry and HBCU med scholars. Micro-hours and async options for people on rotations.',
+       'demo_user'),
+      ('org_meharry_peers', 'meharry-peer-circle', 'Meharry Peer Circle', 'peer', 'meharry',
+       'Underrepresented med students supporting each other — Step refresh, wellness, low-bandwidth mentorship.',
+       'jane_doe'),
+      ('org_snma_meharry', 'snma-meharry', 'SNMA @ Meharry', 'professional', 'meharry',
+       'Student National Medical Association chapter energy — advocacy, pipeline, professional network without LinkedIn grind.',
+       'campus_king');
+
+    INSERT OR IGNORE INTO connect_org_members (org_id, handle, role) VALUES
+      ('org_private_uni_bridge', 'demo_user', 'owner'),
+      ('org_vandy_public_health', 'demo_user', 'lead'),
+      ('org_meharry_research', 'demo_user', 'owner'),
+      ('org_meharry_peers', 'jane_doe', 'owner'),
+      ('org_snma_meharry', 'campus_king', 'owner');
+    "#,
+  )?;
+
+  // Opportunities: only insert if this title/org pair is missing
+  let faculty_opps: &[(&str, &str, &str, &str, &str, &str)] = &[
+    (
+      "org_private_uni_bridge",
+      "Summer RA · health equity (Meharry + HBCU students)",
+      "Private-university faculty lab recruiting underrepresented students. 8–10 week summer RA with optional async prep. Apply via ProjectConnect.",
+      "Summer · ~10 hr/week",
+      r#"["faculty","pipeline","meharry","hbcu","underrepresented","research","RA"]"#,
+      "demo_user",
+    ),
+    (
+      "org_private_uni_bridge",
+      "Semester RA · clinical informatics (async-friendly)",
+      "Part-time research assistant for de-identified / synthetic clinical data projects. Flexible for Meharry rotations.",
+      "1 semester · 4–6 hr/week · flex",
+      r#"["faculty","pipeline","async","med","underrepresented","RA"]"#,
+      "demo_user",
+    ),
+    (
+      "org_private_uni_bridge",
+      "Faculty office hours on the yard (monthly)",
+      "Open office-hours thread for underrepresented students exploring research careers. Hosted as Connect opp + yard presence.",
+      "1 hr/month · open",
+      r#"["faculty","pipeline","office-hours","underrepresented"]"#,
+      "demo_user",
+    ),
+    (
+      "org_vandy_public_health",
+      "Community health disparities analysis (micro-project)",
+      "Short collaborative analysis with Meharry peers. Private uni faculty co-mentor. Low-bandwidth check-ins.",
+      "6 weeks · 3 hr/week",
+      r#"["faculty","public-health","meharry","underrepresented","pipeline"]"#,
+      "demo_user",
+    ),
+    (
+      "org_meharry_research",
+      "Health Disparities Micro-Lab (async · 2–4 hr/week)",
+      "Low-bandwidth research for students on rotations. Async lit review + short write-ups. No mandatory live meetings.",
+      "2–4 hr/week · flexible",
+      r#"["research","meharry","async","low-bandwidth","health-disparities","med"]"#,
+      "demo_user",
+    ),
+  ];
+
+  for (org_id, title, desc, duration, tags, by) in faculty_opps {
+    let exists: i64 = conn
+      .query_row(
+        "SELECT COUNT(*) FROM connect_opportunities WHERE org_id = ?1 AND title = ?2",
+        params![org_id, title],
+        |r| r.get(0),
+      )
+      .unwrap_or(0);
+    if exists == 0 {
+      let _ = conn.execute(
+        "INSERT INTO connect_opportunities (org_id, title, description, duration_text, tags_json, status, created_by)
+         VALUES (?1, ?2, ?3, ?4, ?5, 'open', ?6)",
+        params![org_id, title, desc, duration, tags, by],
+      );
+    }
+  }
+  Ok(())
+}
+
 pub fn seed_demo(conn: &Connection) -> Result<()> {
   let n: i64 = conn
     .query_row("SELECT COUNT(*) FROM connect_orgs", (), |r| r.get(0))
     .unwrap_or(0);
-  if n > 0 {
-    return Ok(());
-  }
-
+  if n == 0 {
   conn.execute_batch(
     r#"
     INSERT INTO connect_orgs (id, slug, name, org_type, yard_id, description, created_by) VALUES
@@ -212,6 +337,9 @@ pub fn seed_demo(conn: &Connection) -> Result<()> {
        '8 weeks', '["peer","study"]', 'open', 'hbcustudent');
     "#,
   )?;
+  }
+  // Always ensure faculty / Meharry pipeline orgs exist (new installs + upgrades).
+  seed_faculty_pipeline(conn)?;
   Ok(())
 }
 
@@ -371,6 +499,11 @@ pub fn create_opportunity(
   tags_json: &str,
   created_by: &str,
 ) -> Result<ConnectOpportunity> {
+  if !is_org_lead(conn, org_id, created_by)? {
+    return Err(crate::sqlite::Error::InvalidParameterName(
+      "Only org owners/leads can post opportunities for this lab".into(),
+    ));
+  }
   conn.execute(
     "INSERT INTO connect_opportunities (org_id, title, description, duration_text, tags_json, created_by)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -416,6 +549,28 @@ pub fn express_interest(
       shared
     ],
   )?;
+
+  // Notify opportunity creator + org owners/leads (faculty inbox companion).
+  if let Ok(Some(opp)) = get_opportunity(conn, opportunity_id) {
+    let msg = format!(
+      "@{} expressed interest in \"{}\" — open Lead inbox on ProjectConnect",
+      handle, opp.title
+    );
+    notify_user(conn, &opp.created_by, "connect_interest", handle, &msg);
+    if let Ok(mut stmt) = conn.prepare(
+      "SELECT handle FROM connect_org_members
+       WHERE org_id = ?1 AND role IN ('owner','lead') AND handle != ?2",
+    ) {
+      if let Ok(rows) = stmt.query_map(params![opp.org_id, handle], |r| r.get::<_, String>(0)) {
+        for row in rows.flatten() {
+          if row != opp.created_by {
+            notify_user(conn, &row, "connect_interest", handle, &msg);
+          }
+        }
+      }
+    }
+  }
+
   list_interests_for_opportunity(conn, opportunity_id)?
     .into_iter()
     .find(|i| i.handle == handle)

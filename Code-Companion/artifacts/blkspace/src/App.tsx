@@ -34,6 +34,10 @@ const CreatePage = React.lazy(() => import("@/pages/create"));
 const LeaderboardPage = React.lazy(() => import("@/pages/leaderboard"));
 const MeshTestPage = React.lazy(() => import("@/pages/mesh-test"));
 const ConnectPage = React.lazy(() => import("@/pages/connect"));
+const HubPage = React.lazy(() => import("@/pages/hub"));
+const FocusPage = React.lazy(() => import("@/pages/focus"));
+const FacultyPage = React.lazy(() => import("@/pages/faculty"));
+const MessagesPage = React.lazy(() => import("@/pages/messages"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -120,6 +124,10 @@ function Router() {
         <Route path="/create" component={() => <GuestRoute component={CreatePage} />} />
         <Route path="/leaderboard" component={LeaderboardPage} />
         <Route path="/media" component={MediaPage} />
+        <Route path="/hub" component={HubPage} />
+        <Route path="/focus" component={FocusPage} />
+        <Route path="/faculty" component={FacultyPage} />
+        <Route path="/messages" component={() => <GuestRoute component={MessagesPage} />} />
         <Route path="/mesh-test" component={() => <GuestRoute component={MeshTestPage} />} />
         <Route component={NotFound} />
       </Switch>

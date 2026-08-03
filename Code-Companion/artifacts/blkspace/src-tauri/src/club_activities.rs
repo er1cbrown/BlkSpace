@@ -145,6 +145,36 @@ pub fn templates() -> Vec<ClubTemplate> {
       suggested_event_kind: "social".into(),
     },
     ClubTemplate {
+      id: "chess".into(),
+      name: "Chess / Strategy Club".into(),
+      description:
+        "Campus chess: Hub lessons, Lichess/OTB play links, brackets + prize WB, coach portfolios.".into(),
+      channels: vec![
+        "general".into(),
+        "lessons".into(),
+        "lfg-otb".into(),
+        "tournament".into(),
+        "analysis".into(),
+        "coach-board".into(),
+      ],
+      suggested_event_kind: "social".into(),
+    },
+    ClubTemplate {
+      id: "creators".into(),
+      name: "Creators / Media Collective".into(),
+      description:
+        "Amalgamation media kit — drops, live link-outs, portfolio shares, collabs.".into(),
+      channels: vec![
+        "general".into(),
+        "drops".into(),
+        "live-links".into(),
+        "collabs".into(),
+        "feedback".into(),
+        "monetize".into(),
+      ],
+      suggested_event_kind: "social".into(),
+    },
+    ClubTemplate {
       id: "study".into(),
       name: "Study / Wellness".into(),
       description:
@@ -170,6 +200,21 @@ pub fn templates() -> Vec<ClubTemplate> {
         "office-hours".into(),
       ],
       suggested_event_kind: "career".into(),
+    },
+    ClubTemplate {
+      id: "med".into(),
+      name: "Med / Meharry Focus".into(),
+      description:
+        "Rotations-aware: async study refresh, low-bandwidth research, wellness, pipeline — not a second LMS.".into(),
+      channels: vec![
+        "general".into(),
+        "study-refresh".into(),
+        "research-async".into(),
+        "wellness".into(),
+        "pipeline".into(),
+        "finance-lite".into(),
+      ],
+      suggested_event_kind: "study".into(),
     },
   ]
 }

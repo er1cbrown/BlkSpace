@@ -4,6 +4,7 @@ export const TOWN_OPTIONS = [
   { id: "spelman", label: "Spelman Yard", school: "Spelman College" },
   { id: "famu", label: "FAMU Yard", school: "Florida A&M University" },
   { id: "morehouse", label: "Morehouse Yard", school: "Morehouse College" },
+  { id: "meharry", label: "Meharry Yard", school: "Meharry Medical College" },
 ] as const;
 
 export const TOWN_GRADIENTS: Record<string, string> = {
@@ -12,6 +13,7 @@ export const TOWN_GRADIENTS: Record<string, string> = {
   spelman: "from-green-600 to-green-900",
   famu: "from-orange-500 to-orange-800",
   morehouse: "from-purple-600 to-purple-900",
+  meharry: "from-teal-600 to-cyan-900",
 };
 
 export function townLabel(id: string): string {

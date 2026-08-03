@@ -36,7 +36,9 @@ const fallbackCommunities = YARD_IDS.map((id) => {
             ? 3190
             : id === "famu"
               ? 5632
-              : 2904,
+              : id === "meharry"
+                ? 1840
+                : 2904,
     posts: 1200,
     color: resolved.gradient,
     mascot: resolved.mascot,

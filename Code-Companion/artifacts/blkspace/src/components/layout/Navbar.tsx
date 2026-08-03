@@ -13,6 +13,10 @@ export function Navbar() {
 
   const navItems = [
     { href: "/feed", label: "Feed" },
+    { href: "/hub", label: "Hub" },
+    { href: "/focus", label: "Focus" },
+    { href: "/faculty", label: "Faculty" },
+    { href: "/messages", label: "Messages" },
     { href: "/connect", label: "Connect" },
     { href: "/media", label: "Media" },
     { href: "/communities", label: "Communities" },

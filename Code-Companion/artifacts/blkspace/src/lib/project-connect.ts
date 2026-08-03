@@ -211,6 +211,71 @@ const DEMO_ORGS: ConnectOrg[] = [
     opportunityCount: 1,
     createdAt: "2026-06-04T12:00:00",
   },
+  {
+    id: "org_meharry_research",
+    slug: "meharry-med-research",
+    name: "Meharry Medical Research Network",
+    orgType: "research",
+    yardId: "meharry",
+    description:
+      "Faculty + student research for Meharry and HBCU med scholars. Micro-hours and async options for people on rotations.",
+    createdBy: "demo_user",
+    memberCount: 2,
+    opportunityCount: 3,
+    createdAt: "2026-08-03T12:00:00",
+  },
+  {
+    id: "org_meharry_peers",
+    slug: "meharry-peer-circle",
+    name: "Meharry Peer Circle",
+    orgType: "peer",
+    yardId: "meharry",
+    description:
+      "Underrepresented med students supporting each other — Step refresh, wellness, low-bandwidth mentorship.",
+    createdBy: "jane_doe",
+    memberCount: 2,
+    opportunityCount: 2,
+    createdAt: "2026-08-03T12:00:00",
+  },
+  {
+    id: "org_snma_meharry",
+    slug: "snma-meharry",
+    name: "SNMA @ Meharry",
+    orgType: "professional",
+    yardId: "meharry",
+    description:
+      "Student National Medical Association chapter energy — advocacy, pipeline, professional network without LinkedIn grind.",
+    createdBy: "campus_king",
+    memberCount: 1,
+    opportunityCount: 1,
+    createdAt: "2026-08-03T12:00:00",
+  },
+  {
+    id: "org_private_uni_bridge",
+    slug: "private-uni-hbcu-bridge",
+    name: "Private University · HBCU Research Bridge",
+    orgType: "research",
+    yardId: "meharry",
+    description:
+      "Faculty from a private university (Nashville region) meeting Meharry & HBCU students on BlkSpace ProjectConnect — RA roles, summer research, pipeline mentorship. Handshake energy, yard-native.",
+    createdBy: "demo_user",
+    memberCount: 2,
+    opportunityCount: 3,
+    createdAt: "2026-08-03T15:00:00",
+  },
+  {
+    id: "org_vandy_public_health",
+    slug: "partner-public-health-lab",
+    name: "Partner Public Health Lab (private uni)",
+    orgType: "research",
+    yardId: "meharry",
+    description:
+      "Cross-town public health lab seeking underrepresented med/undergrad talent. Posts live where Meharry students already refresh and connect.",
+    createdBy: "demo_user",
+    memberCount: 1,
+    opportunityCount: 2,
+    createdAt: "2026-08-03T15:30:00",
+  },
 ];
 
 const DEMO_OPPS: ConnectOpportunity[] = [
@@ -380,6 +445,156 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     createdAt: "2026-08-01T12:00:00",
   },
   {
+    id: 70,
+    orgId: "org_meharry_research",
+    orgName: "Meharry Medical Research Network",
+    orgType: "research",
+    title: "Health Disparities Micro-Lab (async · 2–4 hr/week)",
+    description:
+      "Low-bandwidth research for students on rotations. Async lit review + short write-ups on community health disparities. No mandatory live meetings — check-ins by message.",
+    durationText: "2–4 hr/week · flexible",
+    tagsJson: '["research","meharry","async","low-bandwidth","health-disparities","med"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-03T10:00:00",
+  },
+  {
+    id: 71,
+    orgId: "org_meharry_research",
+    orgName: "Meharry Medical Research Network",
+    orgType: "research",
+    title: "Clinical Data Literacy · 15-min weekly micro-sessions",
+    description:
+      "Short async modules on reading papers + basic stats for clinic. Built for med students who refuse a second full course load.",
+    durationText: "15 min/week · async",
+    tagsJson: '["research","meharry","async","15 min","med","micro"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-03T11:00:00",
+  },
+  {
+    id: 72,
+    orgId: "org_meharry_peers",
+    orgName: "Meharry Peer Circle",
+    orgType: "peer",
+    title: "Step / shelf refresh buddy (text-first)",
+    description:
+      "Pair underrepresented med students for 2×10 min text check-ins weekly. Not a live study hall — accountability without calendar death.",
+    durationText: "20 min/week · flex",
+    tagsJson: '["peer","meharry","step","low-bandwidth","med"]',
+    status: "open",
+    createdBy: "jane_doe",
+    interestCount: 0,
+    createdAt: "2026-08-03T12:00:00",
+  },
+  {
+    id: 73,
+    orgId: "org_meharry_peers",
+    orgName: "Meharry Peer Circle",
+    orgType: "peer",
+    title: "Finance literacy for med (Black dollar · soft credits)",
+    description:
+      "Peer circle on WeixBucks habits, Cred before coin, debt/loan awareness — underrepresented community economics without pump-and-dump culture.",
+    durationText: "30 min biweekly · async notes",
+    tagsJson: '["peer","meharry","finance","literacy","WB","BKSPC"]',
+    status: "open",
+    createdBy: "jane_doe",
+    interestCount: 0,
+    createdAt: "2026-08-03T13:00:00",
+  },
+  {
+    id: 74,
+    orgId: "org_snma_meharry",
+    orgName: "SNMA @ Meharry",
+    orgType: "professional",
+    title: "Pipeline mentorship · low-bandwidth",
+    description:
+      "Mentor a premed for 1 async message thread / week. Builds Cred and underrepresented network density without eating clinic blocks.",
+    durationText: "1 async thread/week",
+    tagsJson: '["professional","meharry","mentorship","low-bandwidth"]',
+    status: "open",
+    createdBy: "campus_king",
+    interestCount: 0,
+    createdAt: "2026-08-03T14:00:00",
+  },
+  {
+    id: 80,
+    orgId: "org_private_uni_bridge",
+    orgName: "Private University · HBCU Research Bridge",
+    orgType: "research",
+    title: "Summer RA · health equity (Meharry + HBCU students)",
+    description:
+      "Private-university faculty lab recruiting underrepresented students. 8–10 week summer RA with optional async prep. Apply via ProjectConnect — we meet you on BlkSpace, not only LinkedIn.",
+    durationText: "Summer · ~10 hr/week",
+    tagsJson: '["faculty","pipeline","meharry","hbcu","underrepresented","research","RA"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-03T15:00:00",
+  },
+  {
+    id: 81,
+    orgId: "org_private_uni_bridge",
+    orgName: "Private University · HBCU Research Bridge",
+    orgType: "research",
+    title: "Semester RA · clinical informatics (async-friendly)",
+    description:
+      "Part-time research assistant for de-identified / synthetic clinical data projects. Flexible for Meharry rotations. Faculty provide mentorship + letter of rec pathway.",
+    durationText: "1 semester · 4–6 hr/week · flex",
+    tagsJson: '["faculty","pipeline","async","med","underrepresented","RA"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-03T15:15:00",
+  },
+  {
+    id: 82,
+    orgId: "org_private_uni_bridge",
+    orgName: "Private University · HBCU Research Bridge",
+    orgType: "professional",
+    title: "Faculty office hours on the yard (monthly)",
+    description:
+      "Open office-hours thread for underrepresented students exploring research careers. Discord/Slack energy — hosted as Connect opp + yard channel presence.",
+    durationText: "1 hr/month · open",
+    tagsJson: '["faculty","pipeline","office-hours","underrepresented"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-03T15:30:00",
+  },
+  {
+    id: 83,
+    orgId: "org_vandy_public_health",
+    orgName: "Partner Public Health Lab (private uni)",
+    orgType: "research",
+    title: "Community health disparities analysis (micro-project)",
+    description:
+      "Short collaborative analysis project with Meharry peers. Private uni faculty co-mentor. Low-bandwidth check-ins; publish abstract-style write-up.",
+    durationText: "6 weeks · 3 hr/week",
+    tagsJson: '["faculty","public-health","meharry","underrepresented","pipeline"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-03T16:00:00",
+  },
+  {
+    id: 84,
+    orgId: "org_vandy_public_health",
+    orgName: "Partner Public Health Lab (private uni)",
+    orgType: "research",
+    title: "Paid intern · survey ops (Indeed-class post, yard-native)",
+    description:
+      "Soft listing for survey coordination support. Not Workday payroll — interest + interview off-platform if needed. Prioritize underrepresented applicants from HBCU yards.",
+    durationText: "10 weeks · part-time",
+    tagsJson: '["faculty","internship","pipeline","underrepresented","paid"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-03T16:30:00",
+  },
+  {
     id: 10,
     orgId: "org_weixnet",
     orgName: "WeixNet Portfolio Lab",
@@ -486,7 +701,14 @@ export async function createOrg(input: {
   }
   const s = loadWeb();
   const handle = getCurrentHandle() || "demo_user";
-  const id = `org_${Date.now()}`;
+  // Prefer existing org owned by this user with same name (idempotent re-post)
+  const existing = s.orgs.find(
+    (o) =>
+      o.createdBy === handle &&
+      o.name.trim().toLowerCase() === input.name.trim().toLowerCase(),
+  );
+  if (existing) return existing;
+  const id = `org_${handle}_${Date.now()}`;
   const org: ConnectOrg = {
     id,
     slug: input.name.toLowerCase().replace(/\s+/g, "-").slice(0, 40),
@@ -531,6 +753,71 @@ export async function getOpportunity(
   return loadWeb().opps.find((o) => o.id === id) ?? null;
 }
 
+/** Faculty / lead can post only for orgs they own (web) or created. */
+export function canPostOpportunitiesForOrg(
+  org: ConnectOrg | null | undefined,
+  handle?: string | null,
+): boolean {
+  const h = handle || getCurrentHandle();
+  if (!org || !h) return false;
+  return org.createdBy === h;
+}
+
+function pushWebNotification(toHandle: string, fromHandle: string, message: string) {
+  try {
+    const key = "blkspace_web_notifications_v1";
+    const prev = JSON.parse(localStorage.getItem(key) || "[]") as {
+      id: number;
+      userHandle: string;
+      notificationType: string;
+      fromHandle: string;
+      message: string;
+      unread: boolean;
+      createdAt: string;
+    }[];
+    prev.unshift({
+      id: Date.now(),
+      userHandle: toHandle,
+      notificationType: "connect_interest",
+      fromHandle,
+      message,
+      unread: true,
+      createdAt: new Date().toISOString(),
+    });
+    localStorage.setItem(key, JSON.stringify(prev.slice(0, 50)));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function listWebNotifications(handle?: string | null): {
+  id: number;
+  userHandle: string;
+  notificationType: string;
+  fromHandle: string;
+  message: string;
+  unread: boolean;
+  createdAt: string;
+}[] {
+  try {
+    const h = handle || getCurrentHandle();
+    const key = "blkspace_web_notifications_v1";
+    const prev = JSON.parse(localStorage.getItem(key) || "[]") as {
+      id: number;
+      userHandle: string;
+      notificationType: string;
+      fromHandle: string;
+      message: string;
+      unread: boolean;
+      createdAt: string;
+    }[];
+    if (!h) return prev;
+    return prev.filter((n) => n.userHandle === h);
+  } catch {
+    return [];
+  }
+}
+
 export async function createOpportunity(input: {
   orgId: string;
   title: string;
@@ -547,6 +834,11 @@ export async function createOpportunity(input: {
   const org = s.orgs.find((o) => o.id === input.orgId);
   if (!org) throw new Error("Org not found");
   const handle = getCurrentHandle() || "demo_user";
+  if (!canPostOpportunitiesForOrg(org, handle)) {
+    throw new Error(
+      "Only org owners/leads can post opportunities for this lab",
+    );
+  }
   const opp: ConnectOpportunity = {
     id: s.nextOppId++,
     orgId: input.orgId,
@@ -627,6 +919,15 @@ export async function expressInterest(input: {
   s.interests.unshift(interest);
   opp.interestCount += 1;
   saveWeb(s);
+  // Notify faculty / opp creator
+  const msg = `@${handle} expressed interest in "${opp.title}" — open Lead inbox on ProjectConnect`;
+  if (opp.createdBy && opp.createdBy !== handle) {
+    pushWebNotification(opp.createdBy, handle, msg);
+  }
+  const org = s.orgs.find((o) => o.id === opp.orgId);
+  if (org?.createdBy && org.createdBy !== handle && org.createdBy !== opp.createdBy) {
+    pushWebNotification(org.createdBy, handle, msg);
+  }
   return interest;
 }
 
@@ -647,8 +948,16 @@ export async function listInbox(): Promise<ConnectInterest[]> {
   }
   const handle = getCurrentHandle() || "demo_user";
   const s = loadWeb();
+  // Match Tauri: opp creator OR org owner (createdBy on org)
+  const ownedOrgIds = new Set(
+    s.orgs.filter((o) => o.createdBy === handle).map((o) => o.id),
+  );
   const leadOppIds = new Set(
-    s.opps.filter((o) => o.createdBy === handle).map((o) => o.id),
+    s.opps
+      .filter(
+        (o) => o.createdBy === handle || ownedOrgIds.has(o.orgId),
+      )
+      .map((o) => o.id),
   );
   return s.interests.filter((i) => leadOppIds.has(i.opportunityId));
 }

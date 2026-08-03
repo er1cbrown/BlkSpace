@@ -36,10 +36,16 @@ import {
   Ticket,
   ClipboardList,
   ScanLine,
+  Radio,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useGuestMode } from "@/lib/guest-mode";
 import { isTauri } from "@/lib/tauri-api";
+import { embedAmalgamationMeta } from "@/lib/amalgamation-meta";
+import {
+  CleanDescription,
+  LiveLinkButtons,
+} from "@/components/media/LiveLinkButtons";
 import {
   useTauriListYardEvents,
   useTauriListCommunityRoles,
@@ -106,6 +112,7 @@ function CreateEventDialog({
   const [eventKind, setEventKind] = useState("service");
   const [orgId, setOrgId] = useState("__none__");
   const [requiresOrg, setRequiresOrg] = useState(false);
+  const [liveUrl, setLiveUrl] = useState("");
   const createEvent = useTauriCreateYardEvent();
 
   const { data: orgs = [] } = useQuery({
@@ -123,6 +130,7 @@ function CreateEventDialog({
     setEventKind("service");
     setOrgId("__none__");
     setRequiresOrg(false);
+    setLiveUrl("");
   };
 
   const handleCreate = () => {
@@ -143,11 +151,14 @@ function CreateEventDialog({
       return;
     }
     const cap = capacity ? parseInt(capacity, 10) : null;
+    const desc = embedAmalgamationMeta(description.trim(), {
+      liveUrl: liveUrl.trim() || undefined,
+    });
     createEvent.mutate(
       {
         communityId,
         title: title.trim(),
-        description: description.trim(),
+        description: desc,
         location: location.trim(),
         startsAt: startsAt.trim(),
         capacity: cap && cap > 0 ? cap : null,
@@ -204,6 +215,21 @@ function CreateEventDialog({
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5">
+              <Radio className="w-3.5 h-3.5 text-primary" />
+              Live stream URL (optional)
+            </Label>
+            <Input
+              placeholder="https://twitch.tv/… · youtube.com/live/… · Discord stage"
+              value={liveUrl}
+              onChange={(e) => setLiveUrl(e.target.value)}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Link-out live for now (IG/TikTok/Twitch class). Native ingest later —
+              yard RSVP + identity stay on BlkSpace.
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label>Location</Label>
@@ -503,11 +529,11 @@ function EventCard({
         </p>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        {event.description && (
-          <p className="text-muted-foreground leading-relaxed">
-            {event.description}
-          </p>
-        )}
+        <CleanDescription
+          description={event.description}
+          className="text-muted-foreground leading-relaxed"
+        />
+        <LiveLinkButtons description={event.description} />
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <CalendarDays className="w-3.5 h-3.5 text-primary" />

@@ -44,6 +44,7 @@ import {
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { EarnRatesPanel } from "@/components/economy/EarnRatesPanel";
 import { EarnDashboard } from "@/components/economy/EarnDashboard";
+import { FinancialLiteracyPanel } from "@/components/economy/FinancialLiteracyPanel";
 import { WalletDisclaimer } from "@/components/economy/WalletDisclaimer";
 import { EconomyPolicyPanel } from "@/components/economy/EconomyPolicyPanel";
 import { EconomyTermsCard } from "@/components/economy/EconomyTermsCard";
@@ -598,7 +599,8 @@ function WalletPageContent() {
             ))}
           </TabsContent>
 
-          <TabsContent value="earn">
+          <TabsContent value="earn" className="space-y-6">
+            <FinancialLiteracyPanel />
             <EarnRatesPanel />
             <EconomyTermsCard />
             <EconomyPolicyPanel />

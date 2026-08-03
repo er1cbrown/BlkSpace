@@ -1,6 +1,12 @@
 /** Campus Yard theme packs — each mesh can look and feel distinct. */
 
-export type YardId = "tsu" | "howard" | "spelman" | "famu" | "morehouse";
+export type YardId =
+  | "tsu"
+  | "howard"
+  | "spelman"
+  | "famu"
+  | "morehouse"
+  | "meharry";
 
 export interface YardThemePack {
   id: YardId;
@@ -87,6 +93,20 @@ export const YARD_THEME_PACKS: Record<YardId, YardThemePack> = {
     norms: ["Crown Forum", "ATL creators", "Maroon & white"],
     weatherHint: "ATL humidity · fall homecoming",
     fanbase: "Maroon Tigers",
+  },
+  meharry: {
+    id: "meharry",
+    name: "Meharry Yard",
+    school: "Meharry Medical College",
+    location: "Nashville, TN",
+    mascot: "🩺 Meharry Med",
+    gradient: "from-teal-600 to-cyan-800",
+    accentClass: "text-teal-600 dark:text-teal-400",
+    cardBorderClass: "border-teal-500/20",
+    tagline: "HBCU medicine — service, science, underrepresented excellence",
+    norms: ["Rotations-aware", "Nashville health", "Teal focus"],
+    weatherHint: "Same city energy as TSU · clinic-first calendars",
+    fanbase: "Meharry network",
   },
 };
 

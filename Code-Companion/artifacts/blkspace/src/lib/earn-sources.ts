@@ -49,6 +49,12 @@ export const EARN_PATHS = [
   { action: "Join yard", wb: WB_EARN.joinYard, karma: KARMA_EARN.joinYard, toast: "Joined yard" },
   { action: "Event RSVP", wb: WB_EARN.eventRsvp, karma: KARMA_EARN.eventRsvp, toast: "RSVP" },
   { action: "Wall post approved", wb: WB_EARN.wallPostApproved, karma: KARMA_EARN.wallComment, toast: "Wall post" },
+  {
+    action: "Content Hub publish",
+    wb: 0,
+    karma: 0,
+    toast: "Hub item (earn via posts / events / Cred path)",
+  },
 ] as const;
 
 export type EarnCategory =

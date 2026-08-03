@@ -2,10 +2,12 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Heart, MessageSquare, Repeat2, UserPlus, Bell } from "lucide-react";
+import { Heart, MessageSquare, Repeat2, UserPlus, Bell, Handshake } from "lucide-react";
 import { useTauriGetNotifications } from "@/hooks/use-app-data";
 import { isTauri, type TauriNotification } from "@/lib/tauri-api";
 import { BETA_FEATURES } from "@/lib/beta-features";
+import { listWebNotifications } from "@/lib/project-connect";
+import { Link } from "wouter";
 
 const mockNotifications = [
   {
@@ -69,6 +71,7 @@ const iconMap: Record<string, typeof Heart> = {
   reply: MessageSquare,
   repost: Repeat2,
   follow: UserPlus,
+  connect_interest: Handshake,
 };
 
 const iconStyles: Record<string, string> = {
@@ -76,6 +79,7 @@ const iconStyles: Record<string, string> = {
   reply: "text-primary bg-primary/10",
   repost: "text-green-500 bg-green-500/10",
   follow: "text-accent bg-accent/10",
+  connect_interest: "text-violet-500 bg-violet-500/10",
 };
 
 function mapTauriNotification(n: TauriNotification) {
@@ -100,12 +104,21 @@ export default function NotificationsPage() {
   const { data: tauriData } = useTauriGetNotifications();
 
   const isWebPreview = BETA_FEATURES.isWebPreview();
+  const webConnect = listWebNotifications().map((n) => ({
+    id: n.id,
+    type: n.notificationType,
+    user: n.fromHandle,
+    display: n.fromHandle,
+    message: n.message,
+    time: new Date(n.createdAt).toLocaleDateString(),
+    unread: n.unread,
+  }));
   const items =
     isTauri() && Array.isArray(tauriData)
       ? tauriData.map(mapTauriNotification)
       : isWebPreview
-        ? []
-        : mockNotifications;
+        ? webConnect
+        : [...webConnect, ...mockNotifications];
 
   return (
     <AppShell>
@@ -126,7 +139,12 @@ export default function NotificationsPage() {
                 <Bell className="w-10 h-10 mx-auto mb-3 opacity-40" />
                 <p className="font-medium text-foreground">No notifications yet</p>
                 <p className="text-sm mt-1">
-                  Likes, replies, and follows show up here when you have an account.
+                  Likes, replies, follows, and ProjectConnect interest alerts show
+                  up here. Faculty: check{" "}
+                  <Link href="/connect/inbox" className="text-primary underline">
+                    Lead inbox
+                  </Link>{" "}
+                  too.
                 </p>
               </div>
             )}

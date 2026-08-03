@@ -36,6 +36,11 @@ import {
   type ReadingCircle,
   type Tournament,
 } from "@/lib/club-activities";
+import { embedAmalgamationMeta } from "@/lib/amalgamation-meta";
+import {
+  CleanDescription,
+  LiveLinkButtons,
+} from "@/components/media/LiveLinkButtons";
 
 export function ClubActivitiesPanel({
   communityId,
@@ -102,8 +107,9 @@ function TemplatesSection({ communityId }: { communityId: string }) {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        One-click club kits spin up channels for anime book groups, gaming
-        brackets, study hours, or faculty scholarships — no streaming required.
+        One-click club kits spin up channels for anime, chess, gaming, creators,
+        study hours, or faculty scholarships. Live stays link-out for now —
+        identity + earn stay on BlkSpace.
       </p>
       <div className="grid sm:grid-cols-2 gap-3">
         {templates.map((t) => {
@@ -449,6 +455,8 @@ function TournamentsSection({ communityId }: { communityId: string }) {
   const [maxP, setMaxP] = useState("8");
   const [prize, setPrize] = useState("");
   const [prizeWb, setPrizeWb] = useState("50");
+  const [playUrl, setPlayUrl] = useState("");
+  const [liveUrl, setLiveUrl] = useState("");
 
   const create = useMutation({
     mutationFn: () =>
@@ -456,7 +464,10 @@ function TournamentsSection({ communityId }: { communityId: string }) {
         communityId,
         title,
         gameTitle: game,
-        description: desc,
+        description: embedAmalgamationMeta(desc, {
+          playUrl: playUrl.trim() || undefined,
+          liveUrl: liveUrl.trim() || undefined,
+        }),
         maxPlayers: parseInt(maxP, 10) || 8,
         prizeText: prize,
         prizeWb: parseInt(prizeWb, 10) || 0,
@@ -474,7 +485,8 @@ function TournamentsSection({ communityId }: { communityId: string }) {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <p className="text-xs text-muted-foreground">
-          Brackets · 1v1 pairings · score reports · WB prizes (no live stream)
+          Brackets · 1v1 · scores · WB prizes · Lichess/OTB play link · live
+          link-out
         </p>
         <Button size="sm" onClick={() => setShowCreate(!showCreate)}>
           <Gamepad2 className="w-3.5 h-3.5 mr-1" /> Host tournament
@@ -484,20 +496,30 @@ function TournamentsSection({ communityId }: { communityId: string }) {
         <Card>
           <CardContent className="p-3 space-y-2">
             <Input
-              placeholder="Tournament title"
+              placeholder="Tournament title (e.g. HBCU Chess Classic)"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
             <Input
-              placeholder="Game (e.g. SF6, Smash, Valorant)"
+              placeholder="Game (Chess, SF6, Smash, Valorant…)"
               value={game}
               onChange={(e) => setGame(e.target.value)}
             />
             <Textarea
-              placeholder="Rules, venue, schedule"
+              placeholder="Rules, venue, schedule, time control"
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               rows={2}
+            />
+            <Input
+              placeholder="Play board URL (optional) — lichess.org/tournament/… or arena"
+              value={playUrl}
+              onChange={(e) => setPlayUrl(e.target.value)}
+            />
+            <Input
+              placeholder="Watch live URL (optional) — Twitch / YT / Discord stage"
+              value={liveUrl}
+              onChange={(e) => setLiveUrl(e.target.value)}
             />
             <div className="grid grid-cols-3 gap-2">
               <Input
@@ -623,7 +645,11 @@ function TournamentDetail({
           <Trophy className="w-4 h-4" />
           {tour.title}
         </CardTitle>
-        <p className="text-xs text-muted-foreground">{tour.description}</p>
+        <CleanDescription
+          description={tour.description}
+          className="text-xs text-muted-foreground"
+        />
+        <LiveLinkButtons description={tour.description} />
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="flex flex-wrap gap-2">

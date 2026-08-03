@@ -263,6 +263,46 @@ export const SEED_POSTS: SeedPost[] = [
     maliciousScore: 0,
     riskLevel: "low",
   },
+  {
+    id: 120,
+    authorHandle: "meharry_yard",
+    authorDisplayName: "Meharry Yard",
+    authorAvatarUrl: "",
+    content:
+      "Focus Path tip: log your BlkSpace minutes. Rotations first — study refresh second. Underrepresented network without calendar death.",
+    townTag: "meharry",
+    repliesCount: 6,
+    repostsCount: 3,
+    likesCount: 48,
+    liked: false,
+    mediaBlobs: [],
+    nostrEventId: "",
+    relayUrl: "",
+    createdAt: "2026-08-03T08:00:00Z",
+    engagementQuality: 1.1,
+    maliciousScore: 0,
+    riskLevel: "low",
+  },
+  {
+    id: 121,
+    authorHandle: "med_peer",
+    authorDisplayName: "Med Peer",
+    authorAvatarUrl: "",
+    content:
+      "Anyone on low-bandwidth ProjectConnect for disparities micro-lab? 2–4 hr async — Meharry-friendly.",
+    townTag: "meharry",
+    repliesCount: 4,
+    repostsCount: 1,
+    likesCount: 22,
+    liked: false,
+    mediaBlobs: [],
+    nostrEventId: "",
+    relayUrl: "",
+    createdAt: "2026-08-03T09:30:00Z",
+    engagementQuality: 1.0,
+    maliciousScore: 0,
+    riskLevel: "low",
+  },
 ];
 
 export const SEED_USERS = [
@@ -303,6 +343,13 @@ export const SEED_COMMUNITIES = [
     school: "Florida A&M University",
     location: "Tallahassee, FL",
     members: 3190,
+  },
+  {
+    id: "meharry",
+    name: "Meharry Yard",
+    school: "Meharry Medical College",
+    location: "Nashville, TN",
+    members: 1840,
   },
 ];
 
