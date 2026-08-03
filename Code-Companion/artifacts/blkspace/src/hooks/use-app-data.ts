@@ -18,8 +18,6 @@ import {
   useGetUserPosts,
   getGetUserPostsQueryKey,
   useCreatePost,
-  useLikePost,
-  useUnlikePost,
   useCreateReply,
   useListRelays,
   getListRelaysQueryKey,
@@ -31,7 +29,19 @@ import {
 import * as tauri from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { getSeedPosts } from "@/lib/seed-content";
-import { createWebUserPost, listWebUserPosts } from "@/lib/web-posts";
+import { listWebUserPosts } from "@/lib/web-posts";
+import {
+  applyLikesToPosts,
+  buildWebUser,
+  createInteractivePost,
+  getFollowing,
+  isWebYardMember,
+  joinWebYard,
+  listInteractiveFeed,
+  listInteractiveUserPosts,
+  toggleWebFollow,
+  toggleWebLike,
+} from "@/lib/web-userspace";
 
 export const IS_TAURI =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -39,34 +49,12 @@ export const IS_TAURI =
 const MOCK_POSTS = getSeedPosts();
 
 function getMockPosts(town?: string) {
-  const seed = getSeedPosts(town);
-  const mine = listWebUserPosts(town);
-  // User posts first so "Post to yard" is immediately visible
-  return [...mine, ...seed];
+  // User posts + seed + live like state (browser userspace)
+  return listInteractiveFeed(town);
 }
 
 function getMockUser(handle: string) {
-  const found = MOCK_POSTS.find((p) => p.authorHandle === handle);
-  return {
-    id: 1,
-    handle,
-    displayName: found?.authorDisplayName || handle,
-    bio: "HBCU student exploring the yard.",
-    avatarUrl: "",
-    university: "Tennessee State University",
-    town: found?.townTag || "tsu",
-    followersCount: 245,
-    followingCount: 89,
-    weixBucks: 1250,
-    pubkey: "",
-    engagementQuality: 1.0,
-    postKarma: 42,
-    commentKarma: 18,
-    proProfileJson: "{}",
-    profileLayoutJson: "{}",
-    topFriendsJson: "[]",
-    createdAt: "2026-06-01T00:00:00Z",
-  };
+  return buildWebUser(handle);
 }
 
 // ─── Users ───────────────────────────────────────────────
@@ -237,9 +225,10 @@ export function useAppGetUserPosts(handle: string, currentUser: string) {
   });
   const webResult = useQuery({
     queryKey: ["web", "userPosts", handle],
-    queryFn: () => Promise.resolve(getMockPosts(handle ? undefined : "tsu")),
+    queryFn: () => Promise.resolve(listInteractiveUserPosts(handle)),
     enabled: !IS_TAURI && !!handle,
-    staleTime: Infinity,
+    staleTime: 0,
+    refetchOnMount: true,
   });
   return IS_TAURI ? tauriResult : webResult;
 }
@@ -415,14 +404,16 @@ export function useAppCreatePost() {
           },
           opts?: any,
         ) => {
-          // Browser: local posts (no API server required)
+          // Browser userspace: posts + WB stick in localStorage
           try {
-            const post = createWebUserPost({
+            const post = createInteractivePost({
               content: input.content,
               townTag: input.town_tag,
               mediaHashes: input.media_hashes,
             });
             qc.invalidateQueries({ queryKey: ["web", "posts"] });
+            qc.invalidateQueries({ queryKey: ["web", "userPosts"] });
+            qc.invalidateQueries({ queryKey: ["web", "user"] });
             opts?.onSuccess?.({
               post,
               earn: {
@@ -445,8 +436,6 @@ export function useAppCreatePost() {
 
 export function useAppToggleLike() {
   const qc = useQueryClient();
-  const webLike = useLikePost();
-  const webUnlike = useUnlikePost();
   const tauriMut = useMutation({
     mutationFn: ({ postId }: { postId: number }) =>
       tauri.tauriToggleLike(getSessionToken() || "", postId),
@@ -474,39 +463,61 @@ export function useAppToggleLike() {
           }
           tauriMut.mutate(args, opts);
         }
-      : (args: { postId: number; liked: boolean }, opts?: any) => {
-          if (args.liked) {
-            webUnlike.mutate({ id: args.postId }, opts);
-          } else {
-            webLike.mutate({ id: args.postId }, opts);
+      : (args: { postId: number; liked?: boolean }, opts?: any) => {
+          try {
+            const { liked, likesDelta } = toggleWebLike(args.postId);
+            qc.invalidateQueries({ queryKey: ["web", "posts"] });
+            qc.invalidateQueries({ queryKey: ["web", "userPosts"] });
+            qc.invalidateQueries({ queryKey: ["web", "user"] });
+            opts?.onSuccess?.({
+              liked,
+              likesDelta,
+              authorEarn: liked
+                ? { wb: 0.5, wbNominal: 0.5, karmaPost: 0, karmaComment: 0, throttled: false }
+                : undefined,
+            });
+          } catch (e) {
+            opts?.onError?.(e);
           }
         },
-    isPending: IS_TAURI
-      ? tauriMut.isPending || queueMut.isPending
-      : webLike.isPending || webUnlike.isPending,
+    isPending: IS_TAURI ? tauriMut.isPending || queueMut.isPending : false,
   };
 }
 
 export function useTauriToggleFollow() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ followedHandle }: { followedHandle: string }) =>
-      tauri.tauriToggleFollow(getSessionToken() || "", followedHandle),
+    mutationFn: ({ followedHandle }: { followedHandle: string }) => {
+      if (!IS_TAURI) {
+        const now = toggleWebFollow(followedHandle);
+        return Promise.resolve(now);
+      }
+      return tauri.tauriToggleFollow(getSessionToken() || "", followedHandle);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "following"] });
       qc.invalidateQueries({ queryKey: ["tauri", "users"] });
+      qc.invalidateQueries({ queryKey: ["web", "following"] });
+      qc.invalidateQueries({ queryKey: ["web", "user"] });
     },
   });
 }
 
 export function useTauriGetFollowing(enabled: boolean = true) {
   const token = getSessionToken();
-  return useQuery({
+  const tauriQ = useQuery({
     queryKey: ["tauri", "following", token],
     queryFn: () => tauri.tauriGetFollowing(token || ""),
     enabled: IS_TAURI && enabled && !!token,
     staleTime: 30_000,
   });
+  const webQ = useQuery({
+    queryKey: ["web", "following"],
+    queryFn: () => Promise.resolve(getFollowing()),
+    enabled: !IS_TAURI && enabled,
+    staleTime: 0,
+  });
+  return IS_TAURI ? tauriQ : webQ;
 }
 
 export function useAppCreateReply() {
@@ -1448,6 +1459,19 @@ export function useTauriJoinYard() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (communityId: string) => {
+      if (!IS_TAURI) {
+        const r = joinWebYard(communityId);
+        return Promise.resolve({
+          joined: r.joined,
+          earn: {
+            wb: r.wb,
+            wbNominal: r.wb,
+            karmaPost: 0,
+            karmaComment: 0,
+            throttled: false,
+          },
+        });
+      }
       const token = getSessionToken();
       if (!token) throw new Error("Not signed in");
       return tauri.tauriJoinYard(token, communityId);
@@ -1455,19 +1479,25 @@ export function useTauriJoinYard() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "user"] });
       qc.invalidateQueries({ queryKey: ["tauri", "earnSummary"] });
+      qc.invalidateQueries({ queryKey: ["web", "user"] });
+      qc.invalidateQueries({ queryKey: ["web", "yardMember"] });
     },
   });
 }
 
 export function useTauriIsYardMember(communityId: string) {
   return useQuery({
-    queryKey: ["tauri", "yardMember", communityId],
+    queryKey: IS_TAURI
+      ? ["tauri", "yardMember", communityId]
+      : ["web", "yardMember", communityId],
     queryFn: () => {
+      if (!IS_TAURI) return Promise.resolve(isWebYardMember(communityId));
       const token = getSessionToken();
       if (!token) return false;
       return tauri.tauriIsYardMember(token, communityId);
     },
-    enabled: IS_TAURI && !!communityId,
+    enabled: !!communityId,
+    staleTime: 0,
   });
 }
 

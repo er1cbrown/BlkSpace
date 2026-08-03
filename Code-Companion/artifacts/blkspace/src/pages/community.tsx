@@ -29,9 +29,11 @@ import {
   useTauriListChannels,
   useTauriListPostsForChannel,
   useAppCreatePost,
+  useAppListPosts,
   useTauriJoinYard,
   useTauriIsYardMember,
 } from "@/hooks/use-app-data";
+import { getCurrentHandle } from "@/lib/auth";
 import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { YardEventsPanel } from "@/components/community/YardEventsPanel";
 import { YardMembersPanel } from "@/components/community/YardMembersPanel";
@@ -124,10 +126,17 @@ export default function CommunityPage() {
   const { data: tauriChannelPosts = [] } = useTauriListPostsForChannel(
     activeChannel.replace(/^#/, "").replace(/-hall$/, ""),
   ); // id e.g. "general" or "study" from channel name
+  const yardKeyForFeed = routeYardKey || "tsu";
+  const { data: yardFeedPosts = [] } = useAppListPosts(
+    yardKeyForFeed,
+    getCurrentHandle(),
+    !isTauri(),
+  );
   const createPost = useAppCreatePost();
   const joinYard = useTauriJoinYard();
   const { requireWallet } = useRequiresWallet();
-  const { data: isMember = false } = useTauriIsYardMember(routeYardKey);
+  const { data: isMember = false, refetch: refetchMember } =
+    useTauriIsYardMember(routeYardKey);
   const qc = useQueryClient();
 
   const handleCreateChannel = async () => {
@@ -186,6 +195,8 @@ export default function CommunityPage() {
           qc.invalidateQueries({
             queryKey: ["tauri", "channelPosts", channelId],
           });
+          qc.invalidateQueries({ queryKey: ["web", "posts"] });
+          qc.invalidateQueries({ queryKey: ["web", "user"] });
         },
         onError: (e: unknown) => toast.error(String(e)),
       },
@@ -289,7 +300,7 @@ export default function CommunityPage() {
     );
   }
 
-  // Real channel posts when available (from list_posts_for_channel + DB channel_id filter); graceful fallback for demo/web
+  // Real channel posts (Tauri) or live yard feed posts (web userspace)
   const channelPosts =
     isTauri() && tauriChannelPosts.length > 0
       ? tauriChannelPosts.map((p: TauriPost) => ({
@@ -306,19 +317,19 @@ export default function CommunityPage() {
             : "now",
           reactions: p.likesCount || 0,
         }))
-      : [1, 2, 3, 4].map((i) => ({
-          id: i,
-          user: `YardMember${i}`,
-          handle: `ym${i}`,
-          content:
-            activeChannel === "#music"
-              ? "Just dropped a new mix for the tailgate — link in bio 🎧"
-              : activeChannel === "#study-hall"
-                ? "Library study group tonight at 8. Bring laptops and focus."
-                : `Activity in ${activeChannel} — ${community.name} is live!`,
-          time: `${i + 2}h ago`,
-          reactions: i + 5,
-          raw: null as TauriPost | null,
+      : (yardFeedPosts as any[]).map((p) => ({
+          id: p.id,
+          user: p.authorDisplayName || p.authorHandle,
+          handle: p.authorHandle,
+          content: p.content,
+          raw: p,
+          time: p.createdAt
+            ? new Date(p.createdAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "now",
+          reactions: p.likesCount || 0,
         }));
 
   const tauriCommunity =
@@ -399,12 +410,17 @@ export default function CommunityPage() {
                 onClick={() => {
                   if (!requireWallet("join yards")) return;
                   joinYard.mutate(yardId, {
-                    onSuccess: (result) => {
+                    onSuccess: (result: any) => {
+                      void refetchMember();
+                      qc.invalidateQueries({ queryKey: ["web", "yardMember"] });
+                      qc.invalidateQueries({ queryKey: ["web", "user"] });
                       if (result.joined && result.earn) {
                         showEarnFromResult(
                           result.earn,
                           `Joined ${community.name}`,
                         );
+                      } else {
+                        toast.success(`You're in ${community.name}`);
                       }
                     },
                     onError: (e) => toast.error(String(e)),

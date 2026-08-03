@@ -68,3 +68,17 @@ export function createWebUserPost(input: {
 export function clearWebUserPosts() {
   localStorage.removeItem(LS_KEY);
 }
+
+/** Mutate a user-created post’s like counts (seed posts use web-userspace map). */
+export function patchWebUserPostLikes(
+  postId: number,
+  liked: boolean,
+  likesCount: number,
+): boolean {
+  const all = load();
+  const i = all.findIndex((p) => p.id === postId);
+  if (i < 0) return false;
+  all[i] = { ...all[i], liked, likesCount };
+  save(all);
+  return true;
+}

@@ -248,6 +248,11 @@ export default function FeedPage() {
       { postId },
       {
         onSuccess: (result: any) => {
+          if (result?.liked) {
+            toast.success("Liked");
+          } else if (result?.liked === false) {
+            toast.message("Unliked");
+          }
           if (result?.liked && result?.authorEarn?.wb > 0 && result?.authorHandle) {
             showEarnFromResult(
               result.authorEarn,
@@ -256,10 +261,13 @@ export default function FeedPage() {
           }
           queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
           queryClient.invalidateQueries({ queryKey: ["tauri", "user"] });
+          queryClient.invalidateQueries({ queryKey: ["web", "posts"] });
+          queryClient.invalidateQueries({ queryKey: ["web", "user"] });
           queryClient.invalidateQueries({
             queryKey: getListPostsQueryKey({ town: selectedTown }),
           });
         },
+        onError: (e: unknown) => toast.error(String(e)),
       },
     );
   };
