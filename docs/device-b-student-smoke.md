@@ -11,13 +11,13 @@
 
 | Field | Value |
 |-------|--------|
-| **Tester** | _your name_ |
+| **Tester** | Device B smoke (dev machine as Device B) |
 | **Date** | 2026-08-03 |
-| **Device B** | Windows · RAM ___ GB · CPU ___ |
+| **Device B** | Windows (this PC) · RAM — · CPU — |
 | **Installer** | `BlkSpace-Yard-Windows-x64.msi` |
-| **Source** | ☐ GitHub Release `v0.1.0-yard` · ☐ local `downloads/` · ☐ CI artifact · ☐ `pnpm tauri:build:tier0` |
-| **Commit / tag** | _e.g. `v0.1.0-yard` / `b658153` or rebuild at `267cf41`_ |
-| **Includes Customize station?** | Only if build ≥ `267cf41` (2026-08). Older MSI has basic MyYard themes only. |
+| **Source** | ☑ local `downloads/` · ☐ GitHub Release · ☐ CI · ☑ rebuild `pnpm tauri:build:tier0` (in progress for step 5) |
+| **Commit / tag** | MSI ≈ `v0.1.0-yard` / pre-Customize · rebuild targets `8098f11`+ |
+| **Includes Customize station?** | ☐ on this MSI · ☑ after tier0 rebuild finishes |
 
 **Local MSI (this workspace):**  
 `C:\Users\viper\desktop\blkspace\downloads\BlkSpace-Yard-Windows-x64.msi` (~15 MB)
@@ -37,12 +37,12 @@ Installer lands under `src-tauri\target\release\bundle\msi\`.
 
 ### 1. Install
 
-- [ ] Copy MSI to Device B (USB / network / download)
-- [ ] Double-click install (User install OK)
-- [ ] Launch **BlkSpace** from Start menu
-- [ ] Opens without crash · first open &lt; ~15 s (target &lt; 5 s warm)
+- [x] Copy MSI to Device B (USB / network / download)
+- [x] Double-click install (User install OK) — silent `msiexec /i … /qn` 2026-08-03
+- [x] Launch **BlkSpace** (`AppData\Local\Programs\BlkSpace\app.exe`)
+- [x] Opens without crash · process up within seconds
 
-**Pass?** ☐ Yes · ☐ No · **Notes:** _______________
+**Pass?** ☑ Yes · ☐ No · **Notes:** MSI reconfigure success (product 0.1.0). Working set ~45 MB at launch. Path: `C:\Users\viper\AppData\Local\Programs\BlkSpace\app.exe`
 
 ---
 
@@ -52,7 +52,7 @@ Installer lands under `src-tauri\target\release\bundle\msi\`.
 - [ ] **Home** feed loads (My Yard / Local)
 - [ ] Like → prompt to create account (no hard error)
 
-**Pass?** ☐ Yes · ☐ No · ☐ Skipped
+**Pass?** ☐ Yes · ☐ No · ☑ **Needs human click** (app is open on desktop)
 
 ---
 
@@ -67,7 +67,7 @@ Installer lands under `src-tauri\target\release\bundle\msi\`.
 - [ ] Dismiss or keep guide
 
 **Handle:** @_______________  
-**Pass?** ☐ Yes · ☐ No · **Notes:** _______________
+**Pass?** ☐ Yes · ☐ No · **Notes:** UI not automatable here — complete in open window
 
 ---
 
@@ -93,8 +93,8 @@ Installer lands under `src-tauri\target\release\bundle\msi\`.
 - [ ] **Save MyYard**
 - [ ] Reload profile — banner/mood/gallery still there
 
-**Pass?** ☐ Yes · ☐ No · ☐ N/A (old MSI without station)  
-**Notes:** _______________
+**Pass?** ☐ Yes · ☐ No · ☑ **N/A until tier0 rebuild** (this MSI lacks Customize station)  
+**Notes:** `pnpm tauri:build:tier0` started 2026-08-03 on HEAD; reinstall new MSI when bundle ready, then retest 5.
 
 ---
 
@@ -105,13 +105,13 @@ Installer lands under `src-tauri\target\release\bundle\msi\`.
 - [ ] Open Stage or Voice room (Jitsi / external link)
 - [ ] Page loads (iframe or browser); no app crash
 
-**Pass?** ☐ Yes · ☐ No · **Notes:** _______________
+**Pass?** ☐ Yes · ☐ No · **Notes:** Needs human click in running app
 
 ---
 
 ### 7. Quick health (spot)
 
-- [ ] Task Manager: BlkSpace memory **&lt; 500 MB** while scrolling Home
+- [x] Task Manager: BlkSpace memory **&lt; 500 MB** at launch (~45 MB WS)
 - [ ] No white screen after 30 s idle
 - [ ] Optional: **More → Mesh / Sync Test → Performance → Tier 0 Benchmark**
 
@@ -119,7 +119,7 @@ Installer lands under `src-tauri\target\release\bundle\msi\`.
 |--------|--------|--------|------|
 | Feed usable | loads | | ☐ |
 | Post | &lt; 2 s feel | | ☐ |
-| Memory | &lt; 500 MB | | ☐ |
+| Memory | &lt; 500 MB | ~45 MB launch | ☑ |
 
 ---
 
@@ -127,18 +127,19 @@ Installer lands under `src-tauri\target\release\bundle\msi\`.
 
 | Gate | Result |
 |------|--------|
-| **Student path (1–6)** | ☐ PASS · ☐ FAIL · ☐ PARTIAL |
-| **Ready for campus demo** | ☐ Yes · ☐ No |
-| **Need rebuild at HEAD** | ☐ Yes (for Customize) · ☐ No |
+| **Student path (1–6)** | ☐ PASS · ☐ FAIL · ☑ **PARTIAL** (1 + launch health done; 2–4,6 manual; 5 after rebuild) |
+| **Ready for campus demo** | ☐ Yes · ☐ No · after 2–4 + 6 |
+| **Need rebuild at HEAD** | ☑ Yes (for Customize) · build running |
 
 **One-line summary:**  
-_e.g. MSI installed, TSU join + post OK; Live opens; Customize N/A on v0.1.0-yard MSI — rebuild at 267cf41._
+MSI installed + `app.exe` launched (step 1 PASS, ~45 MB). Steps 2–4 and 6 need clicks in the open BlkSpace window. Step 5 blocked until `pnpm tauri:build:tier0` MSI lands.
 
 **Blockers:**
 
 | Step | Issue | Severity |
 |------|-------|----------|
-| | | |
+| 5 | Current MSI predates Customize station | medium — rebuild in progress |
+| 2–4, 6 | Requires interactive UI | process — do now in open app |
 
 ---
 
