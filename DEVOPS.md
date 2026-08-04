@@ -1,141 +1,187 @@
 # DevOps Overview — BlkSpace
 
-## Product artifacts (what to ship)
-
-| Artifact | Audience | Iroh | When |
-|----------|----------|------|------|
-| **BlkSpace-Yard-*** | Students, campus beta, Tier 0 (4–8 GB) | **Off** | Every CI on `main` + every `v*` release |
-| **Web preview (Pages)** | Demos without MSI | N/A | Deploy on `main` (frontend) |
-| **BlkSpace-Full-*** | Lab / mesh R&D only | **On** | Manual **CI Full Lab** or release tag containing `full` |
-
-**Default student path = Yard.** Full mesh is never required for campus installs.
-
----
-
-## CI/CD map
-
-| Workflow | File | Trigger | Role |
-|----------|------|---------|------|
-| **CI** | `.github/workflows/ci.yml` | Push/PR `main` | Lint, test, web build, **Yard** multi-OS installers |
-| **CI Full Lab** | `.github/workflows/ci-full-lab.yml` | **Manual only** | Full + Iroh (heavy) |
-| **Release** | `.github/workflows/release.yml` | Tag `v*` | GitHub Release + **Yard** assets; Full only if tag has `full` or dispatch `include_full` |
-| **Pages** | `.github/workflows/pages.yml` | Push `main` (Code-Companion) or manual | Campus web demo |
-
-### CI (default) flow
-
-```
-Push/PR → lint → typecheck → unit tests → web build → e2e web
-        → Bundle budget Tier 0
-        → Build Yard Windows / Ubuntu / macOS  (--no-default-features)
-```
-
-### Full Lab flow
-
-```
-Actions → CI Full Lab → Run workflow → pick OS → Full installers as artifacts (14d)
-```
-
-### Release flow
-
-```
-git tag v0.1.1-yard && git push origin v0.1.1-yard
-  → Yard MSIs/DMGs/AppImages on GitHub Release
-
-git tag v0.1.0-full && git push   # or dispatch Release with include_full=true
-  → Yard + Full assets
-```
-
----
-
-## Campus demo without MSI
-
-1. Repo **Settings → Pages → Source: GitHub Actions**
-2. Merge to `main` (or run **Deploy Web Preview** workflow)
-3. Open: `https://er1cbrown.github.io/BlkSpace/`
-
-Notes:
-
-- Web preview is **browse + account demo**; heavy uploads/Tauri mesh need **Yard MSI**
-- `BASE_PATH=/BlkSpace/` is set in the Pages workflow for project sites
-
----
-
-## Local commands
-
-```powershell
-cd Code-Companion
-pnpm install
-
-# Student default (Yard / Tier 0 — no Iroh)
-cd artifacts/blkspace
-pnpm tauri:dev:tier0
-pnpm tauri:build:tier0
-
-# Lab Full mesh (Iroh) — optional, heavy
-pnpm tauri:dev:full
-pnpm tauri:build:full
-
-# Web only
-pnpm dev
-pnpm build
-```
-
----
-
-## Faster release ops (`gh` CLI)
-
-```powershell
-# Install / reinstall
-winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements
-
-# Ensure PATH (new shells)
-$gh = "$env:ProgramFiles\GitHub CLI"
-if (Test-Path "$gh\gh.exe") { $env:Path = "$gh;$env:Path" }
-
-gh auth login
-gh run list --limit 8
-gh run watch
-gh release list
-gh release download <tag> -p "BlkSpace-Yard-Windows*"
-```
-
----
-
-## Architecture (runtime)
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────┐
 │                    Users                         │
 ├─────────────────────────────────────────────────┤
-│  Desktop Yard MSI  │  Web Pages preview          │
-│  (Tier 0 default)  │  Full MSI (lab only)        │
+│         Desktop (Tauri)   │   Mobile (Tauri)    │
+│         Web (PWA)         │                     │
 ├─────────────────────────────────────────────────┤
 │               Frontend (React + TS)              │
+│         shadcn/ui · Tailwind · Zustand           │
 ├─────────────────────────────────────────────────┤
 │          Tauri Bridge (Rust Commands)            │
-│     Yard: no Iroh   │   Full: Iroh feature       │
+├─────────────────────────────────────────────────┤
+│         Solana RPC  │  Anchor Programs           │
+│         (Web3.js)   │  (Rust Smart Contracts)    │
 └─────────────────────────────────────────────────┘
 ```
 
----
+## CI/CD Pipeline
 
-## Checklist — continue DevOps this week
+### Workflows
+
+| Workflow | Trigger | What It Does |
+|----------|---------|-------------|
+| **CI** | PRs + pushes to `main` | Lint, typecheck, unit test, build |
+| **CI Yard** | Same (job `build-tauri-yard`) | Tier 0 installer: `BlkSpace-Yard-*` per OS |
+| **CI Full** | Same (job `build-tauri-full`) | Iroh + full mesh: `BlkSpace-Full-*` per OS |
+| **Release** | Tag push (`v*`) | Build Yard + Full binaries, create GitHub Release |
+
+### CI Flow (`.github/workflows/ci.yml`)
 
 ```
-[ ] Commit + push app fixes + these workflow changes
-[ ] Confirm CI green: Yard Windows MSI artifact
-[ ] Enable GitHub Pages (Actions source)
-[ ] Open web preview URL for campus demo
-[ ] Smoke MSI: guest → account → post → Yards
-[ ] Tag v0.1.x-yard when smoke passes
-[ ] Use CI Full Lab only when mesh/Iroh is intentional
+Push/PR → Install deps → Lint → Typecheck → Test → Build (Web) → Build (BlkSpace Full) → Build (BlkSpace Yard) → Build (Tauri + Iroh smoke)
 ```
 
----
+- **Lint**: ESLint + Prettier (auto-fix on PR)
+- **Typecheck**: TypeScript strict mode
+- **Test**: Vitest unit tests + React Testing Library
+- **Build Web**: Vite production build
+- **Build Full**: `bun run build:full` + `tauri build` (Iroh on) → `BlkSpace-Full-*` artifacts
+- **Build Yard**: `bun run build:tier0` + `tauri build --no-default-features` → `BlkSpace-Yard-*` artifacts
 
-## Related docs
+### Release Flow (`.github/workflows/release.yml`)
 
-- [YARD_RELEASE_CHECKLIST.md](docs/YARD_RELEASE_CHECKLIST.md)
-- [TIER0_USER.md](TIER0_USER.md)
-- [FIRST_RUN.md](FIRST_RUN.md)
-- [releases/v0.1.0-yard.md](docs/releases/v0.1.0-yard.md)
+```
+Tag v* → Build all targets → Sign → GitHub Release
+```
+
+Platform targets:
+- **macOS**: Intel + Apple Silicon (`.dmg`)
+- **Windows**: x64 (`.msi`) — cross-compile or runner
+- **Linux**: AppImage + deb (via Ubuntu runner) + Arch PKGBUILD (community)
+- **iOS / Android**: Manual for now; Tauri Mobile in Phase 2
+
+## Local Development
+
+### macOS
+```bash
+brew install rust node
+curl -fsSL https://bun.sh/install | bash
+```
+
+### Arch / Omarchy
+```bash
+sudo pacman -S rustup nodejs npm
+rustup default stable
+sudo curl -fsSL https://bun.sh/install | bash
+sudo pacman -S webkit2gtk-4.1 libappindicator-gtk3 librsvg base-devel git
+```
+
+### Ubuntu / Debian
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential git
+sudo curl -fsSL https://bun.sh/install | bash
+```
+
+### Fedora
+```bash
+sudo dnf install rustup nodejs npm
+rustup default stable
+sudo curl -fsSL https://bun.sh/install | bash
+sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel gcc gcc-c++ git
+```
+
+### Common Commands
+```bash
+# Setup
+bun install
+bun run tauri:dev          # Desktop dev mode
+bun run dev                # Web-only dev mode
+
+# Quality
+bun run lint               # ESLint
+bun run typecheck          # TypeScript
+bun run test               # Vitest
+bun run format             # Prettier
+
+# Build
+bun run build              # Web production build
+bun run tauri build        # Desktop release build
+```
+
+## Project Structure
+
+```
+BlkSpoof/
+├── .github/workflows/           # CI/CD definitions
+├── .devcontainer/               # Codespaces setup
+├── BlkSpace/                    # Documentation & theory
+│   ├── README.md                # Investor pitch
+│   ├── THEORY.md                # Core philosophy
+│   ├── FLESHTHEORY.md           # Cultural framework
+│   ├── DEVOPS.md                # This file
+│   ├── AGENTS.md                # Agent instructions
+│   ├── SOUL.md                  # Project persona
+│   ├── STARTUP.md               # Quick setup guide
+│   └── docs/                    # Architecture, security, features
+│       ├── architecture-blueprint.md
+│       ├── phase-0-status.md
+│       ├── reward-formulas.md
+│       ├── hub-theory.md
+│       └── ...
+├── Code-Companion/              # Bun monorepo (actual code)
+│   ├── package.json             # Workspace root
+│   ├── package.json             # Bun workspaces + catalog
+│   ├── tsconfig.base.json       # Shared TS config
+│   ├── artifacts/
+│   │   ├── blkspace/            # Main app (React + Tauri)
+│   │   │   ├── src/             # React frontend
+│   │   │   └── src-tauri/       # Rust backend
+│   │   ├── api-server/          # Mock API server
+│   │   └── mockup-sandbox/      # UI prototypes
+│   ├── lib/
+│   │   ├── api-spec/            # OpenAPI spec
+│   │   ├── api-client-react/    # Auto-generated client
+│   │   ├── api-zod/             # Zod schemas
+│   │   └── db/                  # Drizzle ORM utilities
+│   └── scripts/                 # Build/dev scripts
+└── Makefile                     # Local dev commands
+```
+
+## Code Quality Gates
+
+Before merging to `main`:
+- [x] ESLint passes (no warnings)
+- [x] TypeScript strict mode compiles
+- [x] Unit tests pass
+- [x] All feature branches up to date with `main`
+- [x] PR approved (self-merge OK for solo dev)
+
+## Infrastructure
+
+- **Source**: GitHub (public repo)
+- **CI**: GitHub Actions (free tier)
+- **Build Artifacts**: GitHub Releases
+- **Blockchain**: Solana Devnet → Mainnet
+- **Hosting**: Tauri is client-side only; optional backend via Supabase or custom server later
+
+## Security
+
+- **No secrets in repo** — use GitHub Actions secrets for:
+  - `APPLE_SIGNING_IDENTITY` (macOS code signing)
+  - `APPLE_NOTARY_KEY` (notarization)
+  - `WINDOWS_SIGNING_CERT` (Windows signing)
+- **Dependabot** enabled for monthly dependency scans
+- **Rust audit** (`cargo audit`) on every CI run
+
+## Open Source
+
+- License: MIT (default for open-source Tauri apps)
+- Contributions: Issues + PRs welcome
+- Solo dev workflow: OpenCode + OpenClaw for AI-assisted development
+
+## Roadmap (DevOps)
+
+| Phase | Item |
+|-------|------|
+| Now | CI pipeline, lint/typecheck/test gates |
+| Phase 1 | Tauri cross-platform builds in CI |
+| Phase 2 | E2E tests (Playwright) |
+| Phase 3 | Automated release drafting |
+| Phase 4 | Mobile CI (iOS/Android via Tauri Mobile) |

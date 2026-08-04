@@ -65,17 +65,22 @@ else
 fi
 
 # ============================================================================
-# Step 2: Check / Install pnpm
+# Step 2: Check / Install Bun
 # ============================================================================
-blks_info "Checking pnpm..."
+blks_info "Checking Bun..."
 
-if command -v pnpm &> /dev/null; then
-    blks_info "pnpm $(pnpm -v) — OK"
+if command -v bun &> /dev/null; then
+    blks_info "Bun $(bun --version) — OK"
 else
-    blks_warn "pnpm not found. Installing..."
-    npm install -g pnpm
-    blks_info "pnpm installed"
+    blks_warn "Bun not found. Installing..."
+    curl -fsSL https://bun.sh/install | bash
+    export BUN_INSTALL="$HOME/.bun"
+    export PATH="$BUN_INSTALL/bin:$PATH"
+    blks_info "Bun installed ($(bun --version))"
 fi
+# Ensure bun is on PATH for the rest of this script
+export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
+export PATH="$BUN_INSTALL/bin:$PATH"
 
 # ============================================================================
 # Step 3: Check / Install Rust
@@ -156,13 +161,13 @@ blks_info "Grab some water — you're almost there."
 echo ""
 
 cd Code-Companion
-pnpm install
+bun install
 
 # ============================================================================
 # Step 8: Verify Build
 # ============================================================================
 blks_info "Verifying TypeScript compilation..."
-pnpm typecheck || {
+bun run typecheck || {
     blks_warn "TypeScript check found issues. This is normal for development."
     blks_warn "You can still run the app."
 }
@@ -178,10 +183,10 @@ echo ""
 echo "Next steps:"
 echo ""
 echo "  1. Web preview (fastest):"
-echo "     cd Code-Companion && pnpm dev"
+echo "     cd Code-Companion && bun run dev"
 echo ""
 echo "  2. Desktop preview (full features):"
-echo "     cd Code-Companion/artifacts/blkspace && pnpm tauri dev"
+echo "     cd Code-Companion/artifacts/blkspace && bun run tauri:dev"
 echo ""
 echo "  3. Read FIRST_RUN.md for security tips:"
 echo "     cat BlkSpace/FIRST_RUN.md"

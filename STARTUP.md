@@ -23,7 +23,7 @@ See `INSTALL.md` for detailed platform instructions (includes Arch, Omarchy, Ubu
 
 **Prerequisites:**
 - Node.js 22+
-- pnpm
+- Bun (https://bun.sh)
 - Rust (stable)
 - Tauri CLI
 
@@ -47,14 +47,14 @@ cd BlkSpace
 
 # 2. Install dependencies
 cd Code-Companion
-pnpm install
+bun install
 
 # 3. Run web preview
-pnpm dev
+bun run dev
 
 # 4. Or run desktop preview
 cd artifacts/blkspace
-pnpm tauri dev
+bun run tauri:dev
 ```
 
 ---
@@ -75,13 +75,13 @@ pnpm tauri dev
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dev` | Web preview (fastest) |
-| `pnpm tauri dev` | Desktop preview (full features) |
-| `pnpm lint` | Check code style |
-| `pnpm typecheck` | Check TypeScript |
-| `pnpm test` | Run tests |
-| `pnpm build` | Build for production |
-| `pnpm tauri build` | Build desktop app |
+| `bun run dev` | Web preview (fastest) |
+| `bun run tauri:dev` | Desktop preview (full features) |
+| `bun run lint` | Check code style |
+| `bun run typecheck` | Check TypeScript |
+| `bun run test` | Run tests |
+| `bun run build` | Build for production |
+| `bun run tauri build` | Build desktop app |
 
 ---
 

@@ -12,7 +12,7 @@ Tier 0 is the computer you already have: a low-end or older Windows laptop with 
 
 | You need | You do **not** need |
 |----------|---------------------|
-| Windows 10 or newer | Rust, Node.js, or pnpm |
+| Windows 10 or newer | Rust, Node.js, or Bun |
 | ~500 MB free disk (app) | Git or the source code |
 | Internet (Wi‑Fi is fine) | Visual Studio or build tools |
 | 4 GB RAM minimum | Admin rights (install works without) |
@@ -21,10 +21,9 @@ Tier 0 is the computer you already have: a low-end or older Windows laptop with 
 
 ## Install in 3 steps
 
-1. **Download** the **`v0.1.0-yard`** release (or latest Yard release)  
-   - **Preferred:** [v0.1.0-yard on GitHub Releases](https://github.com/er1cbrown/BlkSpace/releases/tag/v0.1.0-yard)  
-   - Windows: **`BlkSpace-Yard-Windows-x64.msi`** (Tier 0 — no heavy mesh)  
-   - Mac: **`BlkSpace-Yard-macOS-arm64.dmg`** or **`…-x64.dmg`**  
+1. **Download** from [GitHub Releases](https://github.com/er1cbrown/BlkSpace/releases) or CI artifacts  
+   - Windows: **`BlkSpace-Yard-Windows-x64.msi`** (Tier 0 build — no heavy mesh)  
+   - Mac: **`BlkSpace-Yard-macOS.dmg`**  
    - Linux: **`BlkSpace-Yard-Linux.AppImage`**
 
 2. **Install** like any other app (double-click → Install).
@@ -61,7 +60,7 @@ BlkSpace is lighter than running the dev tools, but it still does more than Inst
 
 If the app feels stuck for more than ~30 seconds on first launch, close it once and reopen. After that, startup should be faster (the app skips repeat database migrations and loads your Yard feed first).
 
-**Developers on slow laptops:** use `pnpm tauri:dev:tier0` or `pnpm dev:tier0` — not plain `pnpm dev`. See [`docs/TIER0_DEV.md`](docs/TIER0_DEV.md).
+**Developers on slow laptops:** use `bun run tauri:dev:tier0` or `bun run dev:tier0` — not plain `bun run dev`. See [`docs/TIER0_DEV.md`](docs/TIER0_DEV.md).
 
 ---
 
@@ -79,8 +78,8 @@ If the app feels stuck for more than ~30 seconds on first launch, close it once 
 These steps are for **developers only**. They will fill your disk, freeze your laptop, and are not required to use BlkSpace:
 
 - `git clone` the repo
-- `pnpm install` / `pnpm dev`
-- `pnpm tauri build` or installing Rust
+- `bun install` / `bun run dev`
+- `bun run tauri build` or installing Rust
 - Running `setup.bat` / `setup.sh` unless you are actively contributing code
 
 If you are helping build BlkSpace, use [`docs/TIER0_DEV.md`](docs/TIER0_DEV.md) and [`INSTALL.md`](INSTALL.md) Option 2 — not this file.

@@ -7,7 +7,7 @@ Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 
 ## Dev Environment
 - Codespaces-first: `.devcontainer/devcontainer.json`
-- If local: Node 22+, pnpm, Rust stable, Tauri CLI
+- If local: Bun 1.3+, Node 22+ (optional for tools), Rust stable, Tauri CLI
 - CI: GitHub Actions (`.github/workflows/`)
 - No Docker locally (disk constraint). Use CI for builds.
 
@@ -26,8 +26,7 @@ Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 - `.github/workflows/ci.yml` — lint → typecheck → test → build (includes windows-latest)
 - `.github/workflows/release.yml` — tag-triggered releases (macOS + Linux + Windows)
 - `Code-Companion/package.json` — root workspace config
-- `Code-Companion/artifacts/blkspace/src-tauri/Cargo.toml` — Rust deps (embedded Turso replaces rusqlite)
-- `Code-Companion/artifacts/blkspace/src-tauri/src/sqlite.rs` — Turso sync facade used by `db.rs`
+- `Code-Companion/artifacts/blkspace/src-tauri/Cargo.toml` — Rust deps
 
 ## Repository Structure
 ```
@@ -53,19 +52,20 @@ BlkSpace/ (cloned root)
 │   │   └── solana/         ← Anchor programs (Phase 4)
 │   ├── lib/                ← workspace packages (api-client-react, api-spec, api-zod, db)
 │   ├── scripts/            ← utility scripts
-│   └── package.json        ← pnpm workspace root
+│   └── package.json        ← Bun workspace root
 └── .github/workflows/
     ├── ci.yml              ← lint → typecheck → test → build (push/PR)
     └── release.yml         ← build + upload (tagged releases)
 ```
 
 ## Development Rules
-1. Always run `pnpm lint` and `pnpm typecheck` before committing
-2. Keep `node_modules` and Rust `target/` off disk — use pnpm store in /tmp
+1. Always run `bun run lint` and `bun run typecheck` before committing
+2. Keep `node_modules` and Rust `target/` off disk — Bun global cache is fine
 3. Push to GitHub to trigger CI — don't build Tauri locally unless necessary
 4. Write tests for new features (Vitest for frontend, Rust tests for Tauri)
 5. Keep dependencies minimal — every byte counts on low-end machines
 6. All blockchain code goes through Anchor framework
+7. Use **Bun** only (`bun install`, `bun run …`). Do not use pnpm/npm/yarn.
 
 ## Agent Safety & Destructive Operation Guardrails
 > Bleeding-edge projects often contain untracked state the user may not think to name explicitly. Agents must protect that state.
@@ -87,15 +87,11 @@ BlkSpace/ (cloned root)
 7. **No automated deletion of files >10 MB or outside build artifacts** without explicit, item-by-item user approval.
 
 ## Windows / Low-End Machine Workflow
-- **Frontend-only dev**: `pnpm dev` (from `Code-Companion/`) starts Vite web preview. No Rust needed. Uses ~200MB.
-- **Tier 0 desktop (Turso local DB, no Iroh)**: from `artifacts/blkspace`:
-  - Dev: `pnpm tauri:dev:tier0` (cross-platform; sets `CARGO_BUILD_JOBS=1`, 8 MiB DB cache)
-  - Build: `pnpm tauri:build:tier0`
-  - Override cache: `BLKSPACE_DB_CACHE_KIB=4096` (4 MiB) if RAM is tight
+- **Frontend-only dev**: `bun run dev` (from `Code-Companion/`) starts Vite web preview. No Rust needed. Uses ~200MB.
 - **CI builds the desktop app**: Push to GitHub; `ci.yml` builds Tauri for `windows-latest`. Download artifacts.
 - **Tagged releases**: Push a `v*` tag; `release.yml` produces `.msi` installer for Windows.
-- **Local Rust build** (only if modifying Rust code): `cd artifacts/blkspace && pnpm tauri build`
-- **Low-RAM build**: `CARGO_BUILD_JOBS=1` is default for `tauri:*-tier0` scripts
+- **Local Rust build** (only if modifying Rust code): `cd artifacts/blkspace && bun run tauri build`
+- **Low-RAM build**: `$env:CARGO_BUILD_JOBS=1` before building (reduces parallelism)
 
 ## Rust Build Optimization
 - `Cargo.toml` has `iroh-blobs` (40+ crates) in default features. For Phase 0-only builds:
@@ -105,5 +101,5 @@ BlkSpace/ (cloned root)
 ## Workspace
 - Git root: `/workspaces/blkspace` (Codespaces) or `~/Desktop/BlkSpoof` (local)
 - Remote: `git@github.com:er1cbrown/BlkSpace.git`
-- All CI commands run inside `./Code-Companion/` (pnpm workspace root)
+- All CI commands run inside `./Code-Companion/` (Bun workspace root)
 - Tauri build runs in `./Code-Companion/artifacts/blkspace`

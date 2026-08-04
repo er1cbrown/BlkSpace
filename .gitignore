@@ -69,8 +69,11 @@ testem.log
 # ============================================================================
 # Package Managers
 # ============================================================================
-# pnpm-lock.yaml is tracked (deterministic installs)
-# Do NOT ignore: pnpm-lock.yaml
+# bun.lock is tracked (deterministic installs). Prefer Bun over pnpm/npm/yarn.
+# Do NOT ignore: bun.lock
+pnpm-lock.yaml
+pnpm-lock*.yaml
+.pnpm-store/
 
 # ============================================================================
 # Coverage

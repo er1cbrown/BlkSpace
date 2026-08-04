@@ -45,22 +45,23 @@ if %NODE_MAJOR% lss 22 (
 echo [OK] Node.js is installed.
 
 REM ============================================================================
-REM Step 2: Check pnpm
+REM Step 2: Check Bun
 REM ============================================================================
-echo [Step 2/6] Checking pnpm...
+echo [Step 2/6] Checking Bun...
 
-pnpm -v >nul 2>&1
+bun -v >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [INFO] Installing pnpm...
-    npm install -g pnpm
+    echo [INFO] Installing Bun...
+    powershell -c "irm bun.sh/install.ps1 | iex"
     if %errorlevel% neq 0 (
-        echo [ERROR] Failed to install pnpm. Make sure Node.js is installed correctly.
+        echo [ERROR] Failed to install Bun. See https://bun.sh
         pause
         exit /b 1
     )
+    set "PATH=%USERPROFILE%\.bunin;%PATH%"
 )
 
-echo [OK] pnpm is installed.
+echo [OK] Bun is installed.
 
 REM ============================================================================
 REM Step 3: Check Rust
@@ -127,11 +128,11 @@ if not exist "Code-Companion\package.json" (
 )
 
 cd Code-Companion
-pnpm install
+bun install
 
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to install dependencies.
-    echo [INFO] Try running: pnpm install
+    echo [INFO] Try running: bun install
     pause
     exit /b 1
 )
@@ -141,7 +142,7 @@ REM Step 6: Verify
 REM ============================================================================
 echo [Step 6/6] Verifying build...
 
-pnpm typecheck >nul 2>&1
+bun run typecheck >nul 2>&1
 if %errorlevel% neq 0 (
     echo [WARNING] TypeScript check found issues.
     echo [INFO] This is normal for development. You can still run the app.
@@ -159,11 +160,11 @@ echo Next steps:
 echo.
 echo   1. Web preview (fastest):
 echo      cd Code-Companion
-echo      pnpm dev
+echo      bun run dev
 echo.
 echo   2. Desktop preview (full features):
 echo      cd Code-Companion\artifacts\blkspace
-echo      pnpm tauri dev
+echo      bun run tauri:dev
 echo.
 echo   3. Read FIRST_RUN.md for security tips:
 echo      type BlkSpace\FIRST_RUN.md

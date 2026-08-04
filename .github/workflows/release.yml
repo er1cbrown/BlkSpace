@@ -1,29 +1,12 @@
-# Student releases: Yard (Tier 0, no Iroh) is the default on every v* tag.
-# Full mesh assets only when tag contains "full" or dispatch input include_full=true.
 name: Release
 
 on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Existing tag to rebuild (e.g. v0.1.1-yard)"
-        required: true
-        type: string
-      include_full:
-        description: "Also build Full mesh (Iroh) lab installers"
-        required: false
-        type: boolean
-        default: false
-
-permissions:
-  contents: write
 
 env:
-  PNPM_VERSION: 10
-  NODE_VERSION: 22
+  BUN_VERSION: latest
 
 jobs:
   create-release:
@@ -31,54 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create-release.outputs.upload_url }}
-      tag: ${{ steps.meta.outputs.tag }}
-      want_full: ${{ steps.meta.outputs.want_full }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
-      - id: meta
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag }}"
-            WANT_FULL="${{ inputs.include_full }}"
-          else
-            TAG="${GITHUB_REF_NAME}"
-            # Tag with "full" in the name (e.g. v0.1.0-full) attaches Full assets
-            if echo "$TAG" | grep -qi full; then
-              WANT_FULL="true"
-            else
-              WANT_FULL="false"
-            fi
-          fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "want_full=$WANT_FULL" >> "$GITHUB_OUTPUT"
       - id: create-release
         uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          draft: false
-          prerelease: ${{ contains(steps.meta.outputs.tag, 'yard') || contains(steps.meta.outputs.tag, 'alpha') || contains(steps.meta.outputs.tag, 'rc') || contains(steps.meta.outputs.tag, 'full') }}
+          draft: true
           generate_release_notes: true
-          name: BlkSpace ${{ steps.meta.outputs.tag }}
-          body: |
-            ## BlkSpace ${{ steps.meta.outputs.tag }}
-
-            **Product mark:** BlkSpace (orange capital **B**) · **Coin ticker:** BKSPC
-
-            ### Students — download **Yard** (Tier 0, default)
-            **BlkSpace-Yard-*** installers below (Windows `.msi`, macOS `.dmg`, Linux `.AppImage`).
-
-            - Install: [TIER0_USER.md](https://github.com/er1cbrown/BlkSpace/blob/main/TIER0_USER.md)
-            - First run: [FIRST_RUN.md](https://github.com/er1cbrown/BlkSpace/blob/main/FIRST_RUN.md)
-            - Web campus demo (no MSI): GitHub Pages after main deploy
-
-            ### Lab only — **Full** mesh (Iroh)
-            Only attached when this tag includes `full` or release was dispatched with Full mesh enabled.
-            Not for 4–8 GB student laptops.
+          name: BlkSpace ${{ github.ref_name }}
 
   build-yard:
     name: Release Yard (${{ matrix.os }})
@@ -86,10 +29,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            ext: msi
-            arch: x64
           - os: macos-latest
             target: aarch64-apple-darwin
             ext: dmg
@@ -102,18 +41,17 @@ jobs:
             target: x86_64-unknown-linux-gnu
             ext: appimage
             arch: x64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            ext: msi
+            arch: x64
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
+          bun-version: ${{ env.BUN_VERSION }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -129,11 +67,11 @@ jobs:
             patchelf \
             libssl-dev \
             libsecret-1-dev
-      - run: pnpm install --frozen-lockfile
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - run: pnpm build:tier0
+      - run: bun run build:tier0
         working-directory: ./Code-Companion/artifacts/blkspace
-      - run: pnpm tauri build --target ${{ matrix.target }} -- --no-default-features
+      - run: bun run tauri build --target ${{ matrix.target }} -- --no-default-features
         working-directory: ./Code-Companion/artifacts/blkspace
       - name: Package Yard artifact
         shell: bash
@@ -148,20 +86,25 @@ jobs:
           fi
       - name: Upload Yard artifact
         uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
             Code-Companion/artifacts/blkspace/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.ext }}/BlkSpace-Yard-*
-          tag_name: ${{ needs.create-release.outputs.tag }}
+          tag_name: ${{ github.ref_name }}
 
   build-full:
     name: Release Full (${{ matrix.os }})
     needs: create-release
-    if: needs.create-release.outputs.want_full == 'true'
     strategy:
       matrix:
         include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            ext: dmg
+            arch: arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            ext: dmg
+            arch: x64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             ext: appimage
@@ -170,22 +113,13 @@ jobs:
             target: x86_64-pc-windows-msvc
             ext: msi
             arch: x64
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            ext: dmg
-            arch: arm64
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
+          bun-version: ${{ env.BUN_VERSION }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -201,11 +135,11 @@ jobs:
             patchelf \
             libssl-dev \
             libsecret-1-dev
-      - run: pnpm install --frozen-lockfile
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - run: pnpm build:full
+      - run: bun run build:full
         working-directory: ./Code-Companion/artifacts/blkspace
-      - run: pnpm tauri build --target ${{ matrix.target }}
+      - run: bun run tauri build --target ${{ matrix.target }}
         working-directory: ./Code-Companion/artifacts/blkspace
       - name: Package Full artifact
         shell: bash
@@ -220,9 +154,7 @@ jobs:
           fi
       - name: Upload Full artifact
         uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
             Code-Companion/artifacts/blkspace/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.ext }}/BlkSpace-Full-*
-          tag_name: ${{ needs.create-release.outputs.tag }}
+          tag_name: ${{ github.ref_name }}

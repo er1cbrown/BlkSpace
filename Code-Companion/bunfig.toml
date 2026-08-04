@@ -1,0 +1,10 @@
+# Bun config for BlkSpace (Code-Companion monorepo)
+# https://bun.sh/docs/runtime/bunfig
+
+[install]
+# Prefer linking workspace packages correctly
+linker = "hoisted"
+# Install optional dependencies (platform-specific natives)
+optional = true
+# Do not auto-install missing packages at runtime
+auto = false

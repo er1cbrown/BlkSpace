@@ -1,37 +1,38 @@
 .PHONY: dev build lint typecheck test format clean setup ci
 
-# The pnpm workspace root is ./Code-Companion; all node/pnpm commands run from there.
+# The Bun workspace root is ./Code-Companion; all bun commands run from there.
 CC := Code-Companion
+export PATH := $(HOME)/.bun/bin:$(PATH)
 
 dev:
-	cd $(CC) && pnpm tauri dev
+	cd $(CC) && bun run --filter @workspace/blkspace tauri:dev
 
 dev-web:
-	cd $(CC) && pnpm dev
+	cd $(CC) && bun run dev
 
 build:
-	cd $(CC) && pnpm build
+	cd $(CC) && bun run build
 
 build-tauri:
-	cd $(CC)/artifacts/blkspace && pnpm tauri build
+	cd $(CC)/artifacts/blkspace && bun run tauri build
 
 lint:
-	cd $(CC) && pnpm lint
+	cd $(CC) && bun run lint
 
 typecheck:
-	cd $(CC) && pnpm typecheck
+	cd $(CC) && bun run typecheck
 
 test:
-	cd $(CC) && pnpm test
+	cd $(CC) && bun run test
 
 test-watch:
-	cd $(CC) && pnpm test -- --watch
+	cd $(CC)/artifacts/blkspace && bun run test -- --watch
 
 format:
-	cd $(CC) && pnpm format
+	cd $(CC) && bun run format
 
 format-check:
-	cd $(CC) && pnpm format:check
+	cd $(CC) && bun run format:check
 
 clean:
 	rm -rf $(CC)/artifacts/*/dist $(CC)/artifacts/*/node_modules
@@ -39,7 +40,7 @@ clean:
 	rm -rf $(CC)/node_modules $(CC)/lib/*/node_modules $(CC)/lib/*/dist
 
 setup:
-	cd $(CC) && pnpm install
+	cd $(CC) && bun install
 	cargo install tauri-cli --version "^2"
 
 ci: lint typecheck test build

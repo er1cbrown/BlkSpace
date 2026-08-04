@@ -1,5 +1,3 @@
-# Default student CI: web + Yard (Tier 0, no Iroh).
-# Full mesh / Iroh: see ci-full-lab.yml (manual / lab only).
 name: CI
 
 on:
@@ -21,8 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PNPM_VERSION: 10
-  NODE_VERSION: 22
+  BUN_VERSION: latest
   RUST_TOOLCHAIN: stable
   PORT: "24442"
   BASE_PATH: /
@@ -33,19 +30,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - run: pnpm lint
+      - run: bun run lint
         working-directory: ./Code-Companion
-      - run: pnpm format:check
+      - run: bun run format:check
         working-directory: ./Code-Companion
 
   typecheck:
@@ -53,17 +45,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - run: pnpm typecheck
+      - run: bun run typecheck
         working-directory: ./Code-Companion
 
   test:
@@ -71,17 +58,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - run: pnpm test
+      - run: bun run test
         working-directory: ./Code-Companion
 
   test-tauri-rust:
@@ -99,23 +81,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
+          bun-version: ${{ env.BUN_VERSION }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install Solana CLI
         run: |
           sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-      - run: pnpm install --frozen-lockfile
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - run: pnpm --filter @workspace/solana run test:anchor
+      - run: bun run --filter @workspace/solana test:anchor
         working-directory: ./Code-Companion
 
   test-nostr-relay:
@@ -133,17 +110,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - run: pnpm check:bundle:tier0
+      - run: bun run check:bundle:tier0
         working-directory: ./Code-Companion/artifacts/blkspace
         env:
           PORT: "24442"
@@ -154,17 +126,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - run: pnpm build
+      - run: bun run build
         working-directory: ./Code-Companion
 
   e2e:
@@ -172,21 +139,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - run: pnpm --filter @workspace/blkspace run build
+      - run: bun run --filter @workspace/blkspace build
         working-directory: ./Code-Companion
-      - run: pnpm --filter @workspace/blkspace run e2e:install
+      - run: bun run --filter @workspace/blkspace e2e:install
         working-directory: ./Code-Companion
-      - run: pnpm --filter @workspace/blkspace run e2e:browser
+      - run: bun run --filter @workspace/blkspace e2e:browser
         working-directory: ./Code-Companion
 
   e2e-tauri:
@@ -194,14 +156,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
+          bun-version: ${{ env.BUN_VERSION }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install system deps (Linux)
@@ -215,11 +172,11 @@ jobs:
             libssl-dev \
             libsecret-1-dev \
             xvfb
-      - run: pnpm install --frozen-lockfile
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - run: pnpm --filter @workspace/blkspace run e2e:install
+      - run: bun run --filter @workspace/blkspace e2e:install
         working-directory: ./Code-Companion
-      - run: pnpm --filter @workspace/blkspace run e2e:tauri
+      - run: bun run --filter @workspace/blkspace e2e:tauri
         working-directory: ./Code-Companion
       - name: Upload Playwright report
         if: always()
@@ -229,25 +186,18 @@ jobs:
           path: Code-Companion/artifacts/blkspace/playwright-report/
           retention-days: 7
 
-  # Student default: Tier 0 Yard (no Iroh). Full mesh lives in ci-full-lab.yml.
-  build-tauri-yard:
-    name: Build (BlkSpace Yard - ${{ matrix.os }})
+  build-tauri-full:
+    name: Build (BlkSpace Full - ${{ matrix.os }})
     strategy:
       matrix:
-        # Windows first — primary student platform for campus beta
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [macos-latest, ubuntu-latest, windows-latest]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
+          bun-version: ${{ env.BUN_VERSION }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install system deps (Linux)
@@ -261,11 +211,74 @@ jobs:
             patchelf \
             libssl-dev \
             libsecret-1-dev
-      - run: pnpm install --frozen-lockfile
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - run: pnpm build:tier0
+      - run: bun run build:full
         working-directory: ./Code-Companion/artifacts/blkspace
-      - run: pnpm tauri build -- --no-default-features
+      - run: bun run tauri build
+        working-directory: ./Code-Companion/artifacts/blkspace
+      - name: Rename Full installers
+        shell: bash
+        run: |
+          BUNDLE="Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle"
+          if [ -d "$BUNDLE/msi" ]; then
+            shopt -s nullglob
+            for f in "$BUNDLE/msi"/*.msi; do
+              cp "$f" "$BUNDLE/msi/BlkSpace-Full-Windows-x64.msi"
+            done
+          fi
+          if [ -d "$BUNDLE/dmg" ]; then
+            shopt -s nullglob
+            for f in "$BUNDLE/dmg"/*.dmg; do
+              cp "$f" "$BUNDLE/dmg/BlkSpace-Full-macOS.dmg"
+            done
+          fi
+          if [ -d "$BUNDLE/appimage" ]; then
+            shopt -s nullglob
+            for f in "$BUNDLE/appimage"/*.AppImage; do
+              cp "$f" "$BUNDLE/appimage/BlkSpace-Full-Linux.AppImage"
+            done
+          fi
+      - name: Upload BlkSpace Full artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlkSpace-Full-${{ matrix.os }}
+          path: |
+            Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/msi/BlkSpace-Full-Windows-x64.msi
+            Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/dmg/BlkSpace-Full-macOS.dmg
+            Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/appimage/BlkSpace-Full-Linux.AppImage
+          if-no-files-found: error
+
+  build-tauri-yard:
+    name: Build (BlkSpace Yard - ${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install system deps (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libsecret-1-dev
+      - run: bun install --frozen-lockfile
+        working-directory: ./Code-Companion
+      - run: bun run build:tier0
+        working-directory: ./Code-Companion/artifacts/blkspace
+      - run: bun run tauri build -- --no-default-features
         working-directory: ./Code-Companion/artifacts/blkspace
       - name: Rename Yard installers
         shell: bash
@@ -298,3 +311,30 @@ jobs:
             Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/dmg/BlkSpace-Yard-macOS.dmg
             Code-Companion/artifacts/blkspace/src-tauri/target/release/bundle/appimage/BlkSpace-Yard-Linux.AppImage
           if-no-files-found: error
+
+  build-tauri-iroh:
+    name: Build (Tauri + Iroh - Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install system deps (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libsecret-1-dev
+      - run: bun install --frozen-lockfile
+        working-directory: ./Code-Companion
+      - run: bun run --filter @workspace/blkspace test:iroh
+        working-directory: ./Code-Companion
+      - run: bun run tauri build -- --features iroh
+        working-directory: ./Code-Companion/artifacts/blkspace
