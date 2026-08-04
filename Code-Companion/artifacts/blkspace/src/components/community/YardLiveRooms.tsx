@@ -62,8 +62,14 @@ export function YardLiveRooms({
   const refresh = () => setTick((t) => t + 1);
 
   const create = () => {
-    if (kind === "external" && externalUrl && !isSafeExternalLiveUrl(externalUrl)) {
-      toast.error("Use https Discord / Zoom / YouTube / Twitch / Meet / .edu link");
+    if (
+      kind === "external" &&
+      externalUrl &&
+      !isSafeExternalLiveUrl(externalUrl)
+    ) {
+      toast.error(
+        "Use https Discord / Zoom / YouTube / Twitch / Meet / .edu link",
+      );
       return;
     }
     const room = createLiveRoom({
@@ -139,7 +145,9 @@ export function YardLiveRooms({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="stage">Stage (video + screen)</SelectItem>
-                  <SelectItem value="voice">Voice (Jitsi audio-first)</SelectItem>
+                  <SelectItem value="voice">
+                    Voice (Jitsi audio-first)
+                  </SelectItem>
                   <SelectItem value="external">
                     External (Discord / Zoom / YT)
                   </SelectItem>
@@ -193,7 +201,10 @@ export function YardLiveRooms({
                   <div>
                     <p className="font-medium text-sm truncate">{room.title}</p>
                     <div className="flex flex-wrap gap-1.5 mt-1">
-                      <Badge variant="outline" className="text-[10px] capitalize">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] capitalize"
+                      >
                         {room.kind}
                       </Badge>
                       <Badge variant="secondary" className="text-[10px] gap-1">

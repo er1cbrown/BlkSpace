@@ -76,7 +76,7 @@ BlkSpoof/
 │   └── implementation/    # Integration test plans
 ├── tools/                 # Build & development scripts
 ├── weixinfo/              # 98 research notes (read-only archive)
-└── Code-Companion/        # Code (pnpm monorepo)
+└── Code-Companion/        # Code (bun run monorepo)
     ├── artifacts/
     │   ├── blkspace/      # Main Tauri app
     │   ├── api-server/    # Mock API server
@@ -89,9 +89,9 @@ BlkSpoof/
     │   └── db/            # Drizzle ORM
     ├── scripts/           # Build scripts
     ├── package.json       # Root workspace config
-    ├── pnpm-workspace.yaml # Workspace definition
+    ├── Bun workspace.yaml # Workspace definition
     ├── tsconfig.base.json  # TypeScript base
-    └── pnpm-lock.yaml     # Dependency lock
+    └── bun.lock     # Dependency lock
 ```
 
 ### 2.2 Code-Companion: Main Application
@@ -261,23 +261,23 @@ artifacts/blkspace/
 ```bash
 # Setup
 cd Code-Companion
-pnpm install
+bun install
 
 # Development
-pnpm dev                    # Web preview
-pnpm tauri dev             # Desktop preview
+bun run dev                    # Web preview
+bun run tauri dev             # Desktop preview
 
 # Quality
-pnpm lint                  # ESLint
-pnpm typecheck             # TypeScript (passes ✅)
-pnpm format               # Prettier
+bun run lint                  # ESLint
+bun run typecheck             # TypeScript (passes ✅)
+bun run format               # Prettier
 
 # Production
-pnpm build                 # Web production
-pnpm tauri build          # Desktop release
+bun run build                 # Web production
+bun run tauri build          # Desktop release
 
 # Full CI simulation
-pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" run typecheck
+bun run typecheck:libs && Bun -r --filter "./artifacts/**" --filter "./scripts" run typecheck
 ```
 
 ### 6.2 CI/CD Pipeline

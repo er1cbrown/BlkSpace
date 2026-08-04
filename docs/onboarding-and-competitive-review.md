@@ -34,7 +34,7 @@
 
 ### 1.3 `docs/TIER0_DEV.md` — `d859750`
 
-**Why it's useful:** It documents the real dev bottleneck (cold-cache toolchain + Iroh crate bloat on 8 GB) and the workaround (slim Iroh locally, `CARGO_BUILD_JOBS=2`, scoped typecheck, push heavy builds to CI). It also confirms `pnpm tauri:build:no-iroh` exists in `package.json`, so the "build without Iroh locally" path is real, not aspirational. This is the doc a new contributor on a weak laptop needs on day one.
+**Why it's useful:** It documents the real dev bottleneck (cold-cache toolchain + Iroh crate bloat on 8 GB) and the workaround (slim Iroh locally, `CARGO_BUILD_JOBS=2`, scoped typecheck, push heavy builds to CI). It also confirms `bun run tauri:build:no-iroh` exists in `package.json`, so the "build without Iroh locally" path is real, not aspirational. This is the doc a new contributor on a weak laptop needs on day one.
 
 ---
 
@@ -55,8 +55,8 @@ GitHub → run web version → create account / login
 |------|--------|----------|
 | New user finds app on GitHub | ⚠️ Partial | Repo is public; `INSTALL.md`/`STARTUP.md` point to Releases. But **no `v*` tag has been pushed** and `release.yml` creates **draft** releases, so there are currently **no downloadable installer files**. `gh` confirms no published releases. |
 | Downloads installer files | ❌ Not yet | `release.yml` builds `.msi` (Windows), `.dmg` (Mac arm+intel), `.AppImage` (Linux) on a `v*` tag — but only as a **draft** the maintainer must publish. |
-| Runs a **hosted web version** | ❌ Does not exist | No web deploy workflow (only `ci.yml` + `release.yml`). `weixblack.net` is mentioned in `AGENTS.md` but nothing hosts it. The only "web version" is `pnpm dev` (localhost:24442), which requires Node 22 + pnpm — not an end-user path. |
-| Runs local web preview (dev) | ✅ Works | `pnpm dev` from `Code-Companion/`. Mock fallback for non-Tauri. Guest mode + account creation both work here. |
+| Runs a **hosted web version** | ❌ Does not exist | No web deploy workflow (only `ci.yml` + `release.yml`). `weixblack.net` is mentioned in `AGENTS.md` but nothing hosts it. The only "web version" is `bun run dev` (localhost:24442), which requires Bun 1.3+ — not an end-user path. |
+| Runs local web preview (dev) | ✅ Works | `bun run dev` from `Code-Companion/`. Mock fallback for non-Tauri. Guest mode + account creation both work here. |
 | Creates account / logs in | ✅ Works | Welcome wizard (5 steps) or `/login` or `/recover`. Non-Tauri path returns a fake session token so web preview works. |
 | **Browses as guest** (new) | ✅ Works | "Just browse the yard as a guest" on Welcome step 0 → read-only `/feed`. |
 | Connects wallet | 🟡 Partial | Wallet page exists with Solana/Anchor stubs (`useAppWithdrawToSolana`, `@coral-xyz/anchor`). On-chain BlkCoin is Phase 4 — not live. "Connect wallet" today means having a Nostr identity, not a Solana wallet. |
@@ -68,7 +68,7 @@ GitHub → run web version → create account / login
 
 > **There is no hosted web version a non-technical user can visit.** The only end-user path today is "download the desktop installer" — and the installer doesn't exist yet because no release has been published.
 
-The guest-mode work is the right *foundation* for a hosted web tier, but the **hosting step is missing**. Right now "run it on web version" = `pnpm dev` for developers only.
+The guest-mode work is the right *foundation* for a hosted web tier, but the **hosting step is missing**. Right now "run it on web version" = `bun run dev` for developers only.
 
 ### 2.4 Recommended fix (the minimal viable onboarding ladder)
 

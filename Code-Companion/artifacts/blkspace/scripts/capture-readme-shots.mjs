@@ -1,6 +1,6 @@
 /**
  * Capture live UI screenshots for the GitHub README.
- * Prerequisite: `pnpm dev` (or Vite) on http://127.0.0.1:24442
+ * Prerequisite: `bun run dev` (or Vite) on http://127.0.0.1:24442
  *
  *   node scripts/capture-readme-shots.mjs
  */

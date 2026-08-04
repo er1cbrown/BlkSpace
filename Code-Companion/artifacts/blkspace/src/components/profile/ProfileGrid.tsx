@@ -34,8 +34,8 @@ export function ProfileGrid({ posts, blobs = [], handle }: ProfileGridProps) {
   if (cells.length === 0) {
     return (
       <div className="text-center py-16 border border-dashed rounded-2xl text-muted-foreground text-sm">
-        <Grid3X3 className="h-8 w-8 mx-auto mb-2 opacity-40" />
-        @{handle} hasn't posted media yet. Uploads appear here — not on a separate tab.
+        <Grid3X3 className="h-8 w-8 mx-auto mb-2 opacity-40" />@{handle} hasn't
+        posted media yet. Uploads appear here — not on a separate tab.
       </div>
     );
   }
@@ -48,10 +48,16 @@ export function ProfileGrid({ posts, blobs = [], handle }: ProfileGridProps) {
             <Link key={`p-${cell.id}`} href={`/posts/${cell.id}`}>
               <div className="aspect-square bg-muted relative overflow-hidden group cursor-pointer">
                 {cell.hash ? (
-                  <MediaDisplay hashes={[cell.hash]} className="w-full h-full object-cover" />
+                  <MediaDisplay
+                    hashes={[cell.hash]}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   <div className="p-2 text-xs">
-                    <SafeContent text={cell.preview ?? ""} className="line-clamp-6" />
+                    <SafeContent
+                      text={cell.preview ?? ""}
+                      className="line-clamp-6"
+                    />
                   </div>
                 )}
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -63,8 +69,14 @@ export function ProfileGrid({ posts, blobs = [], handle }: ProfileGridProps) {
         }
         const isVideo = cell.mime.startsWith("video/");
         return (
-          <div key={`b-${cell.hash}`} className="aspect-square bg-muted relative overflow-hidden">
-            <MediaDisplay hashes={[cell.hash]} className="w-full h-full object-cover" />
+          <div
+            key={`b-${cell.hash}`}
+            className="aspect-square bg-muted relative overflow-hidden"
+          >
+            <MediaDisplay
+              hashes={[cell.hash]}
+              className="w-full h-full object-cover"
+            />
             <div className="absolute bottom-1 right-1">
               {isVideo ? (
                 <Film className="h-4 w-4 text-white drop-shadow" />

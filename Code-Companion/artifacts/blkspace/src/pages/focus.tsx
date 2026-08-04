@@ -53,7 +53,9 @@ export default function FocusPage() {
   const handle = getCurrentHandle() || "demo_user";
   const qc = useQueryClient();
   const [prefs, setPrefs] = useState<FocusPrefs>(() => loadFocusPrefs());
-  const [budgetEdit, setBudgetEdit] = useState(String(prefs.weeklyMinutesBudget));
+  const [budgetEdit, setBudgetEdit] = useState(
+    String(prefs.weeklyMinutesBudget),
+  );
 
   const { data: opps = [] } = useQuery({
     queryKey: ["connect", "opps", "focus"],
@@ -67,7 +69,9 @@ export default function FocusPage() {
   const studyItems = useMemo(() => {
     const all = listHubItems("all");
     return all
-      .filter((i) => i.topic === "med" || i.topic === "study" || i.topic === "pro")
+      .filter(
+        (i) => i.topic === "med" || i.topic === "study" || i.topic === "pro",
+      )
       .slice(0, 8);
   }, [prefs.studyOnlyFeed]);
 
@@ -83,7 +87,8 @@ export default function FocusPage() {
         const t = `${o.title} ${o.orgName} ${o.description}`.toLowerCase();
         let s = 0;
         if (t.includes("meharry")) s += 5;
-        if (t.includes("med") || t.includes("clinical") || t.includes("health")) s += 3;
+        if (t.includes("med") || t.includes("clinical") || t.includes("health"))
+          s += 3;
         if (o.orgType === "research") s += 2;
         if (isLowBandwidthOpp(o)) s += 2;
         return s;
@@ -99,7 +104,8 @@ export default function FocusPage() {
         opportunityId,
         message:
           "Low-bandwidth interest from Focus Path — med/rotations-aware. Prefer async or micro-hours.",
-        skillsSnapshot: "med student · underrepresented network · Meharry-aware",
+        skillsSnapshot:
+          "med student · underrepresented network · Meharry-aware",
         classification: "graduate",
         gpa: "",
         gpaShared: false,
@@ -149,7 +155,8 @@ export default function FocusPage() {
             <Badge variant="secondary">Yard · {prefs.yardId}</Badge>
             {cred && (
               <Badge variant="secondary">
-                Cred · <span className="text-primary font-bold">{cred.score}</span>
+                Cred ·{" "}
+                <span className="text-primary font-bold">{cred.score}</span>
               </Badge>
             )}
           </div>
@@ -166,15 +173,17 @@ export default function FocusPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Soft BlkSpace minutes</span>
+                <span className="text-muted-foreground">
+                  Soft BlkSpace minutes
+                </span>
                 <span className="font-medium tabular-nums">
                   {prefs.weeklyMinutesUsed} / {prefs.weeklyMinutesBudget} min
                 </span>
               </div>
               <Progress value={pct} className="h-2" />
               <p className="text-xs text-muted-foreground">
-                {remaining} min left in your intentional budget. Protect rotations —
-                log sessions when you show up here on purpose.
+                {remaining} min left in your intentional budget. Protect
+                rotations — log sessions when you show up here on purpose.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -236,8 +245,8 @@ export default function FocusPage() {
                 Underrepresented communities deserve{" "}
                 <strong className="text-foreground">economics education</strong>{" "}
                 that respects the Black dollar, soft campus credits (
-                {BRAND.softCurrency}), and optional coin rights (
-                {BRAND.symbol}) — without forcing you to day-trade during boards.
+                {BRAND.softCurrency}), and optional coin rights ({BRAND.symbol})
+                — without forcing you to day-trade during boards.
               </p>
               <ul className="space-y-2">
                 {LITERACY_PRINCIPLES.slice(0, 3).map((p) => (
@@ -245,7 +254,9 @@ export default function FocusPage() {
                     key={p.title}
                     className="border-l-2 border-primary/30 pl-2"
                   >
-                    <span className="font-medium text-foreground">{p.title}.</span>{" "}
+                    <span className="font-medium text-foreground">
+                      {p.title}.
+                    </span>{" "}
                     {p.body}
                   </li>
                 ))}
@@ -370,8 +381,8 @@ export default function FocusPage() {
             ))}
             {studyItems.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No med/study Hub cards yet — publish one when you have energy, or
-                seed will appear on first Hub visit.
+                No med/study Hub cards yet — publish one when you have energy,
+                or seed will appear on first Hub visit.
               </p>
             )}
           </div>
@@ -401,7 +412,10 @@ export default function FocusPage() {
                 <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
                   <div className="space-y-1 min-w-0">
                     <div className="flex flex-wrap gap-1.5 items-center">
-                      <Badge variant="outline" className="text-[10px] capitalize">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] capitalize"
+                      >
                         {opp.orgType}
                       </Badge>
                       {isLowBandwidthOpp(opp) && (
@@ -413,7 +427,9 @@ export default function FocusPage() {
                         {opp.orgName}
                       </span>
                     </div>
-                    <p className="text-sm font-medium leading-snug">{opp.title}</p>
+                    <p className="text-sm font-medium leading-snug">
+                      {opp.title}
+                    </p>
                     <p className="text-xs text-muted-foreground line-clamp-2">
                       {opp.description}
                     </p>
@@ -459,11 +475,13 @@ export default function FocusPage() {
               What this is not
             </p>
             <p>
-              Not a replacement for rotations, Anki, or official Meharry systems.
-              Not financial advice. {BRAND.symbol} is gated settlement literacy —
-              soft {BRAND.softCurrencySymbol} teaches habits first. You stay
-              efficient by using Focus Path as a{" "}
-              <strong className="text-foreground">timer + filter + Connect rail</strong>
+              Not a replacement for rotations, Anki, or official Meharry
+              systems. Not financial advice. {BRAND.symbol} is gated settlement
+              literacy — soft {BRAND.softCurrencySymbol} teaches habits first.
+              You stay efficient by using Focus Path as a{" "}
+              <strong className="text-foreground">
+                timer + filter + Connect rail
+              </strong>
               , not a second full-time job.
             </p>
           </CardContent>

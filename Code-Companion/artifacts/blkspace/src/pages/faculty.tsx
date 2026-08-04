@@ -41,7 +41,7 @@ import { getCurrentHandle } from "@/lib/auth";
 import { useGuestMode } from "@/lib/guest-mode";
 import { BRAND } from "@/lib/brand";
 import { getYardTheme } from "@/lib/yard-themes";
-import { FEATURED_YARD_IDS } from "@/lib/hbcu-catalog";
+import { FEATURED_YARD_IDS, isFeaturedYardId } from "@/lib/hbcu-catalog";
 import { allTownOptions } from "@/lib/towns";
 import {
   ArrowRight,
@@ -168,7 +168,8 @@ export default function FacultyPage() {
       let orgId = myOrgs[0]?.id;
       if (!orgId) {
         const org = await createOrg({
-          name: orgName.trim() || `${prefs.institution.split("(")[0].trim()} Lab`,
+          name:
+            orgName.trim() || `${prefs.institution.split("(")[0].trim()} Lab`,
           orgType: "research",
           yardId: prefs.targetYardId || "meharry",
           description: `Faculty-led opportunities from ${prefs.institution} for underrepresented campus talent (Meharry / HBCU pipeline). ProjectConnect on ${BRAND.name}.`,
@@ -197,12 +198,11 @@ export default function FacultyPage() {
           await broadcastOpportunityToYard(opp.id);
           broadcastNote = " · broadcast to yard";
         } catch {
-          broadcastNote = " · post live (broadcast skipped — open opp to retry)";
+          broadcastNote =
+            " · post live (broadcast skipped — open opp to retry)";
         }
       }
-      toast.success(
-        `Opportunity live · Lead inbox ready${broadcastNote}`,
-      );
+      toast.success(`Opportunity live · Lead inbox ready${broadcastNote}`);
       setOppTitle("");
       setOppDesc("");
       setShowQuickOpp(false);
@@ -229,16 +229,18 @@ export default function FacultyPage() {
           </h1>
           <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
             Word reached private-university faculty from{" "}
-            <strong className="text-foreground">Meharry</strong> on{" "}
-            {BRAND.name} — decentralized amalgamation social (feed + yards +
-            Connect + soft economy). You want LinkedIn / Handshake / Discord /
-            Workday-lite presence without abandoning underrepresented community.
-            Post opportunities, review interest, build Cred — provide pipeline,
-            reap partnership legitimacy.
+            <strong className="text-foreground">Meharry</strong> on {BRAND.name}{" "}
+            — decentralized amalgamation social (feed + yards + Connect + soft
+            economy). You want LinkedIn / Handshake / Discord / Workday-lite
+            presence without abandoning underrepresented community. Post
+            opportunities, review interest, build Cred — provide pipeline, reap
+            partnership legitimacy.
           </p>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{prefs.institution}</Badge>
-            <Badge variant="secondary">Target yard · {prefs.targetYardId}</Badge>
+            <Badge variant="secondary">
+              Target yard · {prefs.targetYardId}
+            </Badge>
             <Badge variant="secondary">
               Inbox · {Array.isArray(inbox) ? inbox.length : 0} leads
             </Badge>
@@ -289,7 +291,8 @@ export default function FacultyPage() {
               <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
                 {IEEE_ETHICS_PRINCIPLES.slice(0, 4).map((p) => (
                   <li key={p.id}>
-                    <strong className="text-foreground">{p.title}:</strong> {p.body}
+                    <strong className="text-foreground">{p.title}:</strong>{" "}
+                    {p.body}
                   </li>
                 ))}
               </ul>
@@ -334,9 +337,10 @@ export default function FacultyPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="text-xs text-muted-foreground">
-                Org leads whose lab targets a yard (e.g. Meharry) can host events
-                there — you are part of the organization layer via ProjectConnect,
-                not only “random visitor.” Still no PHI in descriptions.
+                Org leads whose lab targets a yard (e.g. Meharry) can host
+                events there — you are part of the organization layer via
+                ProjectConnect, not only “random visitor.” Still no PHI in
+                descriptions.
               </p>
               <Input
                 placeholder="Title — e.g. Faculty office hours · research pipeline"
@@ -376,9 +380,8 @@ export default function FacultyPage() {
                     const desc = embedAmalgamationMeta(evDesc, {
                       liveUrl: evLive.trim() || undefined,
                     });
-                    const startsAt = evStart.length === 16
-                      ? `${evStart}:00`
-                      : evStart;
+                    const startsAt =
+                      evStart.length === 16 ? `${evStart}:00` : evStart;
                     await createYardEvent({
                       communityId: yard,
                       title: evTitle.trim(),
@@ -417,11 +420,15 @@ export default function FacultyPage() {
         {/* Time budget */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Community minutes (this week)</CardTitle>
+            <CardTitle className="text-sm">
+              Community minutes (this week)
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Soft engagement budget</span>
+              <span className="text-muted-foreground">
+                Soft engagement budget
+              </span>
               <span className="tabular-nums font-medium">
                 {prefs.weeklyMinutesUsed} / {prefs.weeklyMinutesBudget} min
               </span>
@@ -450,7 +457,7 @@ export default function FacultyPage() {
                     </option>
                   ))}
                   {allTownOptions()
-                    .filter((t) => !FEATURED_YARD_IDS.includes(t.id))
+                    .filter((t) => !isFeaturedYardId(t.id))
                     .map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.label}
@@ -622,7 +629,8 @@ export default function FacultyPage() {
                   <CardContent className="p-3">
                     <p className="text-sm font-medium">{o.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {o.orgName} · {o.durationText} · {o.interestCount} interested
+                      {o.orgName} · {o.durationText} · {o.interestCount}{" "}
+                      interested
                     </p>
                   </CardContent>
                 </Card>
@@ -667,7 +675,8 @@ export default function FacultyPage() {
             ))}
             {(!openResearch || openResearch.length === 0) && (
               <p className="text-sm text-muted-foreground col-span-2">
-                No open-research flags yet. Students enable them on Profile → Pro.
+                No open-research flags yet. Students enable them on Profile →
+                Pro.
               </p>
             )}
           </div>
@@ -679,8 +688,8 @@ export default function FacultyPage() {
               <Building2 className="w-4 h-4" /> Honest scope
             </p>
             <p>
-              Not Workday payroll, not full Indeed ATS, not Slack Enterprise. You
-              get discovery + community presence + interest graph on a
+              Not Workday payroll, not full Indeed ATS, not Slack Enterprise.
+              You get discovery + community presence + interest graph on a
               decentralized campus amalgamation where underrepresented students
               already gather (Meharry yard, HBCU yards, Focus Path).
             </p>

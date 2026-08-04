@@ -1,9 +1,4 @@
-import {
-  readFileSync,
-  writeFileSync,
-  existsSync,
-  mkdirSync,
-} from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -68,7 +63,7 @@ export function requireTreasuryManifest(): TreasuryManifest {
   const manifest = loadTreasuryManifest();
   if (!manifest) {
     throw new Error(
-      "Treasury manifest missing. Run: pnpm --filter @workspace/solana run init-treasury-devnet",
+      "Treasury manifest missing. Run: bun run --filter @workspace/solana init-treasury-devnet",
     );
   }
   return manifest;

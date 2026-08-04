@@ -62,7 +62,10 @@ export function WatchFeed({ posts, authorKarma = {}, onLike }: WatchFeedProps) {
             >
               <div className="absolute inset-0 flex items-center justify-center p-4">
                 {post.mediaBlobs?.length > 0 ? (
-                  <MediaDisplay hashes={post.mediaBlobs} className="max-h-full max-w-full rounded-xl" />
+                  <MediaDisplay
+                    hashes={post.mediaBlobs}
+                    className="max-h-full max-w-full rounded-xl"
+                  />
                 ) : (
                   <SafeContent
                     text={post.content}
@@ -89,9 +92,14 @@ export function WatchFeed({ posts, authorKarma = {}, onLike }: WatchFeedProps) {
                         nostrEventId={post.nostrEventId}
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">{post.townTag} yard</p>
+                    <p className="text-xs text-muted-foreground">
+                      {post.townTag} yard
+                    </p>
                     {post.mediaBlobs?.length === 0 && (
-                      <SafeContent text={post.content} className="text-sm mt-1 line-clamp-2" />
+                      <SafeContent
+                        text={post.content}
+                        className="text-sm mt-1 line-clamp-2"
+                      />
                     )}
                   </div>
                   {karma && (
@@ -111,15 +119,27 @@ export function WatchFeed({ posts, authorKarma = {}, onLike }: WatchFeedProps) {
                   className="rounded-full bg-background/60"
                   onClick={() => onLike?.(post.id)}
                 >
-                  <Heart className={`h-5 w-5 ${post.liked ? "fill-destructive text-destructive" : ""}`} />
+                  <Heart
+                    className={`h-5 w-5 ${post.liked ? "fill-destructive text-destructive" : ""}`}
+                  />
                 </Button>
-                <span className="text-[10px] text-center">{post.likesCount}</span>
+                <span className="text-[10px] text-center">
+                  {post.likesCount}
+                </span>
                 <Link href={`/posts/${post.id}`}>
-                  <Button variant="ghost" size="icon" className="rounded-full bg-background/60">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full bg-background/60"
+                  >
                     <MessageSquare className="h-5 w-5" />
                   </Button>
                 </Link>
-                <Button variant="ghost" size="icon" className="rounded-full bg-background/60">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full bg-background/60"
+                >
                   <Share2 className="h-5 w-5" />
                 </Button>
               </div>
@@ -134,7 +154,11 @@ export function WatchFeed({ posts, authorKarma = {}, onLike }: WatchFeedProps) {
         className="absolute top-3 right-3 z-30 rounded-full bg-background/70"
         onClick={() => setMuted(!muted)}
       >
-        {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        {muted ? (
+          <VolumeX className="h-4 w-4" />
+        ) : (
+          <Volume2 className="h-4 w-4" />
+        )}
       </Button>
 
       <div className="flex justify-center gap-1 mt-2">

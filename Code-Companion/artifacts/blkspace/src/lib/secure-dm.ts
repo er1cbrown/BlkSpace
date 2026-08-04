@@ -49,10 +49,13 @@ function load(): Store {
 }
 
 function save(s: Store) {
-  localStorage.setItem(STORE, JSON.stringify({
-    messages: s.messages.slice(0, 500),
-    nextId: s.nextId,
-  }));
+  localStorage.setItem(
+    STORE,
+    JSON.stringify({
+      messages: s.messages.slice(0, 500),
+      nextId: s.nextId,
+    }),
+  );
 }
 
 function loadBlocks(): string[] {
@@ -68,7 +71,10 @@ function saveBlocks(b: string[]) {
 }
 
 export function threadIdFor(a: string, b: string): string {
-  return [a, b].map((x) => x.toLowerCase()).sort().join("::");
+  return [a, b]
+    .map((x) => x.toLowerCase())
+    .sort()
+    .join("::");
 }
 
 export function isBlocked(peer: string): boolean {
@@ -88,11 +94,13 @@ export function blockHandle(peer: string) {
 }
 
 export function canSendSecureDm(): { ok: boolean; reason?: string } {
-  if (!getCurrentHandle()) return { ok: false, reason: "Sign in with your handle" };
+  if (!getCurrentHandle())
+    return { ok: false, reason: "Sign in with your handle" };
   if (!hasEthicsAck() && !loadInstitutionalClaim()?.ethicalAck) {
     return {
       ok: false,
-      reason: "Acknowledge No-PHI + ethical principles (Faculty Desk or Messages)",
+      reason:
+        "Acknowledge No-PHI + ethical principles (Faculty Desk or Messages)",
     };
   }
   return { ok: true };

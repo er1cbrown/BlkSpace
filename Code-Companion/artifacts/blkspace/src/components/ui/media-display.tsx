@@ -8,13 +8,7 @@ import {
 import { getSessionToken } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import {
-  Download,
-  FileText,
-  FileVideo,
-  Music,
-  Play,
-} from "lucide-react";
+import { Download, FileText, FileVideo, Music, Play } from "lucide-react";
 import {
   formatBytes,
   mediaKindFromMime,
@@ -38,10 +32,17 @@ interface MediaItem {
 
 const INLINE_LOAD_LIMIT = 8 * 1024 * 1024; // 8 MB auto-inline
 
-function KindIcon({ kind, className }: { kind: MediaKind; className?: string }) {
+function KindIcon({
+  kind,
+  className,
+}: {
+  kind: MediaKind;
+  className?: string;
+}) {
   if (kind === "video") return <FileVideo className={className} />;
   if (kind === "audio") return <Music className={className} />;
-  if (kind === "pdf" || kind === "doc") return <FileText className={className} />;
+  if (kind === "pdf" || kind === "doc")
+    return <FileText className={className} />;
   return <Play className={className} />;
 }
 
@@ -261,7 +262,11 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
                   className="h-8 text-xs"
                   onClick={() => loadLarge(i)}
                 >
-                  {kind === "pdf" ? "Open PDF" : kind === "doc" ? "Open file" : "Load media"}
+                  {kind === "pdf"
+                    ? "Open PDF"
+                    : kind === "doc"
+                      ? "Open file"
+                      : "Load media"}
                 </Button>
                 <Button
                   type="button"

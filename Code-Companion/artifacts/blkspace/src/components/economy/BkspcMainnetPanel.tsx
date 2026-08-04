@@ -63,11 +63,17 @@ export function BkspcMainnetPanel({
             {cfg.isMainnet ? "mainnet-beta" : "devnet"}
           </Badge>
           {cfg.isMintConfigured ? (
-            <Badge variant="outline" className="text-emerald-600 border-emerald-600/40">
+            <Badge
+              variant="outline"
+              className="text-emerald-600 border-emerald-600/40"
+            >
               mint set
             </Badge>
           ) : (
-            <Badge variant="outline" className="text-amber-600 border-amber-600/40">
+            <Badge
+              variant="outline"
+              className="text-amber-600 border-amber-600/40"
+            >
               mint not set
             </Badge>
           )}
@@ -75,8 +81,9 @@ export function BkspcMainnetPanel({
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Soft {BRAND.softCurrency} stay in-app. {BRAND.symbol} ({BRAND.coinName})
-          is optional Solana settlement after Cred gates — not a casino pitch.
+          Soft {BRAND.softCurrency} stay in-app. {BRAND.symbol} (
+          {BRAND.coinName}) is optional Solana settlement after Cred gates — not
+          a casino pitch.
         </p>
 
         <div className="rounded-xl border bg-muted/30 p-3 space-y-1">

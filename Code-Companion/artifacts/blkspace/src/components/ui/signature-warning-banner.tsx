@@ -7,7 +7,9 @@ interface SignatureWarningBannerProps {
 }
 
 /** Prominent warning when a cached Nostr event fails Schnorr verification. */
-export function SignatureWarningBanner({ eventId }: SignatureWarningBannerProps) {
+export function SignatureWarningBanner({
+  eventId,
+}: SignatureWarningBannerProps) {
   const id = eventId?.trim();
 
   const { data, isLoading } = useQuery({
@@ -17,7 +19,13 @@ export function SignatureWarningBanner({ eventId }: SignatureWarningBannerProps)
     staleTime: 60_000,
   });
 
-  if (!isTauri() || !id || isLoading || data?.valid || data?.status === "unknown") {
+  if (
+    !isTauri() ||
+    !id ||
+    isLoading ||
+    data?.valid ||
+    data?.status === "unknown"
+  ) {
     return null;
   }
 

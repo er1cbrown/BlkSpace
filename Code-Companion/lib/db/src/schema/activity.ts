@@ -8,9 +8,14 @@ export const activityTable = pgTable("activity", {
   description: text("description").notNull(),
   town: text("town").notNull(),
   userHandle: text("user_handle"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
-export const insertActivitySchema = createInsertSchema(activityTable).omit({ id: true, createdAt: true });
+export const insertActivitySchema = createInsertSchema(activityTable).omit({
+  id: true,
+  createdAt: true,
+});
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type Activity = typeof activityTable.$inferSelect;

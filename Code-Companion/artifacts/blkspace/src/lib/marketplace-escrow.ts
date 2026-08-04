@@ -267,7 +267,9 @@ export async function createMarketplaceListing(args: {
   return id;
 }
 
-export async function buyMarketplaceListing(listingId: number): Promise<Record<string, unknown>> {
+export async function buyMarketplaceListing(
+  listingId: number,
+): Promise<Record<string, unknown>> {
   if (isTauri()) {
     return invoke("buy_marketplace_listing", {
       sessionToken: getSessionToken() || "",
@@ -279,7 +281,8 @@ export async function buyMarketplaceListing(listingId: number): Promise<Record<s
   const s = load();
   const listing = s.listings.find((l) => l.id === listingId && !l.soldTo);
   if (!listing) throw new Error("Listing not found");
-  if (listing.sellerHandle === me) throw new Error("Cannot buy your own listing");
+  if (listing.sellerHandle === me)
+    throw new Error("Cannot buy your own listing");
 
   const mode = listing.fulfillmentMode || defaultMode(listing.itemType);
   const platformFee = feeOf(listing.price, FEE_BPS);
@@ -413,12 +416,11 @@ export async function escrowConfirmRelease(
   s.balances[e.sellerHandle] = (s.balances[e.sellerHandle] || 0) + e.sellerNet;
   if (e.orgFee > 0 && e.orgId) {
     // Demo: credit org seller-side club owner heuristically
-    const treasury =
-      e.orgId.includes("howard")
-        ? "hbcustudent"
-        : e.orgId.includes("spelman")
-          ? "jane_doe"
-          : "campus_king";
+    const treasury = e.orgId.includes("howard")
+      ? "hbcustudent"
+      : e.orgId.includes("spelman")
+        ? "jane_doe"
+        : "campus_king";
     s.balances[treasury] = (s.balances[treasury] || 0) + e.orgFee;
   }
   const receipt = {

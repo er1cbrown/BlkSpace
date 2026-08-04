@@ -473,7 +473,13 @@ export function useAppToggleLike() {
               liked,
               likesDelta,
               authorEarn: liked
-                ? { wb: 0.5, wbNominal: 0.5, karmaPost: 0, karmaComment: 0, throttled: false }
+                ? {
+                    wb: 0.5,
+                    wbNominal: 0.5,
+                    karmaPost: 0,
+                    karmaComment: 0,
+                    throttled: false,
+                  }
                 : undefined,
             });
           } catch (e) {
@@ -675,9 +681,8 @@ export function useAppCreateMarketplaceListing() {
       orgSplitBps?: number | null;
       deliveryHint?: string | null;
     }) => {
-      const { createMarketplaceListing } = await import(
-        "@/lib/marketplace-escrow"
-      );
+      const { createMarketplaceListing } =
+        await import("@/lib/marketplace-escrow");
       return createMarketplaceListing({
         itemType: args.itemType,
         itemRef: args.itemRef,
@@ -728,9 +733,8 @@ export function useAppBuyMarketplaceListing() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (listingId: number) => {
-      const { buyMarketplaceListing } = await import(
-        "@/lib/marketplace-escrow"
-      );
+      const { buyMarketplaceListing } =
+        await import("@/lib/marketplace-escrow");
       return buyMarketplaceListing(listingId);
     },
     onSuccess: () => {
@@ -1627,7 +1631,9 @@ export function useCheckInEventGuest() {
       return checkInEventGuest(args.eventId, args.ticketOrHandle);
     },
     onSuccess: (_d, vars) => {
-      qc.invalidateQueries({ queryKey: ["tauri", "eventGuests", vars.eventId] });
+      qc.invalidateQueries({
+        queryKey: ["tauri", "eventGuests", vars.eventId],
+      });
       qc.invalidateQueries({
         queryKey: ["tauri", "yardEvents", vars.communityId],
       });
@@ -1735,7 +1741,9 @@ export function useTauriCreateWallPost() {
       return tauri.tauriCreateWallPost(token, wallOwner, content);
     },
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["tauri", "wallPosts", vars.wallOwner] });
+      qc.invalidateQueries({
+        queryKey: ["tauri", "wallPosts", vars.wallOwner],
+      });
     },
   });
 }

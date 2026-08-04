@@ -122,13 +122,17 @@ export function saveUiPrefs(prefs: UiPrefs): void {
   }
   applyUiPrefsToDocument(next);
   try {
-    window.dispatchEvent(new CustomEvent("blkspace-ui-prefs", { detail: next }));
+    window.dispatchEvent(
+      new CustomEvent("blkspace-ui-prefs", { detail: next }),
+    );
   } catch {
     /* ignore */
   }
 }
 
-export function normalizeUiPrefs(raw: Partial<UiPrefs> | null | undefined): UiPrefs {
+export function normalizeUiPrefs(
+  raw: Partial<UiPrefs> | null | undefined,
+): UiPrefs {
   const p = raw ?? {};
   const density: DensityId =
     p.density === "cozy" || p.density === "compact" ? p.density : "comfortable";
@@ -223,26 +227,38 @@ export function applyUiPrefsToDocument(prefs: UiPrefs): void {
   root.style.setProperty("--ui-density", pad);
 
   const rad =
-    prefs.radius === "sharp" ? "0.35rem" : prefs.radius === "soft" ? "1.15rem" : "0.75rem";
+    prefs.radius === "sharp"
+      ? "0.35rem"
+      : prefs.radius === "soft"
+        ? "1.15rem"
+        : "0.75rem";
   root.style.setProperty("--ui-radius", rad);
 }
 
-export const ACCENT_OPTIONS: { id: AccentPreset; label: string; swatch: string }[] =
-  [
-    { id: "brand", label: "BlkSpace orange", swatch: "bg-orange-500" },
-    { id: "yard", label: "Match my yard", swatch: "bg-gradient-to-r from-blue-500 to-orange-500" },
-    { id: "gold", label: "Gold", swatch: "bg-amber-500" },
-    { id: "teal", label: "Teal", swatch: "bg-teal-600" },
-    { id: "violet", label: "Violet", swatch: "bg-violet-600" },
-    { id: "crimson", label: "Crimson", swatch: "bg-rose-700" },
-    { id: "forest", label: "Forest", swatch: "bg-emerald-700" },
-  ];
-
-export const DENSITY_OPTIONS: { id: DensityId; label: string; hint: string }[] = [
-  { id: "comfortable", label: "Comfortable", hint: "Roomy cards & spacing" },
-  { id: "cozy", label: "Cozy", hint: "Slightly tighter (Discord-like)" },
-  { id: "compact", label: "Compact", hint: "Dense feed for power users" },
+export const ACCENT_OPTIONS: {
+  id: AccentPreset;
+  label: string;
+  swatch: string;
+}[] = [
+  { id: "brand", label: "BlkSpace orange", swatch: "bg-orange-500" },
+  {
+    id: "yard",
+    label: "Match my yard",
+    swatch: "bg-gradient-to-r from-blue-500 to-orange-500",
+  },
+  { id: "gold", label: "Gold", swatch: "bg-amber-500" },
+  { id: "teal", label: "Teal", swatch: "bg-teal-600" },
+  { id: "violet", label: "Violet", swatch: "bg-violet-600" },
+  { id: "crimson", label: "Crimson", swatch: "bg-rose-700" },
+  { id: "forest", label: "Forest", swatch: "bg-emerald-700" },
 ];
+
+export const DENSITY_OPTIONS: { id: DensityId; label: string; hint: string }[] =
+  [
+    { id: "comfortable", label: "Comfortable", hint: "Roomy cards & spacing" },
+    { id: "cozy", label: "Cozy", hint: "Slightly tighter (Discord-like)" },
+    { id: "compact", label: "Compact", hint: "Dense feed for power users" },
+  ];
 
 export const FONT_SCALE_OPTIONS: { id: FontScaleId; label: string }[] = [
   { id: "sm", label: "Small" },
@@ -250,9 +266,12 @@ export const FONT_SCALE_OPTIONS: { id: FontScaleId; label: string }[] = [
   { id: "lg", label: "Large" },
 ];
 
-export const FEED_LAYOUT_OPTIONS: { id: FeedLayoutId; label: string; hint: string }[] =
-  [
-    { id: "cards", label: "Cards", hint: "Default post cards" },
-    { id: "compact", label: "Compact list", hint: "Timeline density" },
-    { id: "magazine", label: "Magazine", hint: "Larger media, fewer posts" },
-  ];
+export const FEED_LAYOUT_OPTIONS: {
+  id: FeedLayoutId;
+  label: string;
+  hint: string;
+}[] = [
+  { id: "cards", label: "Cards", hint: "Default post cards" },
+  { id: "compact", label: "Compact list", hint: "Timeline density" },
+  { id: "magazine", label: "Magazine", hint: "Larger media, fewer posts" },
+];

@@ -6,7 +6,8 @@
  * Real campus SSO / IEEE formal audit remain process work outside the app.
  */
 
-export type InstitutionalRole = "faculty" | "student" | "staff" | "partner" | "other";
+export type InstitutionalRole =
+  "faculty" | "student" | "staff" | "partner" | "other";
 
 export type ClaimLevel =
   /** User asserted role; no external check */
@@ -73,7 +74,9 @@ export const IEEE_ETHICS_PRINCIPLES = [
   },
 ] as const;
 
-export function loadInstitutionalClaim(handle?: string | null): InstitutionalClaim | null {
+export function loadInstitutionalClaim(
+  handle?: string | null,
+): InstitutionalClaim | null {
   try {
     const raw = localStorage.getItem(CLAIM_KEY);
     if (!raw) return null;

@@ -9,10 +9,7 @@ import {
   useAppBuyMarketplaceListingBkspc,
 } from "@/hooks/use-app-data";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
-import {
-  isTauri,
-  tauriGetBkspcPurchaseQuote,
-} from "@/lib/tauri-api";
+import { isTauri, tauriGetBkspcPurchaseQuote } from "@/lib/tauri-api";
 import {
   burnBkspcForPurchase,
   type BkspcPurchaseQuote,
@@ -45,7 +42,9 @@ interface YardSaleListingsProps {
   bkspcWired?: boolean;
 }
 
-function appliedPurchaseMessage(applied: Record<string, unknown> | undefined): string | null {
+function appliedPurchaseMessage(
+  applied: Record<string, unknown> | undefined,
+): string | null {
   if (!applied || Object.keys(applied).length === 0) return null;
   const parts: string[] = [];
   if (applied.theme) parts.push(`Theme → ${applied.theme}`);
@@ -55,8 +54,7 @@ function appliedPurchaseMessage(applied: Record<string, unknown> | undefined): s
     parts.push(`Community skin live → ${applied.communityYardPack}`);
   }
   const nft = applied.nftTransferred as
-    | { mintAddress?: string; onChain?: boolean }
-    | undefined;
+    { mintAddress?: string; onChain?: boolean } | undefined;
   if (nft?.mintAddress) {
     parts.push(
       nft.onChain
@@ -116,7 +114,9 @@ export function YardSaleListings({
       return;
     }
     if (item.fulfillmentMode === "escrow") {
-      toast.error("Escrow listings settle in WB for now — BKSPC burn path is instant-only");
+      toast.error(
+        "Escrow listings settle in WB for now — BKSPC burn path is instant-only",
+      );
       return;
     }
     const token = getSessionToken();
@@ -182,7 +182,10 @@ export function YardSaleListings({
                   {item.isNft ? " · NFT" : ""}
                 </Badge>
                 {isEscrow && (
-                  <Badge variant="outline" className="text-[10px] font-normal border-amber-500/50 text-amber-700 dark:text-amber-400">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] font-normal border-amber-500/50 text-amber-700 dark:text-amber-400"
+                  >
                     Escrow
                   </Badge>
                 )}
@@ -224,9 +227,7 @@ export function YardSaleListings({
             <div className="flex flex-col gap-1 shrink-0">
               <Button
                 size="sm"
-                disabled={
-                  item.sellerHandle === me || buyListing.isPending
-                }
+                disabled={item.sellerHandle === me || buyListing.isPending}
                 onClick={async () => {
                   try {
                     const result = await buyListing.mutateAsync(item.id);
@@ -239,8 +240,8 @@ export function YardSaleListings({
                     );
                     if (
                       !(result as { escrowId?: number }).escrowId &&
-                      (result as { fulfillmentMode?: string }).fulfillmentMode !==
-                        "escrow"
+                      (result as { fulfillmentMode?: string })
+                        .fulfillmentMode !== "escrow"
                     ) {
                       toast.success(`Bought for ${item.price} WB!`);
                     }
@@ -256,8 +257,7 @@ export function YardSaleListings({
                   size="sm"
                   variant="outline"
                   disabled={
-                    item.sellerHandle === me ||
-                    buyListingBkspc.isPending
+                    item.sellerHandle === me || buyListingBkspc.isPending
                   }
                   onClick={() => handleBuyWithBkspc(item)}
                 >

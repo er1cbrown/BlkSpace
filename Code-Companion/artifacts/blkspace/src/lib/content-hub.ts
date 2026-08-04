@@ -17,7 +17,8 @@ export type HubTopic =
   | "live"
   | "gaming";
 
-export type HubItemKind = "post" | "video" | "article" | "stream" | "portfolio" | "lesson";
+export type HubItemKind =
+  "post" | "video" | "article" | "stream" | "portfolio" | "lesson";
 
 export interface HubItem {
   id: string;
@@ -64,7 +65,8 @@ export const HUB_TOPICS: {
   {
     id: "med",
     label: "Med & health",
-    blurb: "Meharry / HBCU med refresh, clinical curiosity, peer teaching (not a school LMS).",
+    blurb:
+      "Meharry / HBCU med refresh, clinical curiosity, peer teaching (not a school LMS).",
     earnAngle: "Micro teaching · research interest · Cred",
   },
   {

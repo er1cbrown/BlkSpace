@@ -1,12 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Navbar } from "@/components/layout/Navbar";
@@ -65,12 +60,7 @@ export default function WelcomePage() {
         await tauriCreateUser(cleanHandle, cleanName, identity.pubkey);
       }
       const token = await authenticateWithNostr(cleanHandle, identity.nsecHex);
-      await storeIdentity(
-        token,
-        cleanHandle,
-        identity.nsecHex,
-        cleanName,
-      );
+      await storeIdentity(token, cleanHandle, identity.nsecHex, cleanName);
       // Persist home yard / town when possible
       if (isTauri() && token) {
         try {
@@ -386,7 +376,10 @@ export default function WelcomePage() {
                     Sign In
                   </Link>
                   {" · "}
-                  <Link href="/recover" className="text-primary hover:underline">
+                  <Link
+                    href="/recover"
+                    className="text-primary hover:underline"
+                  >
                     Recover
                   </Link>
                 </p>

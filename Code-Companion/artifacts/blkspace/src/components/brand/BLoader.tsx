@@ -16,7 +16,11 @@ export function BLoader({
   fullScreen?: boolean;
 }) {
   const dim =
-    size === "sm" ? "w-14 h-14 text-4xl" : size === "lg" ? "w-28 h-28 text-7xl" : "w-20 h-20 text-6xl";
+    size === "sm"
+      ? "w-14 h-14 text-4xl"
+      : size === "lg"
+        ? "w-28 h-28 text-7xl"
+        : "w-20 h-20 text-6xl";
 
   const body = (
     <div
@@ -52,7 +56,10 @@ export function BLoader({
       <div className="flex flex-col items-center gap-2">
         <p className="text-sm font-medium text-muted-foreground tracking-wide">
           {label}
-          <span className="b-loader-dots inline-block w-6 text-left" aria-hidden>
+          <span
+            className="b-loader-dots inline-block w-6 text-left"
+            aria-hidden
+          >
             ...
           </span>
         </p>

@@ -162,7 +162,7 @@ flowchart TB
 | M0.4 Media | A uploads media post | B sees post text; media via CID or local cache |
 | M0.5 Tier 0 | Windows 4GB laptop | Sync Test → Performance targets §4.1 |
 
-**Commands:** `pnpm test:iroh`, `pnpm test:nostr-relay`, Sync Test UI
+**Commands:** `bun run test:iroh`, `bun run test:nostr-relay`, Sync Test UI
 
 ### Phase M1 — Harden hub sync ✅ (shipped `aa3f63b`)
 
@@ -221,8 +221,8 @@ Any **second desktop** substitutes for B/C for M0.1–M0.3.
 | 1 | Same account on 2 devices via BIP39 | ✅ `/recover` | ⏳ M0.1 |
 | 2 | Post sync &lt;60s via relays | ✅ `test_nostr_*` | ⏳ M0.2 |
 | 3 | Offline post flushes without duplicate | ✅ queue + M1 reply Nostr | ⏳ M0.3 |
-| 4 | Media portable via CID + cache | ✅ `pnpm test:iroh` + M1 kind 1063 | ⏳ M0.4 |
-| 5 | Tier 0 performance | ✅ `pnpm test:tier0` dev Mac | ⏳ Device B |
+| 4 | Media portable via CID + cache | ✅ `bun run test:iroh` + M1 kind 1063 | ⏳ M0.4 |
+| 5 | Tier 0 performance | ✅ `bun run test:tier0` dev Mac | ⏳ Device B |
 | 6 | No data loss on sync | ✅ DB + rate-limit tests | ⏳ M0 stress |
 
 **Score today:** 0/6 manual · 6/6 auto backbone (`aa3f63b`).

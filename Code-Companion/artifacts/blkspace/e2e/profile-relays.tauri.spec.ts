@@ -40,7 +40,9 @@ test.describe("profile NIP-65 relays", () => {
     // 3. Refresh from network — should still show relays (live fetch or DB fallback)
     const refresh = tauriPage.getByText("Refresh from network");
     await refresh.click();
-    await expect(refresh).toHaveText("Refresh from network", { timeout: 20_000 });
+    await expect(refresh).toHaveText("Refresh from network", {
+      timeout: 20_000,
+    });
     await expect(tauriPage.getByText("wss://relay.damus.io")).toBeVisible({
       timeout: 20_000,
     });

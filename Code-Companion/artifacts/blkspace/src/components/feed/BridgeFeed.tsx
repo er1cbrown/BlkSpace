@@ -114,8 +114,11 @@ export function BridgeFeed({
           <CardContent className="p-8 text-center text-sm text-muted-foreground space-y-3">
             <p>No cross-yard posts yet for this filter.</p>
             <p className="text-xs">
-              Connect to relays in <Link href="/network" className="text-primary underline">Network</Link>,
-              publish from another yard, or wait for relay sync.
+              Connect to relays in{" "}
+              <Link href="/network" className="text-primary underline">
+                Network
+              </Link>
+              , publish from another yard, or wait for relay sync.
             </p>
           </CardContent>
         </Card>
@@ -168,7 +171,10 @@ export function BridgeFeed({
                 </CardContent>
                 <CardFooter className="pt-0 text-[10px] text-muted-foreground flex justify-between">
                   <span>
-                    via {(item.relayUrl || "relay").replace("wss://", "").slice(0, 28)}
+                    via{" "}
+                    {(item.relayUrl || "relay")
+                      .replace("wss://", "")
+                      .slice(0, 28)}
                   </span>
                   <span className="font-mono truncate max-w-[40%]">
                     {item.eventId.slice(0, 12)}…

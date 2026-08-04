@@ -5,10 +5,7 @@
  */
 
 export type FacultyAffiliation =
-  | "private_university"
-  | "hbcu_faculty"
-  | "industry_partner"
-  | "other";
+  "private_university" | "hbcu_faculty" | "industry_partner" | "other";
 
 export interface FacultyPrefs {
   roleLabel: string;
@@ -127,7 +124,9 @@ export function setFacultyBadge(enabled: boolean, institution?: string) {
   }
 }
 
-export function getFacultyBadge(forHandle?: string | null): FacultyBadge | null {
+export function getFacultyBadge(
+  forHandle?: string | null,
+): FacultyBadge | null {
   try {
     // Self-attested badge is device-local for current user only
     const me = localStorage.getItem("blkspace_handle");

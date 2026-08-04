@@ -238,8 +238,8 @@ Rung 3 — Desktop app (exists)
 #### Step 1 — Initialize mobile targets (1 day)
 ```bash
 cd Code-Companion/artifacts/blkspace
-pnpm tauri mobile init --manager cocoa      # iOS (macOS host required)
-pnpm tauri mobile init --manager gradle     # Android
+bun run tauri mobile init --manager cocoa      # iOS (macOS host required)
+bun run tauri mobile init --manager gradle     # Android
 ```
 This creates `src-tauri/gen/apple` and `src-tauri/gen/android`, project identifiers, and signing stubs.
 

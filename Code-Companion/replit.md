@@ -4,17 +4,17 @@ A federated social platform built for and by HBCU college-town communities — c
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
-- `pnpm --filter @workspace/blkspace run dev` — run the BlkSpace frontend (port 24442)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `bun run --filter @workspace/api-server dev` — run the API server (port 8080)
+- `bun run --filter @workspace/blkspace dev` — run the BlkSpace frontend (port 24442)
+- `bun run typecheck` — full typecheck across all packages
+- `bun run build` — typecheck + build all packages
+- `bun run --filter @workspace/api-spec codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+- `bun run --filter @workspace/db push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
+- bun run workspaces, Node.js 24, TypeScript 5.9
 - Frontend: React + Vite, TailwindCSS, shadcn/ui, Framer Motion, TanStack Query
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
@@ -54,11 +54,11 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-- Always run codegen after any OpenAPI spec change: `pnpm --filter @workspace/api-spec run codegen`
-- Always run `pnpm --filter @workspace/db run push` after schema changes
+- Always run codegen after any OpenAPI spec change: `bun run --filter @workspace/api-spec codegen`
+- Always run `bun run --filter @workspace/db push` after schema changes
 - Do not edit generated files in `lib/api-client-react/src/generated/` or `lib/api-zod/src/generated/`
 - The `feed` router is re-mounted at both `/posts` and `/feed` paths in `routes/index.ts`
 
 ## Pointers
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- See the `Bun workspace` skill for workspace structure, TypeScript setup, and package details

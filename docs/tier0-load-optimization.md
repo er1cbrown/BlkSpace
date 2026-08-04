@@ -38,7 +38,7 @@ sequenceDiagram
 | **Feed JS weight** | `WatchFeed`, `ReadFeed`, `BridgeFeed`, dialogs, badges imported eagerly | `Code-Companion/artifacts/blkspace/src/pages/feed.tsx` top imports |
 | **Hook monolith** | `use-app-data.ts` (~1500 lines) pulls full `@workspace/api-client-react` into every page using any hook | single file |
 | **UI dependency surface** | 20+ `@radix-ui/*` packages, `lucide-react`, `framer-motion`, `recharts` in workspace | `Code-Companion/artifacts/blkspace/package.json` |
-| **Web dev mode** | `pnpm dev` = unbundled Vite transforms (worst on Tier 0); docs assume ~200MB but dev HMR is much heavier | `AGENTS.md` Windows workflow |
+| **Web dev mode** | `bun run dev` = unbundled Vite transforms (worst on Tier 0); docs assume ~200MB but dev HMR is much heavier | `AGENTS.md` Windows workflow |
 | **Recent marketplace work** | Solana chunks isolated to `/wallet` (good), but marketplace panel still loads wallet stack when visiting wallet | `Code-Companion/artifacts/blkspace/src/pages/wallet.tsx` |
 
 ### Tier 0 targets already defined (use as gates)
@@ -90,8 +90,8 @@ BlkSpace cannot match TikTok's CDN without infrastructure spend — but it **can
 4. **Split `use-app-data.ts`** into domain modules (`use-feed.ts`, `use-wallet.ts`, `use-marketplace.ts`) so `/feed` doesn't import marketplace/wallet hooks transitively.
 
 5. **Ship Tier 0 web build flavor**:
-   - Add `pnpm build:tier0` script: production Vite build (not dev), `BETA_FEATURES` extended with `tier0Lite: true` hiding bridge/trending/relay panels by default (`beta-features.ts`)
-   - Document: **never use `pnpm dev` on Tier 0 for daily use** — use `pnpm build && pnpm serve` or CI artifact
+   - Add `bun run build:tier0` script: production Vite build (not dev), `BETA_FEATURES` extended with `tier0Lite: true` hiding bridge/trending/relay panels by default (`beta-features.ts`)
+   - Document: **never use `bun run dev` on Tier 0 for daily use** — use `bun run build && bun run serve` or CI artifact
 
 ### Tier B — "Feels like a social app" (3–5 days)
 
@@ -135,7 +135,7 @@ flowchart LR
   B2 --> C1[Media posters + SW cache]
 ```
 
-**If you only do three things:** (1) defer Iroh/relay startup, (2) tab-gated feed queries, (3) production build instead of `pnpm dev` on Tier 0.
+**If you only do three things:** (1) defer Iroh/relay startup, (2) tab-gated feed queries, (3) production build instead of `bun run dev` on Tier 0.
 
 ---
 
@@ -182,21 +182,21 @@ flowchart LR
 
 ## Tier 0 usage (after Tier A)
 
-**Web on low-end hardware** — do not use `pnpm dev` for daily use:
+**Web on low-end hardware** — do not use `bun run dev` for daily use:
 
 ```bash
 cd Code-Companion/artifacts/blkspace
-pnpm serve:tier0   # build with VITE_TIER0_LITE=1 + preview
+bun run serve:tier0   # build with VITE_TIER0_LITE=1 + preview
 ```
 
 **Tauri yard build** (no Iroh, faster binary):
 
 ```bash
-pnpm tauri:build:tier0
+bun run tauri:build:tier0
 ```
 
 **Full mesh** (all relays + deferred Iroh still backgrounded):
 
 ```bash
-BLKSPACE_FULL_MESH=1 pnpm tauri:dev
+BLKSPACE_FULL_MESH=1 bun run tauri:dev
 ```

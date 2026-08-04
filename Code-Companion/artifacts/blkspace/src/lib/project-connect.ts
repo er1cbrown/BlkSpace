@@ -6,12 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "@/lib/tauri-api";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 
-export type OrgType =
-  | "research"
-  | "professional"
-  | "club"
-  | "service"
-  | "peer";
+export type OrgType = "research" | "professional" | "club" | "service" | "peer";
 
 export interface ConnectOrg {
   id: string;
@@ -453,7 +448,8 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     description:
       "Low-bandwidth research for students on rotations. Async lit review + short write-ups on community health disparities. No mandatory live meetings — check-ins by message.",
     durationText: "2–4 hr/week · flexible",
-    tagsJson: '["research","meharry","async","low-bandwidth","health-disparities","med"]',
+    tagsJson:
+      '["research","meharry","async","low-bandwidth","health-disparities","med"]',
     status: "open",
     createdBy: "demo_user",
     interestCount: 0,
@@ -528,7 +524,8 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     description:
       "Private-university faculty lab recruiting underrepresented students. 8–10 week summer RA with optional async prep. Apply via ProjectConnect — we meet you on BlkSpace, not only LinkedIn.",
     durationText: "Summer · ~10 hr/week",
-    tagsJson: '["faculty","pipeline","meharry","hbcu","underrepresented","research","RA"]',
+    tagsJson:
+      '["faculty","pipeline","meharry","hbcu","underrepresented","research","RA"]',
     status: "open",
     createdBy: "demo_user",
     interestCount: 0,
@@ -573,7 +570,8 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     description:
       "Short collaborative analysis project with Meharry peers. Private uni faculty co-mentor. Low-bandwidth check-ins; publish abstract-style write-up.",
     durationText: "6 weeks · 3 hr/week",
-    tagsJson: '["faculty","public-health","meharry","underrepresented","pipeline"]',
+    tagsJson:
+      '["faculty","public-health","meharry","underrepresented","pipeline"]',
     status: "open",
     createdBy: "demo_user",
     interestCount: 0,
@@ -763,7 +761,11 @@ export function canPostOpportunitiesForOrg(
   return org.createdBy === h;
 }
 
-function pushWebNotification(toHandle: string, fromHandle: string, message: string) {
+function pushWebNotification(
+  toHandle: string,
+  fromHandle: string,
+  message: string,
+) {
   try {
     const key = "blkspace_web_notifications_v1";
     const prev = JSON.parse(localStorage.getItem(key) || "[]") as {
@@ -925,7 +927,11 @@ export async function expressInterest(input: {
     pushWebNotification(opp.createdBy, handle, msg);
   }
   const org = s.orgs.find((o) => o.id === opp.orgId);
-  if (org?.createdBy && org.createdBy !== handle && org.createdBy !== opp.createdBy) {
+  if (
+    org?.createdBy &&
+    org.createdBy !== handle &&
+    org.createdBy !== opp.createdBy
+  ) {
     pushWebNotification(org.createdBy, handle, msg);
   }
   return interest;
@@ -954,9 +960,7 @@ export async function listInbox(): Promise<ConnectInterest[]> {
   );
   const leadOppIds = new Set(
     s.opps
-      .filter(
-        (o) => o.createdBy === handle || ownedOrgIds.has(o.orgId),
-      )
+      .filter((o) => o.createdBy === handle || ownedOrgIds.has(o.orgId))
       .map((o) => o.id),
   );
   return s.interests.filter((i) => leadOppIds.has(i.opportunityId));

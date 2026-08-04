@@ -13,7 +13,10 @@ interface SignatureBadgeProps {
   className?: string;
 }
 
-export function SignatureBadge({ eventId, className = "" }: SignatureBadgeProps) {
+export function SignatureBadge({
+  eventId,
+  className = "",
+}: SignatureBadgeProps) {
   const id = eventId?.trim();
 
   const { data, isLoading } = useQuery({

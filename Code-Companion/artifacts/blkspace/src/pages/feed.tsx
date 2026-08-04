@@ -55,7 +55,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SafeContent } from "@/components/ui/safe-content";
 import { TrustChip } from "@/components/ui/trust-chip";
 import { MediaDisplay } from "@/components/ui/media-display";
@@ -93,7 +98,9 @@ export default function FeedPage() {
   const [activeTab, setActiveTab] = useState(
     BETA_FEATURES.tier0Lite ? "local" : "watch",
   );
-  const [selectedTown, setSelectedTown] = useState(() => getHomeYardId() || "tsu");
+  const [selectedTown, setSelectedTown] = useState(
+    () => getHomeYardId() || "tsu",
+  );
   const focusPrefs = useMemo(() => {
     try {
       return loadFocusPrefs();
@@ -181,18 +188,13 @@ export default function FeedPage() {
     (p.engagementQuality || 1) *
     (1 - (p.maliciousScore || 0));
 
-  const isHighRisk = (p: {
-    riskLevel?: string;
-    maliciousScore?: number;
-  }) =>
+  const isHighRisk = (p: { riskLevel?: string; maliciousScore?: number }) =>
     p.riskLevel === "high" || (p.maliciousScore ?? 0) > 0.7;
 
   // FYP: rank by engagement × quality × (1 − MIDF); demote high-risk posts
   const fypPosts = [...(trendingFeed || []), ...(localPosts || [])]
     .filter((p: any) => !isHighRisk(p))
-    .sort(
-      (a: any, b: any) => fypRankScore(b) - fypRankScore(a),
-    )
+    .sort((a: any, b: any) => fypRankScore(b) - fypRankScore(a))
     .slice(0, 12)
     .map((p: any) => ({ ...p }));
 
@@ -253,7 +255,11 @@ export default function FeedPage() {
           } else if (result?.liked === false) {
             toast.message("Unliked");
           }
-          if (result?.liked && result?.authorEarn?.wb > 0 && result?.authorHandle) {
+          if (
+            result?.liked &&
+            result?.authorEarn?.wb > 0 &&
+            result?.authorHandle
+          ) {
             showEarnFromResult(
               result.authorEarn,
               `@${result.authorHandle} earned from your like`,
@@ -351,7 +357,8 @@ export default function FeedPage() {
   const showTrending = BETA_FEATURES.showTrendingTab();
 
   const yardTheme = getYardTheme(selectedTown);
-  const yardLabel = yardTheme?.school || yardTheme?.name || selectedTown.toUpperCase();
+  const yardLabel =
+    yardTheme?.school || yardTheme?.name || selectedTown.toUpperCase();
 
   return (
     <AppShell>
@@ -437,11 +444,17 @@ export default function FeedPage() {
           <TabsTrigger value="read" className="text-xs sm:text-sm font-bold">
             Read
           </TabsTrigger>
-          <TabsTrigger value="following" className="text-xs sm:text-sm font-bold">
+          <TabsTrigger
+            value="following"
+            className="text-xs sm:text-sm font-bold"
+          >
             Following
           </TabsTrigger>
           {showBridge && (
-            <TabsTrigger value="bridge" className="text-xs sm:text-sm font-bold hidden sm:flex">
+            <TabsTrigger
+              value="bridge"
+              className="text-xs sm:text-sm font-bold hidden sm:flex"
+            >
               Bridge
             </TabsTrigger>
           )}
@@ -480,7 +493,9 @@ export default function FeedPage() {
                   onMediaHashesChange={setMediaHashes}
                   onSubmit={handleSubmit}
                   isSubmitting={createPost.isPending}
-                  onUploadSuccess={(earn) => showEarnFromResult(earn, "Media upload")}
+                  onUploadSuccess={(earn) =>
+                    showEarnFromResult(earn, "Media upload")
+                  }
                   placeholder={composerPlaceholder}
                 />
               </div>
@@ -509,7 +524,9 @@ export default function FeedPage() {
                     onMediaHashesChange={setMediaHashes}
                     onSubmit={handleSubmit}
                     isSubmitting={createPost.isPending}
-                    onUploadSuccess={(earn) => showEarnFromResult(earn, "Media upload")}
+                    onUploadSuccess={(earn) =>
+                      showEarnFromResult(earn, "Media upload")
+                    }
                     placeholder={composerPlaceholder}
                   />
                 </DialogContent>
@@ -517,238 +534,239 @@ export default function FeedPage() {
             </>
           ))}
 
-          <TabsContent value="watch" />
-          <TabsContent value="read" />
-          <TabsContent value="following" />
-          <TabsContent value="local" />
-          {showBridge && <TabsContent value="bridge" />}
-          {showTrending && <TabsContent value="trending" />}
-        </Tabs>
+        <TabsContent value="watch" />
+        <TabsContent value="read" />
+        <TabsContent value="following" />
+        <TabsContent value="local" />
+        {showBridge && <TabsContent value="bridge" />}
+        {showTrending && <TabsContent value="trending" />}
+      </Tabs>
 
-        {activeTab === "bridge" ? (
-          <Suspense fallback={feedPanelFallback}>
-            <BridgeFeed
-              events={crossTownFeed || []}
-              isLoading={crossTownLoading}
-              townFilter={bridgeTownFilter}
-              onTownFilterChange={setBridgeTownFilter}
-              showFlagged={showFlagged}
-            />
-          </Suspense>
-        ) : isLoading ? (
-          feedPanelFallback
-        ) : activeTab === "watch" ? (
-          <Suspense fallback={feedPanelFallback}>
-            <WatchFeed posts={posts} onLike={handleLike} />
-          </Suspense>
-        ) : activeTab === "read" ? (
-          <Suspense fallback={feedPanelFallback}>
-            <ReadFeed
-              posts={posts}
-              onLike={handleLike}
-              onRepost={handleRepost}
-            />
-          </Suspense>
-        ) : (
-          <div className="space-y-4">
-            {!Array.isArray(posts) && (
-              <div className="text-center py-12 text-muted-foreground">
-                Could not load posts. Check your connection and try again.
-              </div>
-            )}
-            {Array.isArray(posts) && posts.length === 0 && (
-              <div className="text-center py-14 px-6 rounded-2xl border border-dashed border-border/60 bg-muted/20">
-                <p className="text-lg font-semibold text-foreground mb-2">
-                  {activeTab === "following"
-                    ? "Your circle is quiet"
-                    : "The yard is quiet"}
-                </p>
-                <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-                  {activeTab === "following"
-                    ? "Follow people from Search or Yards — their posts show up here."
-                    : "Be the first to post today. Students earn WeixBucks for showing up."}
-                </p>
-                {isGuest ? (
-                  <Link href="/welcome">
-                    <Button>Create free account</Button>
-                  </Link>
-                ) : (
-                  <Button onClick={() => setActiveTab("local")}>Post to my yard</Button>
-                )}
-              </div>
-            )}
-            {Array.isArray(posts) &&
-              posts.map((item: any) => {
-                const isCrossTown = "pubkey" in item && "eventId" in item;
-                const crossTownItem = item as TauriCrossTownEvent;
-                const isRepost = item._feedKind === "repost";
-                const displayContent = item.content;
+      {activeTab === "bridge" ? (
+        <Suspense fallback={feedPanelFallback}>
+          <BridgeFeed
+            events={crossTownFeed || []}
+            isLoading={crossTownLoading}
+            townFilter={bridgeTownFilter}
+            onTownFilterChange={setBridgeTownFilter}
+            showFlagged={showFlagged}
+          />
+        </Suspense>
+      ) : isLoading ? (
+        feedPanelFallback
+      ) : activeTab === "watch" ? (
+        <Suspense fallback={feedPanelFallback}>
+          <WatchFeed posts={posts} onLike={handleLike} />
+        </Suspense>
+      ) : activeTab === "read" ? (
+        <Suspense fallback={feedPanelFallback}>
+          <ReadFeed posts={posts} onLike={handleLike} onRepost={handleRepost} />
+        </Suspense>
+      ) : (
+        <div className="space-y-4">
+          {!Array.isArray(posts) && (
+            <div className="text-center py-12 text-muted-foreground">
+              Could not load posts. Check your connection and try again.
+            </div>
+          )}
+          {Array.isArray(posts) && posts.length === 0 && (
+            <div className="text-center py-14 px-6 rounded-2xl border border-dashed border-border/60 bg-muted/20">
+              <p className="text-lg font-semibold text-foreground mb-2">
+                {activeTab === "following"
+                  ? "Your circle is quiet"
+                  : "The yard is quiet"}
+              </p>
+              <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
+                {activeTab === "following"
+                  ? "Follow people from Search or Yards — their posts show up here."
+                  : "Be the first to post today. Students earn WeixBucks for showing up."}
+              </p>
+              {isGuest ? (
+                <Link href="/welcome">
+                  <Button>Create free account</Button>
+                </Link>
+              ) : (
+                <Button onClick={() => setActiveTab("local")}>
+                  Post to my yard
+                </Button>
+              )}
+            </div>
+          )}
+          {Array.isArray(posts) &&
+            posts.map((item: any) => {
+              const isCrossTown = "pubkey" in item && "eventId" in item;
+              const crossTownItem = item as TauriCrossTownEvent;
+              const isRepost = item._feedKind === "repost";
+              const displayContent = item.content;
 
-                return (
-                  <Card
-                    key={item.id}
-                    className="hover:bg-muted/30 transition-colors border-border/50"
-                    style={{ contentVisibility: "auto", containIntrinsicSize: "180px" }}
-                  >
-                    {isRepost && (
-                      <div className="px-4 pt-3 text-xs text-green-500 flex items-center gap-1.5">
-                        <Repeat2 className="w-3 h-3" />{" "}
-                        {(item as any)._reposterDisplayName ||
-                          (item as any)._reposterHandle}{" "}
-                        reposted
-                      </div>
-                    )}
-                    <CardHeader className="pb-2 flex flex-row items-start gap-3">
-                      <Avatar className="h-10 w-10 border border-primary/20">
-                        <AvatarFallback>
+              return (
+                <Card
+                  key={item.id}
+                  className="hover:bg-muted/30 transition-colors border-border/50"
+                  style={{
+                    contentVisibility: "auto",
+                    containIntrinsicSize: "180px",
+                  }}
+                >
+                  {isRepost && (
+                    <div className="px-4 pt-3 text-xs text-green-500 flex items-center gap-1.5">
+                      <Repeat2 className="w-3 h-3" />{" "}
+                      {(item as any)._reposterDisplayName ||
+                        (item as any)._reposterHandle}{" "}
+                      reposted
+                    </div>
+                  )}
+                  <CardHeader className="pb-2 flex flex-row items-start gap-3">
+                    <Avatar className="h-10 w-10 border border-primary/20">
+                      <AvatarFallback>
+                        {isCrossTown
+                          ? "B"
+                          : (item as any).authorDisplayName?.charAt(0) || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-sm flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className="font-bold truncate">
                           {isCrossTown
-                            ? "B"
-                            : (item as any).authorDisplayName?.charAt(0) || "?"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-sm flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                          <span className="font-bold truncate">
-                            {isCrossTown
-                              ? `${crossTownItem.pubkey.slice(0, 8)}…`
-                              : (item as any).authorDisplayName}
-                          </span>
-                          <span className="text-xs text-muted-foreground font-normal">
-                            {new Date(
-                              item.createdAt ||
-                                crossTownItem.createdAtUnix * 1000,
-                            ).toLocaleDateString()}
-                          </span>
-                          <div className="ml-auto">
-                            <TrustChip
-                              riskLevel={
-                                isCrossTown
-                                  ? crossTownItem.riskLevel
-                                  : (item as any).riskLevel
-                              }
-                              maliciousScore={
-                                isCrossTown
-                                  ? crossTownItem.maliciousScore
-                                  : (item as any).maliciousScore
-                              }
-                              nostrEventId={
-                                isCrossTown
-                                  ? crossTownItem.eventId
-                                  : (item as any).nostrEventId
-                              }
-                              consensusValid={
-                                isCrossTown
-                                  ? crossTownItem.consensusValid
-                                  : undefined
-                              }
-                              consensusAgreement={
-                                isCrossTown
-                                  ? crossTownItem.consensusAgreement
-                                  : undefined
-                              }
-                            />
-                          </div>
-                        </CardTitle>
-                        <div className="text-xs text-muted-foreground flex gap-1.5 items-center mt-0.5">
-                          {!isCrossTown && (
-                            <span>@{(item as any).authorHandle}</span>
-                          )}
-                          {!isCrossTown && <span>·</span>}
-                          <span className="text-primary font-medium">
-                            {isCrossTown
-                              ? crossTownItem.townTag || "yard"
-                              : (item as any).townTag}
-                          </span>
+                            ? `${crossTownItem.pubkey.slice(0, 8)}…`
+                            : (item as any).authorDisplayName}
+                        </span>
+                        <span className="text-xs text-muted-foreground font-normal">
+                          {new Date(
+                            item.createdAt ||
+                              crossTownItem.createdAtUnix * 1000,
+                          ).toLocaleDateString()}
+                        </span>
+                        <div className="ml-auto">
+                          <TrustChip
+                            riskLevel={
+                              isCrossTown
+                                ? crossTownItem.riskLevel
+                                : (item as any).riskLevel
+                            }
+                            maliciousScore={
+                              isCrossTown
+                                ? crossTownItem.maliciousScore
+                                : (item as any).maliciousScore
+                            }
+                            nostrEventId={
+                              isCrossTown
+                                ? crossTownItem.eventId
+                                : (item as any).nostrEventId
+                            }
+                            consensusValid={
+                              isCrossTown
+                                ? crossTownItem.consensusValid
+                                : undefined
+                            }
+                            consensusAgreement={
+                              isCrossTown
+                                ? crossTownItem.consensusAgreement
+                                : undefined
+                            }
+                          />
                         </div>
+                      </CardTitle>
+                      <div className="text-xs text-muted-foreground flex gap-1.5 items-center mt-0.5">
+                        {!isCrossTown && (
+                          <span>@{(item as any).authorHandle}</span>
+                        )}
+                        {!isCrossTown && <span>·</span>}
+                        <span className="text-primary font-medium">
+                          {isCrossTown
+                            ? crossTownItem.townTag || "yard"
+                            : (item as any).townTag}
+                        </span>
                       </div>
-                    </CardHeader>
-                    <CardContent className="pl-[3.25rem] pb-2">
-                      <SafeContent
-                        text={displayContent}
-                        className="text-[15px] sm:text-[16px] leading-snug"
-                      />
-                      <MediaDisplay hashes={(item as any).mediaBlobs || []} />
-                    </CardContent>
-                    <CardFooter className="pl-[3.25rem] pt-1 flex gap-1 sm:gap-4 text-sm text-muted-foreground border-none">
-                      <Link href={`/posts/${item.id}`}>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pl-[3.25rem] pb-2">
+                    <SafeContent
+                      text={displayContent}
+                      className="text-[15px] sm:text-[16px] leading-snug"
+                    />
+                    <MediaDisplay hashes={(item as any).mediaBlobs || []} />
+                  </CardContent>
+                  <CardFooter className="pl-[3.25rem] pt-1 flex gap-1 sm:gap-4 text-sm text-muted-foreground border-none">
+                    <Link href={`/posts/${item.id}`}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 gap-2 hover:text-primary hover:bg-primary/10"
+                      >
+                        <MessageSquare className="w-4 h-4" />{" "}
+                        {(item as any).repliesCount || 0}
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 gap-2 hover:text-green-500 hover:bg-green-500/10"
+                      onClick={() =>
+                        !isCrossTown && handleRepost(Number(item.id))
+                      }
+                      disabled={isCrossTown || repostPost.isPending}
+                    >
+                      <Repeat2 className="w-4 h-4" /> {item.repostsCount || 0}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 gap-2 hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleLike(item.id)}
+                    >
+                      <Heart
+                        className={`w-4 h-4 ${item.liked ? "fill-current text-destructive" : ""}`}
+                      />{" "}
+                      {item.likesCount || 0}
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 px-2 gap-2 hover:text-primary hover:bg-primary/10"
+                          className="h-8 w-8 p-0 hover:text-foreground"
+                          aria-label="More actions"
                         >
-                          <MessageSquare className="w-4 h-4" />{" "}
-                          {(item as any).repliesCount || 0}
+                          <MoreHorizontal className="w-4 h-4" />
                         </Button>
-                      </Link>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 gap-2 hover:text-green-500 hover:bg-green-500/10"
-                        onClick={() =>
-                          !isCrossTown && handleRepost(Number(item.id))
-                        }
-                        disabled={isCrossTown || repostPost.isPending}
-                      >
-                        <Repeat2 className="w-4 h-4" /> {item.repostsCount || 0}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 gap-2 hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleLike(item.id)}
-                      >
-                        <Heart
-                          className={`w-4 h-4 ${item.liked ? "fill-current text-destructive" : ""}`}
-                        />{" "}
-                        {item.likesCount || 0}
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 hover:text-foreground"
-                            aria-label="More actions"
-                          >
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleBoost(item)}
-                            disabled={isCrossTown}
-                          >
-                            <Repeat2 className="w-3.5 h-3.5 mr-2" />
-                            Boost (5 WB)
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      {isCrossTown && (
-                        <span className="text-xs text-muted-foreground ml-auto">
-                          Synced from relay
-                        </span>
-                      )}
-                    </CardFooter>
-                  </Card>
-                );
-              })}
-            {hasNextPage &&
-              (activeTab === "local" ||
-                activeTab === "following" ||
-                activeTab === "trending") && (
-                <div className="flex justify-center pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={isFetchingNextPage}
-                    onClick={() => fetchNextPage()}
-                  >
-                    {isFetchingNextPage ? "Loading…" : "Load more posts"}
-                  </Button>
-                </div>
-              )}
-          </div>
-        )}
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handleBoost(item)}
+                          disabled={isCrossTown}
+                        >
+                          <Repeat2 className="w-3.5 h-3.5 mr-2" />
+                          Boost (5 WB)
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {isCrossTown && (
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        Synced from relay
+                      </span>
+                    )}
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          {hasNextPage &&
+            (activeTab === "local" ||
+              activeTab === "following" ||
+              activeTab === "trending") && (
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isFetchingNextPage}
+                  onClick={() => fetchNextPage()}
+                >
+                  {isFetchingNextPage ? "Loading…" : "Load more posts"}
+                </Button>
+              </div>
+            )}
+        </div>
+      )}
     </AppShell>
   );
 }

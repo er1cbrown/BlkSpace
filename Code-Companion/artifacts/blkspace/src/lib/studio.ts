@@ -224,7 +224,8 @@ function save(d: Demo) {
 
 function enrichShoot(s: StudioShoot, viewer: string): StudioShoot {
   const d = load();
-  const access = (d.access[s.id] || []).includes(viewer) || s.ownerHandle === viewer;
+  const access =
+    (d.access[s.id] || []).includes(viewer) || s.ownerHandle === viewer;
   return {
     ...s,
     viewerHasAccess: access,
@@ -248,8 +249,7 @@ export async function listCollections(
   const isOwner = viewerHandle === ownerHandle;
   return d.collections.filter(
     (c) =>
-      c.ownerHandle === ownerHandle &&
-      (isOwner || c.visibility === "public"),
+      c.ownerHandle === ownerHandle && (isOwner || c.visibility === "public"),
   );
 }
 
@@ -304,7 +304,8 @@ export async function addCollectionItem(args: {
     mediaRef: args.mediaRef,
     caption: args.caption,
     kind: args.kind,
-    sortOrder: d.items.filter((i) => i.collectionId === args.collectionId).length + 1,
+    sortOrder:
+      d.items.filter((i) => i.collectionId === args.collectionId).length + 1,
     createdAt: new Date().toISOString(),
   };
   d.items.push(item);
@@ -448,8 +449,7 @@ export async function listShootAssets(shootId: number): Promise<StudioAsset[]> {
   const d = load();
   const s = d.shoots.find((x) => x.id === shootId);
   if (!s) throw new Error("Shoot not found");
-  const access =
-    (d.access[shootId] || []).includes(me) || s.ownerHandle === me;
+  const access = (d.access[shootId] || []).includes(me) || s.ownerHandle === me;
   if (!access) {
     throw new Error(
       s.accessMode === "paid"
@@ -500,9 +500,11 @@ export async function grantShootAccess(
   return { granted: true };
 }
 
-export async function purchaseShootAccess(
-  shootId: number,
-): Promise<{ purchased?: boolean; paidWb?: number; alreadyHadAccess?: boolean }> {
+export async function purchaseShootAccess(shootId: number): Promise<{
+  purchased?: boolean;
+  paidWb?: number;
+  alreadyHadAccess?: boolean;
+}> {
   if (isTauri()) {
     return invoke("studio_purchase_access", {
       sessionToken: getSessionToken() || "",

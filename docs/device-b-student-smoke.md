@@ -15,7 +15,7 @@
 | **Date** | 2026-08-03 |
 | **Device B** | Windows (this PC) · RAM — · CPU — |
 | **Installer** | `BlkSpace-Yard-Windows-x64.msi` |
-| **Source** | ☑ local `downloads/` · ☐ GitHub Release · ☐ CI · ☑ rebuild `pnpm tauri:build:tier0` (in progress for step 5) |
+| **Source** | ☑ local `downloads/` · ☐ GitHub Release · ☐ CI · ☑ rebuild `bun run tauri:build:tier0` (in progress for step 5) |
 | **Commit / tag** | MSI ≈ `v0.1.0-yard` / pre-Customize · rebuild targets `8098f11`+ |
 | **Includes Customize station?** | ☐ on this MSI · ☑ after tier0 rebuild finishes |
 
@@ -26,7 +26,7 @@
 
 ```bat
 cd BlkSpace\Code-Companion\artifacts\blkspace
-pnpm tauri:build:tier0
+bun run tauri:build:tier0
 ```
 
 Installer lands under `src-tauri\target\release\bundle\msi\`.
@@ -94,7 +94,7 @@ Installer lands under `src-tauri\target\release\bundle\msi\`.
 - [ ] Reload profile — banner/mood/gallery still there
 
 **Pass?** ☐ Yes · ☐ No · ☑ **N/A until tier0 rebuild** (this MSI lacks Customize station)  
-**Notes:** `pnpm tauri:build:tier0` started 2026-08-03 on HEAD; reinstall new MSI when bundle ready, then retest 5.
+**Notes:** `bun run tauri:build:tier0` started 2026-08-03 on HEAD; reinstall new MSI when bundle ready, then retest 5.
 
 ---
 
@@ -132,7 +132,7 @@ Installer lands under `src-tauri\target\release\bundle\msi\`.
 | **Need rebuild at HEAD** | ☑ Yes (for Customize) · build running |
 
 **One-line summary:**  
-MSI installed + `app.exe` launched (step 1 PASS, ~45 MB). Steps 2–4 and 6 need clicks in the open BlkSpace window. Step 5 blocked until `pnpm tauri:build:tier0` MSI lands.
+MSI installed + `app.exe` launched (step 1 PASS, ~45 MB). Steps 2–4 and 6 need clicks in the open BlkSpace window. Step 5 blocked until `bun run tauri:build:tier0` MSI lands.
 
 **Blockers:**
 

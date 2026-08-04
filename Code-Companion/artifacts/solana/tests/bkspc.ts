@@ -1,6 +1,6 @@
 /**
  * Anchor integration tests for bkspc program (local validator).
- * Run: pnpm --filter @workspace/solana run test:anchor
+ * Run: bun run --filter @workspace/solana test:anchor
  */
 import { readFileSync } from "node:fs";
 import * as anchor from "@coral-xyz/anchor";
@@ -19,10 +19,15 @@ import {
 import { strict as assert } from "node:assert";
 import idl from "../idl/bkspc.json" with { type: "json" };
 
-const PROGRAM_ID = new PublicKey("7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs");
+const PROGRAM_ID = new PublicKey(
+  "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs",
+);
 
 function configPda(): PublicKey {
-  return PublicKey.findProgramAddressSync([Buffer.from("config")], PROGRAM_ID)[0];
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("config")],
+    PROGRAM_ID,
+  )[0];
 }
 
 function mintAuthorityPda(): PublicKey {
@@ -93,8 +98,9 @@ describe("bkspc", () => {
       .rpc();
 
     const mintInfo = await provider.connection.getParsedAccountInfo(mint);
-    const parsed = (mintInfo.value?.data as { parsed: { info: { mintAuthority: string } } })
-      .parsed.info;
+    const parsed = (
+      mintInfo.value?.data as { parsed: { info: { mintAuthority: string } } }
+    ).parsed.info;
     assert.equal(parsed.mintAuthority, mintAuthorityPda().toBase58());
   });
 
@@ -120,7 +126,9 @@ describe("bkspc", () => {
       .signers([treasuryA, treasuryB])
       .rpc();
 
-    const balance = await provider.connection.getTokenAccountBalance(ata.address);
+    const balance = await provider.connection.getTokenAccountBalance(
+      ata.address,
+    );
     assert.equal(balance.value.amount, "1000000000");
   });
 
@@ -163,7 +171,8 @@ describe("bkspc", () => {
       student.publicKey,
     );
     const before = BigInt(
-      (await provider.connection.getTokenAccountBalance(ata.address)).value.amount,
+      (await provider.connection.getTokenAccountBalance(ata.address)).value
+        .amount,
     );
 
     await program.methods
@@ -192,7 +201,12 @@ describe("bkspc", () => {
       .signers([student])
       .rpc();
 
-    const balance = await provider.connection.getTokenAccountBalance(ata.address);
-    assert.equal(balance.value.amount, String(before + 500_000_000n - 250_000_000n));
+    const balance = await provider.connection.getTokenAccountBalance(
+      ata.address,
+    );
+    assert.equal(
+      balance.value.amount,
+      String(before + 500_000_000n - 250_000_000n),
+    );
   });
 });

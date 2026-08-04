@@ -1,7 +1,7 @@
 /**
  * Devnet E2E proof helper: fund check → setup (if needed) → print proof template.
  *
- *   pnpm --filter @workspace/solana run record-devnet-e2e
+ *   bun run --filter @workspace/solana record-devnet-e2e
  *
  * Optional:
  *   BKSPC_FORCE_INIT=1     recreate mint when legacy multisig manifest
@@ -23,7 +23,11 @@ import {
 const PROGRAM_ID = "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs";
 const MIN_SOL = 1.5;
 const REPO_ROOT = join(ROOT, "..", "..", "..");
-const PROOF_DOC = join(REPO_ROOT, "docs", "phase-4-devnet-e2e-proof-RESULTS.md");
+const PROOF_DOC = join(
+  REPO_ROOT,
+  "docs",
+  "phase-4-devnet-e2e-proof-RESULTS.md",
+);
 
 interface BkspcManifest {
   cluster?: string;
@@ -77,9 +81,13 @@ function explorerTx(sig: string): string {
   return `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 }
 
-function buildProofMarkdown(manifest: BkspcManifest, deployer: PublicKey): string {
+function buildProofMarkdown(
+  manifest: BkspcManifest,
+  deployer: PublicKey,
+): string {
   const date = new Date().toISOString().slice(0, 10);
-  const initSig = manifest.initializeConfigSignature ?? manifest.initSignature ?? "<pending>";
+  const initSig =
+    manifest.initializeConfigSignature ?? manifest.initSignature ?? "<pending>";
   const initExplorer =
     initSig !== "<pending>" ? explorerTx(initSig) : "<pending>";
 
@@ -163,7 +171,10 @@ async function main(): Promise<void> {
       }
       process.exit(1);
     }
-    if (manifest?.mintAuthorityType === "spl-multisig-2of2" && process.env.BKSPC_FORCE_INIT !== "1") {
+    if (
+      manifest?.mintAuthorityType === "spl-multisig-2of2" &&
+      process.env.BKSPC_FORCE_INIT !== "1"
+    ) {
       console.error(
         "\nLegacy manifest (spl-multisig-2of2). Re-run with BKSPC_FORCE_INIT=1 to recreate mint + wire.",
       );
@@ -172,7 +183,9 @@ async function main(): Promise<void> {
     runSetup();
     manifest = loadManifest();
   } else if (setupRequired) {
-    console.warn("\nManifest not wired; BKSPC_SKIP_SETUP=1 — template may be incomplete.");
+    console.warn(
+      "\nManifest not wired; BKSPC_SKIP_SETUP=1 — template may be incomplete.",
+    );
   } else {
     console.log("\nManifest already wired — skipping setup.");
   }
@@ -190,14 +203,18 @@ async function main(): Promise<void> {
     console.log(`\nWrote ${PROOF_DOC}`);
   } else {
     console.log(
-      `\nTo save: BKSPC_WRITE_PROOF=1 pnpm --filter @workspace/solana run record-devnet-e2e`,
+      `\nTo save: BKSPC_WRITE_PROOF=1 bun run --filter @workspace/solana record-devnet-e2e`,
     );
   }
 
   if (!manifest.configInitialized) {
-    console.warn("\n⚠ configInitialized is false — complete wire before withdraw/burn demo.");
+    console.warn(
+      "\n⚠ configInitialized is false — complete wire before withdraw/burn demo.",
+    );
   } else {
-    console.log("\nNext: build Tauri with bkspc-devnet, run withdraw + burn (see docs/phase-4-devnet-e2e-proof.md).");
+    console.log(
+      "\nNext: build Tauri with bkspc-devnet, run withdraw + burn (see docs/phase-4-devnet-e2e-proof.md).",
+    );
   }
 }
 

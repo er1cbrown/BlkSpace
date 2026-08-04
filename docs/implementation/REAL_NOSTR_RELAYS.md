@@ -1,6 +1,6 @@
 # Implementation Plan: Connect to Real Nostr Relays
 
-**Status:** Phase 1 smoke complete (2026-06-16) — live connect/health/subscribe/sync pass via `pnpm test:nostr-relay`  
+**Status:** Phase 1 smoke complete (2026-06-16) — live connect/health/subscribe/sync pass via `bun run test:nostr-relay`  
 **Priority:** High (blocks cross-town sync)  
 **Estimated Time:** 2-3 days  
 **Dependencies:** None (relay manager already implemented)
@@ -260,7 +260,7 @@ fn publish_trending_summary(state: State<AppState>, session_token: String) -> Re
 - [x] Relay health measurable (`test_nostr_relay_health_latency`; UI on `/relays`)
 - [x] NIP-65 relay lists published and fetched (`publish_relay_list` + live `fetch_user_relay_list`; test `test_nostr_nip65_relay_list_roundtrip`; UI Relays → NIP-65 card)
 
-**Run smoke:** `pnpm test:nostr-relay` (or `cargo test nostr_relay_smoke -- --test-threads=1` from `artifacts/blkspace`)
+**Run smoke:** `bun run test:nostr-relay` (or `cargo test nostr_relay_smoke -- --test-threads=1` from `artifacts/blkspace`)
 
 ---
 

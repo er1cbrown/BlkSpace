@@ -85,7 +85,16 @@ function colorIndex(id: string): number {
 /** Hand-tuned packs for flagship yards */
 const FEATURED_OVERRIDES: Record<
   FeaturedYardId,
-  Partial<YardThemePack> & { mascot: string; tagline: string; norms: string[]; weatherHint: string; fanbase: string; gradient: string; accentClass: string; cardBorderClass: string }
+  Partial<YardThemePack> & {
+    mascot: string;
+    tagline: string;
+    norms: string[];
+    weatherHint: string;
+    fanbase: string;
+    gradient: string;
+    accentClass: string;
+    cardBorderClass: string;
+  }
 > = {
   tsu: {
     mascot: "🐯 Tigers",
@@ -214,9 +223,7 @@ function buildPackFromCatalog(id: string): YardThemePack | null {
   if (!h) return null;
   const idx = colorIndex(id);
   const featured = (FEATURED_YARD_IDS as readonly string[]).includes(id);
-  const override = featured
-    ? FEATURED_OVERRIDES[id as FeaturedYardId]
-    : null;
+  const override = featured ? FEATURED_OVERRIDES[id as FeaturedYardId] : null;
 
   const base: YardThemePack = {
     id: h.id,
@@ -257,18 +264,20 @@ function buildPackFromCatalog(id: string): YardThemePack | null {
 }
 
 /** All yards — full catalog, featured first. */
-export const YARD_THEME_PACKS: Record<string, YardThemePack> = Object.fromEntries(
-  HBCU_CATALOG.map((h) => {
-    const pack = buildPackFromCatalog(h.id)!;
-    return [h.id, pack];
-  }),
-);
+export const YARD_THEME_PACKS: Record<string, YardThemePack> =
+  Object.fromEntries(
+    HBCU_CATALOG.map((h) => {
+      const pack = buildPackFromCatalog(h.id)!;
+      return [h.id, pack];
+    }),
+  );
 
 /** Featured + commonly used IDs for onboarding grids (not full 100+). */
 export const YARD_IDS: string[] = [
   ...FEATURED_YARD_IDS,
   ...HBCU_CATALOG.map((h) => h.id).filter(
-    (id) => !(FEATURED_YARD_IDS as readonly string[]).includes(id as FeaturedYardId),
+    (id) =>
+      !(FEATURED_YARD_IDS as readonly string[]).includes(id as FeaturedYardId),
   ),
 ];
 

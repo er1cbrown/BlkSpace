@@ -24,7 +24,7 @@ v0.1.0-yard 🏷️ | BKSPC mainnet ⬜ | Live stream ⬜ | M0 Device B smoke �
 | Yard CI installer | ✅ MSI | ✅ DMG | ✅ AppImage | `build-tauri-yard` |
 | Full CI installer | ✅ MSI | ✅ DMG | ✅ AppImage | `build-tauri-full` |
 | Tagged release dual Mac (arm64 + x64) | — | ✅ | — | `release.yml` |
-| Web UI preview | ✅ | ✅ | ✅ | `pnpm dev` (no Turso) |
+| Web UI preview | ✅ | ✅ | ✅ | `bun run dev` (no Turso) |
 | Turso local DB (desktop) | ✅ | ✅ | ✅ | Tier 0 PRAGMAs |
 | iOS / Android | ⬜ | ⬜ | — | After `v0.1.0-yard` |
 
@@ -77,8 +77,8 @@ account" prompt. Protects the weakest machines and matches TikTok/YouTube/X brow
 
 | Check | Command | Status |
 |-------|---------|--------|
-| Typecheck | `pnpm typecheck` | ✅ 2026-06-22 |
-| Frontend tests | `pnpm test:run` | ✅ 27/27 (5 new guest-mode tests) |
+| Typecheck | `bun run typecheck` | ✅ 2026-06-22 |
+| Frontend tests | `bun run test:run` | ✅ 27/27 (5 new guest-mode tests) |
 
 ### Device 2 beta (pending)
 
@@ -141,8 +141,8 @@ account" prompt. Protects the weakest machines and matches TikTok/YouTube/X brow
 | Account recovery (2+ desktops) | ✅ `/recover` path | ⏳ M0.1 Device B |
 | Cross-device sync &lt; 60s (Nostr) | ✅ `test_nostr_*` | ⏳ M0.2 |
 | Offline queue → relay flush | ✅ queue + M1 reply Nostr flush | ⏳ M0.3 |
-| Media CID + cache | ✅ `pnpm test:iroh` + M1 kind 1063 on upload | ⏳ M0.4 |
-| Tier 0 hardware smooth | ✅ `pnpm test:tier0` dev Mac | ⏳ M0.5 Device B |
+| Media CID + cache | ✅ `bun run test:iroh` + M1 kind 1063 on upload | ⏳ M0.4 |
+| Tier 0 hardware smooth | ✅ `bun run test:tier0` dev Mac | ⏳ M0.5 Device B |
 | No data loss on sync | ✅ DB + rate-limit tests | ⏳ M0 stress |
 
 **Score: 6/6 auto · 0/6 manual**. BLE/LAN mesh **deferred**.

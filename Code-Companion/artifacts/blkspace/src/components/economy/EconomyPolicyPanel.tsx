@@ -40,10 +40,10 @@ export function EconomyPolicyPanel() {
       </CardHeader>
       <CardContent className="text-xs space-y-3 text-muted-foreground">
         <p>
-          <strong className="text-foreground">Creator marketplace</strong> model — earn{" "}
-          {p.softCurrencySymbol}, spend in the shop, optional {p.bkspcSymbol} settlement
-          after eligibility. Same class of economy as Roblox or Fortnite; fees and caps
-          are published below.
+          <strong className="text-foreground">Creator marketplace</strong> model
+          — earn {p.softCurrencySymbol}, spend in the shop, optional{" "}
+          {p.bkspcSymbol} settlement after eligibility. Same class of economy as
+          Roblox or Fortnite; fees and caps are published below.
         </p>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
           <span>Model</span>
@@ -76,7 +76,8 @@ export function EconomyPolicyPanel() {
           </span>
           <span>Settlement ({p.bkspcSymbol})</span>
           <span className="font-medium text-foreground tabular-nums text-right">
-            {p.wbToBkspcRatio.toLocaleString()} {p.softCurrencySymbol} = 1 {p.bkspcSymbol}
+            {p.wbToBkspcRatio.toLocaleString()} {p.softCurrencySymbol} = 1{" "}
+            {p.bkspcSymbol}
           </span>
           <span>Treasury mint</span>
           <span className="font-medium text-foreground text-right">
@@ -85,7 +86,9 @@ export function EconomyPolicyPanel() {
         </div>
         {p.neverRules && p.neverRules.length > 0 && (
           <div>
-            <p className="text-[10px] font-medium text-foreground mb-1">Platform rules</p>
+            <p className="text-[10px] font-medium text-foreground mb-1">
+              Platform rules
+            </p>
             <ul className="text-[10px] space-y-0.5 list-disc pl-4">
               {p.neverRules.map((rule) => (
                 <li key={rule}>{rule}</li>
@@ -94,8 +97,8 @@ export function EconomyPolicyPanel() {
           </div>
         )}
         <p className="text-[10px]">
-          {p.softCurrencyName} {p.wbPurchasable ? "purchasable" : "earn-only"} · On-chain{" "}
-          {p.onChainReady ? "live" : "devnet until legal review"}
+          {p.softCurrencyName} {p.wbPurchasable ? "purchasable" : "earn-only"} ·
+          On-chain {p.onChainReady ? "live" : "devnet until legal review"}
         </p>
       </CardContent>
     </Card>

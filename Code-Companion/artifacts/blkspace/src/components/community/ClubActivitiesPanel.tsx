@@ -42,11 +42,7 @@ import {
   LiveLinkButtons,
 } from "@/components/media/LiveLinkButtons";
 
-export function ClubActivitiesPanel({
-  communityId,
-}: {
-  communityId: string;
-}) {
+export function ClubActivitiesPanel({ communityId }: { communityId: string }) {
   const [tab, setTab] = useState<"templates" | "reading" | "tournaments">(
     "templates",
   );
@@ -266,7 +262,9 @@ function ReadingSection({ communityId }: { communityId: string }) {
           circle={circles.find((c) => c.id === selected)!}
           handle={handle}
           onChange={() => {
-            qc.invalidateQueries({ queryKey: ["club", "circles", communityId] });
+            qc.invalidateQueries({
+              queryKey: ["club", "circles", communityId],
+            });
             qc.invalidateQueries({ queryKey: ["club", "entries", selected] });
           }}
         />
@@ -606,9 +604,9 @@ function TournamentDetail({
     queryKey: ["club", "matches", tour.id],
     queryFn: () => listTournamentMatches(tour.id),
   });
-  const [scores, setScores] = useState<Record<number, { a: string; b: string }>>(
-    {},
-  );
+  const [scores, setScores] = useState<
+    Record<number, { a: string; b: string }>
+  >({});
 
   const reg = useMutation({
     mutationFn: () => registerTournament(tour.id),
@@ -653,7 +651,11 @@ function TournamentDetail({
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => reg.mutate()} disabled={reg.isPending}>
+          <Button
+            size="sm"
+            onClick={() => reg.mutate()}
+            disabled={reg.isPending}
+          >
             Register
           </Button>
           {tour.createdBy === handle && (

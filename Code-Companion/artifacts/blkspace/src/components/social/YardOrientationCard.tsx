@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   dismissOrientation,
@@ -13,14 +10,7 @@ import {
 import { getYardTheme } from "@/lib/yard-themes";
 import { loadUiPrefs } from "@/lib/ui-prefs";
 import { useGuestMode } from "@/lib/guest-mode";
-import {
-  X,
-  Home,
-  Users,
-  Clapperboard,
-  Sparkles,
-  MapPin,
-} from "lucide-react";
+import { X, Home, Users, Clapperboard, Sparkles, MapPin } from "lucide-react";
 
 /**
  * First-user map: where you are + three obvious next steps.
@@ -74,8 +64,7 @@ export function YardOrientationCard() {
           </p>
           <h2 className="text-lg font-bold tracking-tight flex items-center gap-2 flex-wrap">
             <MapPin className="h-5 w-5 text-primary shrink-0" />
-            You&apos;re on{" "}
-            <span className="text-primary">{school}</span>
+            You&apos;re on <span className="text-primary">{school}</span>
             {mascot ? (
               <span className="text-sm font-normal text-muted-foreground">
                 · {mascot}
@@ -85,8 +74,9 @@ export function YardOrientationCard() {
           <p className="text-sm text-muted-foreground max-w-xl">
             BlkSpace is your HBCU social feed.{" "}
             <strong className="text-foreground font-medium">Home</strong> is the
-            scroll. <strong className="text-foreground font-medium">Yards</strong>{" "}
-            are campuses. Post to earn soft credits (WeixBucks) — no crypto setup
+            scroll.{" "}
+            <strong className="text-foreground font-medium">Yards</strong> are
+            campuses. Post to earn soft credits (WeixBucks) — no crypto setup
             required.
           </p>
         </div>

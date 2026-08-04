@@ -56,8 +56,8 @@ Why bots before recover: validates yard UI (mods, events) on Device B locally be
 ```bash
 git clone git@github.com:er1cbrown/BlkSpace.git
 cd BlkSpace/Code-Companion
-pnpm install
-pnpm tauri dev
+bun install
+bun run tauri dev
 ```
 
 **Device B (Windows 10):**
@@ -65,14 +65,14 @@ pnpm tauri dev
 # Download setup.bat from GitHub
 setup.bat
 cd BlkSpace/Code-Companion/artifacts/blkspace
-pnpm tauri dev
+bun run tauri dev
 ```
 
 **Device C (Ubuntu/Raspberry Pi):**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/er1cbrown/BlkSpace/main/setup.sh | bash
 cd BlkSpace/Code-Companion
-pnpm tauri dev
+bun run tauri dev
 ```
 
 ### 1.2 Create Account on Device A
@@ -166,7 +166,7 @@ pnpm tauri dev
 | Town tag enforcement | Relay rejects kind 1 without `t:hbcu-town:*` | [x] `test_validate_relay_event_tags` | — |
 | Daily cap toast | Grant when near 250 WB shows partial/clipped message | [x] `test_earn_result_daily_cap_flag` | [ ] Device B |
 | Nostr publish identity | Tips/marketplace/node events skip if no user key | [x] `user_nostr_keys_for_publish` | — |
-| Iroh upload → CID → Device B fetch | `pnpm test:iroh`; kind 1063 auto on `upload_blob` (M1) | [x] auto | [ ] two-device |
+| Iroh upload → CID → Device B fetch | `bun run test:iroh`; kind 1063 auto on `upload_blob` (M1) | [x] auto | [ ] two-device |
 | Offline flush → Nostr | Sync Test → Flush Now; replies publish on flush (M1) | [x] `flush_offline_queue` | [ ] Device B |
 
 ### 2.5 Tipping Test
@@ -269,13 +269,13 @@ Uses shipped **offline queue** (`queue_offline_action` → `flush_offline_queue`
 | Metric | Target | Automated | Manual sign-off |
 |--------|--------|-----------|-----------------|
 | App startup | < 5 seconds | — | [ ] Device B timer |
-| Feed load (50 posts) | < 2 seconds | [x] `pnpm test:tier0` (dev Mac) | [ ] Device B |
-| Post creation | < 1 second | [x] `pnpm test:tier0` (dev Mac) | [ ] Device B |
-| Blob round-trip (512 KiB) | < 30 seconds | [x] `pnpm test:tier0` (dev Mac) | [ ] Device B |
+| Feed load (50 posts) | < 2 seconds | [x] `bun run test:tier0` (dev Mac) | [ ] Device B |
+| Post creation | < 1 second | [x] `bun run test:tier0` (dev Mac) | [ ] Device B |
+| Blob round-trip (512 KiB) | < 30 seconds | [x] `bun run test:tier0` (dev Mac) | [ ] Device B |
 | Memory usage | < 500 MB | — | [ ] Device B Task Manager |
 | CPU usage | < 50% | — | [ ] Device B Task Manager |
 
-**Automated baseline (dev hardware):** `pnpm test:tier0` runs `test_tier0_benchmark_feed_post_blob_targets` — passes on Tier 2 Mac (2026-06-16); does **not** replace Device B sign-off.
+**Automated baseline (dev hardware):** `bun run test:tier0` runs `test_tier0_benchmark_feed_post_blob_targets` — passes on Tier 2 Mac (2026-06-16); does **not** replace Device B sign-off.
 
 **In-app:** Sync Test → **Performance** → **Run Tier 0 Benchmark** (`run_tier0_benchmark` Tauri command).
 
@@ -427,10 +427,10 @@ Uses shipped **offline queue** (`queue_offline_action` → `flush_offline_queue`
 | # | Criterion | Auto proof | Manual |
 |---|-----------|------------|--------|
 | 1 | Account recovery on 2+ desktops | `/recover` + BIP39 code path | [ ] Phase 1.4 |
-| 2 | Cross-device sync &lt;60s | [x] `pnpm test:nostr-relay` | [ ] Phase 1.5 |
+| 2 | Cross-device sync &lt;60s | [x] `bun run test:nostr-relay` | [ ] Phase 1.5 |
 | 3 | Offline queue → relay flush | [x] `offline_queue` + M1 reply Nostr flush | [ ] Phase 3.1–3.3 |
-| 4 | Media via CID + cache | [x] `pnpm test:iroh` + M1 kind 1063 on upload | [ ] §2.4 Iroh row |
-| 5 | Tier 0 performance | [x] `pnpm test:tier0` (dev Mac) | [ ] §4.1 Device B |
+| 4 | Media via CID + cache | [x] `bun run test:iroh` + M1 kind 1063 on upload | [ ] §2.4 Iroh row |
+| 5 | Tier 0 performance | [x] `bun run test:tier0` (dev Mac) | [ ] §4.1 Device B |
 | 6 | No data loss on sync | [x] DB + rate-limit tests | [ ] Phase 4.2 stress |
 
 **Score:** 0/6 manual · 6/6 auto backbone (as of 2026-06-16, post-M1).

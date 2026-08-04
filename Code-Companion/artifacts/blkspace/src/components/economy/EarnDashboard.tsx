@@ -15,14 +15,27 @@ const CATEGORY_ICON: Record<EarnCategory, typeof TrendingUp> = {
 /** Map a tx description to an earn category for bucketing. */
 function categorize(description: string): EarnCategory {
   const d = description.toLowerCase();
-  if (d.includes("upload") || d.includes("media") || d.includes("post") || d.includes("reel")) {
+  if (
+    d.includes("upload") ||
+    d.includes("media") ||
+    d.includes("post") ||
+    d.includes("reel")
+  ) {
     if (d.includes("yard") || d.includes("channel")) return "community";
     return "creation";
   }
   if (d.includes("rsvp") || d.includes("event")) return "community";
-  if (d.includes("yard") || d.includes("channel") || d.includes("join")) return "community";
-  if (d.includes("node") || d.includes("pin") || d.includes("relay") || d.includes("serve")) return "node";
-  if (d.includes("like") || d.includes("reply") || d.includes("wall")) return "engagement";
+  if (d.includes("yard") || d.includes("channel") || d.includes("join"))
+    return "community";
+  if (
+    d.includes("node") ||
+    d.includes("pin") ||
+    d.includes("relay") ||
+    d.includes("serve")
+  )
+    return "node";
+  if (d.includes("like") || d.includes("reply") || d.includes("wall"))
+    return "engagement";
   return "creation";
 }
 
@@ -74,7 +87,9 @@ export function EarnDashboard({
         {/* Daily cap progress */}
         <div>
           <div className="flex justify-between text-xs mb-1.5">
-            <span className="text-muted-foreground">Today's earn (cap {dailyCap} WB)</span>
+            <span className="text-muted-foreground">
+              Today's earn (cap {dailyCap} WB)
+            </span>
             <span className="font-medium tabular-nums">
               {earnedToday.toLocaleString()} / {dailyCap}
             </span>

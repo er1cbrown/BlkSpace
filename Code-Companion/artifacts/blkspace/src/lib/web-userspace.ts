@@ -136,9 +136,9 @@ export function saveWebProfilePatch(patch: WebProfilePatch) {
 }
 
 /** Apply like state onto a post list for the current browser user. */
-export function applyLikesToPosts<T extends { id: number; likesCount: number; liked: boolean }>(
-  posts: T[],
-): T[] {
+export function applyLikesToPosts<
+  T extends { id: number; likesCount: number; liked: boolean },
+>(posts: T[]): T[] {
   const map = getLikedMap();
   return posts.map((p) => {
     const k = String(p.id);
@@ -201,7 +201,9 @@ export function buildWebUser(handle: string) {
     weixBucks: baseWb,
     pubkey: "",
     engagementQuality: 1.0,
-    postKarma: isMe ? 5 + listWebUserPosts().filter((p) => p.authorHandle === h).length * 3 : 42,
+    postKarma: isMe
+      ? 5 + listWebUserPosts().filter((p) => p.authorHandle === h).length * 3
+      : 42,
     commentKarma: isMe ? 2 : 18,
     proProfileJson: "{}",
     profileLayoutJson: "{}",

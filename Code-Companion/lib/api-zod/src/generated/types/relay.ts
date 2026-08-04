@@ -5,7 +5,7 @@
  * BlkSpace federated social platform API
  * OpenAPI spec version: 0.1.0
  */
-import type { RelayStatus } from './relayStatus';
+import type { RelayStatus } from "./relayStatus";
 
 export interface Relay {
   id: number;

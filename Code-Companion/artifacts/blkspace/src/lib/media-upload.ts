@@ -86,7 +86,9 @@ export function mediaKindFromMime(mime: string, filename?: string): MediaKind {
   return mediaKindFromFile({ name: filename || "file", type: mime });
 }
 
-export function isAllowedUpload(file: File): { ok: true } | { ok: false; reason: string } {
+export function isAllowedUpload(
+  file: File,
+): { ok: true } | { ok: false; reason: string } {
   if (!file.name.includes(".")) {
     return { ok: false, reason: "File needs an extension (e.g. .png, .mp4)" };
   }

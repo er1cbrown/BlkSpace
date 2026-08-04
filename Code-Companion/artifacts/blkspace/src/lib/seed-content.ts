@@ -211,7 +211,8 @@ export const SEED_POSTS: SeedPost[] = [
     authorHandle: "famu_dj",
     authorDisplayName: "FAMU Sets",
     authorAvatarUrl: "",
-    content: "Set from last weekend's tailgate — 500 WB in the shop if you want the full hour.",
+    content:
+      "Set from last weekend's tailgate — 500 WB in the shop if you want the full hour.",
     townTag: "famu",
     repliesCount: 16,
     repostsCount: 28,
@@ -230,7 +231,8 @@ export const SEED_POSTS: SeedPost[] = [
     authorHandle: "spelman_voice",
     authorDisplayName: "Spelman Voice",
     authorAvatarUrl: "",
-    content: "Open mic night at the campus cafe — poets, singers, all welcome. Thursday 7pm.",
+    content:
+      "Open mic night at the campus cafe — poets, singers, all welcome. Thursday 7pm.",
     townTag: "spelman",
     repliesCount: 12,
     repostsCount: 7,
@@ -249,7 +251,8 @@ export const SEED_POSTS: SeedPost[] = [
     authorHandle: "nina_tsu26",
     authorDisplayName: "Nina J.",
     authorAvatarUrl: "",
-    content: "Who else up studying for finals already? The library is PACKED rn 📚",
+    content:
+      "Who else up studying for finals already? The library is PACKED rn 📚",
     townTag: "tsu",
     repliesCount: 31,
     repostsCount: 4,
@@ -308,11 +311,26 @@ export const SEED_POSTS: SeedPost[] = [
 export const SEED_USERS = [
   { handle: "nina_tsu26", display: "Nina J.", town: "TSU", followers: 428 },
   { handle: "dj_kev_tsu", display: "DJ Kev", town: "TSU", followers: 1842 },
-  { handle: "jayla_creates", display: "Jayla Creates", town: "TSU", followers: 612 },
-  { handle: "marcus_alpha", display: "Marcus (ΑΦΑ)", town: "TSU", followers: 389 },
+  {
+    handle: "jayla_creates",
+    display: "Jayla Creates",
+    town: "TSU",
+    followers: 612,
+  },
+  {
+    handle: "marcus_alpha",
+    display: "Marcus (ΑΦΑ)",
+    town: "TSU",
+    followers: 389,
+  },
   { handle: "tiana_sga", display: "Tiana | SGA", town: "TSU", followers: 956 },
   { handle: "devon_film", display: "Devon 🎬", town: "TSU", followers: 271 },
-  { handle: "howard_yard", display: "Howard Yard", town: "Howard", followers: 2104 },
+  {
+    handle: "howard_yard",
+    display: "Howard Yard",
+    town: "Howard",
+    followers: 2104,
+  },
   { handle: "famu_dj", display: "FAMU Sets", town: "FAMU", followers: 1330 },
 ];
 

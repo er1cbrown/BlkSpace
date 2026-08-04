@@ -1,6 +1,6 @@
 # Implementation Plan: Iroh Integration
 
-**Status:** ✅ PHASE 2 PROOF COMPLETE (2026-06-16) — Automated round-trip tests pass (`pnpm test:iroh`). Upload → Iroh CID → Device B fetch proven via shared store, content-addressed CID, and blob-store sync. Live P2P replication across unrelated devices remains runtime-dependent (Iroh netwatch on macOS).
+**Status:** ✅ PHASE 2 PROOF COMPLETE (2026-06-16) — Automated round-trip tests pass (`bun run test:iroh`). Upload → Iroh CID → Device B fetch proven via shared store, content-addressed CID, and blob-store sync. Live P2P replication across unrelated devices remains runtime-dependent (Iroh netwatch on macOS).
 **Priority:** High (replaces local blob storage)  
 **Estimated Time:** 3-5 days  
 **Dependencies:** Device mesh testing (proves multi-device viability)
@@ -442,7 +442,7 @@ pub async fn get_content(cid: &str, fallback_hash: &str) -> Result<Vec<u8>, Stri
 
 ```bash
 cd Code-Companion/artifacts/blkspace
-pnpm test:iroh   # 12 tests: upload, CID, two-device paths, imeta, pin, fallback
+bun run test:iroh   # 12 tests: upload, CID, two-device paths, imeta, pin, fallback
 ```
 
 | Scenario | Test | What it proves |
@@ -456,7 +456,7 @@ pnpm test:iroh   # 12 tests: upload, CID, two-device paths, imeta, pin, fallback
 
 ### Manual — two physical devices
 
-1. **Device A:** `pnpm tauri:dev` → upload image on `/media` → note **CID** in upload toast / wallet media list.
+1. **Device A:** `bun run tauri:dev` → upload image on `/media` → note **CID** in upload toast / wallet media list.
 2. **Device B:** Recover same account (BIP39) OR copy app data `iroh/` + `blobs/` + SQLite from A.
 3. **Device B:** Open post with media → image loads via `get_blob_bytes` (Iroh CID first, local fallback).
 4. Sign off in `DEVICE_MESH_TESTING.md` §2.4 Iroh row.

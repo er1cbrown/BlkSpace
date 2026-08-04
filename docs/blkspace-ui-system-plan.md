@@ -514,7 +514,7 @@ Single module (~1,370 lines) wrapping:
 
 1. **REST API hooks** — `@workspace/api-client-react` for web/Express path
 2. **Tauri hooks** — direct `tauri-api.ts` commands
-3. **Mock fallbacks** — `MOCK_POSTS` and friends so `pnpm dev` Vite preview is never empty
+3. **Mock fallbacks** — `MOCK_POSTS` and friends so `bun run dev` Vite preview is never empty
 
 **Hook groups (80+ exports):**
 
@@ -550,7 +550,7 @@ Single module (~1,370 lines) wrapping:
 
 ## Dual-runtime: Tauri vs web preview
 
-| Capability | Tauri desktop | Web (`pnpm dev`) |
+| Capability | Tauri desktop | Web (`bun run dev`) |
 |------------|---------------|------------------|
 | Nostr key storage | Rust key store | `sessionStorage` |
 | Posts / feed | Live SQLite + relays | Mock posts |

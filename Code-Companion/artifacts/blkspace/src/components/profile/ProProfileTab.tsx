@@ -42,7 +42,11 @@ interface ProProfileTabProps {
 }
 
 /** LinkedIn / Handshake professional layer */
-export function ProProfileTab({ initialJson, isOwn, onSave }: ProProfileTabProps) {
+export function ProProfileTab({
+  initialJson,
+  isOwn,
+  onSave,
+}: ProProfileTabProps) {
   const [data, setData] = useState<ProProfileData>(EMPTY);
   const [skillInput, setSkillInput] = useState("");
 
@@ -93,7 +97,9 @@ export function ProProfileTab({ initialJson, isOwn, onSave }: ProProfileTabProps
                 <input
                   type="checkbox"
                   checked={data.openToWork}
-                  onChange={(e) => setData({ ...data, openToWork: e.target.checked })}
+                  onChange={(e) =>
+                    setData({ ...data, openToWork: e.target.checked })
+                  }
                 />
                 Open to work / internships
               </label>
@@ -108,7 +114,8 @@ export function ProProfileTab({ initialJson, isOwn, onSave }: ProProfileTabProps
                 Open to research labs / faculty projects
               </label>
               <p className="text-[11px] text-muted-foreground">
-                Signals appear on ProjectConnect for org leads (credibility-before-finance).
+                Signals appear on ProjectConnect for org leads
+                (credibility-before-finance).
               </p>
             </>
           ) : (
@@ -134,7 +141,9 @@ export function ProProfileTab({ initialJson, isOwn, onSave }: ProProfileTabProps
               <Input
                 placeholder="Grad year"
                 value={data.graduationYear}
-                onChange={(e) => setData({ ...data, graduationYear: e.target.value })}
+                onChange={(e) =>
+                  setData({ ...data, graduationYear: e.target.value })
+                }
               />
             </>
           ) : (
@@ -202,21 +211,32 @@ export function ProProfileTab({ initialJson, isOwn, onSave }: ProProfileTabProps
               <Textarea
                 placeholder="Research, orgs, internships..."
                 value={data.experience}
-                onChange={(e) => setData({ ...data, experience: e.target.value })}
+                onChange={(e) =>
+                  setData({ ...data, experience: e.target.value })
+                }
                 rows={4}
               />
               <Input
                 placeholder="Portfolio URL"
                 value={data.portfolioUrl}
-                onChange={(e) => setData({ ...data, portfolioUrl: e.target.value })}
+                onChange={(e) =>
+                  setData({ ...data, portfolioUrl: e.target.value })
+                }
               />
               <Button onClick={save}>Save pro profile</Button>
             </>
           ) : (
             <>
-              <p className="text-sm whitespace-pre-wrap">{data.experience || "—"}</p>
+              <p className="text-sm whitespace-pre-wrap">
+                {data.experience || "—"}
+              </p>
               {data.portfolioUrl && (
-                <a href={data.portfolioUrl} className="text-sm text-primary hover:underline" target="_blank" rel="noreferrer">
+                <a
+                  href={data.portfolioUrl}
+                  className="text-sm text-primary hover:underline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   View portfolio
                 </a>
               )}

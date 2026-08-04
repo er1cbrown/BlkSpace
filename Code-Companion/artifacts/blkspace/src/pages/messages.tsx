@@ -29,13 +29,7 @@ import { getCurrentHandle } from "@/lib/auth";
 import { useGuestMode } from "@/lib/guest-mode";
 import { GuestCTA } from "@/components/social/GuestCTA";
 import { ExperimentalMessagingWarning } from "@/components/ui/experimental-messaging-warning";
-import {
-  AlertTriangle,
-  MessageSquare,
-  Send,
-  Shield,
-  Ban,
-} from "lucide-react";
+import { AlertTriangle, MessageSquare, Send, Shield, Ban } from "lucide-react";
 import { toast } from "sonner";
 
 /**
@@ -64,9 +58,7 @@ export default function MessagesPage() {
   const [claim, setClaim] = useState(() => loadInstitutionalClaim(me));
   const [showEthics, setShowEthics] = useState(!hasEthicsAck());
   const [inst, setInst] = useState(claim?.institution || "");
-  const [role, setRole] = useState<InstitutionalRole>(
-    claim?.role || "faculty",
-  );
+  const [role, setRole] = useState<InstitutionalRole>(claim?.role || "faculty");
   const [domain, setDomain] = useState(claim?.emailDomain || "");
   const [contactEmail, setContactEmail] = useState(claim?.contactEmail || "");
 
@@ -143,10 +135,13 @@ export default function MessagesPage() {
           )}
         </div>
         <p className="text-sm text-muted-foreground max-w-2xl">
-          Every user already has a <strong className="text-foreground">@handle</strong>.
-          Messaging is handle-to-handle with ethical security: No-PHI, consent,
-          blocks, rate limits. Institutional tags are{" "}
-          <strong className="text-foreground">self-attested or domain-declared</strong>{" "}
+          Every user already has a{" "}
+          <strong className="text-foreground">@handle</strong>. Messaging is
+          handle-to-handle with ethical security: No-PHI, consent, blocks, rate
+          limits. Institutional tags are{" "}
+          <strong className="text-foreground">
+            self-attested or domain-declared
+          </strong>{" "}
           — not fake SSO until a real campus IdP is connected.
         </p>
 
@@ -251,7 +246,8 @@ export default function MessagesPage() {
                   checked={ethicalAck}
                   onChange={(e) => setEthicalAck(e.target.checked)}
                 />
-                I acknowledge the ethical principles (IEEE-aligned, honesty about claim levels)
+                I acknowledge the ethical principles (IEEE-aligned, honesty
+                about claim levels)
               </label>
               <Button
                 size="sm"

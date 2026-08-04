@@ -43,7 +43,13 @@ export function GuestCTA({
       >
         {message}
       </p>
-      <div className={compact ? "flex items-center gap-2 shrink-0" : "flex flex-col sm:flex-row gap-3 w-full sm:w-auto"}>
+      <div
+        className={
+          compact
+            ? "flex items-center gap-2 shrink-0"
+            : "flex flex-col sm:flex-row gap-3 w-full sm:w-auto"
+        }
+      >
         <Link href="/welcome">
           <Button className="rounded-full" size={compact ? "sm" : "default"}>
             Create free account
@@ -51,7 +57,11 @@ export function GuestCTA({
           </Button>
         </Link>
         <Link href="/login">
-          <Button variant="outline" className="rounded-full" size={compact ? "sm" : "default"}>
+          <Button
+            variant="outline"
+            className="rounded-full"
+            size={compact ? "sm" : "default"}
+          >
             Sign in
           </Button>
         </Link>
@@ -70,7 +80,11 @@ export function GuestCTA({
   }
 
   if (compact) {
-    return <Card className="border-primary/20 mb-6"><CardContent className="py-3">{body}</CardContent></Card>;
+    return (
+      <Card className="border-primary/20 mb-6">
+        <CardContent className="py-3">{body}</CardContent>
+      </Card>
+    );
   }
 
   return body;

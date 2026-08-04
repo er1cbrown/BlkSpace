@@ -160,14 +160,18 @@ function ConnectHub() {
               ProjectConnectBKSPC · Credibility layer
             </Badge>
             <h1 className="font-serif text-3xl md:text-4xl font-bold tracking-tight">
-              Research first. Build <span className="text-primary">Cred</span>. Then earn.
+              Research first. Build <span className="text-primary">Cred</span>.
+              Then earn.
             </h1>
             <p className="text-muted-foreground text-sm md:text-base leading-relaxed">
-              ProjectConnectBKSPC — research labs, medtech/biomedical data, pro chapters, clubs,
-              and service hubs for underrepresented campuses. Express interest, get endorsed,
-              grow Yard Cred.{" "}
-              <strong className="text-foreground">BKSPC (BlkSpace Coin) stays gated</strong> until
-              credibility is real — soft WeixBucks today, settlement later.
+              ProjectConnectBKSPC — research labs, medtech/biomedical data, pro
+              chapters, clubs, and service hubs for underrepresented campuses.
+              Express interest, get endorsed, grow Yard Cred.{" "}
+              <strong className="text-foreground">
+                BKSPC (BlkSpace Coin) stays gated
+              </strong>{" "}
+              until credibility is real — soft WeixBucks today, settlement
+              later.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
               <Link href="/focus">
@@ -197,7 +201,8 @@ function ConnectHub() {
               )}
               {cred && (
                 <Badge variant="secondary" className="text-sm px-3 py-1.5">
-                  Your Yard Cred · <span className="text-primary font-bold">{cred.score}</span>
+                  Your Yard Cred ·{" "}
+                  <span className="text-primary font-bold">{cred.score}</span>
                 </Badge>
               )}
             </div>
@@ -218,7 +223,11 @@ function ConnectHub() {
           <Tabs value={filter} onValueChange={setFilter}>
             <TabsList className="flex flex-wrap h-auto gap-1">
               {ORG_TYPES.map((t) => (
-                <TabsTrigger key={t.id} value={t.id} className="text-xs sm:text-sm">
+                <TabsTrigger
+                  key={t.id}
+                  value={t.id}
+                  className="text-xs sm:text-sm"
+                >
                   {t.label}
                 </TabsTrigger>
               ))}
@@ -251,12 +260,17 @@ function ConnectHub() {
                     <Card className="h-full hover:border-primary/40 transition-colors cursor-pointer">
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="text-base leading-snug">{org.name}</CardTitle>
+                          <CardTitle className="text-base leading-snug">
+                            {org.name}
+                          </CardTitle>
                           <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                         </div>
                         <Badge
                           variant="outline"
-                          className={cn("w-fit text-[10px] uppercase", typeBadgeClass(org.orgType))}
+                          className={cn(
+                            "w-fit text-[10px] uppercase",
+                            typeBadgeClass(org.orgType),
+                          )}
                         >
                           {org.orgType}
                         </Badge>
@@ -267,7 +281,9 @@ function ConnectHub() {
                       <CardFooter className="text-xs text-muted-foreground gap-3">
                         <span>{org.memberCount} members</span>
                         <span>{org.opportunityCount} open</span>
-                        {org.yardId && <span className="text-primary">@{org.yardId}</span>}
+                        {org.yardId && (
+                          <span className="text-primary">@{org.yardId}</span>
+                        )}
                       </CardFooter>
                     </Card>
                   </Link>
@@ -285,7 +301,9 @@ function ConnectHub() {
           {pLoading ? (
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           ) : filteredOpps.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No open opportunities for this filter.</p>
+            <p className="text-sm text-muted-foreground">
+              No open opportunities for this filter.
+            </p>
           ) : (
             <div className="space-y-3">
               {filteredOpps.map((opp) => (
@@ -354,7 +372,9 @@ function OpenToTalentBoard() {
                       <Badge className="bg-green-600 text-[10px]">Work</Badge>
                     )}
                     {c.openToResearch && (
-                      <Badge className="bg-blue-600 text-[10px]">Research</Badge>
+                      <Badge className="bg-blue-600 text-[10px]">
+                        Research
+                      </Badge>
                     )}
                   </div>
                 </div>
@@ -373,13 +393,17 @@ function OpenToTalentBoard() {
                   </p>
                 )}
                 <div className="flex flex-wrap gap-1">
-                  {(Array.isArray(c.skills) ? c.skills : []).slice(0, 6).map(
-                    (s: string) => (
-                      <Badge key={s} variant="secondary" className="text-[10px]">
+                  {(Array.isArray(c.skills) ? c.skills : [])
+                    .slice(0, 6)
+                    .map((s: string) => (
+                      <Badge
+                        key={s}
+                        variant="secondary"
+                        className="text-[10px]"
+                      >
                         {s}
                       </Badge>
-                    ),
-                  )}
+                    ))}
                 </div>
                 <div className="flex gap-2 pt-1">
                   <Link href={`/profile/${c.handle}`}>
@@ -389,11 +413,7 @@ function OpenToTalentBoard() {
                   </Link>
                   {c.portfolioUrl && (
                     <Button size="sm" variant="ghost" asChild>
-                      <a
-                        href={c.portfolioUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
+                      <a href={c.portfolioUrl} target="_blank" rel="noreferrer">
                         Portfolio
                       </a>
                     </Button>
@@ -416,7 +436,13 @@ function OpportunityCard({ opp }: { opp: ConnectOpportunity }) {
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center gap-2 justify-between">
             <CardTitle className="text-base md:text-lg">{opp.title}</CardTitle>
-            <Badge variant="outline" className={cn("text-[10px] uppercase", typeBadgeClass(opp.orgType))}>
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px] uppercase",
+                typeBadgeClass(opp.orgType),
+              )}
+            >
               {opp.orgType}
             </Badge>
           </div>
@@ -427,7 +453,9 @@ function OpportunityCard({ opp }: { opp: ConnectOpportunity }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          <p className="text-sm text-muted-foreground line-clamp-2">{opp.description}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {opp.description}
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {tags.map((t) => (
               <Badge key={t} variant="secondary" className="text-[10px]">
@@ -447,8 +475,7 @@ function CreateOrgForm({ onDone }: { onDone: () => void }) {
   const [yardId, setYardId] = useState("tsu");
   const [description, setDescription] = useState("");
   const mut = useMutation({
-    mutationFn: () =>
-      createOrg({ name, orgType, yardId, description }),
+    mutationFn: () => createOrg({ name, orgType, yardId, description }),
     onSuccess: () => {
       toast.success("Org created");
       onDone();
@@ -459,10 +486,17 @@ function CreateOrgForm({ onDone }: { onDone: () => void }) {
     <Card className="border-primary/25">
       <CardHeader>
         <CardTitle className="text-base">Create organization</CardTitle>
-        <CardDescription>Clubs, labs, service hubs, pro chapters — dedicated pages beyond yards.</CardDescription>
+        <CardDescription>
+          Clubs, labs, service hubs, pro chapters — dedicated pages beyond
+          yards.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
         <div className="flex flex-wrap gap-2">
           {ORG_TYPES.filter((t) => t.id !== "all").map((t) => (
             <Button
@@ -491,7 +525,11 @@ function CreateOrgForm({ onDone }: { onDone: () => void }) {
           disabled={!name.trim() || mut.isPending}
           onClick={() => mut.mutate()}
         >
-          {mut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
+          {mut.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            "Create"
+          )}
         </Button>
       </CardContent>
     </Card>
@@ -544,7 +582,9 @@ function OrgDetailPage({ orgId }: { orgId: string }) {
   if (!org) {
     return (
       <AppShell>
-        <p className="text-center mt-20 text-muted-foreground">Org not found.</p>
+        <p className="text-center mt-20 text-muted-foreground">
+          Org not found.
+        </p>
         <div className="text-center mt-4">
           <Link href="/connect">
             <Button variant="outline">Back to Connect</Button>
@@ -573,14 +613,23 @@ function OrgDetailPage({ orgId }: { orgId: string }) {
                 <Icon className="h-6 w-6 text-primary" />
               </div>
               <div className="space-y-1 min-w-0">
-                <CardTitle className="text-2xl font-serif">{org.name}</CardTitle>
+                <CardTitle className="text-2xl font-serif">
+                  {org.name}
+                </CardTitle>
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className={typeBadgeClass(org.orgType)}>
+                  <Badge
+                    variant="outline"
+                    className={typeBadgeClass(org.orgType)}
+                  >
                     {org.orgType}
                   </Badge>
-                  {org.yardId && <Badge variant="secondary">Yard · {org.yardId}</Badge>}
+                  {org.yardId && (
+                    <Badge variant="secondary">Yard · {org.yardId}</Badge>
+                  )}
                 </div>
-                <CardDescription className="text-sm pt-1">{org.description}</CardDescription>
+                <CardDescription className="text-sm pt-1">
+                  {org.description}
+                </CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -608,9 +657,21 @@ function OrgDetailPage({ orgId }: { orgId: string }) {
               <CardTitle className="text-base">New opportunity</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-              <Textarea placeholder="Description" value={desc} onChange={(e) => setDesc(e.target.value)} />
-              <Input placeholder="Duration" value={duration} onChange={(e) => setDuration(e.target.value)} />
+              <Input
+                placeholder="Title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <Textarea
+                placeholder="Description"
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+              />
+              <Input
+                placeholder="Duration"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              />
               <Button
                 disabled={!title.trim() || !desc.trim() || createMut.isPending}
                 onClick={() => createMut.mutate()}
@@ -714,7 +775,10 @@ function OpportunityDetailPage({ oppId }: { oppId: number }) {
           </Badge>
           <h1 className="font-serif text-3xl font-bold">{opp.title}</h1>
           <p className="text-muted-foreground">
-            <Link href={`/connect/orgs/${opp.orgId}`} className="text-primary hover:underline">
+            <Link
+              href={`/connect/orgs/${opp.orgId}`}
+              className="text-primary hover:underline"
+            >
               {opp.orgName}
             </Link>
             {opp.durationText ? ` · ${opp.durationText}` : ""}
@@ -722,7 +786,9 @@ function OpportunityDetailPage({ oppId }: { oppId: number }) {
         </div>
         <Card>
           <CardContent className="pt-6 space-y-4">
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{opp.description}</p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              {opp.description}
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {tags.map((t) => (
                 <Badge key={t} variant="secondary">
@@ -756,7 +822,8 @@ function OpportunityDetailPage({ oppId }: { oppId: number }) {
             <CardHeader>
               <CardTitle className="text-base">I&apos;m interested</CardTitle>
               <CardDescription>
-                Builds credibility — not money. Leads review applicants before finance layers.
+                Builds credibility — not money. Leads review applicants before
+                finance layers.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -858,7 +925,8 @@ function InboxPage() {
               <Inbox className="h-6 w-6 text-primary" /> Lead inbox
             </h1>
             <p className="text-sm text-muted-foreground">
-              Applicants for opportunities you lead — accept, reject, or mark complete (+ endorsement).
+              Applicants for opportunities you lead — accept, reject, or mark
+              complete (+ endorsement).
             </p>
           </div>
         </div>
@@ -868,7 +936,8 @@ function InboxPage() {
         ) : items.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-muted-foreground text-sm">
-              No applicants yet. Post an opportunity on an org you own, or apply as a student on the demo seed.
+              No applicants yet. Post an opportunity on an org you own, or apply
+              as a student on the demo seed.
             </CardContent>
           </Card>
         ) : (
@@ -899,7 +968,9 @@ function InboxPage() {
                   )}
                   {item.gpaShared && item.gpa ? (
                     <p>
-                      <span className="text-muted-foreground">GPA (shared): </span>
+                      <span className="text-muted-foreground">
+                        GPA (shared):{" "}
+                      </span>
                       <span className="font-medium">{item.gpa}</span>
                     </p>
                   ) : (
@@ -907,7 +978,11 @@ function InboxPage() {
                       GPA not shared by applicant
                     </p>
                   )}
-                  {item.message && <p className="text-muted-foreground italic">&ldquo;{item.message}&rdquo;</p>}
+                  {item.message && (
+                    <p className="text-muted-foreground italic">
+                      &ldquo;{item.message}&rdquo;
+                    </p>
+                  )}
                   <Badge variant="outline">{item.status}</Badge>
                 </CardContent>
                 <CardFooter className="flex flex-wrap gap-2">
@@ -939,7 +1014,10 @@ function InboxPage() {
                     variant="secondary"
                     className="gap-1"
                     onClick={async () => {
-                      await completeInterest(item.id, "Great work on the yard.");
+                      await completeInterest(
+                        item.id,
+                        "Great work on the yard.",
+                      );
                       toast.success("Completed + endorsement — Cred boost");
                       qc.invalidateQueries({ queryKey: ["connect"] });
                     }}

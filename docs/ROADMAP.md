@@ -57,7 +57,7 @@ Mobile (~10%)           ██░░░░░░░░  Planned (Tauri); not shi
 | CI artifact | `BlkSpace-Full-Windows-x64.msi`, `BlkSpace-Full-macOS.dmg`, `BlkSpace-Full-Linux.AppImage` |
 | Job | `build-tauri-full` in `.github/workflows/ci.yml` |
 
-**Local dev:** `pnpm tauri:dev:full` or `pnpm tauri:build:full` from `Code-Companion/artifacts/blkspace`. Tagged releases upload both Yard and Full via `build-yard` + `build-full` in `release.yml`.
+**Local dev:** `bun run tauri:dev:full` or `bun run tauri:build:full` from `Code-Companion/artifacts/blkspace`. Tagged releases upload both Yard and Full via `build-yard` + `build-full` in `release.yml`.
 
 ---
 

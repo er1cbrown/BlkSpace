@@ -52,9 +52,10 @@ export function StudioPanel({
         <Camera className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <p>
           Photography / video studio: public portfolio for booking, client
-          deliveries with <strong className="text-foreground">free grant</strong> or{" "}
-          <strong className="text-foreground">paid all-in-one unlock</strong>, and
-          export package.
+          deliveries with{" "}
+          <strong className="text-foreground">free grant</strong> or{" "}
+          <strong className="text-foreground">paid all-in-one unlock</strong>,
+          and export package.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -251,7 +252,9 @@ function CollectionDetail({
               <Badge variant="secondary" className="text-[10px] capitalize">
                 {it.kind}
               </Badge>
-              <div className="font-mono text-[10px] truncate">{it.mediaRef}</div>
+              <div className="font-mono text-[10px] truncate">
+                {it.mediaRef}
+              </div>
               <div className="text-muted-foreground line-clamp-2">
                 {it.caption || "—"}
               </div>
@@ -260,7 +263,9 @@ function CollectionDetail({
         </div>
         {isOwn && (
           <div className="border rounded p-3 space-y-2">
-            <p className="text-xs font-medium">Add shot (blob hash / CID / ref)</p>
+            <p className="text-xs font-medium">
+              Add shot (blob hash / CID / ref)
+            </p>
             <div className="flex gap-1">
               <Button
                 size="sm"
@@ -342,8 +347,8 @@ function ShootsStudioSection({ me }: { me: string }) {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <p className="text-xs text-muted-foreground">
-          After a shoot: upload selects → publish delivery → grant free access or
-          sell all-in-one unlock
+          After a shoot: upload selects → publish delivery → grant free access
+          or sell all-in-one unlock
         </p>
         <Button size="sm" onClick={() => setShowCreate(!showCreate)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> New shoot
@@ -536,7 +541,10 @@ function ShootOwnerDetail({
               className="flex justify-between gap-2 border rounded px-2 py-1.5 text-xs"
             >
               <span className="truncate">
-                <Badge variant="outline" className="text-[10px] mr-1 capitalize">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] mr-1 capitalize"
+                >
                   {a.kind}
                 </Badge>
                 {a.filename || a.mediaRef}
@@ -634,13 +642,7 @@ function ShootOwnerDetail({
   );
 }
 
-function ClientInboxSection({
-  me,
-  isOwn,
-}: {
-  me: string;
-  isOwn: boolean;
-}) {
+function ClientInboxSection({ me, isOwn }: { me: string; isOwn: boolean }) {
   const qc = useQueryClient();
   const { data: deliveries = [] } = useQuery({
     queryKey: ["studio", "client-deliveries", me],
@@ -671,7 +673,9 @@ function ClientInboxSection({
             selected={selected === s.id}
             onSelect={() => setSelected(s.id)}
             onChanged={() => {
-              qc.invalidateQueries({ queryKey: ["studio", "client-deliveries"] });
+              qc.invalidateQueries({
+                queryKey: ["studio", "client-deliveries"],
+              });
               qc.invalidateQueries({ queryKey: ["studio", "assets", s.id] });
             }}
           />
@@ -684,7 +688,9 @@ function ClientInboxSection({
       </div>
       {isOwn && paidBrowse.length > 0 && (
         <div className="space-y-2 pt-2 border-t">
-          <p className="text-xs font-medium">Your paid packs (clients unlock)</p>
+          <p className="text-xs font-medium">
+            Your paid packs (clients unlock)
+          </p>
           {paidBrowse.map((s) => (
             <div key={s.id} className="text-xs border rounded p-2">
               {s.title} · {s.priceWb} WB · {s.assetCount} files ·{" "}
@@ -773,7 +779,11 @@ function ClientShootView({
   shootId: number;
   onChanged: () => void;
 }) {
-  const { data: assets = [], error, isError } = useQuery({
+  const {
+    data: assets = [],
+    error,
+    isError,
+  } = useQuery({
     queryKey: ["studio", "assets", shootId],
     queryFn: () => listShootAssets(shootId),
     retry: false,
@@ -839,8 +849,8 @@ function ClientShootView({
           Download export package (JSON)
         </Button>
         <p className="text-[10px] text-muted-foreground">
-          All-in-one access: every file in this shoot. Use mediaRef with BlkSpace
-          blob APIs or your linked storage to pull full resolution.
+          All-in-one access: every file in this shoot. Use mediaRef with
+          BlkSpace blob APIs or your linked storage to pull full resolution.
         </p>
       </CardContent>
     </Card>

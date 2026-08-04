@@ -7,8 +7,8 @@ npm install -g pnpm@latest
 echo "=== Installing OpenCode ==="
 npm install -g @opencode-ai/cli
 
-echo "=== pnpm store in /tmp (saves disk) ==="
-pnpm config set store-dir /tmp/pnpm-store 2>/dev/null || true
+echo "=== bun run store in /tmp (saves disk) ==="
+bun run config set store-dir /tmp/pnpm-store 2>/dev/null || true
 
 echo ""
 echo "=== Ready ==="

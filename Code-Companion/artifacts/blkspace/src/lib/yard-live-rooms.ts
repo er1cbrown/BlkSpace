@@ -47,10 +47,12 @@ export function listLiveRooms(yardId: string): YardLiveRoom[] {
 }
 
 function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "")
-    .slice(0, 24) || "room";
+  return (
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "")
+      .slice(0, 24) || "room"
+  );
 }
 
 export function jitsiUrl(room: YardLiveRoom): string {

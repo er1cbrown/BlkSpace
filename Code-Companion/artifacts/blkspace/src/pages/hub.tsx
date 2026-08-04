@@ -225,11 +225,7 @@ export default function HubPage() {
                 Live? Use kind <strong>stream</strong> + your watch URL. Native
                 ingest comes later — link-out is the honest MVP.
               </p>
-              <Button
-                size="sm"
-                disabled={!title.trim()}
-                onClick={publish}
-              >
+              <Button size="sm" disabled={!title.trim()} onClick={publish}>
                 Publish
               </Button>
             </CardContent>

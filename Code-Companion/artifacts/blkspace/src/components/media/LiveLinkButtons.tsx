@@ -1,9 +1,6 @@
 import { ExternalLink, Radio, Swords } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  isSafeHttpUrl,
-  parseAmalgamationMeta,
-} from "@/lib/amalgamation-meta";
+import { isSafeHttpUrl, parseAmalgamationMeta } from "@/lib/amalgamation-meta";
 
 /** Surface live / external-play links from description meta tags. */
 export function LiveLinkButtons({

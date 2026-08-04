@@ -7,6 +7,6 @@
  */
 
 export type ListPostsParams = {
-town?: string;
-trending?: boolean;
+  town?: string;
+  trending?: boolean;
 };

@@ -36,7 +36,7 @@ import {
   isEscrowDefaultType,
 } from "@/lib/myyard-catalog";
 import { YARD_THEME_PACKS, getYardTheme } from "@/lib/yard-themes";
-import { FEATURED_YARD_IDS } from "@/lib/hbcu-catalog";
+import { FEATURED_YARD_IDS, isFeaturedYardId } from "@/lib/hbcu-catalog";
 import { allTownOptions } from "@/lib/towns";
 import { YardSaleListings } from "@/components/economy/YardSaleListings";
 import { EscrowTradesPanel } from "@/components/economy/EscrowTradesPanel";
@@ -73,8 +73,7 @@ export function CreatorMarketplacePanel() {
   });
 
   const bkspcWired = settlementStatus?.wired === true;
-  const defaultTown =
-    (user as { town?: string })?.town?.toLowerCase() || "tsu";
+  const defaultTown = (user as { town?: string })?.town?.toLowerCase() || "tsu";
 
   const [showListForm, setShowListForm] = useState(false);
   const [mintNftOnList, setMintNftOnList] = useState(true);
@@ -282,7 +281,7 @@ export function CreatorMarketplacePanel() {
                   </SelectItem>
                 ))}
                 {allTownOptions()
-                  .filter((t) => !FEATURED_YARD_IDS.includes(t.id))
+                  .filter((t) => !isFeaturedYardId(t.id))
                   .slice(0, 40)
                   .map((t) => (
                     <SelectItem key={t.id} value={t.id}>
@@ -379,14 +378,18 @@ export function CreatorMarketplacePanel() {
                     onChange={(e) =>
                       setNewItem({
                         ...newItem,
-                        bpm: e.target.value ? parseInt(e.target.value) : undefined,
+                        bpm: e.target.value
+                          ? parseInt(e.target.value)
+                          : undefined,
                       })
                     }
                   />
                   <Input
                     placeholder="Key (e.g. Am)"
                     value={newItem.key}
-                    onChange={(e) => setNewItem({ ...newItem, key: e.target.value })}
+                    onChange={(e) =>
+                      setNewItem({ ...newItem, key: e.target.value })
+                    }
                   />
                 </div>
                 <Input
@@ -416,7 +419,9 @@ export function CreatorMarketplacePanel() {
                   <SelectValue placeholder="Optional audio / sermon set (Iroh CID)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">No audio yet (metadata only)</SelectItem>
+                  <SelectItem value="__none__">
+                    No audio yet (metadata only)
+                  </SelectItem>
                   {userMedia.map((m: any) => (
                     <SelectItem key={m.hash} value={m.hash}>
                       {m.filename}
@@ -462,7 +467,9 @@ export function CreatorMarketplacePanel() {
                 <SelectValue placeholder="Fulfillment" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="instant">Instant (theme/media style)</SelectItem>
+                <SelectItem value="instant">
+                  Instant (theme/media style)
+                </SelectItem>
                 <SelectItem value="escrow">
                   Escrow (pay → deliver → release)
                 </SelectItem>
@@ -500,7 +507,9 @@ export function CreatorMarketplacePanel() {
             <Input
               placeholder="Title"
               value={newItem.title}
-              onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
+              onChange={(e) =>
+                setNewItem({ ...newItem, title: e.target.value })
+              }
             />
             <Input
               placeholder="Price (WB)"

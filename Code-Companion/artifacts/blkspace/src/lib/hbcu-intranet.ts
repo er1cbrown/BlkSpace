@@ -31,7 +31,10 @@ export const INTRANET_PLATFORM_TAGS = ["hbcu-intranet", "blkspace"] as const;
 export const TOWN_TAG_PREFIX = "hbcu-town:";
 
 export function townTagForYard(yardId: string): string {
-  const id = yardId.trim().toLowerCase().replace(/^hbcu-town:/, "");
+  const id = yardId
+    .trim()
+    .toLowerCase()
+    .replace(/^hbcu-town:/, "");
   return `${TOWN_TAG_PREFIX}${id}`;
 }
 

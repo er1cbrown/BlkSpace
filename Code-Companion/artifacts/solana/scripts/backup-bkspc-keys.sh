@@ -2,7 +2,7 @@
 # Back up BKSPC / Solana dev keyfiles with a password you choose.
 # No GPG required — uses openssl (built into macOS).
 #
-#   pnpm --filter @workspace/solana run backup-bkspc-keys
+#   bun run --filter @workspace/solana backup-bkspc-keys
 
 set -euo pipefail
 
@@ -55,7 +55,7 @@ add_if_exists "$DEVNET_DIR/bkspc-mint.json"
 if [[ ${#FILES[@]} -eq 0 ]]; then
   echo ""
   echo "Nothing to back up yet. Run setup first:"
-  echo "  pnpm --filter @workspace/solana run setup-bkspc-devnet"
+  echo "  bun run --filter @workspace/solana setup-bkspc-devnet"
   exit 1
 fi
 

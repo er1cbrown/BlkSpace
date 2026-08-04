@@ -6,11 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type RelayStatus = typeof RelayStatus[keyof typeof RelayStatus];
-
+export type RelayStatus = (typeof RelayStatus)[keyof typeof RelayStatus];
 
 export const RelayStatus = {
-  online: 'online',
-  degraded: 'degraded',
-  offline: 'offline',
+  online: "online",
+  degraded: "degraded",
+  offline: "offline",
 } as const;

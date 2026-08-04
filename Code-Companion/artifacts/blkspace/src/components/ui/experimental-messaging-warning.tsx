@@ -1,7 +1,11 @@
 import { AlertTriangle } from "lucide-react";
 
 /** Shown near yard/DM-style inputs — NIP-44 encryption is experimental. */
-export function ExperimentalMessagingWarning({ className = "" }: { className?: string }) {
+export function ExperimentalMessagingWarning({
+  className = "",
+}: {
+  className?: string;
+}) {
   return (
     <div
       className={`flex gap-2 items-start text-[11px] text-amber-200/90 bg-amber-950/20 border border-amber-600/25 rounded-lg px-3 py-2 ${className}`}

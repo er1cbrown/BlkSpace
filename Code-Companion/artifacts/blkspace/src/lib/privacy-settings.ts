@@ -63,9 +63,11 @@ export function sanitizeGpa(raw: string): string {
   if (!t) return "";
   const n = Number(t);
   if (!Number.isFinite(n) || n < 0 || n > 4.5) return "";
-  return (Math.round(n * 100) / 100).toFixed(2).replace(/\.?0+$/, (m) =>
-    m.includes(".") ? m.replace(/0+$/, "").replace(/\.$/, "") : m,
-  );
+  return (Math.round(n * 100) / 100)
+    .toFixed(2)
+    .replace(/\.?0+$/, (m) =>
+      m.includes(".") ? m.replace(/0+$/, "").replace(/\.$/, "") : m,
+    );
 }
 
 export function formatGpaDisplay(gpa: string): string {
@@ -74,10 +76,7 @@ export function formatGpaDisplay(gpa: string): string {
 }
 
 export function canShareGpaOnConnect(settings: PrivacySettings): boolean {
-  return (
-    settings.gpaVisibility !== "private" &&
-    !!sanitizeGpa(settings.gpa)
-  );
+  return settings.gpaVisibility !== "private" && !!sanitizeGpa(settings.gpa);
 }
 
 export function canShowGpaOnPublicProfile(settings: PrivacySettings): boolean {
@@ -97,10 +96,7 @@ export function mergePrivacyFromProJson(
       gpaVisibility?: GpaVisibility;
     };
     return {
-      gpa:
-        typeof privacy.gpa === "string"
-          ? privacy.gpa
-          : base.gpa,
+      gpa: typeof privacy.gpa === "string" ? privacy.gpa : base.gpa,
       gpaVisibility: normalizeVisibility(
         privacy.gpaVisibility ?? base.gpaVisibility,
       ),

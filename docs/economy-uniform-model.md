@@ -85,7 +85,7 @@ BlkSpace uses the **same three-layer pattern** as Roblox, Fortnite, Twitch bits,
 ```bash
 cd Code-Companion
 solana config set --url devnet && solana airdrop 2
-pnpm --filter @workspace/solana run init-bkspc-devnet
+bun run --filter @workspace/solana init-bkspc-devnet
 ```
 
 Writes `artifacts/solana/devnet/bkspc-mint.json` with mint address + Metaplex `BKSPC` symbol. Devnet only until counsel approves mainnet.

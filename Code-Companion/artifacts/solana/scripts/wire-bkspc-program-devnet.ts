@@ -3,19 +3,14 @@
  * Moves SPL mint authority from deployer → program PDA; records programId in manifest.
  *
  * Usage:
- *   pnpm --filter @workspace/solana run wire-bkspc-program-devnet
+ *   bun run --filter @workspace/solana wire-bkspc-program-devnet
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
 import * as anchor from "@coral-xyz/anchor";
-import {
-  Connection,
-  Keypair,
-  PublicKey,
-  SystemProgram,
-} from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getMint } from "@solana/spl-token";
 import idl from "../idl/bkspc.json" with { type: "json" };
 import {
@@ -26,10 +21,15 @@ import {
   requireTreasuryManifest,
 } from "./lib/devnet-guards.js";
 
-const PROGRAM_ID = new PublicKey("7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs");
+const PROGRAM_ID = new PublicKey(
+  "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs",
+);
 
 function findConfigPda(): PublicKey {
-  return PublicKey.findProgramAddressSync([Buffer.from("config")], PROGRAM_ID)[0];
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("config")],
+    PROGRAM_ID,
+  )[0];
 }
 
 function findMintAuthorityPda(): PublicKey {
@@ -115,11 +115,7 @@ async function main(): Promise<void> {
   });
   anchor.setProvider(provider);
 
-  const program = new anchor.Program(
-    idl as anchor.Idl,
-    PROGRAM_ID,
-    provider,
-  );
+  const program = new anchor.Program(idl as anchor.Idl, PROGRAM_ID, provider);
 
   const mint = new PublicKey(manifest.mint);
   const mintInfo = await getMint(connection, mint);

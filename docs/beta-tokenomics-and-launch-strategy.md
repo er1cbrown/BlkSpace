@@ -342,7 +342,7 @@ SOL / USDC (real value, user's wallet)
 8. Add economy explainer (earn WB → BKSPC → Solana)
 
 ### Phase 3 — BKSPC launch (after hosting works)
-9. Run `pnpm --filter @workspace/solana run prepare-bkspc-pumpfun-launch`
+9. Run `bun run --filter @workspace/solana prepare-bkspc-pumpfun-launch`
 10. Upload logo to pump.fun
 11. Paste metadata (name, symbol, description, website = `weixblack.net`)
 12. Submit + sign → record mint address

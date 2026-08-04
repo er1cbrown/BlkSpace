@@ -32,7 +32,10 @@ export function OwnedNftsPanel() {
                   {nft.mintAddress}
                 </p>
               </div>
-              <Badge variant="secondary" className="shrink-0 text-[10px] uppercase">
+              <Badge
+                variant="secondary"
+                className="shrink-0 text-[10px] uppercase"
+              >
                 {nft.itemType}
               </Badge>
             </div>

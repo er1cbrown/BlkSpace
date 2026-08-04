@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist/public",
     "devUrl": "http://127.0.0.1:24442",
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build"
+    "beforeDevCommand": "bun run dev",
+    "beforeBuildCommand": "bun run build"
   },
   "app": {
     "withGlobalTauri": true,
@@ -25,9 +25,7 @@
     ],
     "security": {
       "csp": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* ws://127.0.0.1:* http://localhost:*; img-src 'self' data: https:; font-src 'self' data:; form-action 'self'",
-      "capabilities": [
-        "default"
-      ]
+      "capabilities": ["default"]
     }
   },
   "bundle": {

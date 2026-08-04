@@ -27,7 +27,9 @@ async function main(): Promise<void> {
 
   const manifestPath = treasuryManifestPath();
   if (existsSync(manifestPath) && process.env.BKSPC_FORCE_INIT !== "1") {
-    const existing = JSON.parse(readFileSync(manifestPath, "utf8")) as TreasuryManifest;
+    const existing = JSON.parse(
+      readFileSync(manifestPath, "utf8"),
+    ) as TreasuryManifest;
     console.log("Treasury manifest already exists:", manifestPath);
     console.log("  Multisig:", existing.multisig);
     console.log("Set BKSPC_FORCE_INIT=1 to recreate.");
@@ -67,10 +69,7 @@ async function main(): Promise<void> {
     createdAt: new Date().toISOString(),
     multisig: multisig.toBase58(),
     threshold: 2,
-    signers: [
-      signerA.publicKey.toBase58(),
-      signerB.publicKey.toBase58(),
-    ],
+    signers: [signerA.publicKey.toBase58(), signerB.publicKey.toBase58()],
     signerKeypairPaths: [SIGNER_A, SIGNER_B],
     notice:
       "Devnet 2-of-2 treasury. Mainnet: replace with Squads multisig + timelock before real value.",

@@ -64,7 +64,7 @@ For scripted on-chain transfer without seller wallet signature:
 cd Code-Companion/artifacts/solana
 # Mint to treasury (custodial) — treasury ATA holds the SPL token
 RECIPIENT=<treasury_pubkey> CID=<iroh-cid> TITLE="Demo Mix" \
-  pnpm run mint-media-nft-devnet
+  bun run mint-media-nft-devnet
 ```
 
 Then list + BKSPC buy with buyer Phantom address. Purchase triggers `transfer_nft_custodial_to_buyer` in Rust.

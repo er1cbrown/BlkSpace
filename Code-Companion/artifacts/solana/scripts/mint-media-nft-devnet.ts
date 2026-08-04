@@ -3,7 +3,7 @@
  * In-app minting uses Tauri `mint_mix_nft` (Rust). This script is for manual/CI runs.
  *
  * Usage:
- *   RECIPIENT=<pubkey> CID=<iroh-cid> TITLE="My Mix" pnpm --filter @workspace/solana run mint-media-nft-devnet
+ *   RECIPIENT=<pubkey> CID=<iroh-cid> TITLE="My Mix" bun run --filter @workspace/solana mint-media-nft-devnet
  */
 
 import { readFileSync } from "node:fs";
@@ -42,10 +42,7 @@ async function main(): Promise<void> {
 
   const deployer = loadDeployerKeypair();
   const umi = createUmi(rpc).use(mplTokenMetadata());
-  const payer = createSignerFromKeypair(
-    umi,
-    fromWeb3JsKeypair(deployer),
-  );
+  const payer = createSignerFromKeypair(umi, fromWeb3JsKeypair(deployer));
   umi.use(keypairIdentity(payer));
 
   const manifestPath = join(ROOT, "devnet", "bkspc-mint.json");

@@ -37,8 +37,7 @@ const WB_TO_BKSPC_RATIO = 1000;
 
 function signatureToBase58(signature: Uint8Array | string): string {
   if (typeof signature === "string") return signature;
-  const alphabet =
-    "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
   let zeros = 0;
   while (zeros < signature.length && signature[zeros] === 0) zeros++;
   const digits: number[] = [];
@@ -96,7 +95,9 @@ async function main(): Promise<void> {
         "  or manually transfer mint authority back to deployer before wire-bkspc-program-devnet.",
       );
     } else {
-      console.log("  Next: pnpm --filter @workspace/solana run wire-bkspc-program-devnet");
+      console.log(
+        "  Next: bun run --filter @workspace/solana wire-bkspc-program-devnet",
+      );
     }
     console.log("Set BKSPC_FORCE_INIT=1 to create another mint.");
     return;
@@ -166,7 +167,9 @@ async function main(): Promise<void> {
   console.log("\nBKSPC devnet mint initialized");
   console.log("  Mint:", mintPubkey);
   console.log("  Mint authority (pre-wire):", web3Keypair.publicKey.toBase58());
-  console.log("  Next: pnpm --filter @workspace/solana run wire-bkspc-program-devnet");
+  console.log(
+    "  Next: bun run --filter @workspace/solana wire-bkspc-program-devnet",
+  );
   console.log("  Manifest:", manifestPath);
   console.log("  Init tx:", result.signature);
 }

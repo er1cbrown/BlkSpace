@@ -51,7 +51,10 @@ export default function LandingPage() {
                   </Button>
                 </Link>
                 <p className="text-sm text-muted-foreground">
-                  <Link href="/welcome" className="text-primary font-medium hover:underline">
+                  <Link
+                    href="/welcome"
+                    className="text-primary font-medium hover:underline"
+                  >
                     Create free account
                   </Link>
                   <span className="mx-2 opacity-40">·</span>
@@ -121,10 +124,12 @@ export default function LandingPage() {
               </div>
               <div className="bg-card p-8 rounded-2xl border shadow-sm hover:shadow-md transition-shadow">
                 <Globe className="w-12 h-12 text-primary mb-6" />
-                <h3 className="text-xl font-bold mb-4">Your community, your feed</h3>
+                <h3 className="text-xl font-bold mb-4">
+                  Your community, your feed
+                </h3>
                 <p className="text-muted-foreground">
-                  Join a yard — campus, creator crew, or local scene. Culture-first,
-                  not algorithm-first.
+                  Join a yard — campus, creator crew, or local scene.
+                  Culture-first, not algorithm-first.
                 </p>
               </div>
             </div>
@@ -140,8 +145,8 @@ export default function LandingPage() {
                   Our Infrastructure, Our Rules.
                 </h2>
                 <p className="text-lg opacity-90 mb-8">
-                  {BRAND.name} runs on community-operated relays. When you host a
-                  node, you strengthen the network for everyone in your yard.
+                  {BRAND.name} runs on community-operated relays. When you host
+                  a node, you strengthen the network for everyone in your yard.
                 </p>
                 <Link href="/relays">
                   <Button
@@ -237,8 +242,8 @@ export default function LandingPage() {
                 <h3 className="font-bold mb-2">Students</h3>
                 <p className="text-sm text-muted-foreground">
                   Post, upload, join your yard. Earn WeixBucks from every
-                  action. Customize your MyYard. Cash out when
-                  you&apos;re ready.
+                  action. Customize your MyYard. Cash out when you&apos;re
+                  ready.
                 </p>
               </div>
               <div className="bg-card p-6 rounded-2xl border shadow-sm">
@@ -246,16 +251,16 @@ export default function LandingPage() {
                 <h3 className="font-bold mb-2">Creators</h3>
                 <p className="text-sm text-muted-foreground">
                   Sell mixes, videos, and art in the Yard Sale. Mint NFT
-                  tickets. Keep 85% of every sale. Build a subscriber-only
-                  yard with BKSPC gating.
+                  tickets. Keep 85% of every sale. Build a subscriber-only yard
+                  with BKSPC gating.
                 </p>
               </div>
               <div className="bg-card p-6 rounded-2xl border shadow-sm">
                 <GraduationCap className="w-8 h-8 text-primary mb-4" />
                 <h3 className="font-bold mb-2">Alumni & Faculty</h3>
                 <p className="text-sm text-muted-foreground">
-                  Mentor students from your yard. Sponsor events. Post jobs.
-                  Get a verified alumni badge. Governance votes on yard rules.
+                  Mentor students from your yard. Sponsor events. Post jobs. Get
+                  a verified alumni badge. Governance votes on yard rules.
                 </p>
               </div>
               <div className="bg-card p-6 rounded-2xl border shadow-sm">
@@ -307,8 +312,8 @@ export default function LandingPage() {
                 <TrendingUp className="w-10 h-10 text-secondary-foreground mx-auto mb-4" />
                 <h3 className="font-bold mb-2">{BRAND.symbol} (Solana)</h3>
                 <p className="text-sm text-muted-foreground mb-3">
-                  On-chain token. Mint from earned WB (1,000:1). Use for
-                  events, NFTs, governance, premium yards.
+                  On-chain token. Mint from earned WB (1,000:1). Use for events,
+                  NFTs, governance, premium yards.
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Fair launch. Burn deflation. Utility-driven.
@@ -316,10 +321,10 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="mt-8 p-4 rounded-xl bg-muted/50 text-center text-sm text-muted-foreground">
-              <strong className="text-foreground">The flow:</strong> Post →
-              earn WB → spend in marketplace or withdraw to BKSPC → sell on
-              DEX or spend on premium features. A % of every BKSPC transaction
-              is burned — supply shrinks as the yard grows.
+              <strong className="text-foreground">The flow:</strong> Post → earn
+              WB → spend in marketplace or withdraw to BKSPC → sell on DEX or
+              spend on premium features. A % of every BKSPC transaction is
+              burned — supply shrinks as the yard grows.
             </div>
           </div>
         </section>
@@ -364,7 +369,11 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <a href={BRAND.githubRepo} target="_blank" rel="noopener noreferrer">
+              <a
+                href={BRAND.githubRepo}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Button size="lg" variant="outline" className="rounded-full">
                   View code & CI proof <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>

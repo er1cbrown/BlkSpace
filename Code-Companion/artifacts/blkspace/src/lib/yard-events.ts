@@ -128,7 +128,8 @@ function defaultStore(): DemoStore {
         id: 2,
         communityId: "tsu",
         title: "Yard Networking Mixer (Open RSVP)",
-        description: "Open to all yard members. Free ticket pass for door tracking.",
+        description:
+          "Open to all yard members. Free ticket pass for door tracking.",
         location: "Kean Hall Lobby",
         startsAt: daysFromNow(3, 18),
         createdBy: "demo_user",
@@ -212,15 +213,18 @@ function ticketCode(eventId: number, handle: string): string {
 function enrich(e: YardEvent, me: string): YardEvent {
   const list = load().rsvps[String(e.id)] || [];
   const mine = list.find((r) => r.handle === me);
-  const going = list.filter((r) => r.status === "going" && !r.waitlisted).length;
-  const wait = list.filter((r) => r.waitlisted || r.status === "waitlist").length;
+  const going = list.filter(
+    (r) => r.status === "going" && !r.waitlisted,
+  ).length;
+  const wait = list.filter(
+    (r) => r.waitlisted || r.status === "waitlist",
+  ).length;
   return {
     ...e,
     rsvpCount: list.length,
     goingCount: going,
     waitlistCount: wait,
-    spotsRemaining:
-      e.capacity != null ? Math.max(0, e.capacity - going) : null,
+    spotsRemaining: e.capacity != null ? Math.max(0, e.capacity - going) : null,
     userRsvp: mine?.status ?? null,
     userTicketCode: mine?.ticketCode ?? null,
     userWaitlisted: mine?.waitlisted ?? false,
@@ -319,7 +323,9 @@ export async function rsvpYardEvent(
 
   // Demo: club exclusive still allows RSVP with warning only if no org check store
   const list = s.rsvps[String(eventId)] || [];
-  const going = list.filter((r) => r.status === "going" && !r.waitlisted).length;
+  const going = list.filter(
+    (r) => r.status === "going" && !r.waitlisted,
+  ).length;
   let finalStatus: string = status === "interested" ? "interested" : "going";
   let waitlisted = false;
   if (
@@ -405,7 +411,11 @@ export async function listEventGuests(eventId: number): Promise<EventGuest[]> {
 export async function checkInEventGuest(
   eventId: number,
   ticketOrHandle: string,
-): Promise<{ checkedIn: boolean; handle?: string; alreadyCheckedIn?: boolean }> {
+): Promise<{
+  checkedIn: boolean;
+  handle?: string;
+  alreadyCheckedIn?: boolean;
+}> {
   if (isTauri()) {
     return invoke("check_in_event_guest", {
       sessionToken: getSessionToken() || "",

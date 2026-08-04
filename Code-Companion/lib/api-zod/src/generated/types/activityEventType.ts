@@ -6,14 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ActivityEventType = typeof ActivityEventType[keyof typeof ActivityEventType];
-
+export type ActivityEventType =
+  (typeof ActivityEventType)[keyof typeof ActivityEventType];
 
 export const ActivityEventType = {
-  post: 'post',
-  join: 'join',
-  relay_up: 'relay_up',
-  relay_down: 'relay_down',
-  milestone: 'milestone',
-  trending: 'trending',
+  post: "post",
+  join: "join",
+  relay_up: "relay_up",
+  relay_down: "relay_down",
+  milestone: "milestone",
+  trending: "trending",
 } as const;

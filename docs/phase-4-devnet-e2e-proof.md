@@ -26,7 +26,7 @@ solana config set --url devnet
 solana airdrop 2   # retry later if rate-limited, or use faucet
 
 cd Code-Companion
-pnpm --filter @workspace/solana run record-devnet-e2e
+bun run --filter @workspace/solana record-devnet-e2e
 ```
 
 `record-devnet-e2e` will:
@@ -54,8 +54,8 @@ Legacy manifests (`mintAuthorityType: spl-multisig-2of2`, no `programId`) cannot
 
 ```bash
 cd Code-Companion
-BKSPC_FORCE_INIT=1 pnpm --filter @workspace/solana run setup-bkspc-devnet
-pnpm --filter @workspace/solana run backup-bkspc-keys
+BKSPC_FORCE_INIT=1 bun run --filter @workspace/solana setup-bkspc-devnet
+bun run --filter @workspace/solana backup-bkspc-keys
 ```
 
 **Verify** `artifacts/solana/devnet/bkspc-mint.json`:
@@ -141,7 +141,7 @@ Program logic without Tauri + Phantom:
 
 ```bash
 cd Code-Companion
-pnpm --filter @workspace/solana run test:anchor
+bun run --filter @workspace/solana test:anchor
 ```
 
 Covers: `initialize_config`, `mint_rewards`, unauthorized mint fails, `burn_tokens`.

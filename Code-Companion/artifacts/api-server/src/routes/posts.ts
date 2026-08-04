@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { postsTable, usersTable, likesTable, repliesTable } from "@workspace/db";
+import {
+  postsTable,
+  usersTable,
+  likesTable,
+  repliesTable,
+} from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 import {
   ListPostsQueryParams,
@@ -16,8 +21,14 @@ import {
 
 const router = Router();
 
-async function enrichPost(post: typeof postsTable.$inferSelect, viewerHandle?: string) {
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.handle, post.authorHandle));
+async function enrichPost(
+  post: typeof postsTable.$inferSelect,
+  viewerHandle?: string,
+) {
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.handle, post.authorHandle));
   let liked = false;
   if (viewerHandle) {
     const [like] = await db
@@ -61,13 +72,17 @@ router.post("/", async (req, res) => {
     res.status(400).json({ error: "Invalid input" });
     return;
   }
-  const [post] = await db.insert(postsTable).values({
-    authorHandle: parsed.data.authorHandle,
-    content: parsed.data.content,
-    townTag: parsed.data.townTag,
-    mediaUrl: parsed.data.mediaUrl ?? null,
-  }).returning();
-  await db.update(usersTable)
+  const [post] = await db
+    .insert(postsTable)
+    .values({
+      authorHandle: parsed.data.authorHandle,
+      content: parsed.data.content,
+      townTag: parsed.data.townTag,
+      mediaUrl: parsed.data.mediaUrl ?? null,
+    })
+    .returning();
+  await db
+    .update(usersTable)
     .set({ postsCount: sql`${usersTable.postsCount} + 1` })
     .where(eq(usersTable.handle, parsed.data.authorHandle));
   const enriched = await enrichPost(post);
@@ -75,7 +90,11 @@ router.post("/", async (req, res) => {
 });
 
 router.get("/trending", async (req, res) => {
-  const posts = await db.select().from(postsTable).orderBy(desc(postsTable.likesCount)).limit(20);
+  const posts = await db
+    .select()
+    .from(postsTable)
+    .orderBy(desc(postsTable.likesCount))
+    .limit(20);
   const enriched = await Promise.all(posts.map((p) => enrichPost(p)));
   res.json(enriched);
 });
@@ -86,7 +105,10 @@ router.get("/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const [post] = await db.select().from(postsTable).where(eq(postsTable.id, parsed.data.id));
+  const [post] = await db
+    .select()
+    .from(postsTable)
+    .where(eq(postsTable.id, parsed.data.id));
   if (!post) {
     res.status(404).json({ error: "Post not found" });
     return;
@@ -111,13 +133,20 @@ router.post("/:id/like", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const [post] = await db.select().from(postsTable).where(eq(postsTable.id, parsed.data.id));
+  const [post] = await db
+    .select()
+    .from(postsTable)
+    .where(eq(postsTable.id, parsed.data.id));
   if (!post) {
     res.status(404).json({ error: "Post not found" });
     return;
   }
-  await db.insert(likesTable).values({ postId: parsed.data.id, userHandle: "current_user" }).onConflictDoNothing();
-  const [updated] = await db.update(postsTable)
+  await db
+    .insert(likesTable)
+    .values({ postId: parsed.data.id, userHandle: "current_user" })
+    .onConflictDoNothing();
+  const [updated] = await db
+    .update(postsTable)
     .set({ likesCount: sql`${postsTable.likesCount} + 1` })
     .where(eq(postsTable.id, parsed.data.id))
     .returning();
@@ -131,13 +160,17 @@ router.delete("/:id/like", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const [post] = await db.select().from(postsTable).where(eq(postsTable.id, parsed.data.id));
+  const [post] = await db
+    .select()
+    .from(postsTable)
+    .where(eq(postsTable.id, parsed.data.id));
   if (!post) {
     res.status(404).json({ error: "Post not found" });
     return;
   }
   await db.delete(likesTable).where(eq(likesTable.postId, parsed.data.id));
-  const [updated] = await db.update(postsTable)
+  const [updated] = await db
+    .update(postsTable)
     .set({ likesCount: sql`GREATEST(${postsTable.likesCount} - 1, 0)` })
     .where(eq(postsTable.id, parsed.data.id))
     .returning();
@@ -151,34 +184,52 @@ router.get("/:id/replies", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const replies = await db.select().from(repliesTable).where(eq(repliesTable.postId, parsed.data.id)).orderBy(repliesTable.createdAt);
-  const enriched = await Promise.all(replies.map(async (r) => {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.handle, r.authorHandle));
-    return {
-      ...r,
-      authorDisplayName: user?.displayName ?? r.authorHandle,
-      authorAvatarUrl: user?.avatarUrl ?? null,
-    };
-  }));
+  const replies = await db
+    .select()
+    .from(repliesTable)
+    .where(eq(repliesTable.postId, parsed.data.id))
+    .orderBy(repliesTable.createdAt);
+  const enriched = await Promise.all(
+    replies.map(async (r) => {
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.handle, r.authorHandle));
+      return {
+        ...r,
+        authorDisplayName: user?.displayName ?? r.authorHandle,
+        authorAvatarUrl: user?.avatarUrl ?? null,
+      };
+    }),
+  );
   res.json(enriched);
 });
 
 router.post("/:id/replies", async (req, res) => {
-  const paramsParsed = CreateReplyParams.safeParse({ id: parseInt(req.params.id) });
+  const paramsParsed = CreateReplyParams.safeParse({
+    id: parseInt(req.params.id),
+  });
   const bodyParsed = CreateReplyBody.safeParse(req.body);
   if (!paramsParsed.success || !bodyParsed.success) {
     res.status(400).json({ error: "Invalid input" });
     return;
   }
-  const [reply] = await db.insert(repliesTable).values({
-    postId: paramsParsed.data.id,
-    authorHandle: bodyParsed.data.authorHandle,
-    content: bodyParsed.data.content,
-  }).returning();
-  await db.update(postsTable)
+  const [reply] = await db
+    .insert(repliesTable)
+    .values({
+      postId: paramsParsed.data.id,
+      authorHandle: bodyParsed.data.authorHandle,
+      content: bodyParsed.data.content,
+    })
+    .returning();
+  await db
+    .update(postsTable)
     .set({ repliesCount: sql`${postsTable.repliesCount} + 1` })
     .where(eq(postsTable.id, paramsParsed.data.id));
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.handle, bodyParsed.data.authorHandle));
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.handle, bodyParsed.data.authorHandle));
   res.status(201).json({
     ...reply,
     authorDisplayName: user?.displayName ?? bodyParsed.data.authorHandle,

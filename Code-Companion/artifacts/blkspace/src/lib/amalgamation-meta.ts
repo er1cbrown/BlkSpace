@@ -15,7 +15,9 @@ export type AmalgamationMeta = {
   text: string;
 };
 
-export function parseAmalgamationMeta(description: string | null | undefined): AmalgamationMeta {
+export function parseAmalgamationMeta(
+  description: string | null | undefined,
+): AmalgamationMeta {
   const raw = description || "";
   let liveUrl: string | undefined;
   let playUrl: string | undefined;

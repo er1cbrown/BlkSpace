@@ -164,7 +164,10 @@ function Router() {
         <Route path="/architecture" component={ArchitecturePage} />
         <Route path="/login" component={LoginPage} />
         <Route path="/signup" component={SignupPage} />
-        <Route path="/settings" component={() => <GuestRoute component={SettingsPage} />} />
+        <Route
+          path="/settings"
+          component={() => <GuestRoute component={SettingsPage} />}
+        />
         <Route path="/recover" component={RecoverPage} />
         <Route path="/notifications" component={NotificationsPage} />
         <Route path="/communities" component={CommunitiesPage} />
@@ -174,15 +177,27 @@ function Router() {
         <Route path="/connect/orgs/:id" component={ConnectPage} />
         <Route path="/connect/opportunities/:id" component={ConnectPage} />
         <Route path="/search" component={SearchPage} />
-        <Route path="/wallet" component={() => <GuestRoute component={WalletPage} />} />
-        <Route path="/create" component={() => <GuestRoute component={CreatePage} />} />
+        <Route
+          path="/wallet"
+          component={() => <GuestRoute component={WalletPage} />}
+        />
+        <Route
+          path="/create"
+          component={() => <GuestRoute component={CreatePage} />}
+        />
         <Route path="/leaderboard" component={LeaderboardPage} />
         <Route path="/media" component={MediaPage} />
         <Route path="/hub" component={HubPage} />
         <Route path="/focus" component={FocusPage} />
         <Route path="/faculty" component={FacultyPage} />
-        <Route path="/messages" component={() => <GuestRoute component={MessagesPage} />} />
-        <Route path="/mesh-test" component={() => <GuestRoute component={MeshTestPage} />} />
+        <Route
+          path="/messages"
+          component={() => <GuestRoute component={MessagesPage} />}
+        />
+        <Route
+          path="/mesh-test"
+          component={() => <GuestRoute component={MeshTestPage} />}
+        />
         <Route component={NotFound} />
       </Switch>
     </React.Suspense>
@@ -205,7 +220,9 @@ function App() {
             <GuestModeProvider>
               <UiPrefsProvider>
                 <TooltipProvider>
-                  <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                  <WouterRouter
+                    base={import.meta.env.BASE_URL.replace(/\/$/, "")}
+                  >
                     <Router />
                   </WouterRouter>
                   <Toaster />

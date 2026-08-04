@@ -13,8 +13,8 @@ solana config set --url devnet
 solana airdrop 2
 
 cd Code-Companion
-pnpm install
-pnpm --filter @workspace/solana run setup-bkspc-devnet
+bun install
+bun run --filter @workspace/solana setup-bkspc-devnet
 ```
 
 `setup-bkspc-devnet` runs three steps in order:
@@ -48,7 +48,7 @@ All key material is **gitignored**. Back up locally (encrypted).
 
 ```bash
 cd Code-Companion
-pnpm --filter @workspace/solana run backup-bkspc-keys
+bun run --filter @workspace/solana backup-bkspc-keys
 ```
 
 Creates `~/BlkSpace-key-backups/bkspc-keys-*.enc`. Copy that `.enc` file to USB or cloud. Do not commit it.
@@ -86,7 +86,7 @@ export BKSPC_DEVNET_MANIFEST="$PWD/artifacts/solana/devnet/bkspc-mint.json"
 
 cd Code-Companion/artifacts/blkspace
 cargo build --manifest-path src-tauri/Cargo.toml --features bkspc-devnet
-# or: pnpm tauri:dev with BKSPC_DEVNET_MANIFEST set
+# or: bun run tauri:dev with BKSPC_DEVNET_MANIFEST set
 ```
 
 Manifest must include:
@@ -114,7 +114,7 @@ Check status in-app via `get_bkspc_settlement_status` (reports `programId` + min
 
 ```bash
 cd Code-Companion
-pnpm --filter @workspace/solana run test:anchor
+bun run --filter @workspace/solana test:anchor
 ```
 
 Covers: `initialize_config`, `mint_rewards` happy path, unauthorized mint fails, `burn_tokens`.

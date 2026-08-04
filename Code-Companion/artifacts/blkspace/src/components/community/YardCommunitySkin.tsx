@@ -20,7 +20,13 @@ export function YardCommunitySkin({
   const isLive = theme.skinTier === "live";
 
   return (
-    <div className={cn("rounded-xl overflow-hidden border mb-4", theme.cardBorderClass, className)}>
+    <div
+      className={cn(
+        "rounded-xl overflow-hidden border mb-4",
+        theme.cardBorderClass,
+        className,
+      )}
+    >
       <div
         className={cn(
           "h-2 bg-gradient-to-r",

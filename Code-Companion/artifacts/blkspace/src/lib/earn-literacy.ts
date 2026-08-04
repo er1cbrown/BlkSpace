@@ -5,13 +5,7 @@
 import { WB_EARN, KARMA_EARN } from "@/lib/earn-sources";
 
 export type LiteracyTrack =
-  | "create"
-  | "community"
-  | "live"
-  | "compete"
-  | "sell"
-  | "portfolio"
-  | "coin";
+  "create" | "community" | "live" | "compete" | "sell" | "portfolio" | "coin";
 
 export interface LiteracyPath {
   id: LiteracyTrack;
@@ -29,7 +23,8 @@ export const LITERACY_PATHS: LiteracyPath[] = [
     id: "create",
     title: "Create media",
     competitorAnalogy: "TikTok · IG · Twitter · Myspace posts",
-    howYouEarn: "Posts, replies, media uploads pay soft WeixBucks (WB) under a daily cap.",
+    howYouEarn:
+      "Posts, replies, media uploads pay soft WeixBucks (WB) under a daily cap.",
     firstAction: "Drop a yard post or upload to Create",
     href: "/create",
     wbExample: `Post +${WB_EARN.feedPost} WB · Upload +${WB_EARN.mediaUpload} WB`,
@@ -40,7 +35,8 @@ export const LITERACY_PATHS: LiteracyPath[] = [
     id: "community",
     title: "Build the yard",
     competitorAnalogy: "Discord · Reddit · Fizz campus rooms",
-    howYouEarn: "Join yards, RSVP events, host club kits — community work is paid in WB + karma.",
+    howYouEarn:
+      "Join yards, RSVP events, host club kits — community work is paid in WB + karma.",
     firstAction: "Join a yard or apply a club kit",
     href: "/communities",
     wbExample: `Join yard +${WB_EARN.joinYard} WB · RSVP +${WB_EARN.eventRsvp} WB`,
@@ -75,7 +71,8 @@ export const LITERACY_PATHS: LiteracyPath[] = [
     id: "sell",
     title: "Sell on Yard Sale",
     competitorAnalogy: "Depop · club merch · campus marketplace",
-    howYouEarn: "List fashion, digital goods, services with soft escrow. Platform fee is transparent.",
+    howYouEarn:
+      "List fashion, digital goods, services with soft escrow. Platform fee is transparent.",
     firstAction: "Open Earnings → Yard Sale",
     href: "/wallet",
     wbExample: "Sale proceeds · org split for clubs",

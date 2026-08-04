@@ -79,8 +79,7 @@ export default function DeviceMeshTestPage() {
   const [intranetMsg, setIntranetMsg] = useState("");
   const topo = intranetTopologySummary();
 
-  const connectedRelays =
-    relayStatuses?.filter((r) => r.connected).length ?? 0;
+  const connectedRelays = relayStatuses?.filter((r) => r.connected).length ?? 0;
   const totalRelays = relayStatuses?.length ?? 0;
   const userTown = accountData?.user?.town as string | undefined;
 
@@ -204,8 +203,9 @@ export default function DeviceMeshTestPage() {
           </div>
           <p className="text-lg opacity-90 max-w-2xl">
             Cross-device sync + HBCU intranet — {topo.totalYards} yards on one
-            shared relay wire (not {topo.pairwiseLinksIfFullMesh.toLocaleString()}{" "}
-            pairwise links). Nostr tags, Iroh media, offline queue.
+            shared relay wire (not{" "}
+            {topo.pairwiseLinksIfFullMesh.toLocaleString()} pairwise links).
+            Nostr tags, Iroh media, offline queue.
           </p>
           <div className="flex items-center gap-2 mt-4 text-sm">
             <Badge variant="outline" className="bg-background/20">
@@ -262,9 +262,7 @@ export default function DeviceMeshTestPage() {
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div className="flex flex-wrap gap-2">
-                  <Badge
-                    variant={intranet?.connected ? "default" : "outline"}
-                  >
+                  <Badge variant={intranet?.connected ? "default" : "outline"}>
                     {intranet?.connected ? "Connected" : "Not fully connected"}
                   </Badge>
                   <Badge variant="secondary">
@@ -275,8 +273,7 @@ export default function DeviceMeshTestPage() {
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Tags:{" "}
-                  <code className="text-[10px]">t:hbcu-intranet</code> ·{" "}
+                  Tags: <code className="text-[10px]">t:hbcu-intranet</code> ·{" "}
                   <code className="text-[10px]">t:blkspace</code> ·{" "}
                   <code className="text-[10px]">t:hbcu-town:&lt;id&gt;</code>
                 </p>
@@ -329,7 +326,9 @@ export default function DeviceMeshTestPage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Last relay sync</span>
+                    <span className="text-muted-foreground">
+                      Last relay sync
+                    </span>
                     <span className="font-medium">
                       {lastRelaySyncAt ?? "—"}
                     </span>
@@ -340,7 +339,9 @@ export default function DeviceMeshTestPage() {
                     className="w-full mt-2"
                     onClick={handleRelaySync}
                     disabled={
-                      syncTown.isPending || !sessionToken || connectedRelays === 0
+                      syncTown.isPending ||
+                      !sessionToken ||
+                      connectedRelays === 0
                     }
                   >
                     {syncTown.isPending ? "Syncing…" : "Sync Town from Relays"}
@@ -350,20 +351,47 @@ export default function DeviceMeshTestPage() {
 
               <Card className="md:col-span-2">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">M0 Sign-off Checklist</CardTitle>
+                  <CardTitle className="text-base">
+                    M0 Sign-off Checklist
+                  </CardTitle>
                   <CardDescription>
-                    Automated backbone ✅ — manual Device B sign-off still required
+                    Automated backbone ✅ — manual Device B sign-off still
+                    required
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ul className="grid sm:grid-cols-2 gap-2 text-sm">
                     {[
-                      { label: "Account recovery (Phase 1.4)", auto: true, manual: false },
-                      { label: "Cross-device sync <60s (Phase 1.5)", auto: true, manual: false },
-                      { label: "Offline queue flush (Phase 3.1–3.3)", auto: true, manual: false },
-                      { label: "Media CID + cache (§2.4 Iroh)", auto: true, manual: false },
-                      { label: "Tier 0 performance (§4.1)", auto: true, manual: false },
-                      { label: "Stress / no data loss (Phase 4.2)", auto: true, manual: false },
+                      {
+                        label: "Account recovery (Phase 1.4)",
+                        auto: true,
+                        manual: false,
+                      },
+                      {
+                        label: "Cross-device sync <60s (Phase 1.5)",
+                        auto: true,
+                        manual: false,
+                      },
+                      {
+                        label: "Offline queue flush (Phase 3.1–3.3)",
+                        auto: true,
+                        manual: false,
+                      },
+                      {
+                        label: "Media CID + cache (§2.4 Iroh)",
+                        auto: true,
+                        manual: false,
+                      },
+                      {
+                        label: "Tier 0 performance (§4.1)",
+                        auto: true,
+                        manual: false,
+                      },
+                      {
+                        label: "Stress / no data loss (Phase 4.2)",
+                        auto: true,
+                        manual: false,
+                      },
                     ].map((item) => (
                       <li key={item.label} className="flex items-start gap-2">
                         {item.auto ? (
@@ -595,8 +623,8 @@ export default function DeviceMeshTestPage() {
               <CardHeader>
                 <CardTitle>Offline Queue Test</CardTitle>
                 <CardDescription>
-                  Queue writes offline; flush publishes posts and replies to Nostr
-                  relays on reconnect
+                  Queue writes offline; flush publishes posts and replies to
+                  Nostr relays on reconnect
                 </CardDescription>
               </CardHeader>
               <CardContent>

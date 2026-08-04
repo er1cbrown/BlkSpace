@@ -9,9 +9,9 @@
 export interface PostInput {
   authorHandle: string;
   /**
-     * @minLength 1
-     * @maxLength 500
-     */
+   * @minLength 1
+   * @maxLength 500
+   */
   content: string;
   townTag: string;
   mediaUrl?: string;

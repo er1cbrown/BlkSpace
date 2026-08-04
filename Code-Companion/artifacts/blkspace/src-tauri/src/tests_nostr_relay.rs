@@ -1,4 +1,4 @@
-//! Live Nostr relay smoke tests — require network. Run: `pnpm test:nostr-relay`
+//! Live Nostr relay smoke tests — require network. Run: `bun run test:nostr-relay`
 
 #[cfg(test)]
 mod nostr_relay_smoke {

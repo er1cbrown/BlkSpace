@@ -36,12 +36,7 @@ export default function SignupPage() {
         await tauriCreateUser(cleanHandle, cleanName, identity.pubkey);
       }
       const token = await authenticateWithNostr(cleanHandle, identity.nsecHex);
-      await storeIdentity(
-        token,
-        cleanHandle,
-        identity.nsecHex,
-        cleanName,
-      );
+      await storeIdentity(token, cleanHandle, identity.nsecHex, cleanName);
       navigate("/feed");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Signup failed — try again");

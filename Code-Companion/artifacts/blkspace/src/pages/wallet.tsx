@@ -232,8 +232,7 @@ function WithdrawEligibilityPanel({
       label: `Posts: ${eligibility.postCount}/${eligibility.minPosts}`,
     },
     {
-      ok:
-        (eligibility.yardCred ?? 0) >= (eligibility.minYardCred ?? 15),
+      ok: (eligibility.yardCred ?? 0) >= (eligibility.minYardCred ?? 15),
       label: `Yard Cred: ${eligibility.yardCred ?? 0}/${eligibility.minYardCred ?? 15} (ProjectConnect)`,
     },
     {
@@ -265,11 +264,11 @@ function WithdrawEligibilityPanel({
       {!eligibility.eligible && eligibility.reasons.length > 0 && (
         <p className="text-xs text-destructive">{eligibility.reasons[0]}</p>
       )}
-          <p className="text-[10px] text-muted-foreground">
+      <p className="text-[10px] text-muted-foreground">
         Settlement: {eligibility.wbToBkspcRatio.toLocaleString()} WB = 1{" "}
-        {eligibility.bkspcSymbol}.
-        Withdrawal includes a {formatFeePercent(FEE_BPS.withdrawSettlement)}{" "}
-        settlement fee (published schedule).
+        {eligibility.bkspcSymbol}. Withdrawal includes a{" "}
+        {formatFeePercent(FEE_BPS.withdrawSettlement)} settlement fee (published
+        schedule).
       </p>
     </div>
   );
@@ -312,9 +311,7 @@ function WithdrawDialog({ balance }: { balance: number }) {
           toast.success("Cash out recorded — check your wallet");
         },
         onError: (err) => {
-          toast.error(
-            err instanceof Error ? err.message : "Withdrawal failed",
-          );
+          toast.error(err instanceof Error ? err.message : "Withdrawal failed");
         },
       },
     );
@@ -398,8 +395,8 @@ function WithdrawDialog({ balance }: { balance: number }) {
                     ? `wired (mint ${(settlementStatus.mint || cfg.mint || "").slice(0, 8)}…)`
                     : cfg.isMintConfigured
                       ? `mint set on ${cfg.cluster} — Cred gates still apply`
-                      : settlementStatus?.reason ??
-                        "simulated until mint is configured"}
+                      : (settlementStatus?.reason ??
+                        "simulated until mint is configured")}
                 </p>
               );
             })()}
@@ -478,152 +475,148 @@ function WalletPageContent() {
 
   return (
     <AppShell wide>
-        <div className="flex items-center gap-3 mb-8">
-          <WalletIcon className="w-7 h-7 text-primary" />
-          <h1 className="text-3xl font-bold">My Earnings</h1>
-        </div>
+      <div className="flex items-center gap-3 mb-8">
+        <WalletIcon className="w-7 h-7 text-primary" />
+        <h1 className="text-3xl font-bold">My Earnings</h1>
+      </div>
 
-        <WalletDisclaimer />
+      <WalletDisclaimer />
 
-        <div className="mb-8">
-          <BkspcMainnetPanel wbBalance={balance} />
-        </div>
+      <div className="mb-8">
+        <BkspcMainnetPanel wbBalance={balance} />
+      </div>
 
-        <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20 shadow-lg mb-8">
-          <CardContent className="p-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <p className="text-sm text-muted-foreground font-medium">
-                  Total Balance
-                </p>
-                <div className="flex items-center gap-3 mt-1">
-                  <h2 className="text-5xl font-black tracking-tighter text-foreground">
-                    {balance.toLocaleString()}
-                  </h2>
-                  <Coins className="w-8 h-8 text-primary" />
-                </div>
+      <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20 shadow-lg mb-8">
+        <CardContent className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <p className="text-sm text-muted-foreground font-medium">
+                Total Balance
+              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <h2 className="text-5xl font-black tracking-tighter text-foreground">
+                  {balance.toLocaleString()}
+                </h2>
+                <Coins className="w-8 h-8 text-primary" />
               </div>
-              <Avatar className="h-16 w-16 border-2 border-primary/30 bg-background">
-                <AvatarFallback>
-                  <Coins className="w-8 h-8 text-primary" />
-                </AvatarFallback>
-              </Avatar>
             </div>
-            <p className="text-sm text-muted-foreground mb-6">WeixBucks</p>
-            <div className="flex gap-3">
-              <SendDialog balance={balance} />
-              <WithdrawDialog balance={balance} />
-              <Button variant="outline" size="sm" onClick={handleClaimRewards}>
-                Claim Node Rewards
-              </Button>
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-2">
-              Node rewards (0.1 WB per pin serve, daily cap) + malicious intent
-              throttle (score &gt;0.7 = 0 reward) wired in backend.
-            </p>
+            <Avatar className="h-16 w-16 border-2 border-primary/30 bg-background">
+              <AvatarFallback>
+                <Coins className="w-8 h-8 text-primary" />
+              </AvatarFallback>
+            </Avatar>
+          </div>
+          <p className="text-sm text-muted-foreground mb-6">WeixBucks</p>
+          <div className="flex gap-3">
+            <SendDialog balance={balance} />
+            <WithdrawDialog balance={balance} />
+            <Button variant="outline" size="sm" onClick={handleClaimRewards}>
+              Claim Node Rewards
+            </Button>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Node rewards (0.1 WB per pin serve, daily cap) + malicious intent
+            throttle (score &gt;0.7 = 0 reward) wired in backend.
+          </p>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <Card className="border-primary/10 shadow-sm">
+          <CardContent className="p-4 text-center">
+            <Zap className="w-5 h-5 text-primary mx-auto mb-2" />
+            <p className="text-2xl font-bold">{earnedToday.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Earned Today</p>
           </CardContent>
         </Card>
+        <Card className="border-primary/10 shadow-sm">
+          <CardContent className="p-4 text-center">
+            <TrendingUp className="w-5 h-5 text-accent mx-auto mb-2" />
+            <p className="text-2xl font-bold">{Math.round(quality * 100)}%</p>
+            <p className="text-xs text-muted-foreground">Engagement Quality</p>
+          </CardContent>
+        </Card>
+        <Card className="border-primary/10 shadow-sm">
+          <CardContent className="p-4 text-center">
+            <Gift className="w-5 h-5 text-green-500 mx-auto mb-2" />
+            <p className="text-2xl font-bold">
+              {isTauri() && Array.isArray(tauriTx) ? tauriTx.length : 3}
+            </p>
+            <p className="text-xs text-muted-foreground">Transactions</p>
+          </CardContent>
+        </Card>
+      </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <Card className="border-primary/10 shadow-sm">
-            <CardContent className="p-4 text-center">
-              <Zap className="w-5 h-5 text-primary mx-auto mb-2" />
-              <p className="text-2xl font-bold">
-                {earnedToday.toLocaleString()}
-              </p>
-              <p className="text-xs text-muted-foreground">Earned Today</p>
-            </CardContent>
-          </Card>
-          <Card className="border-primary/10 shadow-sm">
-            <CardContent className="p-4 text-center">
-              <TrendingUp className="w-5 h-5 text-accent mx-auto mb-2" />
-              <p className="text-2xl font-bold">{Math.round(quality * 100)}%</p>
-              <p className="text-xs text-muted-foreground">
-                Engagement Quality
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="border-primary/10 shadow-sm">
-            <CardContent className="p-4 text-center">
-              <Gift className="w-5 h-5 text-green-500 mx-auto mb-2" />
-              <p className="text-2xl font-bold">
-                {isTauri() && Array.isArray(tauriTx) ? tauriTx.length : 3}
-              </p>
-              <p className="text-xs text-muted-foreground">Transactions</p>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="mb-8">
+        <EarnDashboard
+          transactions={isTauri() && Array.isArray(tauriTx) ? tauriTx : []}
+          earnedToday={earnedToday}
+        />
+      </div>
 
-        <div className="mb-8">
-          <EarnDashboard
-            transactions={isTauri() && Array.isArray(tauriTx) ? tauriTx : []}
-            earnedToday={earnedToday}
-          />
-        </div>
+      <Tabs defaultValue="history">
+        <TabsList className="mb-6">
+          <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="earn">How to Earn</TabsTrigger>
+          <TabsTrigger value="marketplace" className="gap-1.5">
+            <Store className="w-3.5 h-3.5" />
+            Yard Sale
+          </TabsTrigger>
+        </TabsList>
 
-        <Tabs defaultValue="history">
-          <TabsList className="mb-6">
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="earn">How to Earn</TabsTrigger>
-            <TabsTrigger value="marketplace" className="gap-1.5">
-              <Store className="w-3.5 h-3.5" />
-              Yard Sale
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="history" className="space-y-1">
-            {txHistory.map((tx) => (
-              <Card
-                key={tx.id}
-                className="border-0 shadow-none rounded-none border-b border-border/30 last:border-0"
-              >
-                <CardContent className="flex items-center justify-between py-4 px-2">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`p-2 rounded-full ${tx.amount > 0 ? "bg-green-500/10" : "bg-destructive/10"}`}
-                    >
-                      {tx.amount > 0 ? (
-                        <ArrowUpRight className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <ArrowDownLeft className="w-4 h-4 text-destructive" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{tx.user}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {tx.description} • {tx.time}
-                      </p>
-                    </div>
+        <TabsContent value="history" className="space-y-1">
+          {txHistory.map((tx) => (
+            <Card
+              key={tx.id}
+              className="border-0 shadow-none rounded-none border-b border-border/30 last:border-0"
+            >
+              <CardContent className="flex items-center justify-between py-4 px-2">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`p-2 rounded-full ${tx.amount > 0 ? "bg-green-500/10" : "bg-destructive/10"}`}
+                  >
+                    {tx.amount > 0 ? (
+                      <ArrowUpRight className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <ArrowDownLeft className="w-4 h-4 text-destructive" />
+                    )}
                   </div>
-                  <div className="text-right">
-                    <p
-                      className={`text-sm font-bold ${tx.amount > 0 ? "text-green-500" : "text-destructive"}`}
-                    >
-                      {tx.amount > 0 ? "+" : ""}
-                      {tx.amount}
-                    </p>
+                  <div>
+                    <p className="text-sm font-medium">{tx.user}</p>
                     <p className="text-xs text-muted-foreground">
-                      {tx.balance} WB
+                      {tx.description} • {tx.time}
                     </p>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </TabsContent>
+                </div>
+                <div className="text-right">
+                  <p
+                    className={`text-sm font-bold ${tx.amount > 0 ? "text-green-500" : "text-destructive"}`}
+                  >
+                    {tx.amount > 0 ? "+" : ""}
+                    {tx.amount}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {tx.balance} WB
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
 
-          <TabsContent value="earn" className="space-y-6">
-            <FinancialLiteracyPanel />
-            <EarnRatesPanel />
-            <EconomyTermsCard />
-            <EconomyPolicyPanel />
-            <EconomyAppealCard />
-          </TabsContent>
+        <TabsContent value="earn" className="space-y-6">
+          <FinancialLiteracyPanel />
+          <EarnRatesPanel />
+          <EconomyTermsCard />
+          <EconomyPolicyPanel />
+          <EconomyAppealCard />
+        </TabsContent>
 
-          <TabsContent value="marketplace" className="space-y-4">
-            <OwnedNftsPanel />
-            <CreatorMarketplacePanel />
-          </TabsContent>
-        </Tabs>
+        <TabsContent value="marketplace" className="space-y-4">
+          <OwnedNftsPanel />
+          <CreatorMarketplacePanel />
+        </TabsContent>
+      </Tabs>
     </AppShell>
   );
 }

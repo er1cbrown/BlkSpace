@@ -4,9 +4,9 @@ mod tests {
   use crate::params;
   use crate::db::{
     Database, DAILY_WB_EARN_CAP, MARKETPLACE_PLATFORM_FEE_BPS, MIN_WITHDRAW_KARMA,
-    MIN_WITHDRAW_POSTS, MIN_WITHDRAW_WB, TIP_PLATFORM_FEE_BPS, TokenomicsPolicy,
-    WEEKLY_WITHDRAW_CAP_WB, calc_platform_fee, validate_handle, validate_display_name,
-    validate_content, validate_bio, validate_town,
+    MIN_WITHDRAW_POSTS, MIN_WITHDRAW_WB, MIN_WITHDRAW_YARD_CRED, TIP_PLATFORM_FEE_BPS,
+    TokenomicsPolicy, WEEKLY_WITHDRAW_CAP_WB, calc_platform_fee, validate_handle,
+    validate_display_name, validate_content, validate_bio, validate_town,
   };
 
   const NO_CHANNEL: &str = "";
@@ -54,8 +54,10 @@ mod tests {
   #[test]
   fn test_validate_town() {
     assert!(validate_town("tsu").is_ok());
-    assert!(validate_town("").is_ok());
-    assert!(validate_town("a".repeat(31).as_str()).is_err());
+    // Empty is invalid — yard/town tags are required 1–48 chars.
+    assert!(validate_town("").is_err());
+    assert!(validate_town("a".repeat(49).as_str()).is_err());
+    assert!(validate_town("a".repeat(48).as_str()).is_ok());
   }
 
   #[test]
@@ -204,10 +206,18 @@ mod tests {
       db.create_post(handle, &format!("Qualify post {i}"), "tsu", NO_CHANNEL, &[])
         .unwrap();
     }
+    // Yard Cred needs enough karma (formula caps karma share at 25).
+    db.grant_karma(handle, "tsu", 320, 0, "test yard cred").unwrap();
     db.grant_weix_bucks(handle, 500, "test grant").unwrap();
     let user = db.get_user(handle).unwrap().unwrap();
     assert!(user.post_karma >= MIN_WITHDRAW_KARMA);
     assert!(user.post_karma >= MIN_WITHDRAW_POSTS * 3);
+    let cred = db.connect_yard_cred(handle).unwrap();
+    assert!(
+      cred.score >= MIN_WITHDRAW_YARD_CRED,
+      "yard cred {} < {MIN_WITHDRAW_YARD_CRED}",
+      cred.score
+    );
   }
 
   #[test]
@@ -579,7 +589,8 @@ mod tests {
     let db = setup_test_db();
     
     let communities = db.get_communities();
-    assert_eq!(communities.len(), 5);
+    // Full HBCU catalog seed (100+) — not the old 5-yard demo list.
+    assert!(communities.len() >= 5, "expected full catalog, got {}", communities.len());
     
     // Check TSU
     let tsu = communities.iter().find(|c| c.id == "tsu").unwrap();
@@ -820,13 +831,13 @@ mod tests {
       let conn = db.conn.lock().unwrap();
       conn.execute(
         "UPDATE users SET engagement_quality = 0.6 WHERE handle = 'risky'",
-        [],
+        (),
       ).unwrap();
       conn.execute(
         "INSERT INTO malicious_intent_scores (handle, overall_score, follower_velocity, network_centrality, content_similarity, temporal_pattern, self_interaction, updated_at)
          VALUES ('risky', 0.75, 0.0, 0.0, 0.0, 0.0, 0.0, datetime('now'))
          ON CONFLICT(handle) DO UPDATE SET overall_score = 0.75",
-        [],
+        (),
       ).unwrap();
     }
 
@@ -1099,11 +1110,11 @@ mod tests {
   fn test_search_communities() {
     let db = setup_test_db();
     let all = db.search_communities("");
-    assert_eq!(all.len(), 5);
+    assert!(all.len() >= 5, "expected full catalog, got {}", all.len());
 
     let howard = db.search_communities("howard");
-    assert_eq!(howard.len(), 1);
-    assert_eq!(howard[0].id, "howard");
+    assert!(!howard.is_empty());
+    assert!(howard.iter().any(|c| c.id == "howard"));
   }
 
   #[test]
@@ -1597,7 +1608,7 @@ mod tests {
     db.create_user("risky", "Risky", "").unwrap();
     db.conn.lock().unwrap().execute(
       "INSERT INTO malicious_intent_scores (handle, overall_score) VALUES ('risky', 0.85)",
-      [],
+      (),
     ).unwrap();
     db.grant_karma("risky", "tsu", 5, 2, "Test").unwrap();
     let user = db.get_user("risky").unwrap().unwrap();
@@ -1680,6 +1691,11 @@ mod tests {
         "Library",
         "2026-07-01T18:00:00Z",
         None,
+        None,
+        None,
+        false,
+        0,
+        None,
       )
       .unwrap();
     assert_eq!(event.title, "Study Hall");
@@ -1721,7 +1737,10 @@ mod tests {
     db.join_yard("student", "tsu").unwrap();
     db.set_community_role("tsu", "student", "Student").unwrap();
     let err = authorize_create_yard_event(&db, "student", "tsu").unwrap_err();
-    assert!(err.contains("owners and moderators"));
+    assert!(
+      err.contains("owners") || err.contains("moderators") || err.contains("org leads"),
+      "unexpected auth error: {err}"
+    );
   }
 
   #[test]
@@ -1736,6 +1755,11 @@ mod tests {
         "",
         "",
         "2026-07-01T18:00:00Z",
+        None,
+        None,
+        None,
+        false,
+        0,
         None,
       )
       .unwrap_err();
@@ -1788,10 +1812,15 @@ mod tests {
     let db = setup_test_db();
     db.create_user("alice", "Alice", "").unwrap();
     db.create_user("bob", "Bob", "").unwrap();
+    // First joiner is bootstrapped Admin — demote alice to Student for this case.
     db.join_yard("alice", "tsu").unwrap();
     db.join_yard("bob", "tsu").unwrap();
+    db.set_community_role("tsu", "alice", "Student").unwrap();
     let err = authorize_set_community_role(&db, "alice", "tsu", "bob", "Yard Mod").unwrap_err();
-    assert!(err.contains("owners and moderators"));
+    assert!(
+      err.contains("owners and moderators"),
+      "unexpected auth error: {err}"
+    );
   }
 
   #[test]

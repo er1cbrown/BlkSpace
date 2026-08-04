@@ -24,7 +24,11 @@ import {
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { useAppGetUser } from "@/hooks/use-app-data";
 import { TOWN_OPTIONS, townLabel } from "@/lib/towns";
-import { isTauri, tauriUploadBlob, type TauriEarnResult } from "@/lib/tauri-api";
+import {
+  isTauri,
+  tauriUploadBlob,
+  type TauriEarnResult,
+} from "@/lib/tauri-api";
 import { toast } from "sonner";
 import {
   MEDIA_ACCEPT,
@@ -35,7 +39,11 @@ import {
   kindLabel,
   mediaKindFromFile,
 } from "@/lib/media-upload";
-import { isWebBlobId, webDeleteBlob, webStoreFile } from "@/lib/media-web-store";
+import {
+  isWebBlobId,
+  webDeleteBlob,
+  webStoreFile,
+} from "@/lib/media-web-store";
 import { cn } from "@/lib/utils";
 
 interface PostComposerProps {
@@ -251,8 +259,7 @@ export function PostComposer({
   };
 
   const canPost =
-    (content.trim().length > 0 ||
-      pending.some((p) => p.status === "ready")) &&
+    (content.trim().length > 0 || pending.some((p) => p.status === "ready")) &&
     !pending.some((p) => p.status === "uploading") &&
     !isSubmitting &&
     !uploading;

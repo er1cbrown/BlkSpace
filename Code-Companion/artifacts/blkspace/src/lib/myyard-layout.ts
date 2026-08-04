@@ -15,14 +15,46 @@ export interface MyYardLogosDeckConfig {
 
 /** Banner presets (MySpace-era energy, modern defaults). */
 export const BANNER_GRADIENTS = [
-  { id: "sunset", label: "Sunset yard", css: "linear-gradient(135deg,#f97316,#db2777,#7c3aed)" },
-  { id: "night", label: "Night out", css: "linear-gradient(135deg,#0f172a,#1e3a8a,#4c1d95)" },
-  { id: "gold", label: "Gold & black", css: "linear-gradient(135deg,#111827,#b45309,#fbbf24)" },
-  { id: "forest", label: "Forest", css: "linear-gradient(135deg,#064e3b,#059669,#a7f3d0)" },
-  { id: "ocean", label: "Ocean", css: "linear-gradient(135deg,#0c4a6e,#0284c7,#67e8f9)" },
-  { id: "rose", label: "Rose glass", css: "linear-gradient(135deg,#881337,#e11d48,#fda4af)" },
-  { id: "neon", label: "Neon", css: "linear-gradient(135deg,#020617,#d946ef,#22d3ee)" },
-  { id: "classic", label: "BlkSpace orange", css: "linear-gradient(135deg,#ea580c,#fb923c,#fdba74)" },
+  {
+    id: "sunset",
+    label: "Sunset yard",
+    css: "linear-gradient(135deg,#f97316,#db2777,#7c3aed)",
+  },
+  {
+    id: "night",
+    label: "Night out",
+    css: "linear-gradient(135deg,#0f172a,#1e3a8a,#4c1d95)",
+  },
+  {
+    id: "gold",
+    label: "Gold & black",
+    css: "linear-gradient(135deg,#111827,#b45309,#fbbf24)",
+  },
+  {
+    id: "forest",
+    label: "Forest",
+    css: "linear-gradient(135deg,#064e3b,#059669,#a7f3d0)",
+  },
+  {
+    id: "ocean",
+    label: "Ocean",
+    css: "linear-gradient(135deg,#0c4a6e,#0284c7,#67e8f9)",
+  },
+  {
+    id: "rose",
+    label: "Rose glass",
+    css: "linear-gradient(135deg,#881337,#e11d48,#fda4af)",
+  },
+  {
+    id: "neon",
+    label: "Neon",
+    css: "linear-gradient(135deg,#020617,#d946ef,#22d3ee)",
+  },
+  {
+    id: "classic",
+    label: "BlkSpace orange",
+    css: "linear-gradient(135deg,#ea580c,#fb923c,#fdba74)",
+  },
 ] as const;
 
 export type BannerGradientId = (typeof BANNER_GRADIENTS)[number]["id"];
@@ -128,7 +160,9 @@ export function getBannerCss(a: MyYardAesthetic): string {
   return g.css;
 }
 
-export function parseMyYardLayout(json: string | undefined | null): MyYardLayout {
+export function parseMyYardLayout(
+  json: string | undefined | null,
+): MyYardLayout {
   if (!json || json.trim() === "" || json === "{}") {
     return structuredClone(DEFAULT_MYYARD_LAYOUT);
   }
@@ -180,9 +214,7 @@ export function mergeMyYardLayout(
           ...current.aesthetic,
           ...patch.aesthetic,
           customCss: sanitizeCustomCss(
-            patch.aesthetic.customCss ??
-              current.aesthetic?.customCss ??
-              "",
+            patch.aesthetic.customCss ?? current.aesthetic?.customCss ?? "",
           ),
           galleryHashes: (
             patch.aesthetic.galleryHashes ??

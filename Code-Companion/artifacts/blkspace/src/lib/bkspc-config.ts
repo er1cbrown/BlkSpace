@@ -38,7 +38,9 @@ function envMint(): string {
 }
 
 function envPump(): string {
-  return (import.meta.env.VITE_BKSPC_PUMPFUN as string | undefined)?.trim() || "";
+  return (
+    (import.meta.env.VITE_BKSPC_PUMPFUN as string | undefined)?.trim() || ""
+  );
 }
 
 export function getBkspcConfig(): BkspcConfig {

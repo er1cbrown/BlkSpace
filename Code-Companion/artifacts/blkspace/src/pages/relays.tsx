@@ -245,9 +245,7 @@ export default function RelaysPage() {
             {isDesktop && (
               <Card className="mb-6 border-primary/20">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">
-                    NIP-65 relay list
-                  </CardTitle>
+                  <CardTitle className="text-lg">NIP-65 relay list</CardTitle>
                   <CardDescription>
                     Publish kind 10002 to relays, then fetch live from the
                     network (falls back to local cache).
@@ -293,7 +291,9 @@ export default function RelaysPage() {
                   )}
                   {myPubkey && (
                     <div className="text-sm space-y-1">
-                      <p className="text-muted-foreground">Your relays (NIP-65):</p>
+                      <p className="text-muted-foreground">
+                        Your relays (NIP-65):
+                      </p>
                       {myRelayList && myRelayList.length > 0 ? (
                         <ul className="font-mono text-xs space-y-1">
                           {myRelayList.map((url) => (

@@ -22,7 +22,5 @@ export function WalletGate({
 }: WalletGateProps) {
   const { isGuest } = useGuestMode();
   if (!isGuest) return <>{children}</>;
-  return (
-    <GuestCTA compact={compact} fullPage={fullPage} message={message} />
-  );
+  return <GuestCTA compact={compact} fullPage={fullPage} message={message} />;
 }

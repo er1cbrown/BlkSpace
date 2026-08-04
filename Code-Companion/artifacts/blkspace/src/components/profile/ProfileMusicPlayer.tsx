@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Music, Play, Pause, SkipForward, Volume2, VolumeX } from "lucide-react";
+import {
+  Music,
+  Play,
+  Pause,
+  SkipForward,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -151,7 +158,11 @@ export function ProfileMusicPlayer({
             onClick={toggleMute}
             aria-label={muted ? "Unmute" : "Mute"}
           >
-            {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            {muted ? (
+              <VolumeX className="w-4 h-4" />
+            ) : (
+              <Volume2 className="w-4 h-4" />
+            )}
           </Button>
         )}
       </div>

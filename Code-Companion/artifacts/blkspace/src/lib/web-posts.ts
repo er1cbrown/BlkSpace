@@ -28,7 +28,9 @@ function save(posts: WebUserPost[]) {
 export function listWebUserPosts(town?: string): WebUserPost[] {
   const all = load();
   if (!town || town === "all") return all;
-  return all.filter((p) => p.townTag === town || p.townTag === `hbcu-town:${town}`);
+  return all.filter(
+    (p) => p.townTag === town || p.townTag === `hbcu-town:${town}`,
+  );
 }
 
 export function createWebUserPost(input: {

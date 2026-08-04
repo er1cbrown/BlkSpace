@@ -7,9 +7,14 @@ export const repliesTable = pgTable("replies", {
   postId: integer("post_id").notNull(),
   authorHandle: text("author_handle").notNull(),
   content: text("content").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
-export const insertReplySchema = createInsertSchema(repliesTable).omit({ id: true, createdAt: true });
+export const insertReplySchema = createInsertSchema(repliesTable).omit({
+  id: true,
+  createdAt: true,
+});
 export type InsertReply = z.infer<typeof insertReplySchema>;
 export type Reply = typeof repliesTable.$inferSelect;

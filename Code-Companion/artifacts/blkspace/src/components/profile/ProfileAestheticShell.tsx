@@ -81,10 +81,12 @@ export function ProfileAestheticShell({
   };
 
   const bannerStyle: CSSProperties = {
-    background: bannerBg.startsWith("linear") || bannerBg.startsWith("center")
-      ? bannerBg
-      : bannerBg,
-    backgroundColor: aesthetic.bannerMode === "solid" ? aesthetic.bannerSolid : undefined,
+    background:
+      bannerBg.startsWith("linear") || bannerBg.startsWith("center")
+        ? bannerBg
+        : bannerBg,
+    backgroundColor:
+      aesthetic.bannerMode === "solid" ? aesthetic.bannerSolid : undefined,
   };
 
   const pattern = patternStyle(aesthetic.bgPattern);
@@ -149,7 +151,8 @@ export function MyYardBanner({
     <div
       className={cn(
         "myyard-banner h-40 md:h-48 relative",
-        aesthetic.glassHeader && "after:absolute after:inset-0 after:bg-black/10",
+        aesthetic.glassHeader &&
+          "after:absolute after:inset-0 after:bg-black/10",
         className,
       )}
       style={style}

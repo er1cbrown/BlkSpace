@@ -5,7 +5,7 @@
  * BlkSpace federated social platform API
  * OpenAPI spec version: 0.1.0
  */
-import type { ActivityEventType } from './activityEventType';
+import type { ActivityEventType } from "./activityEventType";
 
 export interface ActivityEvent {
   id: number;

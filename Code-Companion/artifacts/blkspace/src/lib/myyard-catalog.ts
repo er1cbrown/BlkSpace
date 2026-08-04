@@ -63,7 +63,9 @@ export function itemTypeLabel(itemType: string): string {
   return itemType;
 }
 
-export function themeLabelFromRef(itemRef: string | null | undefined): string | null {
+export function themeLabelFromRef(
+  itemRef: string | null | undefined,
+): string | null {
   if (!itemRef?.startsWith("theme:")) return null;
   const profile = MYARD_PROFILE_THEMES.find((t) => t.itemRef === itemRef);
   if (profile) return profile.label;

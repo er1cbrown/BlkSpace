@@ -452,7 +452,10 @@ export function CustomizeStation({
           )}
           <div className="grid grid-cols-4 gap-2">
             {a.galleryHashes.map((h) => (
-              <div key={h} className="relative aspect-square rounded-lg border overflow-hidden bg-muted">
+              <div
+                key={h}
+                className="relative aspect-square rounded-lg border overflow-hidden bg-muted"
+              >
                 {a.galleryDataUrls[h] ? (
                   <img
                     src={a.galleryDataUrls[h]}
@@ -516,7 +519,11 @@ export function CustomizeStation({
                 </Button>
               ))}
               {music && (
-                <Button size="sm" variant="ghost" onClick={() => setMusic(null)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setMusic(null)}
+                >
                   Clear song
                 </Button>
               )}
@@ -606,7 +613,12 @@ export function CustomizeStation({
       </Tabs>
 
       <div className="flex justify-end">
-        <Button onClick={save} disabled={saving} size="lg" className="rounded-full">
+        <Button
+          onClick={save}
+          disabled={saving}
+          size="lg"
+          className="rounded-full"
+        >
           <Save className="h-4 w-4 mr-1" />
           Save & publish look
         </Button>

@@ -1,10 +1,5 @@
 import { Link } from "wouter";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,7 +37,9 @@ export function YardSidebar() {
   return (
     <aside className="space-y-4 sticky top-4">
       <Card className="overflow-hidden border-primary/15 shadow-md">
-        <div className={`h-16 bg-gradient-to-br yard-skin-gradient ${townGradient(town)}`} />
+        <div
+          className={`h-16 bg-gradient-to-br yard-skin-gradient ${townGradient(town)}`}
+        />
         <CardHeader className="pb-2 -mt-8">
           <div className="flex items-end gap-3">
             <Avatar className="h-14 w-14 border-2 border-background shadow-md">
@@ -110,7 +107,11 @@ export function YardSidebar() {
                       </p>
                     </div>
                   </div>
-                  <Button size="sm" variant="ghost" className="shrink-0 h-7 text-xs">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="shrink-0 h-7 text-xs"
+                  >
                     View
                   </Button>
                 </div>
@@ -128,7 +129,13 @@ export function YardSidebar() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {(trending as { authorHandle?: string; content?: string; likesCount?: number }[])
+            {(
+              trending as {
+                authorHandle?: string;
+                content?: string;
+                likesCount?: number;
+              }[]
+            )
               .slice(0, 3)
               .map((post, i) => (
                 <div
@@ -186,17 +193,26 @@ export function YardSidebar() {
       </Card>
 
       <div className="px-1 space-y-1 text-xs text-muted-foreground">
-        <Link href="/settings" className="flex items-center gap-2 hover:text-foreground">
+        <Link
+          href="/settings"
+          className="flex items-center gap-2 hover:text-foreground"
+        >
           <Settings className="w-3.5 h-3.5" />
           Settings
         </Link>
         {BETA_FEATURES.showDevTools && (
           <>
-            <Link href="/architecture" className="flex items-center gap-2 hover:text-foreground">
+            <Link
+              href="/architecture"
+              className="flex items-center gap-2 hover:text-foreground"
+            >
               <Code2 className="w-3.5 h-3.5" />
               Stack (dev)
             </Link>
-            <Link href="/mesh-test" className="flex items-center gap-2 hover:text-foreground">
+            <Link
+              href="/mesh-test"
+              className="flex items-center gap-2 hover:text-foreground"
+            >
               <Code2 className="w-3.5 h-3.5" />
               Sync test (dev)
             </Link>

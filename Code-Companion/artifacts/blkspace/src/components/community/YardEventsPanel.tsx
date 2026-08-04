@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -227,8 +222,8 @@ function CreateEventDialog({
               onChange={(e) => setLiveUrl(e.target.value)}
             />
             <p className="text-[10px] text-muted-foreground">
-              Link-out live for now (IG/TikTok/Twitch class). Native ingest later —
-              yard RSVP + identity stay on BlkSpace.
+              Link-out live for now (IG/TikTok/Twitch class). Native ingest
+              later — yard RSVP + identity stay on BlkSpace.
             </p>
           </div>
           <div className="space-y-1.5">
@@ -481,7 +476,8 @@ function EventCard({
     cancelRsvp.mutate(
       { communityId, eventId: event.id },
       {
-        onSuccess: () => toast.success("RSVP removed · ticket refunded if paid"),
+        onSuccess: () =>
+          toast.success("RSVP removed · ticket refunded if paid"),
         onError: (e) => toast.error(String(e)),
       },
     );
@@ -492,14 +488,15 @@ function EventCard({
     event.userRsvp === "waitlist" || event.userWaitlisted === true;
   const isInterested = event.userRsvp === "interested";
   const going = event.goingCount ?? event.rsvpCount;
-  const hostOrMod =
-    canManage || event.createdBy === handle;
+  const hostOrMod = canManage || event.createdBy === handle;
 
   return (
     <Card className="border-primary/10">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-3">
-          <CardTitle className="text-base leading-snug">{event.title}</CardTitle>
+          <CardTitle className="text-base leading-snug">
+            {event.title}
+          </CardTitle>
           <div className="flex flex-wrap gap-1 justify-end">
             {event.eventKind && event.eventKind !== "general" && (
               <Badge variant="outline" className="text-[10px] capitalize">
@@ -517,7 +514,10 @@ function EventCard({
               </Badge>
             )}
             {event.userRsvp && (
-              <Badge variant="secondary" className="shrink-0 capitalize text-[10px]">
+              <Badge
+                variant="secondary"
+                className="shrink-0 capitalize text-[10px]"
+              >
                 {isWaitlist ? "waitlist" : event.userRsvp}
               </Badge>
             )}
@@ -697,8 +697,8 @@ export function YardEventsPanel({
       {!isLoading && upcoming.length === 0 && (
         <Card className="border-dashed">
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            No upcoming events. Hosts can publish community service days, mixers,
-            and club nights with signup tracking.
+            No upcoming events. Hosts can publish community service days,
+            mixers, and club nights with signup tracking.
           </CardContent>
         </Card>
       )}

@@ -2,16 +2,8 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  LITERACY_PATHS,
-  LITERACY_PRINCIPLES,
-} from "@/lib/earn-literacy";
-import {
-  GraduationCap,
-  ArrowRight,
-  Sparkles,
-  Shield,
-} from "lucide-react";
+import { LITERACY_PATHS, LITERACY_PRINCIPLES } from "@/lib/earn-literacy";
+import { GraduationCap, ArrowRight, Sparkles, Shield } from "lucide-react";
 import { BRAND } from "@/lib/brand";
 
 /**
@@ -30,11 +22,12 @@ export function FinancialLiteracyPanel() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>
-            Soft <strong className="text-foreground">WeixBucks (WB)</strong> reward
-            real yard activity.{" "}
-            <strong className="text-foreground">Yard Cred</strong> is reputation.
-            <strong className="text-foreground"> BKSPC</strong> is optional later
-            settlement — gated, not a hype coin.
+            Soft <strong className="text-foreground">WeixBucks (WB)</strong>{" "}
+            reward real yard activity.{" "}
+            <strong className="text-foreground">Yard Cred</strong> is
+            reputation.
+            <strong className="text-foreground"> BKSPC</strong> is optional
+            later settlement — gated, not a hype coin.
           </p>
           <div className="grid sm:grid-cols-2 gap-2">
             {LITERACY_PRINCIPLES.map((p) => (
@@ -79,7 +72,11 @@ export function FinancialLiteracyPanel() {
                   Literacy: {path.literacyTip}
                 </p>
                 <Link href={path.href}>
-                  <Button size="sm" variant="secondary" className="w-full gap-1 mt-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="w-full gap-1 mt-1"
+                  >
                     {path.firstAction}
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Button>

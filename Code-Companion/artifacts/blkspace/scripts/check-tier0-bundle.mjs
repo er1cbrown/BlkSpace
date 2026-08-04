@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Tier 0 JS bundle budget gate — runs after `pnpm build:tier0`.
+ * Tier 0 JS bundle budget gate — runs after `bun run build:tier0`.
  * Fails CI when entry or total JS gzip exceeds configured limits.
  */
 import { execSync } from "node:child_process";
@@ -26,7 +26,7 @@ function gzipKb(filePath) {
 }
 
 if (!skipBuild) {
-  execSync("pnpm build:tier0", {
+  execSync("bun run build:tier0", {
     cwd: root,
     stdio: "inherit",
     env: { ...process.env, PORT: "24442", BASE_PATH: "/" },

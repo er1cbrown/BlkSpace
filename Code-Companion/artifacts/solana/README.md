@@ -13,7 +13,7 @@ solana config set --url devnet
 solana airdrop 2
 
 cd Code-Companion
-pnpm --filter @workspace/solana run setup-bkspc-devnet
+bun run --filter @workspace/solana setup-bkspc-devnet
 ```
 
 Runs: treasury signers → Metaplex mint → deploy program → `initialize_config` (mint authority → program PDA).
@@ -55,9 +55,9 @@ Manifest must have `programId`, `configInitialized: true`, and `mintAuthority` =
 `programs/bkspc/` — treasury-gated `mint_rewards` / student `burn_tokens`.
 
 ```bash
-pnpm run build:program          # cargo build-sbf
-pnpm run test:anchor            # local validator + ts-mocha
-pnpm run wire-bkspc-program-devnet   # deploy + initialize on devnet
+bun run build:program          # cargo build-sbf
+bun run test:anchor            # local validator + ts-mocha
+bun run wire-bkspc-program-devnet   # deploy + initialize on devnet
 ```
 
 IDL: `idl/bkspc.json` (Anchor 0.29 format for TS client + Tauri ix builders).

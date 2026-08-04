@@ -40,15 +40,60 @@ export const KARMA_EARN = {
 
 /** UI + audit reference: action → earn surfaced in EarnToast when applicable. */
 export const EARN_PATHS = [
-  { action: "Feed post", wb: WB_EARN.feedPost, karma: KARMA_EARN.feedPost, toast: "Post created" },
-  { action: "Yard channel post", wb: WB_EARN.yardChannelTotal, karma: 7, toast: "Posted to #channel" },
-  { action: "Reply", wb: WB_EARN.reply, karma: KARMA_EARN.reply, toast: "Reply posted" },
-  { action: "Yard reply", wb: WB_EARN.yardReplyTotal, karma: KARMA_EARN.yardReplyTotal, toast: "Reply posted" },
-  { action: "Like received", wb: WB_EARN.likeReceived, karma: KARMA_EARN.upvoteReceived, toast: "Creator earned" },
-  { action: "Media upload", wb: WB_EARN.mediaUpload, karma: KARMA_EARN.mediaCreation, toast: "Media upload" },
-  { action: "Join yard", wb: WB_EARN.joinYard, karma: KARMA_EARN.joinYard, toast: "Joined yard" },
-  { action: "Event RSVP", wb: WB_EARN.eventRsvp, karma: KARMA_EARN.eventRsvp, toast: "RSVP" },
-  { action: "Wall post approved", wb: WB_EARN.wallPostApproved, karma: KARMA_EARN.wallComment, toast: "Wall post" },
+  {
+    action: "Feed post",
+    wb: WB_EARN.feedPost,
+    karma: KARMA_EARN.feedPost,
+    toast: "Post created",
+  },
+  {
+    action: "Yard channel post",
+    wb: WB_EARN.yardChannelTotal,
+    karma: 7,
+    toast: "Posted to #channel",
+  },
+  {
+    action: "Reply",
+    wb: WB_EARN.reply,
+    karma: KARMA_EARN.reply,
+    toast: "Reply posted",
+  },
+  {
+    action: "Yard reply",
+    wb: WB_EARN.yardReplyTotal,
+    karma: KARMA_EARN.yardReplyTotal,
+    toast: "Reply posted",
+  },
+  {
+    action: "Like received",
+    wb: WB_EARN.likeReceived,
+    karma: KARMA_EARN.upvoteReceived,
+    toast: "Creator earned",
+  },
+  {
+    action: "Media upload",
+    wb: WB_EARN.mediaUpload,
+    karma: KARMA_EARN.mediaCreation,
+    toast: "Media upload",
+  },
+  {
+    action: "Join yard",
+    wb: WB_EARN.joinYard,
+    karma: KARMA_EARN.joinYard,
+    toast: "Joined yard",
+  },
+  {
+    action: "Event RSVP",
+    wb: WB_EARN.eventRsvp,
+    karma: KARMA_EARN.eventRsvp,
+    toast: "RSVP",
+  },
+  {
+    action: "Wall post approved",
+    wb: WB_EARN.wallPostApproved,
+    karma: KARMA_EARN.wallComment,
+    toast: "Wall post",
+  },
   {
     action: "Content Hub publish",
     wb: 0,
@@ -57,11 +102,7 @@ export const EARN_PATHS = [
   },
 ] as const;
 
-export type EarnCategory =
-  | "creation"
-  | "community"
-  | "engagement"
-  | "node";
+export type EarnCategory = "creation" | "community" | "engagement" | "node";
 
 export const EARN_CATEGORIES: Record<
   EarnCategory,
@@ -69,7 +110,8 @@ export const EARN_CATEGORIES: Record<
 > = {
   creation: {
     label: "Content creation",
-    description: "Posts, uploads, reels — Instagram / TikTok / Newgrounds style",
+    description:
+      "Posts, uploads, reels — Instagram / TikTok / Newgrounds style",
   },
   community: {
     label: "Yard engagement",

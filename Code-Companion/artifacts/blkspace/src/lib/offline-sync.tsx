@@ -15,7 +15,8 @@ export function OfflineSyncProvider({
   const flush = useMutation({
     mutationFn: () => {
       const token = getSessionToken();
-      if (!token) return Promise.resolve({ synced: 0, failed: 0, remaining: 0 });
+      if (!token)
+        return Promise.resolve({ synced: 0, failed: 0, remaining: 0 });
       return tauriFlushOfflineQueue(token);
     },
     onSuccess: (result) => {

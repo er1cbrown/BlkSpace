@@ -51,7 +51,10 @@ export function TrustChip({
         aria-label="Trust details"
       >
         <BadgeCheck
-          className={cn("h-3.5 w-3.5", quiet ? "text-primary/80" : "text-amber-500")}
+          className={cn(
+            "h-3.5 w-3.5",
+            quiet ? "text-primary/80" : "text-amber-500",
+          )}
         />
         <ChevronDown
           className={cn("h-3 w-3 transition-transform", open && "rotate-180")}

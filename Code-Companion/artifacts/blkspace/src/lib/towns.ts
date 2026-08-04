@@ -76,7 +76,9 @@ function gradientForId(id: string): string {
 let _gradients: Record<string, string> | null = null;
 function gradients(): Record<string, string> {
   if (!_gradients) {
-    _gradients = Object.fromEntries(HBCU_CATALOG.map((h) => [h.id, gradientForId(h.id)]));
+    _gradients = Object.fromEntries(
+      HBCU_CATALOG.map((h) => [h.id, gradientForId(h.id)]),
+    );
   }
   return _gradients;
 }
@@ -110,7 +112,9 @@ export function townGradient(id: string): string {
 }
 
 export function townSchool(id: string): string {
-  return getHbcu(id)?.school ?? TOWN_OPTIONS.find((t) => t.id === id)?.school ?? id;
+  return (
+    getHbcu(id)?.school ?? TOWN_OPTIONS.find((t) => t.id === id)?.school ?? id
+  );
 }
 
 export function findTown(id: string): TownOption | HbcuInstitution | null {

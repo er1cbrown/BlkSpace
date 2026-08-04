@@ -33,7 +33,11 @@ export function TopFriends({ friends, editable, onEdit }: TopFriendsProps) {
           Top Friends
         </CardTitle>
         {editable && (
-          <button type="button" onClick={onEdit} className="text-xs text-primary hover:underline">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="text-xs text-primary hover:underline"
+          >
             Edit
           </button>
         )}

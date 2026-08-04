@@ -209,7 +209,11 @@ export function AppShell({
             </Button>
           </Link>
           <Link href="/notifications">
-            <Button variant="ghost" size="icon" className="rounded-full relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full relative"
+            >
               <Bell className="h-5 w-5" />
             </Button>
           </Link>
@@ -224,7 +228,9 @@ export function AppShell({
           {yardTheme && (
             <Link href={`/communities/${homeYard}`}>
               <p className="px-3 mb-3 text-[11px] text-muted-foreground truncate hover:text-primary cursor-pointer">
-                <span className="font-medium text-foreground/80">Your campus · </span>
+                <span className="font-medium text-foreground/80">
+                  Your campus ·{" "}
+                </span>
                 {yardTheme.school || yardTheme.name}
                 {yardTheme.mascot ? ` · ${yardTheme.mascot}` : ""}
               </p>
@@ -233,11 +239,7 @@ export function AppShell({
 
           <nav className="space-y-1 flex-1">
             {primaryNav.map((item) => (
-              <NavItem
-                key={item.href}
-                {...item}
-                active={isActive(item.href)}
-              />
+              <NavItem key={item.href} {...item} active={isActive(item.href)} />
             ))}
             <NavItem
               href={isGuest ? "/welcome" : profileHref}
@@ -327,7 +329,8 @@ export function AppShell({
                 <Avatar className="h-10 w-10 border border-primary/20">
                   <AvatarImage src={user?.avatarUrl} />
                   <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                    {user?.displayName?.charAt(0) ?? handle.charAt(0).toUpperCase()}
+                    {user?.displayName?.charAt(0) ??
+                      handle.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">

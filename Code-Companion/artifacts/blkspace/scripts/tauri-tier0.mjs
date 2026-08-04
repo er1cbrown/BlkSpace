@@ -26,8 +26,8 @@ const env = {
   BLKSPACE_DB_CACHE_KIB: process.env.BLKSPACE_DB_CACHE_KIB ?? String(8 * 1024),
 };
 
-const args = ["tauri", mode, "--", "--no-default-features"];
-const child = spawn("pnpm", args, {
+const args = ["run", "tauri", mode, "--", "--no-default-features"];
+const child = spawn("bun", args, {
   env,
   stdio: "inherit",
   shell: true,

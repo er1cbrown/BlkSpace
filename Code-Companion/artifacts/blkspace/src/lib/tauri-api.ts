@@ -111,12 +111,7 @@ export interface TauriCommunityRoleEntry {
   role: string;
 }
 
-export const YARD_ROLES = [
-  "Student",
-  "Yard Mod",
-  "Alum",
-  "Admin",
-] as const;
+export const YARD_ROLES = ["Student", "Yard Mod", "Alum", "Admin"] as const;
 
 export type YardRole = (typeof YARD_ROLES)[number];
 
@@ -420,7 +415,9 @@ export function tauriSearchPosts(
   });
 }
 
-export function tauriSearchCommunities(query: string): Promise<TauriCommunity[]> {
+export function tauriSearchCommunities(
+  query: string,
+): Promise<TauriCommunity[]> {
   return invoke("search_communities", { query });
 }
 
@@ -665,7 +662,14 @@ export function tauriPublishMix(
   key?: string,
   tracklist?: string,
 ): Promise<string> {
-  return invoke("publish_mix", { sessionToken, cid, title, bpm, key, tracklist });
+  return invoke("publish_mix", {
+    sessionToken,
+    cid,
+    title,
+    bpm,
+    key,
+    tracklist,
+  });
 }
 
 export interface TauriPaginatedPosts {
@@ -1685,7 +1689,11 @@ export function tauriCheckInEventGuest(
   sessionToken: string,
   eventId: number,
   ticketOrHandle: string,
-): Promise<{ checkedIn: boolean; handle?: string; alreadyCheckedIn?: boolean }> {
+): Promise<{
+  checkedIn: boolean;
+  handle?: string;
+  alreadyCheckedIn?: boolean;
+}> {
   return invoke("check_in_event_guest", {
     sessionToken,
     eventId,

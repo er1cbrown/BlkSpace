@@ -8,7 +8,7 @@ const tier0Lite =
  * Beta feature gates — keep the web preview focused on the core yard loop
  * (browse → post → earn) while full mesh/bridge tools stay in the desktop app.
  *
- * Tier 0 lite (`VITE_TIER0_LITE=1` or `pnpm build:tier0`) hides mesh-heavy UI
+ * Tier 0 lite (`VITE_TIER0_LITE=1` or `bun run build:tier0`) hides mesh-heavy UI
  * and reduces feed IPC on low-end devices.
  */
 export const BETA_FEATURES = {

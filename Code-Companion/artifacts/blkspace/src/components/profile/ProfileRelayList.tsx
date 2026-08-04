@@ -105,9 +105,7 @@ export function ProfileRelayList({
               className="mt-2 h-auto p-0 text-xs"
               onClick={() => setExpanded((v) => !v)}
             >
-              {expanded
-                ? "Show fewer"
-                : `Show all ${relayList.length} relays`}
+              {expanded ? "Show fewer" : `Show all ${relayList.length} relays`}
             </Button>
           )}
         </>

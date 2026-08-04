@@ -14,7 +14,7 @@
 | Item | Where |
 |------|-------|
 | Yard installer built | CI job `Build (BlkSpace Yard - windows-latest)` on `main` |
-| Or local build | `cd Code-Companion/artifacts/blkspace && pnpm tauri:build:tier0` |
+| Or local build | `cd Code-Companion/artifacts/blkspace && bun run tauri:build:tier0` |
 | Full M0 matrix (optional) | [`device-b-m0-results.md`](device-b-m0-results.md) + [`implementation/DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) |
 
 ---
@@ -117,7 +117,7 @@ git push origin v0.1.0-yard
 
 | Symptom | Check |
 |---------|-------|
-| White screen > 30 s | Use Yard `.msi`, not `pnpm dev` |
+| White screen > 30 s | Use Yard `.msi`, not `bun run dev` |
 | Feed empty | Wi‑Fi on; wait 10 s; Local tab |
 | Benchmark fail | [`TIER0_DEV.md`](TIER0_DEV.md) — warm vs cold dev confusion |
 | CI artifact missing | `build-tauri-yard` job log on GitHub Actions |

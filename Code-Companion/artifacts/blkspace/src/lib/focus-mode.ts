@@ -130,7 +130,11 @@ export function applyMedSchoolOnboarding(opts?: {
 
 export function getHomeYardId(): string {
   try {
-    return localStorage.getItem("blkspace_home_yard") || loadFocusPrefs().yardId || "tsu";
+    return (
+      localStorage.getItem("blkspace_home_yard") ||
+      loadFocusPrefs().yardId ||
+      "tsu"
+    );
   } catch {
     return "tsu";
   }
@@ -148,7 +152,8 @@ export function isLowBandwidthOpp(opp: {
   tagsJson?: string;
   title?: string;
 }): boolean {
-  const blob = `${opp.durationText || ""} ${opp.description || ""} ${opp.tagsJson || ""} ${opp.title || ""}`.toLowerCase();
+  const blob =
+    `${opp.durationText || ""} ${opp.description || ""} ${opp.tagsJson || ""} ${opp.title || ""}`.toLowerCase();
   if (
     blob.includes("async") ||
     blob.includes("2-4 hr") ||

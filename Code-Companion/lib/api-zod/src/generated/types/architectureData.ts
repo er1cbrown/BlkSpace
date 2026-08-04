@@ -5,9 +5,9 @@
  * BlkSpace federated social platform API
  * OpenAPI spec version: 0.1.0
  */
-import type { ArchitectureDataPrinciplesItem } from './architectureDataPrinciplesItem';
-import type { ArchitectureDataSecurityLayersItem } from './architectureDataSecurityLayersItem';
-import type { ArchitectureLayer } from './architectureLayer';
+import type { ArchitectureDataPrinciplesItem } from "./architectureDataPrinciplesItem";
+import type { ArchitectureDataSecurityLayersItem } from "./architectureDataSecurityLayersItem";
+import type { ArchitectureLayer } from "./architectureLayer";
 
 export interface ArchitectureData {
   layers: ArchitectureLayer[];

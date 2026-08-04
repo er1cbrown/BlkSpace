@@ -64,9 +64,9 @@ export interface Post {
 export interface PostInput {
   authorHandle: string;
   /**
-     * @minLength 1
-     * @maxLength 500
-     */
+   * @minLength 1
+   * @maxLength 500
+   */
   content: string;
   townTag: string;
   mediaUrl?: string;
@@ -89,13 +89,12 @@ export interface ReplyInput {
   content: string;
 }
 
-export type RelayStatus = typeof RelayStatus[keyof typeof RelayStatus];
-
+export type RelayStatus = (typeof RelayStatus)[keyof typeof RelayStatus];
 
 export const RelayStatus = {
-  online: 'online',
-  degraded: 'degraded',
-  offline: 'offline',
+  online: "online",
+  degraded: "degraded",
+  offline: "offline",
 } as const;
 
 export interface Relay {
@@ -124,16 +123,16 @@ export interface NetworkStats {
   meshConnections?: number;
 }
 
-export type ActivityEventType = typeof ActivityEventType[keyof typeof ActivityEventType];
-
+export type ActivityEventType =
+  (typeof ActivityEventType)[keyof typeof ActivityEventType];
 
 export const ActivityEventType = {
-  post: 'post',
-  join: 'join',
-  relay_up: 'relay_up',
-  relay_down: 'relay_down',
-  milestone: 'milestone',
-  trending: 'trending',
+  post: "post",
+  join: "join",
+  relay_up: "relay_up",
+  relay_down: "relay_down",
+  milestone: "milestone",
+  trending: "trending",
 } as const;
 
 export interface ActivityEvent {
@@ -172,7 +171,6 @@ export interface ArchitectureData {
 }
 
 export type ListPostsParams = {
-town?: string;
-trending?: boolean;
+  town?: string;
+  trending?: boolean;
 };
-

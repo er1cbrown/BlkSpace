@@ -49,9 +49,7 @@ export function LogosDeckPlayer({
   const [syncRefs, setSyncRefs] = useState<LogosDeckTrack[]>([]);
 
   const crate =
-    trackIds.length > 0
-      ? tracksByIds(trackIds)
-      : LOGOS_DECK_DEMO_CRATE;
+    trackIds.length > 0 ? tracksByIds(trackIds) : LOGOS_DECK_DEMO_CRATE;
 
   const activeTrack = activeDeck === "a" ? deckA : deckB;
 
@@ -195,7 +193,9 @@ export function LogosDeckPlayer({
           </Button>
           {!readOnly && (
             <span className="text-[10px] text-muted-foreground">
-              {audioHash ? "Iroh audio on Deck A" : "Demo crate — upload via Yard Sale"}
+              {audioHash
+                ? "Iroh audio on Deck A"
+                : "Demo crate — upload via Yard Sale"}
             </span>
           )}
         </div>

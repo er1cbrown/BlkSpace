@@ -44,7 +44,14 @@ vi.mock("@/lib/tauri-api", () => ({
   tauriCreatePost: () =>
     Promise.resolve({
       post: { id: 1, authorHandle: "test", content: "hi", townTag: "tsu" },
-      earn: { wb: 5, wbNominal: 5, karmaPost: 3, karmaComment: 0, throttled: false, dailyCapLimited: false },
+      earn: {
+        wb: 5,
+        wbNominal: 5,
+        karmaPost: 3,
+        karmaComment: 0,
+        throttled: false,
+        dailyCapLimited: false,
+      },
     }),
   tauriToggleLike: () =>
     Promise.resolve({
@@ -62,7 +69,14 @@ vi.mock("@/lib/tauri-api", () => ({
   tauriCreateReply: () =>
     Promise.resolve({
       reply: { id: 1, postId: 1, authorHandle: "test", content: "reply" },
-      earn: { wb: 2, wbNominal: 2, karmaPost: 0, karmaComment: 2, throttled: false, dailyCapLimited: false },
+      earn: {
+        wb: 2,
+        wbNominal: 2,
+        karmaPost: 0,
+        karmaComment: 2,
+        throttled: false,
+        dailyCapLimited: false,
+      },
     }),
   tauriListReplies: () => Promise.resolve([]),
   tauriGetTrendingFeed: () => Promise.resolve([]),

@@ -32,7 +32,7 @@ Campus yards (HBCU lore) are the first wedge inside the app. The **investor-faci
 
 ```bash
 cd Code-Companion
-pnpm --filter @workspace/solana run prepare-bkspc-pumpfun-launch
+bun run --filter @workspace/solana prepare-bkspc-pumpfun-launch
 ```
 
 Expected output:

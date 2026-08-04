@@ -11,8 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  PNPM_VERSION: 10
-  NODE_VERSION: 22
+  BUN_VERSION: latest
 
 permissions:
   contents: read
@@ -29,18 +28,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
       - name: Build frontend (project Pages base)
-        run: pnpm --filter @workspace/blkspace run build
+        run: bun run --filter @workspace/blkspace build
         working-directory: ./Code-Companion
         env:
           PORT: 24442

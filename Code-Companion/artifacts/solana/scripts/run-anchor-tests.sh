@@ -40,4 +40,4 @@ solana program deploy target/deploy/bkspc.so \
   --url "${ANCHOR_PROVIDER_URL}"
 
 echo "Running anchor tests..."
-pnpm exec ts-mocha -p ./tsconfig.json -t 1000000 tests/bkspc.ts
+bunx ts-mocha -p ./tsconfig.json -t 1000000 tests/bkspc.ts

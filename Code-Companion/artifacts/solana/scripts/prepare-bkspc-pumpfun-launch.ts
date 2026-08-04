@@ -5,7 +5,7 @@
  * and outputs the exact values to paste into the pump.fun launch form.
  *
  * Usage:
- *   pnpm --filter @workspace/solana exec tsx scripts/prepare-bkspc-pumpfun-launch.ts
+ *   bunx tsx scripts/prepare-bkspc-pumpfun-launch.ts
  */
 
 import { readFileSync } from "node:fs";
@@ -28,16 +28,22 @@ function main(): void {
     readFileSync(metadataPath, "utf8"),
   );
 
-  console.log("═══════════════════════════════════════════════════════════════");
+  console.log(
+    "═══════════════════════════════════════════════════════════════",
+  );
   console.log("  BKSPC — pump.fun launch prep");
-  console.log("═══════════════════════════════════════════════════════════════\n");
+  console.log(
+    "═══════════════════════════════════════════════════════════════\n",
+  );
 
   console.log("Paste these values into https://pump.fun/create:\n");
   console.log(`Name:        ${metadata.name}`);
   console.log(`Symbol:      ${metadata.symbol}`);
   console.log(`Description: ${metadata.description}`);
   console.log(`Website:     ${metadata.external_url}`);
-  console.log("Image:       Upload the BKSPC logo (replace blank image field)\n");
+  console.log(
+    "Image:       Upload the BKSPC logo (replace blank image field)\n",
+  );
 
   console.log("Expected costs (mainnet SOL):");
   console.log("  ~0.02 SOL  token creation + bonding curve");
@@ -53,7 +59,9 @@ function main(): void {
 
   console.log("After launch, update:");
   console.log("  - docs/bkspc-pumpfun-launch.md with the mint address");
-  console.log("  - Code-Companion/artifacts/solana/devnet/bkspc-mint.json if mirroring");
+  console.log(
+    "  - Code-Companion/artifacts/solana/devnet/bkspc-mint.json if mirroring",
+  );
   console.log("  - Wallet UI to display the live BKSPC mint\n");
 }
 

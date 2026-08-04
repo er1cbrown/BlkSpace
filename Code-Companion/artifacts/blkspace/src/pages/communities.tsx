@@ -35,6 +35,7 @@ import {
   FEATURED_YARD_IDS,
   HBCU_STATES,
   catalogStats,
+  isFeaturedYardId,
   searchHbcus,
   type HbcuControl,
 } from "@/lib/hbcu-catalog";
@@ -103,8 +104,7 @@ export default function CommunitiesPage() {
         );
       }
       if (featuredOnly) {
-        const feat = new Set(FEATURED_YARD_IDS);
-        list = list.filter((c) => feat.has(c.id));
+        list = list.filter((c) => isFeaturedYardId(c.id));
       }
       return [...list].sort((a, b) => {
         if (a.id === homeYard) return -1;
@@ -119,8 +119,7 @@ export default function CommunitiesPage() {
       control,
     });
     if (featuredOnly) {
-      const feat = new Set(FEATURED_YARD_IDS);
-      list = list.filter((h) => feat.has(h.id));
+      list = list.filter((h) => isFeaturedYardId(h.id));
     }
     list = [...list].sort((a, b) => {
       if (a.id === homeYard) return -1;

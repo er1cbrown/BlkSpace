@@ -44,7 +44,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: Code-Companion/pnpm-lock.yaml
+          cache-dependency-path: Code-Companion/bun.lock
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install system deps (Linux)
@@ -58,15 +58,15 @@ jobs:
             patchelf \
             libssl-dev \
             libsecret-1-dev
-      - run: pnpm install --frozen-lockfile
+      - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
       - name: Iroh unit tests
         if: inputs.run_iroh_tests && inputs.platform == 'ubuntu-latest'
-        run: pnpm --filter @workspace/blkspace run test:iroh
+        run: bun run --filter @workspace/blkspace test:iroh
         working-directory: ./Code-Companion
-      - run: pnpm build:full
+      - run: bun run build:full
         working-directory: ./Code-Companion/artifacts/blkspace
-      - run: pnpm tauri build
+      - run: bun run tauri build
         working-directory: ./Code-Companion/artifacts/blkspace
       - name: Rename Full installers
         shell: bash

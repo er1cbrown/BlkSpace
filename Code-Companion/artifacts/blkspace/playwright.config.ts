@@ -34,7 +34,7 @@ export default defineConfig({
   ],
   webServer: {
     // Serve production build — avoids Vite/esbuild dev-server hangs on low-RAM Macs.
-    // CI e2e job runs `pnpm build` before `e2e:browser` (see .github/workflows/ci.yml).
+    // CI e2e job runs `bun run build` before `e2e:browser` (see .github/workflows/ci.yml).
     command: "node scripts/spa-server.mjs",
     url: "http://127.0.0.1:24442",
     reuseExistingServer: !process.env.CI,

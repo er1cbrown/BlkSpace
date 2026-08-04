@@ -24,11 +24,11 @@ Warm runs are fine. Cold runs thrash because **disk + RAM** can't hold the full 
 
 ```bash
 cd Code-Companion/artifacts/blkspace
-pnpm dev:tier0          # web — lite UI, local tab default, pre-warmed Vite graph
-pnpm tauri:dev:tier0    # desktop — same + deferred Rust seed/relays
+bun run dev:tier0          # web — lite UI, local tab default, pre-warmed Vite graph
+bun run tauri:dev:tier0    # desktop — same + deferred Rust seed/relays
 ```
 
-Use `serve:tier0` or a release `.msi` for daily use on 4–8 GB machines — not `pnpm dev`.
+Use `serve:tier0` or a release `.msi` for daily use on 4–8 GB machines — not `bun run dev`.
 
 ---
 
@@ -37,7 +37,7 @@ Use `serve:tier0` or a release `.msi` for daily use on 4–8 GB machines — not
 ### Time complexity (dev commands)
 
 ```
-pnpm typecheck (workspace)
+bun run typecheck (workspace)
   └─ O(P × F)  P = packages (5), F = files + transitive types per package
      Project references force libs → artifacts/blkspace chain
 
@@ -69,7 +69,7 @@ cargo build (with iroh default)
 - Post create: **< 1 s**
 - Blob round-trip (512 KiB): **< 30 s**
 
-Run `pnpm test:tier0` to measure. Dev toolchain slowness ≠ user-facing slowness — but swap thrashing during dev *does* make the machine feel unusable.
+Run `bun run test:tier0` to measure. Dev toolchain slowness ≠ user-facing slowness — but swap thrashing during dev *does* make the machine feel unusable.
 
 ---
 
@@ -82,7 +82,7 @@ Think in three layers: **workflow**, **config**, **architecture**.
 **Default daily loop — frontend only:**
 
 ```bash
-cd Code-Companion && pnpm dev   # Vite web preview, ~200 MB, no Rust
+cd Code-Companion && bun run dev   # Vite web preview, ~200 MB, no Rust
 ```
 
 Use `make dev-web`. Only open Tauri when touching Rust commands.
@@ -91,15 +91,15 @@ Use `make dev-web`. Only open Tauri when touching Rust commands.
 
 ```bash
 # Typecheck one package (~3 s warm), not whole workspace (~7 min cold)
-cd Code-Companion/artifacts/blkspace && pnpm typecheck
+cd Code-Companion/artifacts/blkspace && bun run typecheck
 
 # Tests (~1.5 s warm)
-cd Code-Companion/artifacts/blkspace && pnpm test:run
+cd Code-Companion/artifacts/blkspace && bun run test:run
 ```
 
 **Never casually run `make clean`** — it deletes `target/` and all warm caches. Next build is a full cold start.
 
-**Push heavy builds to CI** — multi-OS Tauri + Iroh builds already run in GitHub Actions. Don't `pnpm tauri build` locally on Tier 0 unless you must.
+**Push heavy builds to CI** — multi-OS Tauri + Iroh builds already run in GitHub Actions. Don't `bun run tauri build` locally on Tier 0 unless you must.
 
 **Keep one terminal session warm** — second `tsc`/vitest runs are ~100× faster.
 
@@ -110,7 +110,7 @@ cd Code-Companion/artifacts/blkspace && pnpm test:run
 ```bash
 # Drop ~300 crates locally; UI still works (cid=hash fallback)
 cd Code-Companion/artifacts/blkspace
-pnpm tauri:build:no-iroh
+bun run tauri:build:no-iroh
 # or: cargo build --manifest-path src-tauri/Cargo.toml --no-default-features
 ```
 
@@ -138,10 +138,10 @@ opt-level = 0
 
 ```makefile
 typecheck-fast:
-	cd $(CC)/artifacts/blkspace && pnpm typecheck
+	cd $(CC)/artifacts/blkspace && bun run typecheck
 
 test-fast:
-	cd $(CC)/artifacts/blkspace && pnpm test:run
+	cd $(CC)/artifacts/blkspace && bun run test:run
 ```
 
 **Vitest** — already fast when warm (794 ms). Cold slowness is Vite transforming the full `use-app-data` → `api-client-react` graph. Mitigations:
@@ -166,7 +166,7 @@ test-fast:
 
 ```mermaid
 flowchart TD
-  A[UI / React work] --> B["pnpm dev (Vite only)"]
+  A[UI / React work] --> B["bun run dev (Vite only)"]
   C[Rust / Tauri IPC] --> D["tauri dev --no-default-features"]
   E[Full Iroh + desktop] --> F[GitHub CI or Tier 1 machine]
   G[Before commit] --> H["blkspace typecheck + test:run (~5 s warm)"]
@@ -182,7 +182,7 @@ flowchart TD
 3. **Build without Iroh locally** — cuts compile graph ~70%; biggest RAM win.
 4. **Set `CARGO_BUILD_JOBS=2`** in your shell profile on 8 GB machines.
 5. **Add `typecheck-fast` / `test-fast` Makefile targets** — documents the Tier 0 workflow.
-6. **Run `pnpm test:tier0`** — establish app-runtime baseline on target hardware.
+6. **Run `bun run test:tier0`** — establish app-runtime baseline on target hardware.
 7. **Consider flipping Iroh off by default in `Cargo.toml`** for local dev (CI keeps explicit `--features iroh` job).
 
 ---

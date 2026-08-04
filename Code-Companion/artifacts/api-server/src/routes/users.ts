@@ -12,7 +12,10 @@ import {
 const router = Router();
 
 router.get("/", async (req, res) => {
-  const users = await db.select().from(usersTable).orderBy(usersTable.createdAt);
+  const users = await db
+    .select()
+    .from(usersTable)
+    .orderBy(usersTable.createdAt);
   res.json(users);
 });
 
@@ -32,7 +35,10 @@ router.get("/:handle", async (req, res) => {
     res.status(400).json({ error: "Invalid params" });
     return;
   }
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.handle, parsed.data.handle));
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.handle, parsed.data.handle));
   if (!user) {
     res.status(404).json({ error: "User not found" });
     return;
@@ -65,7 +71,10 @@ router.get("/:handle/posts", async (req, res) => {
     res.status(400).json({ error: "Invalid params" });
     return;
   }
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.handle, parsed.data.handle));
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.handle, parsed.data.handle));
   if (!user) {
     res.status(404).json({ error: "User not found" });
     return;

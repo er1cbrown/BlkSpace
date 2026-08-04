@@ -50,7 +50,9 @@ export function EconomyAppealCard() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="earn_throttle">Earn throttle / MIDF</SelectItem>
+              <SelectItem value="earn_throttle">
+                Earn throttle / MIDF
+              </SelectItem>
               <SelectItem value="withdraw_denied">Withdraw denied</SelectItem>
               <SelectItem value="midf_score">MIDF score dispute</SelectItem>
               <SelectItem value="other">Other</SelectItem>

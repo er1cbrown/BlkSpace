@@ -101,7 +101,7 @@ if (!existsSync(binaryPath)) {
 }
 
 console.log("Starting Vite dev server...");
-const vite = run("pnpm", ["dev"]);
+const vite = run("bun", ["run", "dev"]);
 
 await sleep(6000);
 
@@ -118,7 +118,7 @@ let exitCode = 1;
 
 try {
   await waitForSocket(socketPath, 120_000);
-  execSync("pnpm exec playwright test --project=tauri", {
+  execSync("bunx playwright test --project=tauri", {
     cwd: rootDir,
     env,
     stdio: "inherit",

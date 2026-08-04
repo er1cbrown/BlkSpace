@@ -69,7 +69,7 @@ bkspc-devnet = [
 ]
 e2e-testing = ["dep:tauri-plugin-playwright"]
 
-# Iroh is enabled by default for dev and release builds (`pnpm tauri:dev` / `pnpm tauri:build`).
+# Iroh is enabled by default for dev and release builds (`bun run tauri:dev` / `bun run tauri:build`).
 # CI also runs a dedicated Linux smoke job with explicit `--features iroh`.
 # Disable with `cargo build --no-default-features` if you need a slim binary without blob networking.
 # The build is feature-gated by default because iroh-blobs 0.35 transitives (netwatch) can have

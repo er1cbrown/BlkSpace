@@ -94,7 +94,13 @@ const TEMPLATES: ClubTemplate[] = [
     name: "Anime / Manga Club",
     description:
       "Book groups, weekly reads, share & publish fan works / manga pages.",
-    channels: ["general", "this-week-read", "manga-publish", "watch-party", "recs"],
+    channels: [
+      "general",
+      "this-week-read",
+      "manga-publish",
+      "watch-party",
+      "recs",
+    ],
     suggestedEventKind: "club",
   },
   {

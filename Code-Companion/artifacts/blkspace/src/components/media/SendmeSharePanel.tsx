@@ -146,8 +146,8 @@ export function SendmeSharePanel({ compact = false }: { compact?: boolean }) {
             File drop tickets
           </CardTitle>
           <CardDescription>
-            Open the desktop app to share content-addressed tickets (sendme-style).
-            Web preview cannot serve Iroh/local blob stores.
+            Open the desktop app to share content-addressed tickets
+            (sendme-style). Web preview cannot serve Iroh/local blob stores.
           </CardDescription>
         </CardHeader>
         <CardContent className="text-xs text-muted-foreground space-y-2">
@@ -181,8 +181,8 @@ export function SendmeSharePanel({ compact = false }: { compact?: boolean }) {
               </Badge>
             </CardTitle>
             <CardDescription className="mt-1">
-              Share a file you uploaded as a portable ticket. Peers materialize from
-              local/Iroh store — or use{" "}
+              Share a file you uploaded as a portable ticket. Peers materialize
+              from local/Iroh store — or use{" "}
               <a
                 href={SENDME_DOCS}
                 className="text-primary hover:underline"
@@ -271,7 +271,9 @@ export function SendmeSharePanel({ compact = false }: { compact?: boolean }) {
                   {share.bytesAvailable ? "bytes on device" : "metadata only"}
                 </Badge>
               </div>
-              <p className="text-[11px] text-muted-foreground">{share.p2pHint}</p>
+              <p className="text-[11px] text-muted-foreground">
+                {share.p2pHint}
+              </p>
             </div>
           )}
         </div>
@@ -313,7 +315,8 @@ export function SendmeSharePanel({ compact = false }: { compact?: boolean }) {
             </p>
           ) : (
             <p>
-              Not on PATH. Install: <code>{cli?.installHint || SENDME_INSTALL}</code>
+              Not on PATH. Install:{" "}
+              <code>{cli?.installHint || SENDME_INSTALL}</code>
             </p>
           )}
           <p>

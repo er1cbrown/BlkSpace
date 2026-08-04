@@ -111,7 +111,9 @@ export default function ProfilePage() {
   const updateCustomization = useTauriUpdateProfileCustomization();
   const updateProProfile = useTauriUpdateProProfile();
   const updateTopFriends = useTauriUpdateTopFriends();
-  const { data: wallPostsApi = [] } = useTauriListWallPosts(handle || currentUser);
+  const { data: wallPostsApi = [] } = useTauriListWallPosts(
+    handle || currentUser,
+  );
   const createWallPost = useTauriCreateWallPost();
   const approveWallPost = useTauriApproveWallPost();
   const updateProfileLayout = useTauriUpdateProfileLayout();
@@ -151,10 +153,10 @@ export default function ProfilePage() {
     // Prefer richer local aesthetic if DB is empty shell
     if (
       local &&
-      (!fromDb.aesthetic?.mood &&
-        !fromDb.aesthetic?.about &&
-        !fromDb.aesthetic?.galleryHashes?.length &&
-        !fromDb.aesthetic?.customCss)
+      !fromDb.aesthetic?.mood &&
+      !fromDb.aesthetic?.about &&
+      !fromDb.aesthetic?.galleryHashes?.length &&
+      !fromDb.aesthetic?.customCss
     ) {
       return local;
     }
@@ -317,259 +319,264 @@ export default function ProfilePage() {
 
   return (
     <AppShell wide>
-        {isLoading ? (
-          <div className="h-64 bg-muted/50 animate-pulse rounded-2xl mb-8"></div>
-        ) : user ? (
-          <ProfileAestheticShell
-            aesthetic={aesthetic}
-            themeClassName={themeClasses[profileTheme]}
-          >
-            {/* Header Banner — fully customizable */}
-            <MyYardBanner aesthetic={aesthetic}>
-              {yardPack && (
-                <div className="absolute top-3 left-3 text-xs text-white/90 font-medium drop-shadow z-10">
-                  {yardPack.mascot} · {yardPack.name} pack
+      {isLoading ? (
+        <div className="h-64 bg-muted/50 animate-pulse rounded-2xl mb-8"></div>
+      ) : user ? (
+        <ProfileAestheticShell
+          aesthetic={aesthetic}
+          themeClassName={themeClasses[profileTheme]}
+        >
+          {/* Header Banner — fully customizable */}
+          <MyYardBanner aesthetic={aesthetic}>
+            {yardPack && (
+              <div className="absolute top-3 left-3 text-xs text-white/90 font-medium drop-shadow z-10">
+                {yardPack.mascot} · {yardPack.name} pack
+              </div>
+            )}
+            <div className="absolute -bottom-14 left-8 flex items-end gap-4 z-10">
+              <Avatar className="h-28 w-28 border-4 border-card ring-2 ring-primary/30 myyard-accent-border">
+                <AvatarImage src={user.avatarUrl || ""} />
+                <AvatarFallback className="text-4xl bg-primary/80">
+                  {user.displayName?.charAt(0) ?? "?"}
+                </AvatarFallback>
+              </Avatar>
+              {profileSong && aesthetic.showMusic && (
+                <div className="mb-3 hidden md:block">
+                  <ProfileMusicPlayer
+                    hash={profileSong}
+                    src={audioSrc}
+                    trackName={
+                      currentSongBlob?.filename ||
+                      (profileSong
+                        ? `${profileSong.slice(0, 8)}…`
+                        : "Profile song")
+                    }
+                    subtitle="Now playing"
+                    compact
+                  />
                 </div>
               )}
-              <div className="absolute -bottom-14 left-8 flex items-end gap-4 z-10">
-                <Avatar className="h-28 w-28 border-4 border-card ring-2 ring-primary/30 myyard-accent-border">
-                  <AvatarImage src={user.avatarUrl || ""} />
-                  <AvatarFallback className="text-4xl bg-primary/80">
-                    {user.displayName?.charAt(0) ?? "?"}
-                  </AvatarFallback>
-                </Avatar>
-                {profileSong && aesthetic.showMusic && (
-                  <div className="mb-3 hidden md:block">
-                    <ProfileMusicPlayer
-                      hash={profileSong}
-                      src={audioSrc}
-                      trackName={
-                        currentSongBlob?.filename ||
-                        (profileSong ? `${profileSong.slice(0, 8)}…` : "Profile song")
-                      }
-                      subtitle="Now playing"
-                      compact
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="absolute top-4 right-4 flex gap-2 z-10">
-                {isOwnProfile && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="rounded-full"
-                    onClick={() => {
-                      setProfileTab("customize");
-                      profileTabsRef.current?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                      });
-                    }}
-                  >
-                    <Palette className="w-4 h-4 mr-1" /> Customize
-                  </Button>
-                )}
-                {!isOwnProfile && (
-                  <Button
-                    variant={isFollowing ? "secondary" : "outline"}
-                    size="sm"
-                    className="rounded-full"
-                    onClick={() => {
-                      if (!requireWallet("follow creators")) return;
-                      const target = handle || currentUser;
-                      const syncLocalFollow = (nowFollowing: boolean) => {
-                        const saved =
-                          localStorage.getItem("blkspace_followed") || "[]";
-                        let f: string[] = JSON.parse(saved);
-                        if (nowFollowing) {
-                          if (!f.includes(target)) f.push(target);
-                        } else {
-                          f = f.filter((x: string) => x !== target);
-                        }
-                        localStorage.setItem(
-                          "blkspace_followed",
-                          JSON.stringify(f),
-                        );
-                        setIsFollowing(nowFollowing);
-                      };
-                      if (isTauri()) {
-                        toggleFollowMut.mutate(
-                          { followedHandle: target },
-                          {
-                            onSuccess: (nowFollowing) => {
-                              syncLocalFollow(nowFollowing);
-                              toast.success(
-                                nowFollowing ? "Followed" : "Unfollowed",
-                              );
-                            },
-                            onError: (e) => toast.error(String(e)),
-                          },
-                        );
-                        return;
-                      }
+            </div>
+            <div className="absolute top-4 right-4 flex gap-2 z-10">
+              {isOwnProfile && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() => {
+                    setProfileTab("customize");
+                    profileTabsRef.current?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                  }}
+                >
+                  <Palette className="w-4 h-4 mr-1" /> Customize
+                </Button>
+              )}
+              {!isOwnProfile && (
+                <Button
+                  variant={isFollowing ? "secondary" : "outline"}
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() => {
+                    if (!requireWallet("follow creators")) return;
+                    const target = handle || currentUser;
+                    const syncLocalFollow = (nowFollowing: boolean) => {
                       const saved =
                         localStorage.getItem("blkspace_followed") || "[]";
-                      const f: string[] = JSON.parse(saved);
-                      const nowFollowing = !f.includes(target);
-                      syncLocalFollow(nowFollowing);
-                      toast.success(nowFollowing ? "Followed" : "Unfollowed");
-                    }}
-                    disabled={toggleFollowMut.isPending}
-                  >
-                    {isFollowing ? "Following" : "Follow"}
-                  </Button>
+                      let f: string[] = JSON.parse(saved);
+                      if (nowFollowing) {
+                        if (!f.includes(target)) f.push(target);
+                      } else {
+                        f = f.filter((x: string) => x !== target);
+                      }
+                      localStorage.setItem(
+                        "blkspace_followed",
+                        JSON.stringify(f),
+                      );
+                      setIsFollowing(nowFollowing);
+                    };
+                    if (isTauri()) {
+                      toggleFollowMut.mutate(
+                        { followedHandle: target },
+                        {
+                          onSuccess: (nowFollowing) => {
+                            syncLocalFollow(nowFollowing);
+                            toast.success(
+                              nowFollowing ? "Followed" : "Unfollowed",
+                            );
+                          },
+                          onError: (e) => toast.error(String(e)),
+                        },
+                      );
+                      return;
+                    }
+                    const saved =
+                      localStorage.getItem("blkspace_followed") || "[]";
+                    const f: string[] = JSON.parse(saved);
+                    const nowFollowing = !f.includes(target);
+                    syncLocalFollow(nowFollowing);
+                    toast.success(nowFollowing ? "Followed" : "Unfollowed");
+                  }}
+                  disabled={toggleFollowMut.isPending}
+                >
+                  {isFollowing ? "Following" : "Follow"}
+                </Button>
+              )}
+            </div>
+          </MyYardBanner>
+
+          <div className="pt-16 px-6 sm:px-8 pb-8">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h1 className="text-4xl font-bold tracking-tighter">
+                  {user.displayName ?? "Unknown"}
+                </h1>
+                <p className="text-xl text-muted-foreground">
+                  @{user.handle ?? "unknown"}
+                </p>
+                {aesthetic.mood ? (
+                  <p className="text-sm mt-1 myyard-accent-text font-medium">
+                    {aesthetic.mood}
+                  </p>
+                ) : null}
+                {getFacultyBadge(user.handle ?? currentUser) && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <Badge className="bg-violet-600/90 text-white text-xs">
+                      Faculty
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] max-w-[220px] truncate"
+                    >
+                      {getFacultyBadge(user.handle ?? currentUser)?.institution}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground self-center">
+                      self-attested
+                    </span>
+                  </div>
                 )}
               </div>
-            </MyYardBanner>
-
-            <div className="pt-16 px-6 sm:px-8 pb-8">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h1 className="text-4xl font-bold tracking-tighter">
-                    {user.displayName ?? "Unknown"}
-                  </h1>
-                  <p className="text-xl text-muted-foreground">
-                    @{user.handle ?? "unknown"}
-                  </p>
-                  {aesthetic.mood ? (
-                    <p className="text-sm mt-1 myyard-accent-text font-medium">
-                      {aesthetic.mood}
-                    </p>
-                  ) : null}
-                  {getFacultyBadge(user.handle ?? currentUser) && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      <Badge className="bg-violet-600/90 text-white text-xs">
-                        Faculty
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px] max-w-[220px] truncate">
-                        {getFacultyBadge(user.handle ?? currentUser)?.institution}
-                      </Badge>
-                      <span className="text-[10px] text-muted-foreground self-center">
-                        self-attested
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="text-right text-sm text-muted-foreground">
-                  <div>{user.university}</div>
-                  <div className="flex items-center gap-1 justify-end">
-                    <MapPin className="w-3.5 h-3.5" /> {user.town}
-                  </div>
+              <div className="text-right text-sm text-muted-foreground">
+                <div>{user.university}</div>
+                <div className="flex items-center gap-1 justify-end">
+                  <MapPin className="w-3.5 h-3.5" /> {user.town}
                 </div>
               </div>
+            </div>
 
-              <p className="text-lg mb-2 max-w-2xl">
-                {user.bio || "No bio yet. Edit to tell your story."}
+            <p className="text-lg mb-2 max-w-2xl">
+              {user.bio || "No bio yet. Edit to tell your story."}
+            </p>
+            {aesthetic.about ? (
+              <p className="text-sm text-muted-foreground mb-4 max-w-2xl whitespace-pre-wrap">
+                {aesthetic.about}
               </p>
-              {aesthetic.about ? (
-                <p className="text-sm text-muted-foreground mb-4 max-w-2xl whitespace-pre-wrap">
-                  {aesthetic.about}
-                </p>
-              ) : (
-                <div className="mb-4" />
-              )}
+            ) : (
+              <div className="mb-4" />
+            )}
 
-              {/* Stats like FB + WeixBucks */}
-              <div className="flex flex-wrap gap-8 py-4 border-t border-b mb-6 text-sm">
-                <div>
-                  <span className="font-bold text-xl">
-                    {user.followersCount ?? 0}
-                  </span>{" "}
-                  <span className="text-muted-foreground">followers</span>
-                </div>
-                <div>
-                  <span className="font-bold text-xl">
-                    {user.followingCount ?? 0}
-                  </span>{" "}
-                  <span className="text-muted-foreground">following</span>
-                </div>
-                <div className="flex-1" />
-                <div className="font-bold text-primary flex items-center gap-2 text-xl">
-                  <Coins className="w-5 h-5" />{" "}
-                  {user.weixBucks?.toLocaleString()} WB
-                </div>
-                <KarmaBadge
-                  postKarma={(user as any).postKarma ?? 0}
-                  commentKarma={(user as any).commentKarma ?? 0}
+            {/* Stats like FB + WeixBucks */}
+            <div className="flex flex-wrap gap-8 py-4 border-t border-b mb-6 text-sm">
+              <div>
+                <span className="font-bold text-xl">
+                  {user.followersCount ?? 0}
+                </span>{" "}
+                <span className="text-muted-foreground">followers</span>
+              </div>
+              <div>
+                <span className="font-bold text-xl">
+                  {user.followingCount ?? 0}
+                </span>{" "}
+                <span className="text-muted-foreground">following</span>
+              </div>
+              <div className="flex-1" />
+              <div className="font-bold text-primary flex items-center gap-2 text-xl">
+                <Coins className="w-5 h-5" /> {user.weixBucks?.toLocaleString()}{" "}
+                WB
+              </div>
+              <KarmaBadge
+                postKarma={(user as any).postKarma ?? 0}
+                commentKarma={(user as any).commentKarma ?? 0}
+              />
+            </div>
+
+            <ProfileRelayList
+              pubkey={profilePubkey}
+              isOwnProfile={isOwnProfile}
+              displayName={user.displayName ?? user.handle ?? "User"}
+            />
+
+            {aesthetic.showGallery && (
+              <ProfileGallery
+                aesthetic={aesthetic}
+                emptyHint={
+                  isOwnProfile
+                    ? "Add photos in Customize → Photos so visitors see your gallery."
+                    : undefined
+                }
+              />
+            )}
+
+            {aesthetic.showTopFriends && (
+              <div className="mb-6">
+                <TopFriends
+                  friends={topFriends}
+                  editable={isOwnProfile}
+                  onEdit={() => {
+                    const handles = prompt(
+                      "Top friends (comma handles)",
+                      topFriends.map((f) => f.handle).join(","),
+                    );
+                    if (!handles) return;
+                    const next = handles.split(",").map((h, i) => ({
+                      handle: h.trim(),
+                      label: h.trim().split("_")[0] || `Friend ${i + 1}`,
+                    }));
+                    if (isTauri()) {
+                      updateTopFriends.mutate(JSON.stringify(next));
+                    }
+                    toast.success("Top friends updated");
+                  }}
                 />
               </div>
+            )}
 
-              <ProfileRelayList
-                pubkey={profilePubkey}
-                isOwnProfile={isOwnProfile}
-                displayName={user.displayName ?? user.handle ?? "User"}
-              />
-
-              {aesthetic.showGallery && (
-                <ProfileGallery
-                  aesthetic={aesthetic}
-                  emptyHint={
-                    isOwnProfile
-                      ? "Add photos in Customize → Photos so visitors see your gallery."
-                      : undefined
-                  }
+            {myyardLayout.modules?.logosDeck && (
+              <div className="mb-6">
+                <LogosDeckPlayer
+                  setTitle={myyardLayout.logosDeck?.setTitle}
+                  audioHash={myyardLayout.logosDeck?.audioHash}
+                  trackIds={myyardLayout.logosDeck?.trackIds}
+                  readOnly={!isOwnProfile}
                 />
-              )}
+              </div>
+            )}
 
-              {aesthetic.showTopFriends && (
-                <div className="mb-6">
-                  <TopFriends
-                    friends={topFriends}
-                    editable={isOwnProfile}
-                    onEdit={() => {
-                      const handles = prompt(
-                        "Top friends (comma handles)",
-                        topFriends.map((f) => f.handle).join(","),
-                      );
-                      if (!handles) return;
-                      const next = handles.split(",").map((h, i) => ({
-                        handle: h.trim(),
-                        label: h.trim().split("_")[0] || `Friend ${i + 1}`,
-                      }));
-                      if (isTauri()) {
-                        updateTopFriends.mutate(JSON.stringify(next));
-                      }
-                      toast.success("Top friends updated");
-                    }}
-                  />
-                </div>
-              )}
+            {myyardLayout.modules?.bibleNlp && (
+              <Card className="mb-6 border-dashed border-primary/30">
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-center gap-2 font-medium text-sm mb-2">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                    Bible NLP (opt-in study layer)
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    On-device scripture tags — separate from FYP. Suggested
+                    channels: #scripture, #study, cross-ref mixes.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {["#scripture", "#study", "#cross-ref"].map((tag) => (
+                      <Badge key={tag} variant="secondary" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-              {myyardLayout.modules?.logosDeck && (
-                <div className="mb-6">
-                  <LogosDeckPlayer
-                    setTitle={myyardLayout.logosDeck?.setTitle}
-                    audioHash={myyardLayout.logosDeck?.audioHash}
-                    trackIds={myyardLayout.logosDeck?.trackIds}
-                    readOnly={!isOwnProfile}
-                  />
-                </div>
-              )}
-
-              {myyardLayout.modules?.bibleNlp && (
-                <Card className="mb-6 border-dashed border-primary/30">
-                  <CardContent className="pt-4 pb-4">
-                    <div className="flex items-center gap-2 font-medium text-sm mb-2">
-                      <BookOpen className="w-4 h-4 text-primary" />
-                      Bible NLP (opt-in study layer)
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      On-device scripture tags — separate from FYP. Suggested
-                      channels: #scripture, #study, cross-ref mixes.
-                    </p>
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {["#scripture", "#study", "#cross-ref"].map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              <div ref={profileTabsRef}>
+            <div ref={profileTabsRef}>
               <Tabs
                 value={profileTab}
                 onValueChange={setProfileTab}
@@ -905,14 +912,14 @@ export default function ProfilePage() {
                   </TabsContent>
                 )}
               </Tabs>
-              </div>
             </div>
-          </ProfileAestheticShell>
-        ) : (
-          <div className="text-center py-20 text-muted-foreground">
-            Profile not found.
           </div>
-        )}
+        </ProfileAestheticShell>
+      ) : (
+        <div className="text-center py-20 text-muted-foreground">
+          Profile not found.
+        </div>
+      )}
     </AppShell>
   );
 }

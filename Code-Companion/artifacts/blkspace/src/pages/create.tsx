@@ -5,7 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clapperboard, Image, MessageCircle, Film, ChevronDown } from "lucide-react";
+import {
+  Clapperboard,
+  Image,
+  MessageCircle,
+  Film,
+  ChevronDown,
+} from "lucide-react";
 import { useAppCreatePost } from "@/hooks/use-app-data";
 import { getCurrentHandle } from "@/lib/auth";
 import {
@@ -79,7 +85,10 @@ export default function CreatePage() {
       </h1>
       <p className="text-sm text-muted-foreground mb-6">
         Posts go to your campus feed ({yardName}) and your profile{" "}
-        <Link href={`/profile/${handle}`} className="text-primary hover:underline">
+        <Link
+          href={`/profile/${handle}`}
+          className="text-primary hover:underline"
+        >
           @{handle}
         </Link>
         . Text is enough — photos/files work best in the desktop app.
@@ -137,7 +146,9 @@ export default function CreatePage() {
             Soft credits (WeixBucks) — not real money yet. Example: post +
             {WB_EARN.feedPost} WB.
           </p>
-          <p>Upload media +{WB_EARN.mediaUpload} WB · likes boost others too.</p>
+          <p>
+            Upload media +{WB_EARN.mediaUpload} WB · likes boost others too.
+          </p>
         </CardContent>
       </Card>
 

@@ -36,7 +36,7 @@ const viteArgs =
       ? ["vite", "preview", "--config", "vite.config.ts", "--host", "0.0.0.0"]
       : ["vite", "build", "--config", "vite.config.ts"];
 
-const child = spawn("pnpm", ["exec", ...viteArgs], {
+const child = spawn("bun", ["x", ...viteArgs], {
   env,
   stdio: "inherit",
   shell: true,

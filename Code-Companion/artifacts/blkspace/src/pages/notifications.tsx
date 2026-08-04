@@ -2,7 +2,14 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Heart, MessageSquare, Repeat2, UserPlus, Bell, Handshake } from "lucide-react";
+import {
+  Heart,
+  MessageSquare,
+  Repeat2,
+  UserPlus,
+  Bell,
+  Handshake,
+} from "lucide-react";
 import { useTauriGetNotifications } from "@/hooks/use-app-data";
 import { isTauri, type TauriNotification } from "@/lib/tauri-api";
 import { BETA_FEATURES } from "@/lib/beta-features";
@@ -122,69 +129,70 @@ export default function NotificationsPage() {
 
   return (
     <AppShell>
-        <div className="flex items-center gap-3 mb-8 flex-wrap">
-          <Bell className="w-7 h-7 text-primary" />
-          <h1 className="text-3xl font-bold">Notifications</h1>
-        </div>
+      <div className="flex items-center gap-3 mb-8 flex-wrap">
+        <Bell className="w-7 h-7 text-primary" />
+        <h1 className="text-3xl font-bold">Notifications</h1>
+      </div>
 
-        <Tabs defaultValue="all">
-          <TabsList className="mb-6">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="mentions">Mentions</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="all">
+        <TabsList className="mb-6">
+          <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger value="mentions">Mentions</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="all" className="space-y-1">
-            {items.length === 0 && (
-              <div className="text-center py-16 px-6 text-muted-foreground">
-                <Bell className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                <p className="font-medium text-foreground">No notifications yet</p>
-                <p className="text-sm mt-1">
-                  Likes, replies, follows, and ProjectConnect interest alerts show
-                  up here. Faculty: check{" "}
-                  <Link href="/connect/inbox" className="text-primary underline">
-                    Lead inbox
-                  </Link>{" "}
-                  too.
-                </p>
-              </div>
-            )}
-            {items.map((n) => {
-              const Icon = iconMap[n.type] || Bell;
-              const style =
-                iconStyles[n.type] || "text-muted-foreground bg-muted";
-              return (
-                <Card
-                  key={n.id}
-                  className={`border-0 shadow-none rounded-none ${n.unread ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
-                >
-                  <CardContent className="flex items-start gap-4 py-4 px-2">
-                    <div className={`p-2 rounded-full shrink-0 ${style}`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <Avatar className="h-10 w-10 shrink-0">
-                      <AvatarFallback>{n.display.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm">
-                        <span className="font-bold">{n.display}</span>{" "}
-                        {n.message}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {n.time}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </TabsContent>
-
-          <TabsContent value="mentions">
-            <div className="text-center py-20 text-muted-foreground">
-              No mentions yet.
+        <TabsContent value="all" className="space-y-1">
+          {items.length === 0 && (
+            <div className="text-center py-16 px-6 text-muted-foreground">
+              <Bell className="w-10 h-10 mx-auto mb-3 opacity-40" />
+              <p className="font-medium text-foreground">
+                No notifications yet
+              </p>
+              <p className="text-sm mt-1">
+                Likes, replies, follows, and ProjectConnect interest alerts show
+                up here. Faculty: check{" "}
+                <Link href="/connect/inbox" className="text-primary underline">
+                  Lead inbox
+                </Link>{" "}
+                too.
+              </p>
             </div>
-          </TabsContent>
-        </Tabs>
+          )}
+          {items.map((n) => {
+            const Icon = iconMap[n.type] || Bell;
+            const style =
+              iconStyles[n.type] || "text-muted-foreground bg-muted";
+            return (
+              <Card
+                key={n.id}
+                className={`border-0 shadow-none rounded-none ${n.unread ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
+              >
+                <CardContent className="flex items-start gap-4 py-4 px-2">
+                  <div className={`p-2 rounded-full shrink-0 ${style}`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <Avatar className="h-10 w-10 shrink-0">
+                    <AvatarFallback>{n.display.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm">
+                      <span className="font-bold">{n.display}</span> {n.message}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {n.time}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </TabsContent>
+
+        <TabsContent value="mentions">
+          <div className="text-center py-20 text-muted-foreground">
+            No mentions yet.
+          </div>
+        </TabsContent>
+      </Tabs>
     </AppShell>
   );
 }

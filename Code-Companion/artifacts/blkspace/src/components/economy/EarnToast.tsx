@@ -1,5 +1,11 @@
 import { toast } from "sonner";
-import { Coins, ArrowBigUp, ShieldAlert, Gauge, PartyPopper } from "lucide-react";
+import {
+  Coins,
+  ArrowBigUp,
+  ShieldAlert,
+  Gauge,
+  PartyPopper,
+} from "lucide-react";
 
 const FIRST_POST_KEY = "blkspace_first_post_done";
 
@@ -83,16 +89,14 @@ export function showEarnFromResult(
 }
 
 /** First-post dopamine hit — beta onboarding celebration. */
-export function showPostEarnCelebration(
-  earn: {
-    wb: number;
-    wbNominal?: number;
-    karmaPost: number;
-    karmaComment: number;
-    throttled: boolean;
-    dailyCapLimited?: boolean;
-  },
-) {
+export function showPostEarnCelebration(earn: {
+  wb: number;
+  wbNominal?: number;
+  karmaPost: number;
+  karmaComment: number;
+  throttled: boolean;
+  dailyCapLimited?: boolean;
+}) {
   const isFirst =
     typeof window !== "undefined" && !localStorage.getItem(FIRST_POST_KEY);
 
