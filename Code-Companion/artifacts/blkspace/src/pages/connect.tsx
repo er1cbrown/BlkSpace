@@ -21,6 +21,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Briefcase,
+  Bookmark,
+  BookmarkCheck,
   Building2,
   CheckCircle2,
   FlaskConical,
@@ -50,9 +52,11 @@ import {
   getYardCred,
   listInbox,
   listOpportunities,
+  listSavedOpportunityIds,
   listOrgs,
   parseTags,
   setInterestStatus,
+  toggleSavedOpportunity,
   type ConnectOpportunity,
   type OrgType,
 } from "@/lib/project-connect";
@@ -117,6 +121,8 @@ export default function ConnectPage() {
 function ConnectHub() {
   const [filter, setFilter] = useState<string>("research");
   const [q, setQ] = useState("");
+  const [savedOnly, setSavedOnly] = useState(false);
+  const [savedIds, setSavedIds] = useState<number[]>(listSavedOpportunityIds);
   const [showCreate, setShowCreate] = useState(false);
   const handle = getCurrentHandle();
   const { isGuest } = useGuestMode();
@@ -149,6 +155,10 @@ function ConnectHub() {
         o.orgName.toLowerCase().includes(qq),
     );
   }, [opps, q]);
+
+  const visibleOpps = savedOnly
+    ? filteredOpps.filter((opp) => savedIds.includes(opp.id))
+    : filteredOpps;
 
   return (
     <AppShell wide>
@@ -233,14 +243,25 @@ function ConnectHub() {
               ))}
             </TabsList>
           </Tabs>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              placeholder="Search opportunities…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
+          <div className="flex w-full sm:w-auto gap-2">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Search opportunities…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </div>
+            <Button
+              size="sm"
+              variant={savedOnly ? "default" : "outline"}
+              className="shrink-0 gap-1.5"
+              onClick={() => setSavedOnly((value) => !value)}
+            >
+              <Bookmark className="h-4 w-4" />
+              Saved{savedIds.length ? ` · ${savedIds.length}` : ""}
+            </Button>
           </div>
         </div>
 
@@ -300,14 +321,27 @@ function ConnectHub() {
           </h2>
           {pLoading ? (
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          ) : filteredOpps.length === 0 ? (
+          ) : visibleOpps.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No open opportunities for this filter.
+              {savedOnly
+                ? "No saved opportunities match this filter."
+                : "No open opportunities for this filter."}
             </p>
           ) : (
             <div className="space-y-3">
-              {filteredOpps.map((opp) => (
-                <OpportunityCard key={opp.id} opp={opp} />
+              {visibleOpps.map((opp) => (
+                <OpportunityCard
+                  key={opp.id}
+                  opp={opp}
+                  saved={savedIds.includes(opp.id)}
+                  onToggleSaved={(id) => {
+                    const isSaved = toggleSavedOpportunity(id);
+                    setSavedIds(listSavedOpportunityIds());
+                    toast.success(
+                      isSaved ? "Opportunity saved" : "Removed from saved",
+                    );
+                  }}
+                />
               ))}
             </div>
           )}
@@ -428,14 +462,49 @@ function OpenToTalentBoard() {
   );
 }
 
-function OpportunityCard({ opp }: { opp: ConnectOpportunity }) {
+function OpportunityCard({
+  opp,
+  saved,
+  onToggleSaved,
+}: {
+  opp: ConnectOpportunity;
+  saved?: boolean;
+  onToggleSaved?: (id: number) => void;
+}) {
   const tags = parseTags(opp.tagsJson);
+  const isSaved = saved ?? false;
   return (
     <Link href={`/connect/opportunities/${opp.id}`}>
       <Card className="hover:border-primary/40 transition-colors cursor-pointer">
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center gap-2 justify-between">
-            <CardTitle className="text-base md:text-lg">{opp.title}</CardTitle>
+            <div className="flex min-w-0 items-center gap-2">
+              <CardTitle className="text-base md:text-lg">
+                {opp.title}
+              </CardTitle>
+              {onToggleSaved && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 shrink-0"
+                  aria-label={
+                    isSaved ? "Unsave opportunity" : "Save opportunity"
+                  }
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onToggleSaved(opp.id);
+                  }}
+                >
+                  {isSaved ? (
+                    <BookmarkCheck className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Bookmark className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+            </div>
             <Badge
               variant="outline"
               className={cn(

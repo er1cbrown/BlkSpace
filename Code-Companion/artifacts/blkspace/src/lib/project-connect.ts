@@ -618,6 +618,17 @@ type WebState = {
 };
 
 const LS_KEY = "blkspace_project_connect_v2";
+const SAVED_OPPS_KEY = "blkspace_project_connect_saved_v1";
+
+function loadSavedOpportunityIds(): number[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SAVED_OPPS_KEY) || "[]");
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((id): id is number => Number.isInteger(id));
+  } catch {
+    return [];
+  }
+}
 
 function loadWeb(): WebState {
   try {
@@ -740,6 +751,28 @@ export async function listOpportunities(opts?: {
     list = list.filter((o) => o.orgType === opts.orgType);
   }
   return list;
+}
+
+export function listSavedOpportunityIds(): number[] {
+  return loadSavedOpportunityIds();
+}
+
+export function isOpportunitySaved(id: number): boolean {
+  return loadSavedOpportunityIds().includes(id);
+}
+
+/** Toggle a local bookmark; saves are device-local until account sync exists. */
+export function toggleSavedOpportunity(id: number): boolean {
+  const saved = loadSavedOpportunityIds();
+  const next = saved.includes(id)
+    ? saved.filter((savedId) => savedId !== id)
+    : [id, ...saved];
+  try {
+    localStorage.setItem(SAVED_OPPS_KEY, JSON.stringify(next));
+  } catch {
+    /* Ignore storage quota/private-mode failures. */
+  }
+  return next.includes(id);
 }
 
 export async function getOpportunity(
