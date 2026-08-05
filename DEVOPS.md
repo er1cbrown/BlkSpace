@@ -23,22 +23,26 @@
 
 ### Workflows
 
-| Workflow | Trigger | What It Does |
-|----------|---------|-------------|
-| **CI** | PRs + pushes to `main` | Lint, typecheck, unit test, build |
-| **CI Yard** | Same (job `build-tauri-yard`) | Tier 0 installer: `BlkSpace-Yard-*` per OS |
-| **CI Full** | Same (job `build-tauri-full`) | Iroh + full mesh: `BlkSpace-Full-*` per OS |
-| **Release** | Tag push (`v*`) | Build Yard + Full binaries, create GitHub Release |
+| Workflow | Trigger | What It Does | Status |
+|----------|---------|-------------|--------|
+| **CI** | PRs + pushes to `main` | Lint, typecheck, unit/Rust/Anchor tests, bundle budget, Playwright E2E, web + Yard/Full Tauri builds | ✅ Live |
+| **CI Full Lab** | `workflow_dispatch` only | Optional heavy Full/Iroh lab builds (not every-push) | ✅ Lab-only |
+| **Release** | Tag push (`v*`) | Draft GitHub Release + Yard/Full installers (macOS arm64/x64, Linux, Windows) | ✅ Live |
+| **Deploy Web Preview** | `main` push / manual | Campus web preview to GitHub Pages | ⬜ Needs Pages enabled on repo |
 
 ### CI Flow (`.github/workflows/ci.yml`)
 
 ```
-Push/PR → Install deps → Lint → Typecheck → Test → Build (Web) → Build (BlkSpace Full) → Build (BlkSpace Yard) → Build (Tauri + Iroh smoke)
+Push/PR → Lint → Typecheck → Unit tests → Rust/Anchor/Nostr smoke
+         → Bundle budget (Tier 0) → Build Web → Playwright E2E (browser + Tauri)
+         → Build Yard (3 OS) → Build Full (3 OS) → Iroh smoke build
 ```
 
-- **Lint**: ESLint + Prettier (auto-fix on PR)
+- **Lint**: ESLint + Prettier (`format:check`)
 - **Typecheck**: TypeScript strict mode
-- **Test**: Vitest unit tests + React Testing Library
+- **Test**: Vitest unit tests; Tauri Rust unit tests; Anchor `bkspc` tests; Nostr relay smoke
+- **Bundle budget**: `bun run check:bundle:tier0` (job `bundle-budget-tier0`)
+- **E2E**: Playwright web preview + Playwright Tauri native (Linux)
 - **Build Web**: Vite production build
 - **Build Full**: `bun run build:full` + `tauri build` (Iroh on) → `BlkSpace-Full-*` artifacts
 - **Build Yard**: `bun run build:tier0` + `tauri build --no-default-features` → `BlkSpace-Yard-*` artifacts
@@ -46,14 +50,18 @@ Push/PR → Install deps → Lint → Typecheck → Test → Build (Web) → Bui
 ### Release Flow (`.github/workflows/release.yml`)
 
 ```
-Tag v* → Build all targets → Sign → GitHub Release
+Tag v* → Create draft release (auto notes) → Build Yard + Full (matrix) → Attach installers
 ```
 
+- **Draft + notes**: `softprops/action-gh-release` with `draft: true` and `generate_release_notes: true`
+- **Signing / notarization**: documented secrets below are **not wired in YAML yet** — unsigned CI artifacts until secrets are added to the release jobs
+- First student tag shipped: **`v0.1.0-yard`** (Yard + Full assets on GitHub Releases)
+
 Platform targets:
-- **macOS**: Intel + Apple Silicon (`.dmg`)
-- **Windows**: x64 (`.msi`) — cross-compile or runner
-- **Linux**: AppImage + deb (via Ubuntu runner) + Arch PKGBUILD (community)
-- **iOS / Android**: Manual for now; Tauri Mobile in Phase 2
+- **macOS**: Intel + Apple Silicon (`.dmg`) ✅ release matrix
+- **Windows**: x64 (`.msi`) ✅
+- **Linux**: AppImage (Ubuntu runner) ✅ · deb / Arch PKGBUILD community later
+- **iOS / Android**: Not in release CI — Tauri Mobile = Phase 4 (next)
 
 ## Local Development
 
@@ -163,12 +171,12 @@ Before merging to `main`:
 
 ## Security
 
-- **No secrets in repo** — use GitHub Actions secrets for:
+- **No secrets in repo** — planned GitHub Actions secrets for signed releases (not yet consumed by `release.yml`):
   - `APPLE_SIGNING_IDENTITY` (macOS code signing)
   - `APPLE_NOTARY_KEY` (notarization)
   - `WINDOWS_SIGNING_CERT` (Windows signing)
-- **Dependabot** enabled for monthly dependency scans
-- **Rust audit** (`cargo audit`) on every CI run
+- **Dependabot** enabled (`.github/dependabot.yml`)
+- **Rust audit** (`cargo audit`): ⬜ not in `ci.yml` yet — add when hardening signed release path
 
 ## Open Source
 
@@ -178,10 +186,18 @@ Before merging to `main`:
 
 ## Roadmap (DevOps)
 
-| Phase | Item |
-|-------|------|
-| Now | CI pipeline, lint/typecheck/test gates |
-| Phase 1 | Tauri cross-platform builds in CI |
-| Phase 2 | E2E tests (Playwright) |
-| Phase 3 | Automated release drafting |
-| Phase 4 | Mobile CI (iOS/Android via Tauri Mobile) |
+| Phase | Item | Status |
+|-------|------|--------|
+| 0 | CI pipeline, lint / typecheck / unit test gates | ✅ Done |
+| 1 | Tauri cross-platform builds in CI (Yard + Full, 3 OS) | ✅ Done |
+| 2 | E2E tests (Playwright — web + Tauri native) | ✅ Done |
+| 3 | Automated release drafting (`v*` → draft release + notes + installers) | ✅ Done |
+| — | Tier 0 bundle-size budget in CI (`check:bundle:tier0`) | ✅ Done |
+| — | Tag + ship `v0.1.0-yard` installers | ✅ Done |
+| **Next** | Wire macOS/Windows **code signing** secrets into `release.yml` | ⬜ Open |
+| **Next** | Enable **GitHub Pages** for Deploy Web Preview campus demo | ⬜ Open |
+| **Next** | Device B student smoke close-out (see `docs/YARD_RELEASE_CHECKLIST.md` Part A) | ⏳ Partial |
+| 4 | Mobile CI (iOS/Android packaging via Tauri Mobile) | ⬜ Planned |
+| 5 | `cargo audit` (and signed-release hardening) on CI | ⬜ Planned |
+
+**Authoritative “what ships”:** workflows under `.github/workflows/`. Prefer this table over older narrative that still listed Playwright / release drafting as future work.

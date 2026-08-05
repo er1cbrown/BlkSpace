@@ -89,9 +89,12 @@ Mobile (~10%)           ██░░░░░░░░  Planned (Tauri); not shi
 
 ## Recommended order (next milestones)
 
-### 1. Device B + `v0.1.0-yard` tag
+### 1. Device B student smoke close-out (tag already shipped)
 
-Turns CI artifacts into a **named release** students can trust.
+**Tag `v0.1.0-yard`:** ✅ pushed; Release workflow attached Yard + Full installers  
+([GitHub release](https://github.com/er1cbrown/BlkSpace/releases/tag/v0.1.0-yard)).
+
+**Still open:** Part A student path on Device B (guest browse, TSU account/post, Customize/Live, Tier 0 benchmark) and Part C announce / `TIER0_USER` link check.
 
 Checklist: [`YARD_RELEASE_CHECKLIST.md`](YARD_RELEASE_CHECKLIST.md)
 
@@ -102,11 +105,11 @@ Orgs · opportunities · interest · connect · Yard Cred — professional/clubs
 
 Spec: [`features/project-connect-credibility-layer.md`](features/project-connect-credibility-layer.md)
 
-### 3. Finish Phase 3 gaps
+### 3. Finish remaining Phase 3 product gaps
 
 - Community **events** and **roles** (stubbed UI)
-- Bundle size budget in CI (no regressions on Tier 0)
-- `tauri:dev:tier0` compiles without Iroh (dev parity with Yard)
+- ~~Bundle size budget in CI~~ ✅ — job `bundle-budget-tier0` → `check:bundle:tier0`
+- ~~`tauri:dev:tier0` without Iroh~~ ✅ — script in `artifacts/blkspace/package.json`
 
 ### 4. Phase 4 marketplace / BKSPC settlement (devnet → mainnet only after Cred gates)
 
@@ -115,10 +118,21 @@ Spec: [`features/project-connect-credibility-layer.md`](features/project-connect
 - Walkthrough: [`phase-4-devnet-demo.md`](phase-4-devnet-demo.md)
 - Token name: **BKSPC = BlkSpace Coin** — [`tokenomics-policy.md`](tokenomics-policy.md)
 
-### 4. ~~BlkSpace Full CI artifact~~ ✅
+### DevOps milestones (CI reality)
 
-- `build-tauri-full` job alongside Yard
-- Release workflow builds both flavors on `v*` tags
+| Item | Status |
+|------|--------|
+| Lint / typecheck / unit tests on every PR | ✅ |
+| Yard + Full multi-OS CI installers (`build-tauri-yard` / `build-tauri-full`) | ✅ |
+| Playwright E2E (web + Tauri) | ✅ |
+| Automated draft releases on `v*` tags | ✅ |
+| Tier 0 bundle-size budget in CI | ✅ |
+| `v0.1.0-yard` tagged release assets | ✅ |
+| Code signing / notarization in `release.yml` | ⬜ |
+| GitHub Pages web-preview enablement | ⬜ |
+| Mobile CI (iOS/Android via Tauri Mobile) | ⬜ Planned |
+
+Detail: [`../DEVOPS.md`](../DEVOPS.md) · Roadmap table there is the DevOps checklist of record.
 
 ---
 
