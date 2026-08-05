@@ -50,12 +50,15 @@ BlkSpace uses **Tauri 2** (Rust backend + React frontend). GitHub Actions CI bui
 ### Step 1: Install Prerequisites
 
 **Windows:**
-1. Install **Bun** (PowerShell): `powershell -c "irm bun.sh/install.ps1 | iex"`
-2. Install **Rust** from https://rustup.rs
-3. Install **Visual Studio Build Tools**:
+1. Install **Git** from https://git-scm.com/download/win
+2. Download the complete repository ZIP, or clone it with HTTPS:
+   `git clone https://github.com/er1cbrown/BlkSpace.git`
+3. Run `setup.bat` from the repository top-level folder. It installs Bun and runs `bun install --frozen-lockfile`.
+4. For desktop development, install **Rust** from https://rustup.rs
+5. Install **Visual Studio Build Tools**:
    - Download from https://visualstudio.microsoft.com/visual-cpp-build-tools/
    - Select **"Desktop development with C++"** workload
-4. Restart your computer
+6. Restart your terminal (not necessarily the computer)
 
 **Mac:**
 ```bash
@@ -94,10 +97,12 @@ export PATH="$HOME/.bun/bin:$PATH"
 
 ### Step 2: Get the Code
 ```bash
-git clone git@github.com:er1cbrown/BlkSpace.git
+git clone https://github.com/er1cbrown/BlkSpace.git
 cd BlkSpace/Code-Companion
-bun install
+bun install --frozen-lockfile
 ```
+
+Windows users should use [`WINDOWS_FIRST_TIME.md`](WINDOWS_FIRST_TIME.md) and `setup.bat` instead of copying these shell commands.
 
 ### Step 3: Run BlkSpace
 **Web preview (UI only, no Rust backend):**
@@ -121,7 +126,7 @@ bun run tauri:dev
 curl -fsSL https://raw.githubusercontent.com/er1cbrown/BlkSpace/main/setup.sh | bash
 ```
 
-**Windows** — download and run `setup.bat` from the repo.
+**Windows** — download the complete repository and run `setup.bat` from its top-level folder. No Docker or Administrator rights are required for the web preview.
 
 ---
 
@@ -168,7 +173,7 @@ Right-click the app → Open → Click "Open" in the dialog.
 Click "More info" → "Run anyway".
 
 ### "bun not found"
-Restart your computer after installing Node.js.
+Close the terminal, open a new PowerShell window, and run `setup.bat` again. Bun is the project package manager; Node.js is not required for the normal setup path.
 
 ### "Tauri build fails"
 - Make sure you installed Rust and restarted your terminal.

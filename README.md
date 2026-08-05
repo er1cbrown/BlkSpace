@@ -30,8 +30,10 @@ Full details: [`TIER0_USER.md`](TIER0_USER.md) · [`INSTALL.md`](INSTALL.md)
 
 ## Develop (contributors)
 
+Windows first-time setup: [`WINDOWS_FIRST_TIME.md`](WINDOWS_FIRST_TIME.md). It installs Bun and project packages directly; Docker is not required.
+
 ```bash
-git clone git@github.com:er1cbrown/BlkSpace.git
+git clone https://github.com/er1cbrown/BlkSpace.git
 cd BlkSpace/Code-Companion
 bun install
 bun run dev                    # web preview (fast UI work)

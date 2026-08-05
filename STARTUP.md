@@ -22,10 +22,9 @@ See `INSTALL.md` for detailed platform instructions (includes Arch, Omarchy, Ubu
 ## For Developers & Testers
 
 **Prerequisites:**
-- Node.js 22+
-- Bun (https://bun.sh)
-- Rust (stable)
-- Tauri CLI
+- Git
+- Bun (the setup script installs it)
+- Rust and Visual Studio C++ Build Tools only for the desktop preview
 
 **One-command setup (macOS / Linux):**
 ```bash
@@ -35,14 +34,16 @@ curl -fsSL https://raw.githubusercontent.com/er1cbrown/BlkSpace/main/setup.sh | 
 **Arch / Omarchy:** Use `pacman` and `yay` — see `INSTALL.md` for exact commands.
 
 **Windows:**
-1. Download `setup.bat` from the repo
-2. Right-click → Run as Administrator
-3. Follow the prompts
+1. Download the complete repository ZIP, or clone it with HTTPS
+2. Run `setup.bat` from the top-level repository folder
+3. Follow the prompts; do not use Docker or Administrator mode
+
+See [`WINDOWS_FIRST_TIME.md`](WINDOWS_FIRST_TIME.md) for the full first-time flow.
 
 **Manual setup:**
 ```bash
 # 1. Clone
-git clone git@github.com:er1cbrown/BlkSpace.git
+git clone https://github.com/er1cbrown/BlkSpace.git
 cd BlkSpace
 
 # 2. Install dependencies
