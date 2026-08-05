@@ -2331,16 +2331,28 @@ fn connect_inbox(
 }
 
 #[tauri::command]
+fn connect_my_interests(
+  state: State<AppState>,
+  session_token: String,
+) -> Result<Vec<connect::ConnectInterest>, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .connect_my_interests(&handle)
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn connect_set_interest_status(
   state: State<AppState>,
   session_token: String,
   interest_id: i64,
   status: String,
 ) -> Result<(), String> {
-  let _ = get_handle_from_session(&state, &session_token)?;
+  let handle = get_handle_from_session(&state, &session_token)?;
   state
     .db
-    .connect_set_interest_status(interest_id, &status)
+    .connect_set_interest_status(interest_id, &handle, &status)
     .map_err(|e| e.to_string())
 }
 
@@ -5263,6 +5275,7 @@ pub fn run() {
       connect_express_interest,
       connect_list_interests,
       connect_inbox,
+      connect_my_interests,
       connect_set_interest_status,
       connect_complete_interest,
       connect_yard_cred,

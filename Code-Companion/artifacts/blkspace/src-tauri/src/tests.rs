@@ -90,6 +90,51 @@ mod tests {
   }
 
   #[test]
+  fn test_connect_applicant_isolation_and_lead_status_authorization() {
+    let db = setup_test_db();
+    for handle in ["lead", "alice", "bob"] {
+      db.create_user(handle, handle, "").unwrap();
+    }
+    let org = db
+      .connect_create_org(
+        "org_connect_test",
+        "connect-test",
+        "Connect Test Lab",
+        "research",
+        "tsu",
+        "Test research lab",
+        "lead",
+      )
+      .unwrap();
+    let opp = db
+      .connect_create_opportunity(
+        &org.id,
+        "Test opportunity",
+        "A test role",
+        "1 month",
+        "[\"test\"]",
+        "lead",
+      )
+      .unwrap();
+    let alice_interest = db
+      .connect_express_interest(opp.id, "alice", "Alice", "Rust", "Junior", "", false)
+      .unwrap();
+    db.connect_express_interest(opp.id, "bob", "Bob", "TypeScript", "Senior", "", false)
+      .unwrap();
+
+    let alice_applications = db.connect_my_interests("alice").unwrap();
+    assert_eq!(alice_applications.len(), 1);
+    assert_eq!(alice_applications[0].handle, "alice");
+
+    assert!(db
+      .connect_set_interest_status(alice_interest.id, "alice", "accepted")
+      .is_err());
+    db.connect_set_interest_status(alice_interest.id, "lead", "accepted")
+      .unwrap();
+    assert_eq!(db.connect_my_interests("alice").unwrap()[0].status, "accepted");
+  }
+
+  #[test]
   fn test_create_post() {
     let db = setup_test_db();
     db.create_user("author", "Author", "").unwrap();

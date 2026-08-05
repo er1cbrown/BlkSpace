@@ -51,6 +51,7 @@ import {
   getOpportunity,
   getYardCred,
   listInbox,
+  listMyInterests,
   listOpportunities,
   listSavedOpportunityIds,
   listOrgs,
@@ -114,6 +115,9 @@ export default function ConnectPage() {
   }
   if (parts[1] === "inbox") {
     return <InboxPage />;
+  }
+  if (parts[1] === "me") {
+    return <MyConnectPage />;
   }
   return <ConnectHub />;
 }
@@ -199,6 +203,13 @@ function ConnectHub() {
                   <Inbox className="h-4 w-4" /> Lead inbox
                 </Button>
               </Link>
+              {!isGuest && (
+                <Link href="/connect/me">
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <CheckCircle2 className="h-4 w-4" /> My Connect
+                  </Button>
+                </Link>
+              )}
               {!isGuest && (
                 <Button
                   variant="outline"
@@ -535,6 +546,198 @@ function OpportunityCard({
         </CardContent>
       </Card>
     </Link>
+  );
+}
+
+function statusLabel(status: string) {
+  switch (status) {
+    case "contacted":
+      return "Contacted";
+    case "accepted":
+      return "Accepted";
+    case "declined":
+    case "rejected":
+      return "Declined";
+    case "completed":
+      return "Completed";
+    default:
+      return "Pending review";
+  }
+}
+
+function statusClass(status: string) {
+  switch (status) {
+    case "accepted":
+    case "completed":
+      return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
+    case "declined":
+    case "rejected":
+      return "bg-red-500/15 text-red-300 border-red-500/30";
+    case "contacted":
+      return "bg-sky-500/15 text-sky-300 border-sky-500/30";
+    default:
+      return "bg-amber-500/15 text-amber-300 border-amber-500/30";
+  }
+}
+
+function MyConnectPage() {
+  const { isGuest } = useGuestMode();
+  const { data: applications = [], isLoading: applicationsLoading } = useQuery({
+    queryKey: ["connect", "my-interests"],
+    queryFn: listMyInterests,
+    enabled: !isGuest,
+  });
+  const { data: opportunities = [], isLoading: opportunitiesLoading } =
+    useQuery({
+      queryKey: ["connect", "my-saved-opportunities"],
+      queryFn: async () => {
+        const savedIds = listSavedOpportunityIds();
+        const open = await listOpportunities();
+        return open.filter((opp) => savedIds.includes(opp.id));
+      },
+      enabled: !isGuest,
+    });
+
+  if (isGuest) {
+    return (
+      <AppShell>
+        <GuestCTA fullPage />
+      </AppShell>
+    );
+  }
+
+  return (
+    <AppShell wide>
+      <div className="space-y-6">
+        <div>
+          <Link href="/connect">
+            <Button variant="ghost" size="sm">
+              ← Connect
+            </Button>
+          </Link>
+          <h1 className="font-serif text-3xl font-bold mt-3">My Connect</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Track the opportunities you care about and the work you are building
+            toward.
+          </p>
+        </div>
+
+        <section className="grid gap-3 sm:grid-cols-3">
+          {[
+            ["Applications", applications.length],
+            [
+              "In review",
+              applications.filter((item) =>
+                ["pending", "contacted"].includes(item.status),
+              ).length,
+            ],
+            [
+              "Completed",
+              applications.filter((item) => item.status === "completed").length,
+            ],
+          ].map(([label, count]) => (
+            <Card key={label as string}>
+              <CardContent className="pt-5">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {label}
+                </p>
+                <p className="text-3xl font-bold text-primary mt-1">{count}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" /> My applications
+            </h2>
+            <Link href="/connect">
+              <Button size="sm" variant="outline">
+                Find opportunities
+              </Button>
+            </Link>
+          </div>
+          {applicationsLoading ? (
+            <Loader2 className="h-6 w-6 animate-spin" />
+          ) : applications.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                No applications yet. Express interest in an opportunity to start
+                building your Connect trail.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {applications.map((item) => (
+                <Card key={item.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <CardTitle className="text-base">
+                          {item.opportunityTitle}
+                        </CardTitle>
+                        <CardDescription>
+                          {item.orgName} · {item.classification || "Applicant"}
+                        </CardDescription>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={statusClass(item.status)}
+                      >
+                        {statusLabel(item.status)}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    {item.message && (
+                      <p className="text-muted-foreground line-clamp-2">
+                        {item.message}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <span>Yard Cred {item.yardCred}</span>
+                      <span>·</span>
+                      <span>
+                        {new Date(item.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Bookmark className="h-5 w-5 text-primary" /> Saved for later
+            </h2>
+            <Link href="/connect">
+              <Button size="sm" variant="outline">
+                Browse all
+              </Button>
+            </Link>
+          </div>
+          {opportunitiesLoading ? (
+            <Loader2 className="h-6 w-6 animate-spin" />
+          ) : opportunities.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                Save an opportunity from Connect and it will appear here.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {opportunities.map((opp) => (
+                <OpportunityCard key={opp.id} opp={opp} />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </AppShell>
   );
 }
 
@@ -1071,8 +1274,8 @@ function InboxPage() {
                     size="sm"
                     variant="outline"
                     onClick={async () => {
-                      await setInterestStatus(item.id, "rejected");
-                      toast.message("Marked rejected");
+                      await setInterestStatus(item.id, "declined");
+                      toast.message("Marked declined");
                       qc.invalidateQueries({ queryKey: ["connect"] });
                     }}
                   >

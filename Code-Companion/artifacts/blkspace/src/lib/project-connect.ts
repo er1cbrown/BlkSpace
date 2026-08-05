@@ -999,6 +999,17 @@ export async function listInbox(): Promise<ConnectInterest[]> {
   return s.interests.filter((i) => leadOppIds.has(i.opportunityId));
 }
 
+/** Applicant-side dashboard data for the web/local demo store. */
+export async function listMyInterests(): Promise<ConnectInterest[]> {
+  if (isTauri()) {
+    const sessionToken = getSessionToken();
+    if (!sessionToken) return [];
+    return invoke("connect_my_interests", { sessionToken });
+  }
+  const handle = getCurrentHandle() || "demo_user";
+  return loadWeb().interests.filter((i) => i.handle === handle);
+}
+
 export async function setInterestStatus(
   interestId: number,
   status: string,
@@ -1015,7 +1026,14 @@ export async function setInterestStatus(
   }
   const s = loadWeb();
   const row = s.interests.find((i) => i.id === interestId);
-  if (row) row.status = status;
+  if (!row) return;
+  const handle = getCurrentHandle() || "demo_user";
+  const opp = s.opps.find((item) => item.id === row.opportunityId);
+  const org = opp && s.orgs.find((item) => item.id === opp.orgId);
+  if (!opp || !org || (opp.createdBy !== handle && org.createdBy !== handle)) {
+    throw new Error("Only organization leads can update application status");
+  }
+  row.status = status === "rejected" ? "declined" : status;
   saveWeb(s);
 }
 

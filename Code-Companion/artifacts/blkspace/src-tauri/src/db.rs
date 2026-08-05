@@ -932,9 +932,22 @@ impl Database {
     crate::connect::list_inbox_for_lead(&conn, lead_handle)
   }
 
-  pub fn connect_set_interest_status(&self, interest_id: i64, status: &str) -> Result<()> {
+  pub fn connect_my_interests(
+    &self,
+    applicant_handle: &str,
+  ) -> Result<Vec<crate::connect::ConnectInterest>> {
     let conn = self.conn.lock().unwrap();
-    crate::connect::set_interest_status(&conn, interest_id, status)
+    crate::connect::list_interests_for_handle(&conn, applicant_handle)
+  }
+
+  pub fn connect_set_interest_status(
+    &self,
+    interest_id: i64,
+    actor_handle: &str,
+    status: &str,
+  ) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    crate::connect::set_interest_status(&conn, interest_id, actor_handle, status)
   }
 
   pub fn connect_complete_interest(
@@ -6564,4 +6577,3 @@ impl Database {
     })
   }
 }
-

@@ -659,14 +659,57 @@ pub fn list_inbox_for_lead(conn: &Connection, lead_handle: &str) -> Result<Vec<C
   Ok(out)
 }
 
+pub fn list_interests_for_handle(
+  conn: &Connection,
+  applicant_handle: &str,
+) -> Result<Vec<ConnectInterest>> {
+  let sql = "
+    SELECT i.id, i.opportunity_id, p.title, o.name, i.handle,
+           COALESCE(u.display_name, i.handle),
+           i.message, i.skills_snapshot, i.classification, i.status,
+           COALESCE(i.gpa, ''), COALESCE(i.gpa_shared, 0),
+           i.created_at,
+           COALESCE(u.post_karma,0) + COALESCE(u.comment_karma,0)
+    FROM connect_interests i
+    JOIN connect_opportunities p ON p.id = i.opportunity_id
+    JOIN connect_orgs o ON o.id = p.org_id
+    LEFT JOIN users u ON u.handle = i.handle
+    WHERE i.handle = ?1
+    ORDER BY i.created_at DESC
+  ";
+  let mut stmt = conn.prepare(sql)?;
+  let rows = stmt.query_map(params![applicant_handle], map_interest_row)?;
+  let mut out = Vec::new();
+  for r in rows {
+    out.push(r?);
+  }
+  Ok(out)
+}
+
 pub fn set_interest_status(
   conn: &Connection,
   interest_id: i64,
+  actor_handle: &str,
   status: &str,
 ) -> Result<()> {
+  let org_id: String = conn.query_row(
+    "SELECT p.org_id
+     FROM connect_interests i
+     JOIN connect_opportunities p ON p.id = i.opportunity_id
+     WHERE i.id = ?1",
+    params![interest_id],
+    |r| r.get(0),
+  )?;
+  if !is_org_lead(conn, &org_id, actor_handle)? {
+    return Err(crate::sqlite::Error::QueryReturnedNoRows);
+  }
+  let normalized = if status == "rejected" { "declined" } else { status };
+  if !matches!(normalized, "pending" | "contacted" | "accepted" | "declined") {
+    return Err(crate::sqlite::Error::QueryReturnedNoRows);
+  }
   conn.execute(
     "UPDATE connect_interests SET status = ?1 WHERE id = ?2",
-    params![status, interest_id],
+    params![normalized, interest_id],
   )?;
   Ok(())
 }
@@ -677,11 +720,17 @@ pub fn complete_interest(
   from_handle: &str,
   note: &str,
 ) -> Result<()> {
-  let (opp_id, to_handle): (i64, String) = conn.query_row(
-    "SELECT opportunity_id, handle FROM connect_interests WHERE id = ?1",
+  let (opp_id, org_id, to_handle): (i64, String, String) = conn.query_row(
+    "SELECT i.opportunity_id, p.org_id, i.handle
+     FROM connect_interests i
+     JOIN connect_opportunities p ON p.id = i.opportunity_id
+     WHERE i.id = ?1",
     params![interest_id],
-    |r| Ok((r.get(0)?, r.get(1)?)),
+    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
   )?;
+  if !is_org_lead(conn, &org_id, from_handle)? {
+    return Err(crate::sqlite::Error::QueryReturnedNoRows);
+  }
   conn.execute(
     "UPDATE connect_interests SET status = 'completed' WHERE id = ?1",
     params![interest_id],
