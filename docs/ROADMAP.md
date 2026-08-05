@@ -128,8 +128,8 @@ Spec: [`features/project-connect-credibility-layer.md`](features/project-connect
 | Automated draft releases on `v*` tags | ✅ |
 | Tier 0 bundle-size budget in CI | ✅ |
 | `v0.1.0-yard` tagged release assets | ✅ |
-| Code signing / notarization in `release.yml` | ⬜ |
-| GitHub Pages web-preview enablement | ⬜ |
+| Code signing / notarization in `release.yml` | ⏳ Workflow wired; secrets pending |
+| GitHub Pages web-preview enablement | ⏳ Workflow ready; repo setting pending |
 | Mobile CI (iOS/Android via Tauri Mobile) | ⬜ Planned |
 
 Detail: [`../DEVOPS.md`](../DEVOPS.md) · Roadmap table there is the DevOps checklist of record.

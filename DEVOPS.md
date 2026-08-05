@@ -28,7 +28,7 @@
 | **CI** | PRs + pushes to `main` | Lint, typecheck, unit/Rust/Anchor tests, bundle budget, Playwright E2E, web + Yard/Full Tauri builds | ✅ Live |
 | **CI Full Lab** | `workflow_dispatch` only | Optional heavy Full/Iroh lab builds (not every-push) | ✅ Lab-only |
 | **Release** | Tag push (`v*`) | Draft GitHub Release + Yard/Full installers (macOS arm64/x64, Linux, Windows) | ✅ Live |
-| **Deploy Web Preview** | `main` push / manual | Campus web preview to GitHub Pages | ⬜ Needs Pages enabled on repo |
+| **Deploy Web Preview** | `main` push / manual | Campus web preview to GitHub Pages | ✅ Workflow ready · repo Pages setting pending |
 
 ### CI Flow (`.github/workflows/ci.yml`)
 
@@ -54,7 +54,7 @@ Tag v* → Create draft release (auto notes) → Build Yard + Full (matrix) → 
 ```
 
 - **Draft + notes**: `softprops/action-gh-release` with `draft: true` and `generate_release_notes: true`
-- **Signing / notarization**: documented secrets below are **not wired in YAML yet** — unsigned CI artifacts until secrets are added to the release jobs
+- **Signing / notarization**: release jobs fail closed unless Apple and Windows signing secrets are configured; CI artifacts remain unsigned
 - First student tag shipped: **`v0.1.0-yard`** (Yard + Full assets on GitHub Releases)
 
 Platform targets:
@@ -171,10 +171,13 @@ Before merging to `main`:
 
 ## Security
 
-- **No secrets in repo** — planned GitHub Actions secrets for signed releases (not yet consumed by `release.yml`):
-  - `APPLE_SIGNING_IDENTITY` (macOS code signing)
-  - `APPLE_NOTARY_KEY` (notarization)
-  - `WINDOWS_SIGNING_CERT` (Windows signing)
+- **No secrets in repo** — configure these GitHub Actions secrets for signed releases:
+  - `APPLE_CERTIFICATE` (base64-encoded Developer ID Application `.p12`)
+  - `APPLE_CERTIFICATE_PASSWORD` (p12 password)
+  - `APPLE_SIGNING_IDENTITY` (Developer ID Application identity)
+  - `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` (notarization credentials)
+  - `WINDOWS_SIGNING_CERT` (base64-encoded Authenticode `.pfx`)
+  - `WINDOWS_SIGNING_CERT_PASSWORD` (pfx password)
 - **Dependabot** enabled (`.github/dependabot.yml`)
 - **Rust audit** (`cargo audit`): ⬜ not in `ci.yml` yet — add when hardening signed release path
 
@@ -194,8 +197,8 @@ Before merging to `main`:
 | 3 | Automated release drafting (`v*` → draft release + notes + installers) | ✅ Done |
 | — | Tier 0 bundle-size budget in CI (`check:bundle:tier0`) | ✅ Done |
 | — | Tag + ship `v0.1.0-yard` installers | ✅ Done |
-| **Next** | Wire macOS/Windows **code signing** secrets into `release.yml` | ⬜ Open |
-| **Next** | Enable **GitHub Pages** for Deploy Web Preview campus demo | ⬜ Open |
+| **Next** | Add signing secrets and run a signed `v*` release | ⏳ Workflow wired |
+| **Next** | Enable **GitHub Pages** for Deploy Web Preview campus demo | ⏳ Repo setting pending |
 | **Next** | Device B student smoke close-out (see `docs/YARD_RELEASE_CHECKLIST.md` Part A) | ⏳ Partial |
 | 4 | Mobile CI (iOS/Android packaging via Tauri Mobile) | ⬜ Planned |
 | 5 | `cargo audit` (and signed-release hardening) on CI | ⬜ Planned |

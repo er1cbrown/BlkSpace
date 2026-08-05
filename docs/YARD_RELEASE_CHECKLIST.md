@@ -97,6 +97,10 @@ git push origin v0.1.0-yard
 - [ ] Update [`../TIER0_USER.md`](../TIER0_USER.md) link to point at `v0.1.0-yard` if needed
 - [ ] Announce in TSU Yard with: install link + "write down 12 words" reminder
 
+### Release prerequisites added in CI
+
+Before creating a new signed tag, configure the secrets listed in [`../DEVOPS.md`](../DEVOPS.md). The Release workflow now fails closed on macOS and Windows when signing credentials are missing. GitHub Pages is also a repository setting: choose **Settings → Pages → Source: GitHub Actions** once, then run `Deploy Web Preview (Pages)` manually to verify the campus preview.
+
 ---
 
 ## What students should download
