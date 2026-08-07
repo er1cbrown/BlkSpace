@@ -51,11 +51,14 @@ import { EconomyTermsCard } from "@/components/economy/EconomyTermsCard";
 import { EconomyAppealCard } from "@/components/economy/EconomyAppealCard";
 import { CreatorMarketplacePanel } from "@/components/economy/CreatorMarketplacePanel";
 import { OwnedNftsPanel } from "@/components/economy/OwnedNftsPanel";
+import { EconomyPillarsBar } from "@/components/economy/EconomyPillarsBar";
+import { ProgressionCard } from "@/components/economy/ProgressionCard";
 import { formatFeePercent, FEE_BPS } from "@/lib/tokenomics";
 import { toast } from "sonner";
 import { WalletContextProvider } from "@/components/WalletContextProvider";
 import { BkspcMainnetPanel } from "@/components/economy/BkspcMainnetPanel";
 import { getBkspcConfig } from "@/lib/bkspc-config";
+import { useTauriGetEarnSummary } from "@/hooks/use-app-data";
 
 const mockTxHistory = [
   {
@@ -250,7 +253,7 @@ function WithdrawEligibilityPanel({
 
   return (
     <div className="rounded-lg border border-primary/10 p-3 space-y-2">
-      <p className="text-xs font-semibold">Cash out requirements</p>
+      <p className="text-xs font-semibold">Settlement eligibility</p>
       <ul className="text-xs space-y-1">
         {checks.map((c) => (
           <li
@@ -335,10 +338,11 @@ function WithdrawDialog({ balance }: { balance: number }) {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Cash out your earnings</DialogTitle>
+          <DialogTitle>Settlement (gated)</DialogTitle>
           <DialogDescription>
-            Convert earned WeixBucks to cash-out credits. Connect your wallet
-            address when you&apos;re ready to claim.
+            Optional settlement of <em>earned</em> practice credits after Yard
+            Cred and eligibility. Not investment advice — no promised returns.
+            Connect a wallet only when you understand the risk.
           </DialogDescription>
         </DialogHeader>
 
@@ -445,6 +449,7 @@ function WalletPageContent() {
   const handle = getCurrentHandle();
   const { data: user } = useAppGetUser(handle);
   const { data: tauriTx } = useTauriGetWalletTx();
+  const { data: earnSummary } = useTauriGetEarnSummary();
 
   const txHistory =
     isTauri() && Array.isArray(tauriTx) ? tauriTx.map(mapTx) : mockTxHistory;
@@ -453,11 +458,13 @@ function WalletPageContent() {
     isTauri() && user ? ((user as any).engagementQuality ?? 1.0) : 1.0;
 
   const earnedToday =
-    isTauri() && Array.isArray(tauriTx)
+    earnSummary?.earnedTodayWb ??
+    (isTauri() && Array.isArray(tauriTx)
       ? tauriTx
           .filter((tx) => tx.txType === "earn")
           .reduce((s: number, tx) => s + tx.amount, 0)
-      : 50;
+      : 50);
+  const dailyCap = earnSummary?.dailyCapWb ?? 250;
 
   const handleClaimRewards = async () => {
     const token = getSessionToken();
@@ -467,7 +474,11 @@ function WalletPageContent() {
     }
     try {
       const amt = await tauriClaimNodeRewards(token);
-      toast.success(`Claimed ${amt} WB node rewards (from pin serves/uptime)`);
+      toast.success(
+        amt > 0
+          ? `Claimed ${amt} WB (if peer-verified serves exist)`
+          : "No self-serve node rewards — contribute on the yard instead",
+      );
     } catch (e) {
       toast.error(String(e));
     }
@@ -477,12 +488,19 @@ function WalletPageContent() {
     <AppShell wide>
       <div className="flex items-center gap-3 mb-8">
         <WalletIcon className="w-7 h-7 text-primary" />
-        <h1 className="text-3xl font-bold">My Earnings</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Earnings & practice credits</h1>
+          <p className="text-sm text-muted-foreground">
+            Soft WeixBucks · Yard Cred · literacy · gated settlement
+          </p>
+        </div>
       </div>
 
       <WalletDisclaimer />
+      <EconomyPillarsBar handle={handle} />
+      <ProgressionCard summary={earnSummary} />
 
-      <div className="mb-8">
+      <div id="settlement" className="mb-8">
         <BkspcMainnetPanel wbBalance={balance} />
       </div>
 
@@ -491,7 +509,7 @@ function WalletPageContent() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <p className="text-sm text-muted-foreground font-medium">
-                Total Balance
+                Practice credits (WeixBucks)
               </p>
               <div className="flex items-center gap-3 mt-1">
                 <h2 className="text-5xl font-black tracking-tighter text-foreground">
@@ -506,17 +524,19 @@ function WalletPageContent() {
               </AvatarFallback>
             </Avatar>
           </div>
-          <p className="text-sm text-muted-foreground mb-6">WeixBucks</p>
-          <div className="flex gap-3">
+          <p className="text-sm text-muted-foreground mb-6">
+            Earn-only soft currency · tier daily cap {dailyCap} WB · not cash
+          </p>
+          <div className="flex gap-3 flex-wrap">
             <SendDialog balance={balance} />
             <WithdrawDialog balance={balance} />
             <Button variant="outline" size="sm" onClick={handleClaimRewards}>
-              Claim Node Rewards
+              Node claim (disabled faucet)
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-2">
-            Node rewards (0.1 WB per pin serve, daily cap) + malicious intent
-            throttle (score &gt;0.7 = 0 reward) wired in backend.
+            Self-serve pin rewards are off. MIDF throttle (score &gt;0.7) still
+            zeros earn. Settlement requires Yard Cred + eligibility.
           </p>
         </CardContent>
       </Card>
@@ -525,8 +545,13 @@ function WalletPageContent() {
         <Card className="border-primary/10 shadow-sm">
           <CardContent className="p-4 text-center">
             <Zap className="w-5 h-5 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold">{earnedToday.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">Earned Today</p>
+            <p className="text-2xl font-bold">
+              {earnedToday.toLocaleString()}
+              <span className="text-sm font-normal text-muted-foreground">
+                /{dailyCap}
+              </span>
+            </p>
+            <p className="text-xs text-muted-foreground">Earned today / cap</p>
           </CardContent>
         </Card>
         <Card className="border-primary/10 shadow-sm">
@@ -551,13 +576,15 @@ function WalletPageContent() {
         <EarnDashboard
           transactions={isTauri() && Array.isArray(tauriTx) ? tauriTx : []}
           earnedToday={earnedToday}
+          dailyCap={dailyCap}
         />
       </div>
 
       <Tabs defaultValue="history">
-        <TabsList className="mb-6">
+        <TabsList className="mb-6 flex-wrap h-auto">
           <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="earn">How to Earn</TabsTrigger>
+          <TabsTrigger value="earn">How to earn</TabsTrigger>
+          <TabsTrigger value="literacy">Learn markets</TabsTrigger>
           <TabsTrigger value="marketplace" className="gap-1.5">
             <Store className="w-3.5 h-3.5" />
             Yard Sale
@@ -605,11 +632,14 @@ function WalletPageContent() {
         </TabsContent>
 
         <TabsContent value="earn" className="space-y-6">
-          <FinancialLiteracyPanel />
           <EarnRatesPanel />
           <EconomyTermsCard />
           <EconomyPolicyPanel />
           <EconomyAppealCard />
+        </TabsContent>
+
+        <TabsContent value="literacy" className="space-y-6">
+          <FinancialLiteracyPanel />
         </TabsContent>
 
         <TabsContent value="marketplace" className="space-y-4">

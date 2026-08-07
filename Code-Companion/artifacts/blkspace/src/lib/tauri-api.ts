@@ -139,6 +139,11 @@ export interface TauriEarnSummary {
   commentKarma: number;
   yardsJoined: number;
   uploadsCount: number;
+  contributionXp?: number;
+  tier?: number;
+  tierLabel?: string;
+  dailyCapWb?: number;
+  earnedTodayWb?: number;
 }
 
 export interface TauriTokenomicsPolicy {

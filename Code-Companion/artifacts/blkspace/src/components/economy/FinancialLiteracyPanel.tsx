@@ -2,8 +2,18 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { LITERACY_PATHS, LITERACY_PRINCIPLES } from "@/lib/earn-literacy";
-import { GraduationCap, ArrowRight, Sparkles, Shield } from "lucide-react";
+import {
+  LITERACY_PATHS,
+  LITERACY_PRINCIPLES,
+  MARKETS_101,
+} from "@/lib/earn-literacy";
+import {
+  GraduationCap,
+  ArrowRight,
+  Sparkles,
+  Shield,
+  Landmark,
+} from "lucide-react";
 import { BRAND } from "@/lib/brand";
 
 /**
@@ -12,7 +22,7 @@ import { BRAND } from "@/lib/brand";
  */
 export function FinancialLiteracyPanel() {
   return (
-    <div className="space-y-6">
+    <div id="literacy" className="space-y-6">
       <Card className="border-primary/20 bg-primary/5">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
@@ -22,12 +32,13 @@ export function FinancialLiteracyPanel() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>
-            Soft <strong className="text-foreground">WeixBucks (WB)</strong>{" "}
-            reward real yard activity.{" "}
+            Soft <strong className="text-foreground">WeixBucks (WB)</strong> are{" "}
+            <strong className="text-foreground">practice credits</strong> for
+            yard activity.{" "}
             <strong className="text-foreground">Yard Cred</strong> is
-            reputation.
-            <strong className="text-foreground"> BKSPC</strong> is optional
-            later settlement — gated, not a hype coin.
+            reliability (not cash).{" "}
+            <strong className="text-foreground">BKSPC settlement</strong> is
+            optional and gated — not a hype coin or brokerage product.
           </p>
           <div className="grid sm:grid-cols-2 gap-2">
             {LITERACY_PRINCIPLES.map((p) => (
@@ -40,6 +51,37 @@ export function FinancialLiteracyPanel() {
                   {p.title}
                 </div>
                 <p className="text-xs leading-relaxed">{p.body}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/15">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Landmark className="w-5 h-5 text-primary" />
+            Markets 101 · Learn (not trade)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Educational only. {BRAND.name} does not open brokerage accounts,
+            execute NASDAQ or crypto orders, or give personalized investment
+            advice.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-2">
+            {MARKETS_101.map((m) => (
+              <div
+                key={m.title}
+                className="rounded-lg border border-border/60 p-3 space-y-1"
+              >
+                <p className="text-xs font-semibold text-foreground">
+                  {m.title}
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {m.body}
+                </p>
               </div>
             ))}
           </div>

@@ -186,6 +186,14 @@ pub struct EarnSummary {
   pub comment_karma: i64,
   pub yards_joined: i64,
   pub uploads_count: i64,
+  /// Lifetime contribution XP (never spendable).
+  pub contribution_xp: i64,
+  /// 0=newcomer 1=contributor 2=creator 3=steward
+  pub tier: i64,
+  pub tier_label: String,
+  /// Daily WB earn cap for this tier (after progression v2).
+  pub daily_cap_wb: i64,
+  pub earned_today_wb: i64,
 }
 
 /// Actual WB/karma granted by a single action (for honest client toasts).
@@ -689,7 +697,7 @@ pub struct Database {
 }
 
 /// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
-const SCHEMA_VERSION: i32 = 8;
+const SCHEMA_VERSION: i32 = 9;
 
 /// Tier 0 page cache in KiB (negative PRAGMA cache_size = KiB).
 /// Default 8 MiB — was 64 MiB which is too heavy for 4 GB laptops.
@@ -1043,6 +1051,21 @@ impl Database {
     let _ = conn.execute(
       "ALTER TABLE marketplace_listings ADD COLUMN town_tag TEXT DEFAULT 'tsu'",
       (),
+    );
+    // Progression v2 (schema 9)
+    let _ = conn.execute(
+      "ALTER TABLE users ADD COLUMN contribution_xp INTEGER DEFAULT 0",
+      (),
+    );
+    let _ = conn.execute_batch(
+      "CREATE TABLE IF NOT EXISTS earn_category_day (
+        handle TEXT NOT NULL,
+        day TEXT NOT NULL,
+        category TEXT NOT NULL,
+        count INTEGER DEFAULT 0,
+        PRIMARY KEY (handle, day, category)
+      );
+      CREATE INDEX IF NOT EXISTS idx_earn_cat_day ON earn_category_day(handle, day);",
     );
 
     conn.execute_batch(
@@ -2119,26 +2142,151 @@ impl Database {
     Ok(earned)
   }
 
-  /// Grant WB; returns actual amount granted (0 if daily cap or MIDF throttle via caller).
+  /// Map earn description → progression category (docs/features/wb-progression-v2.md).
+  pub fn earn_category(description: &str) -> &'static str {
+    let d = description.to_ascii_lowercase();
+    if d.contains("connect")
+      || d.contains("interest")
+      || d.contains("endors")
+      || d.contains("opportunit")
+      || d.contains("complet")
+    {
+      return "connect";
+    }
+    if d.contains("sale")
+      || d.contains("listing")
+      || d.contains("marketplace")
+      || d.contains("studio")
+      || d.contains("tip received")
+    {
+      return "market";
+    }
+    if d.contains("yard")
+      || d.contains("rsvp")
+      || d.contains("event")
+      || d.contains("join")
+    {
+      return "campus";
+    }
+    if d.contains("reply") || d.contains("like") || d.contains("discussion") {
+      return "care";
+    }
+    if d.contains("post")
+      || d.contains("upload")
+      || d.contains("media")
+      || d.contains("mix")
+      || d.contains("wall")
+    {
+      return "create";
+    }
+    "other"
+  }
+
+  pub fn tier_from_xp(xp: i64) -> (i64, &'static str, i64) {
+    if xp >= 1200 {
+      (3, "Steward", 350)
+    } else if xp >= 400 {
+      (2, "Creator", 300)
+    } else if xp >= 100 {
+      (1, "Contributor", 250)
+    } else {
+      (0, "Newcomer", 200)
+    }
+  }
+
+  fn category_xp_weight(category: &str) -> f64 {
+    match category {
+      "connect" => 1.5,
+      "campus" => 1.2,
+      "market" => 1.1,
+      "create" | "care" => 1.0,
+      _ => 0.8,
+    }
+  }
+
+  /// Grant WB with progression v2: diminishing returns by category, tier daily cap, XP.
+  /// Returns actual amount granted (0 if daily cap).
   pub fn grant_weix_bucks(&self, handle: &str, amount: i64, description: &str) -> Result<i64> {
     if amount <= 0 {
       return Ok(0);
     }
-    let earned_today = self.daily_wb_earned(handle)?;
-    let remaining = (DAILY_WB_EARN_CAP - earned_today).max(0);
-    let grant = amount.min(remaining);
+    let category = Self::earn_category(description);
+    let conn = self.conn.lock().unwrap();
+
+    // Category count today (UTC date)
+    let day: String = conn
+      .query_row("SELECT date('now')", (), |r| r.get(0))
+      .unwrap_or_else(|_| "1970-01-01".into());
+    let n: i64 = conn
+      .query_row(
+        "SELECT COALESCE(count, 0) FROM earn_category_day
+         WHERE handle = ?1 AND day = ?2 AND category = ?3",
+        params![handle, day, category],
+        |r| r.get(0),
+      )
+      .unwrap_or(0);
+
+    // Diminishing returns: base / (1 + 0.15*n)
+    let mut adjusted = ((amount as f64) / (1.0 + 0.15 * (n as f64))).ceil() as i64;
+    if adjusted < 1 && amount > 0 {
+      adjusted = 1;
+    }
+
+    // Newcomer boost (≤14 days): create + connect
+    let age_days: i64 = conn
+      .query_row(
+        "SELECT CAST((julianday('now') - julianday(created_at)) AS INTEGER)
+         FROM users WHERE handle = ?1",
+        params![handle],
+        |r| r.get(0),
+      )
+      .unwrap_or(999);
+    if age_days <= 14 && (category == "create" || category == "connect") {
+      adjusted = ((adjusted as f64) * 1.25).ceil() as i64;
+    }
+
+    let xp: i64 = conn
+      .query_row(
+        "SELECT COALESCE(contribution_xp, 0) FROM users WHERE handle = ?1",
+        params![handle],
+        |r| r.get(0),
+      )
+      .unwrap_or(0);
+    let (_tier, _label, daily_cap) = Self::tier_from_xp(xp);
+
+    let earned_today: i64 = conn.query_row(
+      "SELECT COALESCE(SUM(amount), 0) FROM wallet_tx
+       WHERE user_handle = ?1 AND tx_type = 'earn'
+         AND created_at >= datetime('now', '-1 day')",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    let remaining = (daily_cap - earned_today).max(0);
+    let grant = adjusted.min(remaining);
     if grant <= 0 {
       return Ok(0);
     }
-    let conn = self.conn.lock().unwrap();
+
+    // XP from nominal amount (pre-cap) so farming doesn't starve XP unfairly
+    let xp_gain = ((amount as f64) * Self::category_xp_weight(category)).round() as i64;
+    let xp_gain = xp_gain.max(1);
+
     conn.execute(
-      "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
-      params![grant, handle],
+      "UPDATE users SET weix_bucks = weix_bucks + ?1,
+                        contribution_xp = COALESCE(contribution_xp, 0) + ?2
+       WHERE handle = ?3",
+      params![grant, xp_gain, handle],
     )?;
     conn.execute(
       "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
        SELECT ?1, 'earn', ?2, ?3, weix_bucks FROM users WHERE handle = ?1",
       params![handle, grant, description],
+    )?;
+    conn.execute(
+      "INSERT INTO earn_category_day (handle, day, category, count)
+       VALUES (?1, ?2, ?3, 1)
+       ON CONFLICT(handle, day, category) DO UPDATE SET count = count + 1",
+      params![handle, day, category],
     )?;
     Ok(grant)
   }
@@ -2841,7 +2989,17 @@ impl Database {
     Ok(())
   }
 
+  /// Test helper: set contribution XP (progression v2).
   #[cfg(test)]
+  pub fn test_set_contribution_xp(&self, handle: &str, xp: i64) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "UPDATE users SET contribution_xp = ?1 WHERE handle = ?2",
+      params![xp, handle],
+    )?;
+    Ok(())
+  }
+
   pub fn test_set_weix_bucks(&self, handle: &str, amount: i64) -> Result<()> {
     let conn = self.conn.lock().unwrap();
     conn.execute(
@@ -4639,7 +4797,7 @@ impl Database {
       params![id, author_handle],
     )?;
     if affected == 0 {
-      return Err(AppError::Validation(
+      return Err(crate::sqlite::Error::ExecuteFailed(
         "Offline action not found or not owned by session".into(),
       ));
     }
@@ -5936,7 +6094,7 @@ impl Database {
         |r| r.get(0),
       )
       .map_err(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => {
+        crate::sqlite::Error::QueryReturnedNoRows => {
           AppError::Validation("Reading circle not found".into())
         }
         other => AppError::from(other),
@@ -6584,10 +6742,12 @@ impl Database {
 
   pub fn get_earn_summary(&self, handle: &str) -> Result<EarnSummary> {
     let conn = self.conn.lock().unwrap();
-    let (post_k, comment_k, wb): (i64, i64, i64) = conn.query_row(
-      "SELECT COALESCE(post_karma,0), COALESCE(comment_karma,0), weix_bucks FROM users WHERE handle = ?1",
+    let (post_k, comment_k, wb, xp): (i64, i64, i64, i64) = conn.query_row(
+      "SELECT COALESCE(post_karma,0), COALESCE(comment_karma,0), weix_bucks,
+              COALESCE(contribution_xp, 0)
+       FROM users WHERE handle = ?1",
       params![handle],
-      |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+      |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
     )?;
     let yards: i64 = conn.query_row(
       "SELECT COUNT(*) FROM yard_memberships WHERE handle = ?1",
@@ -6599,12 +6759,27 @@ impl Database {
       params![handle],
       |r| r.get(0),
     )?;
+    let earned_today: i64 = conn
+      .query_row(
+        "SELECT COALESCE(SUM(amount), 0) FROM wallet_tx
+         WHERE user_handle = ?1 AND tx_type = 'earn'
+           AND created_at >= datetime('now', '-1 day')",
+        params![handle],
+        |r| r.get(0),
+      )
+      .unwrap_or(0);
+    let (tier, tier_label, daily_cap) = Self::tier_from_xp(xp);
     Ok(EarnSummary {
       total_wb: wb,
       post_karma: post_k,
       comment_karma: comment_k,
       yards_joined: yards,
       uploads_count: uploads,
+      contribution_xp: xp,
+      tier,
+      tier_label: tier_label.to_string(),
+      daily_cap_wb: daily_cap,
+      earned_today_wb: earned_today,
     })
   }
 }

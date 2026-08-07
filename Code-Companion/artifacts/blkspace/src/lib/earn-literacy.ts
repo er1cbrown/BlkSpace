@@ -112,7 +112,7 @@ export const LITERACY_PRINCIPLES = [
   },
   {
     title: "Soft money first",
-    body: `WeixBucks are earn-only credits (daily cap, published rates). Karma is reputation only — never for sale. Example: post +${WB_EARN.feedPost} WB / +${KARMA_EARN.feedPost} karma.`,
+    body: `WeixBucks are earn-only practice credits (tier daily cap, diminishing returns). Karma is reputation only — never for sale. Example: post +${WB_EARN.feedPost} WB / +${KARMA_EARN.feedPost} karma.`,
   },
   {
     title: "Cred before coin",
@@ -121,5 +121,29 @@ export const LITERACY_PRINCIPLES = [
   {
     title: "Many loops, one home",
     body: "Create · live link-out · tournaments · sale · portfolio — same yard, same wallet story. Amalgamation, not eight logins.",
+  },
+] as const;
+
+/** Markets 101 — education only. BlkSpace is not a brokerage. */
+export const MARKETS_101 = [
+  {
+    title: "What a brokerage does",
+    body: "A licensed brokerage holds securities accounts, routes buy/sell orders, and must follow KYC/AML and suitability rules. Examples (not endorsements): full-service and online broker-dealers registered with regulators.",
+  },
+  {
+    title: "Stocks (e.g. NASDAQ-listed)",
+    body: "Shares are ownership claims traded on regulated markets. Prices move with company and market risk. You open a real brokerage account for this — not BlkSpace practice credits.",
+  },
+  {
+    title: "Crypto assets",
+    body: "Crypto is highly volatile and often unregulated compared with listed equities. Never confuse platform soft credits or optional settlement receipts with a diversified investment plan.",
+  },
+  {
+    title: "What BlkSpace is (and is not)",
+    body: "WeixBucks = practice credits for campus activity and creator shop. Yard Cred = reliability. BKSPC settlement = optional gated receipt of earned surplus after eligibility — not investment advice, not a promise of profit, not a NASDAQ or crypto exchange.",
+  },
+  {
+    title: "How to learn more safely",
+    body: "Prefer primary education: SEC Investor.gov, FINRA Smart Investing, CFPB. For medical/professional careers, treat any speculative product as a distraction until basic emergency savings and debt plans exist.",
   },
 ] as const;

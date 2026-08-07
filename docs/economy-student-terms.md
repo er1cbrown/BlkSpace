@@ -6,12 +6,21 @@ BlkSpace uses the **same creator-economy pattern** as Roblox, Fortnite, and othe
 
 ---
 
+## Four pillars (how to think about money here)
+
+1. **Practice credits (WeixBucks)** — earn-only soft currency for yard + creator shop  
+2. **Reliability (Yard Cred)** — reputation from real Connect work; not cash  
+3. **Learn markets** — literacy about brokerages / risk; **not** in-app trading  
+4. **Settlement (BKSPC)** — optional gated receipt of *earned* surplus after eligibility  
+
+See `docs/features/four-pillar-economy.md` and progression in `docs/features/wb-progression-v2.md`.
+
 ## WeixBucks (WB) — soft currency
 
 - **What:** Platform credits for creating and participating (like Robux or V-Bucks).
 - **Earn:** Posts, yards, engagement, node work — see wallet **How to Earn**.
 - **Spend:** Tips, boosts, and **creator marketplace** purchases.
-- **Cap:** 250 WB per day maximum.
+- **Cap:** Tier-based daily max (Newcomer 200 · Contributor 250 · Creator 300 · Steward 350). Same actions pay less the more you repeat them in a day.
 - **Buy with cash?** **No.** Earn-only closed loop (unless a future product is explicitly announced).
 - **Cash value promised?** **No.**
 

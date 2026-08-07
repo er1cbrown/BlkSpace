@@ -58,6 +58,7 @@ export function EarnDashboard({
   earnedToday,
   dailyCap = 250,
 }: EarnDashboardProps) {
+  // dailyCap from progression tier when parent passes it
   const earnTx = (transactions || []).filter((tx) => tx.txType === "earn");
 
   const byCategory: Record<EarnCategory, { count: number; total: number }> = {

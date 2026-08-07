@@ -48,7 +48,7 @@
 | Comment on others' content | 0.5 WB | Capped |
 | Node relay heartbeat (1h) | 1–5 WB | Tier 1+ only |
 
-**Daily earn cap:** ✅ **250 WB per pubkey** per rolling 24h — enforced in `grant_weix_bucks()` (`db.rs`).
+**Daily earn cap (progression v2):** tier-based — Newcomer **200** · Contributor **250** · Creator **300** · Steward **350** WB per rolling 24h, after per-category diminishing returns. See [`features/wb-progression-v2.md`](features/wb-progression-v2.md). Enforced in `grant_weix_bucks()` (`db.rs`).
 
 ---
 

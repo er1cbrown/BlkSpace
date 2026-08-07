@@ -253,7 +253,8 @@ mod tests {
     }
     // Yard Cred needs enough karma (formula caps karma share at 25).
     db.grant_karma(handle, "tsu", 320, 0, "test yard cred").unwrap();
-    db.grant_weix_bucks(handle, 500, "test grant").unwrap();
+    // Set balance directly — progression caps don't apply to test balance seeding
+    db.test_set_weix_bucks(handle, 500).unwrap();
     let user = db.get_user(handle).unwrap().unwrap();
     assert!(user.post_karma >= MIN_WITHDRAW_KARMA);
     assert!(user.post_karma >= MIN_WITHDRAW_POSTS * 3);
@@ -1588,13 +1589,27 @@ mod tests {
   fn test_daily_wb_earn_cap() {
     let db = setup_test_db();
     db.create_user("capper", "Capper", "").unwrap();
+    // First grant: Newcomer cap 200; XP from grant may promote to Contributor
     let first = db.grant_weix_bucks("capper", 200, "Test earn").unwrap();
     assert_eq!(first, 200);
+    // After XP promote, Contributor cap 250 → up to 50 more
     let second = db.grant_weix_bucks("capper", 100, "Test earn 2").unwrap();
     assert_eq!(second, 50);
     let third = db.grant_weix_bucks("capper", 5, "Test earn 3").unwrap();
     assert_eq!(third, 0);
     assert_eq!(db.daily_wb_earned("capper").unwrap(), DAILY_WB_EARN_CAP);
+  }
+
+  #[test]
+  fn test_progression_diminishing_returns() {
+    let db = setup_test_db();
+    db.create_user("farmer", "Farmer", "").unwrap();
+    db.test_set_contribution_xp("farmer", 100).unwrap(); // Contributor tier
+    // New accounts also get newcomer create-boost (×1.25) — first may be > base 10
+    let a = db.grant_weix_bucks("farmer", 10, "Feed post").unwrap();
+    let b = db.grant_weix_bucks("farmer", 10, "Feed post again").unwrap();
+    assert!(a >= 10, "expected first grant >= base, got {a}");
+    assert!(b < a && b >= 1, "expected diminishing return a={a} b={b}");
   }
 
   #[test]
@@ -1640,6 +1655,8 @@ mod tests {
   fn test_earn_result_daily_cap_flag() {
     let db = setup_test_db();
     db.create_user("capper2", "Capper2", "").unwrap();
+    // Contributor tier (250 cap) so we can sit 2 WB under the cap
+    db.test_set_contribution_xp("capper2", 100).unwrap();
     db.grant_weix_bucks("capper2", 248, "Fill").unwrap();
     let result = db.create_post("capper2", "Near cap", "tsu", NO_CHANNEL, &[]).unwrap();
     assert_eq!(result.earn.wb, 2);
