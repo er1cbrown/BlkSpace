@@ -1072,3 +1072,44 @@ export function parseTags(tagsJson: string): string[] {
     return [];
   }
 }
+
+/**
+ * Rank opportunities by tag/skill overlap (C0 matching polish).
+ * Higher score = better fit for the applicant's skill tokens.
+ */
+export function scoreOpportunityMatch(
+  opp: ConnectOpportunity,
+  skillTokens: string[],
+): number {
+  if (!skillTokens.length) return 0;
+  const hay = [
+    opp.title,
+    opp.description,
+    opp.orgName,
+    opp.orgType,
+    ...parseTags(opp.tagsJson || "[]"),
+  ]
+    .join(" ")
+    .toLowerCase();
+  let hits = 0;
+  for (const raw of skillTokens) {
+    const t = raw.trim().toLowerCase();
+    if (t.length >= 2 && hay.includes(t)) hits += 1;
+  }
+  // Prefer open roles slightly when tied
+  const openBoost = opp.status === "open" ? 0.25 : 0;
+  return hits + openBoost;
+}
+
+/** Sort opportunities for a student: match score desc, then recency. */
+export function sortOpportunitiesByMatch(
+  opps: ConnectOpportunity[],
+  skillTokens: string[],
+): ConnectOpportunity[] {
+  return [...opps].sort((a, b) => {
+    const sb = scoreOpportunityMatch(b, skillTokens);
+    const sa = scoreOpportunityMatch(a, skillTokens);
+    if (sb !== sa) return sb - sa;
+    return (b.createdAt || "").localeCompare(a.createdAt || "");
+  });
+}

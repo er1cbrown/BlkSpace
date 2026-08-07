@@ -26,6 +26,7 @@ import {
   Users,
   Store,
   BookOpen,
+  Award,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -82,6 +83,7 @@ import {
 } from "@/components/profile/ProfileAestheticShell";
 import { ProfileGallery } from "@/components/profile/ProfileGallery";
 import { CustomizeStation } from "@/components/profile/CustomizeStation";
+import { YardCredCard } from "@/components/profile/YardCredCard";
 
 type ThemeKey = "classic" | "pro" | "vibrant" | "myspace";
 
@@ -588,6 +590,10 @@ export default function ProfilePage() {
                   <TabsTrigger value="posts">Posts</TabsTrigger>
                   <TabsTrigger value="music">Music</TabsTrigger>
                   <TabsTrigger value="pro">Pro</TabsTrigger>
+                  <TabsTrigger value="cred" className="gap-1">
+                    <Award className="w-3.5 h-3.5" />
+                    Cred
+                  </TabsTrigger>
                   <TabsTrigger value="studio">Studio</TabsTrigger>
                   {isOwnProfile && (
                     <TabsTrigger value="customize" className="gap-1">
@@ -613,6 +619,10 @@ export default function ProfilePage() {
                       else toast.success("Saved locally (web preview)");
                     }}
                   />
+                </TabsContent>
+
+                <TabsContent value="cred">
+                  <YardCredCard handle={user.handle} />
                 </TabsContent>
 
                 <TabsContent value="studio">

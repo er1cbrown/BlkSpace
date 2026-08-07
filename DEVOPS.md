@@ -33,19 +33,22 @@
 ### CI Flow (`.github/workflows/ci.yml`)
 
 ```
-Push/PR → Lint → Typecheck → Unit tests → Rust/Anchor/Nostr smoke
-         → Bundle budget (Tier 0) → Build Web → Playwright E2E (browser + Tauri)
-         → Build Yard (3 OS) → Build Full (3 OS) → Iroh smoke build
+Push/PR → lint + typecheck + unit tests (parallel)
+         → (needs gate) Rust / Anchor / bundle / web / e2e / Yard / Full / Iroh
+         → Nostr live smoke is continue-on-error (does not block merge)
 ```
 
-- **Lint**: ESLint + Prettier (`format:check`)
+- **Lint job**: `bun run lint` (today = typecheck alias) + Prettier `format:check`  
+  (ESLint packages may exist in workspace; not the CI gate yet)
 - **Typecheck**: TypeScript strict mode
-- **Test**: Vitest unit tests; Tauri Rust unit tests; Anchor `bkspc` tests; Nostr relay smoke
+- **Test**: Vitest unit tests; Tauri Rust unit tests (`cargo test --locked`); Anchor `bkspc` tests
+- **Nostr smoke**: live public relays — **non-blocking** (`continue-on-error: true`)
 - **Bundle budget**: `bun run check:bundle:tier0` (job `bundle-budget-tier0`)
 - **E2E**: Playwright web preview + Playwright Tauri native (Linux)
 - **Build Web**: Vite production build
 - **Build Full**: `bun run build:full` + `tauri build` (Iroh on) → `BlkSpace-Full-*` artifacts
 - **Build Yard**: `bun run build:tier0` + `tauri build --no-default-features` → `BlkSpace-Yard-*` artifacts
+- **Gating**: heavy jobs `needs: [lint, typecheck]` or `[lint, typecheck, test]` so TS failures skip multi-OS Tauri builds
 
 ### Release Flow (`.github/workflows/release.yml`)
 
@@ -155,7 +158,7 @@ BlkSpoof/
 ## Code Quality Gates
 
 Before merging to `main`:
-- [x] ESLint passes (no warnings)
+- [x] Typecheck / lint script (`bun run lint` → typecheck) + Prettier check
 - [x] TypeScript strict mode compiles
 - [x] Unit tests pass
 - [x] All feature branches up to date with `main`
@@ -200,7 +203,37 @@ Before merging to `main`:
 | **Next** | Add signing secrets and run a signed `v*` release | ⏳ Workflow wired |
 | **Next** | Enable **GitHub Pages** for Deploy Web Preview campus demo | ⏳ Repo setting pending |
 | **Next** | Device B student smoke close-out (see `docs/YARD_RELEASE_CHECKLIST.md` Part A) | ⏳ Partial |
+| — | CI job gating + non-blocking Nostr smoke + `cargo --locked` | ✅ Done (2026-08) |
 | 4 | Mobile CI (iOS/Android packaging via Tauri Mobile) | ⬜ Planned |
 | 5 | `cargo audit` (and signed-release hardening) on CI | ⬜ Planned |
 
 **Authoritative “what ships”:** workflows under `.github/workflows/`. Prefer this table over older narrative that still listed Playwright / release drafting as future work.
+
+## Operator next steps (human)
+
+### 1. Device B (Windows 4–8 GB)
+Follow [`docs/YARD_RELEASE_CHECKLIST.md`](docs/YARD_RELEASE_CHECKLIST.md) Part A. Download Yard MSI from Actions/Releases.
+
+### 2. GitHub Pages (campus web preview)
+1. Repo **Settings → Pages → Source: GitHub Actions**
+2. Confirm `Deploy Web Preview (Pages)` succeeds after a `main` push under `Code-Companion/**`
+3. Open `https://er1cbrown.github.io/BlkSpace/` and check asset paths
+
+### 3. Signing secrets (signed installers)
+Add under repo **Settings → Secrets and variables → Actions** (see Security section above).  
+Then push a draft test tag (e.g. `v0.1.1-yard-sign-test`) and confirm release job signs macOS + Windows.
+
+### 4. Local disk (Tier 0 hosts + agent machines)
+Keep Rust artifacts off iCloud/Desktop when possible:
+
+```bash
+export CARGO_TARGET_DIR="${HOME}/.cache/blkspace-target"
+# optional: add to shell profile
+```
+
+`src-tauri/target/` can grow past **7 GB** and slow `git status` / index refresh.
+
+### 5. Command inventory (security/ops reviews)
+```bash
+python3 tools/list_tauri_commands.py
+```

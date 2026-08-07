@@ -1,7 +1,7 @@
 # ProjectConnectBKSPC · Credibility Layer (before finance)
 
-**Status:** **C0 demo implemented** (UI + Turso schema + seed) — still before mainnet finance  
-**Last updated:** 2026-08-02  
+**Status:** **C0 + C1.x in app** (orgs/opps/interest/inbox/complete/endorse + Yard Cred on profile + interest spam limits + match ranking) — still before mainnet finance  
+**Last updated:** 2026-08-07  
 **Codename:** ProjectConnectBKSPC (legacy: ProjectConnectTSU · Team SET · NSBE 2024)  
 **Depends on:** Yards, profiles, karma, guest mode, Turso local DB  
 **Does not depend on:** Mainnet token launch, pump.fun, USD rails  

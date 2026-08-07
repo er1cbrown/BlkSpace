@@ -11,12 +11,11 @@ import {
 import { isTauri } from "@/lib/tauri-api";
 
 /**
- * Story strip — wired to real network data, not hardcoded mocks.
+ * Yard people strip — real network data only (no mock avatars).
  *
- * Sources avatars/handles from (1) the user's following list and (2) trending
- * feed authors, so the strip reflects actual people on the yard. Each circle
- * links to the creator's profile (real stories with 24h expiry are a later
- * phase; this replaces the fake mock with honest navigation).
+ * Avatars/handles come from (1) following list and (2) trending feed authors.
+ * Circles link to profiles. True 24h ephemeral "stories" media is deferred
+ * (amalgamation P0: real stories later; never show fake people).
  */
 export function StoryStrip() {
   const me = getCurrentHandle();
@@ -56,7 +55,7 @@ export function StoryStrip() {
                 </div>
               </div>
               <span className="text-[11px] font-medium text-muted-foreground truncate w-full text-center">
-                Your story
+                You
               </span>
             </div>
           </Link>
@@ -65,10 +64,10 @@ export function StoryStrip() {
         {authors.length === 0 && (
           <div className="flex items-center text-xs text-muted-foreground px-2 self-center">
             {isGuest
-              ? "Follow creators to see their latest here — create an account to start."
+              ? "Follow creators to see people here — create an account to start."
               : isTauri()
-                ? "No stories yet — follow creators or wait for trending posts."
-                : "Stories appear once you follow people on the yard."}
+                ? "No one here yet — follow creators or wait for trending posts."
+                : "People appear once you follow others on the yard."}
           </div>
         )}
 

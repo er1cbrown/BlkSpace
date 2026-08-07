@@ -8,8 +8,9 @@ Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 ## Dev Environment
 - Codespaces-first: `.devcontainer/devcontainer.json`
 - If local: Bun 1.3+, Node 22+ (optional for tools), Rust stable, Tauri CLI
-- CI: GitHub Actions (`.github/workflows/`)
+- CI: GitHub Actions (`.github/workflows/` — `ci.yml`, `release.yml`, `pages.yml`, `ci-full-lab.yml`)
 - No Docker locally (disk constraint). Use CI for builds.
+- Prefer `CARGO_TARGET_DIR=$HOME/.cache/blkspace-target` so `src-tauri/target/` does not bloat the clone (can exceed 7 GB and hang `git status` on Desktop/iCloud).
 
 ## Key Files
 - `README.md` — repo entry point (students vs devs vs docs map)
@@ -23,8 +24,12 @@ Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 - `docs/TOP_DOWN_APPROACH.md` — Nostr/Iroh/Solana to 5-layer network stack
 - `docs/security-considerations.md` — Nostr attack mitigations
 - `docs/architecture-blueprint.md` — Federated College-Town Relay Mesh
-- `.github/workflows/ci.yml` — lint → typecheck → test → build (includes windows-latest)
+- `.github/workflows/ci.yml` — lint → typecheck → test → gated Yard/Full multi-OS builds
 - `.github/workflows/release.yml` — tag-triggered releases (macOS + Linux + Windows)
+- `.github/workflows/pages.yml` — campus web preview (enable repo Pages setting)
+- `.github/workflows/ci-full-lab.yml` — manual Full/Iroh lab builds
+- `DEVOPS.md` — pipeline + operator next steps (signing, Pages, Device B)
+- `tools/list_tauri_commands.py` — IPC command inventory for authz reviews
 - `Code-Companion/package.json` — root workspace config
 - `Code-Companion/artifacts/blkspace/src-tauri/Cargo.toml` — Rust deps
 

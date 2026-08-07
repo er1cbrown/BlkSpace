@@ -72,7 +72,7 @@ Trademark intent: protect **BlkSpace** as product. **BKSPC** is the short ticker
 | Connect + Cred | `connect.rs`, `project-connect.ts`, connect page |
 | Brand | `src/lib/brand.ts` → **BlkSpace** + **BKSPC** |
 
-Schema versions (desktop Turso): through **v7** (studio).
+Schema versions (desktop Turso): through **v8** (`SCHEMA_VERSION = 8` in `db.rs`; escrow / events / clubs / studio / HBCU via `ensure_schema`).
 
 ---
 

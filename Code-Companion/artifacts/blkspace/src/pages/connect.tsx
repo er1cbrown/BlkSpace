@@ -57,11 +57,13 @@ import {
   listOrgs,
   parseTags,
   setInterestStatus,
+  sortOpportunitiesByMatch,
   toggleSavedOpportunity,
   type ConnectOpportunity,
   type OrgType,
 } from "@/lib/project-connect";
 import { getCurrentHandle } from "@/lib/auth";
+import { useAppGetUser } from "@/hooks/use-app-data";
 import {
   canShareGpaOnConnect,
   loadPrivacySettings,
@@ -148,17 +150,41 @@ function ConnectHub() {
     queryFn: () => getYardCred(handle || "demo_user"),
     enabled: !!handle || true,
   });
+  const { data: meUser } = useAppGetUser(handle || "demo_user");
+
+  /** Skills from pro profile JSON for opportunity matching. */
+  const skillTokens = useMemo(() => {
+    try {
+      const raw = (meUser as { proProfileJson?: string } | undefined)
+        ?.proProfileJson;
+      if (!raw) return [] as string[];
+      const j = JSON.parse(raw) as { skills?: string[] | string };
+      if (Array.isArray(j.skills)) return j.skills.map(String);
+      if (typeof j.skills === "string")
+        return j.skills.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+      return [];
+    } catch {
+      return [];
+    }
+  }, [meUser]);
 
   const filteredOpps = useMemo(() => {
-    if (!q.trim()) return opps;
-    const qq = q.toLowerCase();
-    return opps.filter(
-      (o) =>
-        o.title.toLowerCase().includes(qq) ||
-        o.description.toLowerCase().includes(qq) ||
-        o.orgName.toLowerCase().includes(qq),
-    );
-  }, [opps, q]);
+    let list = opps;
+    if (q.trim()) {
+      const qq = q.toLowerCase();
+      list = list.filter(
+        (o) =>
+          o.title.toLowerCase().includes(qq) ||
+          o.description.toLowerCase().includes(qq) ||
+          o.orgName.toLowerCase().includes(qq),
+      );
+    }
+    // Match-first ranking when student has skills on Pro profile
+    if (skillTokens.length > 0) {
+      list = sortOpportunitiesByMatch(list, skillTokens);
+    }
+    return list;
+  }, [opps, q, skillTokens]);
 
   const visibleOpps = savedOnly
     ? filteredOpps.filter((opp) => savedIds.includes(opp.id))

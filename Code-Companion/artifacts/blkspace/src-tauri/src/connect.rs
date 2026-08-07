@@ -513,6 +513,11 @@ pub fn create_opportunity(
   get_opportunity(conn, id)?.ok_or_else(|| crate::sqlite::Error::QueryReturnedNoRows)
 }
 
+/// Max open (non-terminal) interests per student — anti interest-farm.
+const MAX_OPEN_INTERESTS: i64 = 8;
+/// Max new interest expressions per UTC day.
+const MAX_INTERESTS_PER_DAY: i64 = 12;
+
 pub fn express_interest(
   conn: &Connection,
   opportunity_id: i64,
@@ -523,6 +528,44 @@ pub fn express_interest(
   gpa: &str,
   gpa_shared: bool,
 ) -> Result<ConnectInterest> {
+  // C1.4 Interest spam limits (credibility layer — throttle fake hustle).
+  let open_count: i64 = conn
+    .query_row(
+      "SELECT COUNT(*) FROM connect_interests
+       WHERE handle = ?1 AND status IN ('pending','contacted','accepted')",
+      params![handle],
+      |r| r.get(0),
+    )
+    .unwrap_or(0);
+  // Allow update of an existing row for this opportunity without counting as new spam.
+  let already: i64 = conn
+    .query_row(
+      "SELECT COUNT(*) FROM connect_interests WHERE opportunity_id = ?1 AND handle = ?2",
+      params![opportunity_id, handle],
+      |r| r.get(0),
+    )
+    .unwrap_or(0);
+  if already == 0 && open_count >= MAX_OPEN_INTERESTS {
+    return Err(crate::sqlite::Error::ExecuteFailed(format!(
+      "Interest limit: at most {} open applications — complete or withdraw some first",
+      MAX_OPEN_INTERESTS
+    )));
+  }
+  let today_count: i64 = conn
+    .query_row(
+      "SELECT COUNT(*) FROM connect_interests
+       WHERE handle = ?1 AND date(created_at) = date('now')",
+      params![handle],
+      |r| r.get(0),
+    )
+    .unwrap_or(0);
+  if already == 0 && today_count >= MAX_INTERESTS_PER_DAY {
+    return Err(crate::sqlite::Error::ExecuteFailed(format!(
+      "Daily interest limit ({}/day) reached — try again tomorrow",
+      MAX_INTERESTS_PER_DAY
+    )));
+  }
+
   // Privacy: only store GPA when applicant explicitly shares with org leads.
   let (store_gpa, shared) = if gpa_shared && !gpa.trim().is_empty() {
     (gpa.trim(), 1i64)
@@ -581,6 +624,12 @@ fn map_interest_row(row: &crate::sqlite::Row) -> Result<ConnectInterest> {
   let gpa_shared_i: i64 = row.get(11).unwrap_or(0);
   let gpa_raw: String = row.get(10).unwrap_or_default();
   let gpa_shared = gpa_shared_i != 0;
+  // Prefer full composite when subquery columns present (14–17); else karma-only fallback.
+  let karma: i64 = row.get(13).unwrap_or(0);
+  let completions: i64 = row.get(14).unwrap_or(0);
+  let endorsements: i64 = row.get(15).unwrap_or(0);
+  let orgs: i64 = row.get(16).unwrap_or(0);
+  let interests: i64 = row.get(17).unwrap_or(1);
   Ok(ConnectInterest {
     id: row.get(0)?,
     opportunity_id: row.get(1)?,
@@ -595,12 +644,18 @@ fn map_interest_row(row: &crate::sqlite::Row) -> Result<ConnectInterest> {
     gpa: if gpa_shared { gpa_raw } else { String::new() },
     gpa_shared,
     created_at: row.get(12)?,
-    yard_cred: {
-      let karma: i64 = row.get(13).unwrap_or(0);
-      compute_cred_from_parts(karma, 0, 0, 0, 1)
-    },
+    yard_cred: compute_cred_from_parts(karma, completions, endorsements, orgs, interests),
   })
 }
+
+/// Extra SELECT columns for full Yard Cred on applicant cards (after karma at col 13).
+const INTEREST_CRED_SELECT: &str = "
+           COALESCE(u.post_karma,0) + COALESCE(u.comment_karma,0),
+           (SELECT COUNT(*) FROM connect_interests ci WHERE ci.handle = i.handle AND ci.status = 'completed'),
+           (SELECT COUNT(*) FROM connect_endorsements ce WHERE ce.to_handle = i.handle),
+           (SELECT COUNT(*) FROM connect_org_members cm WHERE cm.handle = i.handle),
+           (SELECT COUNT(*) FROM connect_interests ci2 WHERE ci2.handle = i.handle)
+";
 
 pub fn list_interests_for_opportunity(
   conn: &Connection,
@@ -609,37 +664,43 @@ pub fn list_interests_for_opportunity(
   // Column order must match map_interest_row:
   // 0 id, 1 opp_id, 2 title, 3 org, 4 handle, 5 display, 6 message, 7 skills,
   // 8 class, 9 status, 10 gpa, 11 gpa_shared, 12 created_at, 13 karma
-  let sql = "
+  let sql = format!(
+    "
     SELECT i.id, i.opportunity_id, p.title, o.name, i.handle,
            COALESCE(u.display_name, i.handle),
            i.message, i.skills_snapshot, i.classification, i.status,
            COALESCE(i.gpa, ''), COALESCE(i.gpa_shared, 0),
            i.created_at,
-           COALESCE(u.post_karma,0) + COALESCE(u.comment_karma,0)
+           {cred}
     FROM connect_interests i
     JOIN connect_opportunities p ON p.id = i.opportunity_id
     JOIN connect_orgs o ON o.id = p.org_id
     LEFT JOIN users u ON u.handle = i.handle
     WHERE i.opportunity_id = ?1
     ORDER BY i.created_at DESC
-  ";
-  let mut stmt = conn.prepare(sql)?;
+  ",
+    cred = INTEREST_CRED_SELECT
+  );
+  let mut stmt = conn.prepare(&sql)?;
   let rows = stmt.query_map(params![opportunity_id], map_interest_row)?;
   let mut out = Vec::new();
   for r in rows {
     out.push(r?);
   }
+  // Highest Yard Cred first so leads see strongest proof first
+  out.sort_by(|a, b| b.yard_cred.cmp(&a.yard_cred).then(b.created_at.cmp(&a.created_at)));
   Ok(out)
 }
 
 pub fn list_inbox_for_lead(conn: &Connection, lead_handle: &str) -> Result<Vec<ConnectInterest>> {
-  let sql = "
+  let sql = format!(
+    "
     SELECT i.id, i.opportunity_id, p.title, o.name, i.handle,
            COALESCE(u.display_name, i.handle),
            i.message, i.skills_snapshot, i.classification, i.status,
            COALESCE(i.gpa, ''), COALESCE(i.gpa_shared, 0),
            i.created_at,
-           COALESCE(u.post_karma,0) + COALESCE(u.comment_karma,0)
+           {cred}
     FROM connect_interests i
     JOIN connect_opportunities p ON p.id = i.opportunity_id
     JOIN connect_orgs o ON o.id = p.org_id
@@ -649,13 +710,16 @@ pub fn list_inbox_for_lead(conn: &Connection, lead_handle: &str) -> Result<Vec<C
       WHERE m.org_id = o.id AND m.handle = ?1 AND m.role IN ('owner','lead')
     )
     ORDER BY i.created_at DESC
-  ";
-  let mut stmt = conn.prepare(sql)?;
+  ",
+    cred = INTEREST_CRED_SELECT
+  );
+  let mut stmt = conn.prepare(&sql)?;
   let rows = stmt.query_map(params![lead_handle, lead_handle], map_interest_row)?;
   let mut out = Vec::new();
   for r in rows {
     out.push(r?);
   }
+  out.sort_by(|a, b| b.yard_cred.cmp(&a.yard_cred).then(b.created_at.cmp(&a.created_at)));
   Ok(out)
 }
 
@@ -663,21 +727,24 @@ pub fn list_interests_for_handle(
   conn: &Connection,
   applicant_handle: &str,
 ) -> Result<Vec<ConnectInterest>> {
-  let sql = "
+  let sql = format!(
+    "
     SELECT i.id, i.opportunity_id, p.title, o.name, i.handle,
            COALESCE(u.display_name, i.handle),
            i.message, i.skills_snapshot, i.classification, i.status,
            COALESCE(i.gpa, ''), COALESCE(i.gpa_shared, 0),
            i.created_at,
-           COALESCE(u.post_karma,0) + COALESCE(u.comment_karma,0)
+           {cred}
     FROM connect_interests i
     JOIN connect_opportunities p ON p.id = i.opportunity_id
     JOIN connect_orgs o ON o.id = p.org_id
     LEFT JOIN users u ON u.handle = i.handle
     WHERE i.handle = ?1
     ORDER BY i.created_at DESC
-  ";
-  let mut stmt = conn.prepare(sql)?;
+  ",
+    cred = INTEREST_CRED_SELECT
+  );
+  let mut stmt = conn.prepare(&sql)?;
   let rows = stmt.query_map(params![applicant_handle], map_interest_row)?;
   let mut out = Vec::new();
   for r in rows {
