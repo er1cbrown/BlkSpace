@@ -11,8 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { storeIdentity, authenticateWithNostr } from "@/lib/auth";
-import { derivePubkey } from "@/lib/auth";
+import {
+  storeIdentity,
+  authenticateWithNostr,
+  normalizeSecretKey,
+} from "@/lib/auth";
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
@@ -26,9 +29,9 @@ export default function LoginPage() {
     setSaving(true);
     setError("");
     try {
-      const pubkey = derivePubkey(nsec.trim());
-      const token = await authenticateWithNostr(handle.trim(), nsec.trim());
-      await storeIdentity(token, handle.trim(), nsec.trim(), handle.trim());
+      const secret = normalizeSecretKey(nsec);
+      const token = await authenticateWithNostr(handle.trim(), secret);
+      await storeIdentity(token, handle.trim(), secret, handle.trim());
       navigate("/feed");
     } catch (e) {
       setError(
@@ -49,7 +52,8 @@ export default function LoginPage() {
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-3xl font-serif">Welcome Back</CardTitle>
             <CardDescription className="text-base">
-              Sign in with your backup code from Settings
+              Sign in with your 24-word recovery phrase (or nsec / hex from
+              Settings)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -69,11 +73,11 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="nsec">Backup code</Label>
+              <Label htmlFor="nsec">Recovery phrase or secret key</Label>
               <Input
                 id="nsec"
                 type="password"
-                placeholder="Paste your backup code"
+                placeholder="24-word phrase, nsec1…, or 64-char hex"
                 value={nsec}
                 onChange={(e) => setNsec(e.target.value)}
                 className="font-mono"

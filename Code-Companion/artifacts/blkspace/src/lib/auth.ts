@@ -1,7 +1,7 @@
 import {
   isTauri,
   tauriStoreKey,
-  tauriGetKey,
+  tauriExportRecoveryKey,
   tauriHasKey,
   tauriGetChallenge,
   tauriLogin,
@@ -23,9 +23,12 @@ function bytesToHex(bytes: Uint8Array): string {
 }
 
 function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+  if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
+    throw new Error("Invalid secret key — expected 64 hex characters");
+  }
+  const bytes = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) {
+    bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
   }
   return bytes;
 }
@@ -72,14 +75,37 @@ export function createNostrIdentity(): { nsecHex: string; pubkey: string } {
 }
 
 export function derivePubkey(key: string): string {
-  let sk: Uint8Array;
-  if (key.startsWith("nsec1")) {
-    const decoded = nip19.decode(key);
-    sk = decoded.data as Uint8Array;
-  } else {
-    sk = hexToBytes(key);
+  const nsecHex = normalizeSecretKey(key);
+  return getPublicKey(hexToBytes(nsecHex));
+}
+
+/**
+ * Accept mnemonic (12/24 words), nsec1 bech32, or 64-char hex.
+ * Always returns lowercase 64-char hex for storage and signing.
+ */
+export function normalizeSecretKey(input: string): string {
+  const raw = input.trim();
+  if (!raw) {
+    throw new Error("Secret key is empty");
   }
-  return getPublicKey(sk);
+  // BIP39 mnemonic (spaces between words)
+  if (/\s/.test(raw) || raw.split(/\s+/).length >= 12) {
+    return mnemonicToNsec(raw).toLowerCase();
+  }
+  if (raw.toLowerCase().startsWith("nsec1")) {
+    const decoded = nip19.decode(raw);
+    if (decoded.type !== "nsec") {
+      throw new Error("Invalid nsec — expected nsec1 bech32 secret");
+    }
+    return bytesToHex(decoded.data as Uint8Array);
+  }
+  const hex = raw.toLowerCase().replace(/^0x/, "");
+  if (!/^[0-9a-f]{64}$/.test(hex)) {
+    throw new Error(
+      "Invalid key — use your 24-word recovery phrase, nsec1…, or 64-char hex",
+    );
+  }
+  return hex;
 }
 
 // ─── BIP39 Mnemonic (Key Recovery) ─────────────────────
@@ -96,14 +122,26 @@ export function mnemonicToNsec(mnemonic: string): string {
   return mnemonicToEntropy(cleaned);
 }
 
-export async function getStoredNsec(
+/**
+ * Explicit recovery export only (Settings "Show Recovery Phrase").
+ * Does not load the key for routine app operations — signing stays in Rust.
+ */
+export async function exportRecoveryNsec(
   sessionToken: string,
   handle: string,
 ): Promise<string | null> {
   if (isTauri()) {
-    return await tauriGetKey(sessionToken, handle);
+    return await tauriExportRecoveryKey(sessionToken, handle);
   }
   return webSecretStorage().getItem(SECRET_KEY);
+}
+
+/** @deprecated Use exportRecoveryNsec for explicit backup reveal only. */
+export async function getStoredNsec(
+  sessionToken: string,
+  handle: string,
+): Promise<string | null> {
+  return exportRecoveryNsec(sessionToken, handle);
 }
 
 // ─── Auth Event Signing ─────────────────────────────────
@@ -186,13 +224,15 @@ export async function authenticateWithNostr(
   handle: string,
   nsecHex: string,
 ): Promise<string> {
+  const secret = normalizeSecretKey(nsecHex);
+
   // 1. Get challenge from server
   const challenge = isTauri()
     ? await tauriGetChallenge(handle)
     : "web_challenge";
 
   // 2. Sign auth event
-  const { authEvent, pubkey } = await signAuthEvent(nsecHex, challenge);
+  const { authEvent, pubkey } = await signAuthEvent(secret, challenge);
 
   // 3. Send login request
   const token = isTauri()
@@ -205,6 +245,31 @@ export async function authenticateWithNostr(
   localStorage.setItem(DISPLAY_KEY, handle);
 
   return token;
+}
+
+/**
+ * On app boot: drop stale sessions and web sessions with no secret.
+ * Call once at startup (App mount).
+ */
+export async function verifySessionOnBoot(): Promise<void> {
+  const token = getSessionToken();
+  if (!token) return;
+
+  if (isTauri()) {
+    try {
+      // Returns handle on success; throws / rejects when session is invalid.
+      await tauriVerifySession(token);
+    } catch {
+      clearIdentity();
+    }
+    return;
+  }
+
+  // Web: durable session without tab-scoped secret is unusable — force re-auth
+  const secret = webSecretStorage().getItem(SECRET_KEY);
+  if (!secret) {
+    clearSession();
+  }
 }
 
 // ─── Current User ───────────────────────────────────────

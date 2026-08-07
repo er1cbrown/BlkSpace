@@ -290,11 +290,21 @@ fn store_key(state: State<AppState>, session_token: String, handle: String, key:
   Ok(())
 }
 
+/// Explicit recovery export only. Requires confirm_export == "EXPORT_RECOVERY_KEY".
+/// Routine signing must use `load_user_nostr_keys` in Rust — never call this for publish.
 #[tauri::command]
-fn get_key(state: State<AppState>, session_token: String, handle: String) -> Result<Option<String>, String> {
+fn export_recovery_key(
+  state: State<AppState>,
+  session_token: String,
+  handle: String,
+  confirm_export: String,
+) -> Result<Option<String>, String> {
+  if confirm_export != "EXPORT_RECOVERY_KEY" {
+    return Err("Recovery export requires explicit confirmation".to_string());
+  }
   let session_handle = check_session_rate_limit(&state, &session_token)?;
   if session_handle != handle {
-    return Err("Cannot read key for a different user".to_string());
+    return Err("Cannot export key for a different user".to_string());
   }
   validate_handle(&handle).map_err(map_err)?;
   state.key_store.load(&handle)
@@ -594,16 +604,29 @@ fn link_pubkey(
   state: State<AppState>,
   handle: String,
   new_pubkey: String,
+  challenge: String,
   auth_event: String,
 ) -> Result<String, String> {
   validate_handle(&handle).map_err(map_err)?;
-  if new_pubkey.len() != 64 {
+  if new_pubkey.len() != 64 || !new_pubkey.chars().all(|c| c.is_ascii_hexdigit()) {
     return Err("Invalid pubkey format".to_string());
   }
 
-  // Generate a dedicated linking challenge
-  let link_challenge = format!("link:{}:{}", handle, new_pubkey);
-  let verified_pubkey = verify_nostr_auth_event(&auth_event, &link_challenge)?;
+  // Single-use challenge issued by get_challenge(handle) — not a deterministic string.
+  {
+    let mut challenges = state.challenges.lock().unwrap();
+    let c = challenges
+      .remove(&challenge)
+      .ok_or("Challenge not found or expired — call get_challenge first".to_string())?;
+    if c.created_at.elapsed() > Duration::from_secs(120) {
+      return Err("Challenge expired".to_string());
+    }
+    if c.handle != handle {
+      return Err("Challenge was issued for a different user".to_string());
+    }
+  }
+
+  let verified_pubkey = verify_nostr_auth_event(&auth_event, &challenge)?;
   if verified_pubkey != new_pubkey {
     return Err("Pubkey mismatch in auth event".to_string());
   }
@@ -1154,8 +1177,16 @@ fn publish_mix(
     });
   }
 
-  // Reward per reward-formulas.md: DJ mix upload 8 WB
-  let _ = state.db.grant_weix_bucks(&author, 8, "DJ mix published");
+  // Require a local blob record for the CID before treating as a real mix publish.
+  // No automatic WB grant on self-attested mix publish (economy abuse surface).
+  let blob_ok = state
+    .db
+    .get_blob_record(&cid)
+    .map(|m| m.is_some())
+    .unwrap_or(false);
+  if !blob_ok {
+    return Err("Mix CID not found in local media store — upload the mix first".to_string());
+  }
 
   Ok(cid)
 }
@@ -2481,9 +2512,24 @@ fn create_channel(
   name: String,
   description: Option<String>,
 ) -> Result<db::Channel, String> {
-  let _handle = get_handle_from_session(&state, &session_token)?;
+  let handle = get_handle_from_session(&state, &session_token)?;
   if name.trim().is_empty() {
     return Err("Channel name required".to_string());
+  }
+  // Must be a yard member (or community Admin/Mod) to create channels
+  let is_member = state
+    .db
+    .is_yard_member(&handle, &community_id)
+    .map_err(|e| e.to_string())?;
+  if !is_member {
+    let role = state
+      .db
+      .get_community_role(&community_id, &handle)
+      .unwrap_or_default();
+    let elevated = role.eq_ignore_ascii_case("Admin") || role.eq_ignore_ascii_case("Yard Mod");
+    if !elevated {
+      return Err("Join this yard before creating a channel".to_string());
+    }
   }
   let id = name.trim().trim_start_matches('#').to_lowercase().replace(|c: char| !c.is_alphanumeric() && c != '-', "-");
   let desc = description.unwrap_or_default();
@@ -3045,30 +3091,16 @@ fn list_pinned_content(state: State<AppState>, session_token: String) -> Result<
 fn report_pin_serve(state: State<AppState>, session_token: String, hash: String) -> Result<bool, String> {
   let served_by = get_handle_from_session(&state, &session_token)?;
   validate_blob_hash(&hash)?;
-  
-  // Record the serve
+
+  // Telemetry only — no self-serve WB rewards (was free faucet via self-attested serves)
   state.db.record_pin_serve(&hash, &served_by, &served_by).map_err(|e| e.to_string())?;
-  
-  // Check daily cap (100 serves/day = 10 WB max)
+
   let serves_today = state.db.count_serves_today(&served_by).map_err(|e| e.to_string())?;
   if serves_today > 100 {
-    return Ok(false); // Daily cap reached
+    return Ok(false); // Daily report cap
   }
-  
-  // Credit node operator: 0.1 WB per serve
-  let conn = state.db.conn.lock().unwrap();
-  conn.execute(
-    "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
-    params![0.1, served_by],
-  ).ok();
-  conn.execute(
-    "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
-     SELECT ?1, 'earn', ?2, 'Pin serve reward', weix_bucks FROM users WHERE handle = ?1",
-    params![served_by, 0.1],
-  ).ok();
-  drop(conn);
 
-  // 30083 pin report Nostr (Nostr kinds)
+  // Optional Nostr report only (no wallet credit)
   let hasr = { state.relay_manager.lock().unwrap().relay_count() > 0 };
   if hasr {
     if let Some(ukeys) = user_nostr_keys_for_publish(&state, &served_by, "pin serve report") {
@@ -3096,39 +3128,9 @@ fn report_pin_serve(state: State<AppState>, session_token: String, hash: String)
 
 #[tauri::command]
 fn claim_node_rewards(state: State<AppState>, session_token: String) -> Result<f64, String> {
-  let handle = get_handle_from_session(&state, &session_token)?;
-  let serves_today = state.db.count_serves_today(&handle).map_err(|e| e.to_string())?;
-  let rewards = (serves_today as f64) * 0.1;
-
-  // Publish 30080 reward grant on claim (Nostr hygiene)
-  let has_relays = { state.relay_manager.lock().unwrap().relay_count() > 0 };
-  if has_relays {
-    let Some(user_keys) = user_nostr_keys_for_publish(&state, &handle, "node reward claim publish") else {
-      return Ok(rewards);
-    };
-    let content = format!("Node reward grant of {} WB", rewards);
-    let tags: Vec<Vec<String>> = vec![
-      vec!["t".to_string(), "blkspace".to_string()],
-      vec!["amount".to_string(), rewards.to_string()],
-      vec!["reason".to_string(), "pin_serves".to_string()],
-    ];
-    let nostr_client = { state.relay_manager.lock().unwrap().client().clone() };
-    if let Ok(rt) = tokio::runtime::Runtime::new() {
-      let _ = rt.block_on(async {
-        use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
-        let nostr_tags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
-        let event = EventBuilder::new(Kind::Custom(30080), &content)
-          .tags(nostr_tags)
-          .sign(&user_keys)
-          .await
-          .map_err(|e| format!("Reward sign: {}", e))?;
-        let _ = nostr_client.send_event(event).await;
-        Ok::<_, String>(())
-      });
-    }
-  }
-
-  Ok(rewards)
+  // Self-serve pin rewards disabled until peer-verified serve proofs exist.
+  let _handle = get_handle_from_session(&state, &session_token)?;
+  Ok(0.0)
 }
 
 // ─── Cross-Device Content Sync ──────────────────────────
@@ -3250,8 +3252,10 @@ fn get_pending_offline_actions(state: State<AppState>, session_token: String) ->
 
 #[tauri::command]
 fn mark_offline_action_synced(state: State<AppState>, session_token: String, id: i64) -> Result<(), String> {
-  let _handle = get_handle_from_session(&state, &session_token)?;
-  state.db.mark_offline_action_synced(id)
+  let handle = get_handle_from_session(&state, &session_token)?;
+  state
+    .db
+    .mark_offline_action_synced_for_handle(id, &handle)
     .map_err(|e| e.to_string())
 }
 
@@ -3378,7 +3382,10 @@ fn flush_offline_queue(state: State<AppState>, session_token: String) -> Result<
 
     match result {
       Ok(()) => {
-        state.db.mark_offline_action_synced(id).map_err(|e| e.to_string())?;
+        state
+          .db
+          .mark_offline_action_synced_for_handle(id, &handle)
+          .map_err(|e| e.to_string())?;
         synced += 1;
       }
       Err(e) => {
@@ -3518,10 +3525,12 @@ fn get_device_sync_history(state: State<AppState>, device_id: String) -> Result<
 #[tauri::command]
 fn record_relay_consensus(
   state: State<AppState>,
+  session_token: String,
   event_id: String,
   relay_url: String,
   content_hash: String,
 ) -> Result<bool, String> {
+  let _ = get_handle_from_session(&state, &session_token)?;
   state.db.record_relay_consensus(&event_id, &relay_url, &content_hash)
     .map_err(|e| e.to_string())
 }
@@ -3643,7 +3652,11 @@ fn get_malicious_intent_scores(
 #[tauri::command]
 fn recalculate_all_malicious_intent_scores(
   state: State<AppState>,
+  session_token: String,
 ) -> Result<usize, String> {
+  let _ = get_handle_from_session(&state, &session_token)?;
+  // Full-graph work is expensive — only allow authenticated sessions.
+  // Future: gate on node admin role when role checks are hardened.
   state.db.recalculate_all_malicious_intent_scores()
     .map_err(|e| e.to_string())
 }
@@ -3660,7 +3673,8 @@ fn mime_from_filename(filename: &str) -> String {
     "png" => "image/png".into(),
     "gif" => "image/gif".into(),
     "webp" => "image/webp".into(),
-    "svg" => "image/svg+xml".into(),
+    // SVG uploads rejected (scriptable XSS vector into privileged webview)
+    // "svg" => "image/svg+xml".into(),
     "heic" | "heif" => "image/heic".into(),
     "avif" => "image/avif".into(),
     "bmp" => "image/bmp".into(),
@@ -3690,7 +3704,7 @@ fn is_allowed_upload_ext(filename: &str) -> bool {
   let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
   matches!(
     ext.as_str(),
-    "jpg" | "jpeg" | "png" | "gif" | "webp" | "svg" | "heic" | "heif" | "avif" | "bmp"
+    "jpg" | "jpeg" | "png" | "gif" | "webp" | "heic" | "heif" | "avif" | "bmp"
       | "mp4" | "m4v" | "webm" | "mov" | "avi" | "mkv"
       | "mp3" | "m4a" | "aac" | "ogg" | "opus" | "wav" | "flac"
       | "pdf" | "doc" | "docx" | "txt" | "md" | "csv" | "json" | "zip" | "rtf"
@@ -3905,23 +3919,49 @@ fn create_blob_share_ticket(
   session_token: String,
   hash: String,
 ) -> Result<sendme_share::BlobShareTicket, String> {
-  check_session_rate_limit(&state, &session_token)?;
+  let handle = check_session_rate_limit(&state, &session_token)?;
   validate_blob_hash(&hash)?;
   let rec = state
     .db
     .get_blob_record(&hash)
     .map_err(|e| AppError::from(e).to_string())?
     .ok_or_else(|| "Blob not found — upload first, then share".to_string())?;
+  if rec.uploader_handle != handle {
+    return Err("Only the uploader can create a share ticket".to_string());
+  }
 
   let payload = sendme_share::BlobSharePayload {
-    v: 1,
+    v: 2,
     hash: rec.hash.clone(),
     cid: rec.cid.clone(),
     name: rec.filename.clone(),
     mime: rec.mime_type.clone(),
     size: rec.file_size,
     src: "blkspace".to_string(),
+    issued_at: 0,
+    expires_at: 0,
+    issuer: None,
+    signature: None,
+    p2p_ticket: None,
   };
+  let keys = load_user_nostr_keys(&state, &handle)?;
+  #[cfg(feature = "iroh-net")]
+  let p2p_ticket = if let Some(cid) = rec.cid.as_deref() {
+    let iroh = state.iroh.lock().unwrap();
+    if let Some(node) = iroh.as_ref() {
+      let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {e}"))?;
+      Some(rt.block_on(node.ticket_for_hash(cid))?)
+    } else {
+      None
+    }
+  } else {
+    None
+  };
+  #[cfg(not(feature = "iroh-net"))]
+  let p2p_ticket: Option<String> = None;
+  let mut payload = payload;
+  payload.p2p_ticket = p2p_ticket;
+  let payload = sendme_share::sign_payload(payload, &keys, 24 * 60 * 60)?;
   let ticket = payload.encode_ticket()?;
   let available = blob_bytes_available(&state, &rec.hash, rec.cid.as_deref());
   let p2p_hint = if available {
@@ -3961,6 +4001,7 @@ fn receive_blob_share_ticket(
   }
 
   let payload = sendme_share::BlobSharePayload::decode_ticket(raw)?;
+  sendme_share::verify_payload(&payload)?;
   let hash = if !payload.hash.is_empty() {
     payload.hash.clone()
   } else {
@@ -3972,6 +4013,9 @@ fn receive_blob_share_ticket(
 
   // Already local?
   if let Some(bytes) = state.blob_store.get_blob(&hash) {
+    if sendme_share::sha256_hex(&bytes) != payload.hash || bytes.len() as i64 != payload.size {
+      return Err("Local content does not match the share ticket".to_string());
+    }
     let cid = payload.cid.as_deref();
     let (record, _) = state
       .db
@@ -3996,6 +4040,42 @@ fn receive_blob_share_ticket(
   }
 
   // Iroh store (Full build)
+  #[cfg(feature = "iroh-net")]
+  if let Some(p2p_ticket) = payload.p2p_ticket.as_deref() {
+    if let Some(iroh) = state.iroh.lock().unwrap().as_ref() {
+      let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {e}"))?;
+      match rt.block_on(iroh.download_ticket(p2p_ticket)) {
+        Ok(bytes) => {
+          if sendme_share::sha256_hex(&bytes) != payload.hash || bytes.len() as i64 != payload.size {
+            return Err("P2P content does not match the share ticket".to_string());
+          }
+          let local_hash = state.blob_store.store_blob(&bytes)?;
+          let (record, _) = state
+            .db
+            .insert_blob(
+              &local_hash,
+              payload.cid.as_deref(),
+              &payload.name,
+              &payload.mime,
+              bytes.len() as i64,
+              &handle,
+            )
+            .map_err(|e| AppError::from(e).to_string())?;
+          return Ok(sendme_share::ReceiveShareResult {
+            hash: record.hash,
+            cid: record.cid,
+            filename: record.filename,
+            mime_type: record.mime_type,
+            file_size: record.file_size,
+            source: "iroh-p2p".to_string(),
+            message: "Materialized from in-app Iroh P2P".to_string(),
+          });
+        }
+        Err(e) => log::warn!("in-app Iroh P2P download failed: {e}"),
+      }
+    }
+  }
+
   #[cfg(feature = "iroh")]
   if let Some(iroh) = state.iroh.lock().unwrap().as_ref() {
     let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {e}"))?;
@@ -4014,6 +4094,10 @@ fn receive_blob_share_ticket(
     for key in keys {
       match rt.block_on(iroh.get_blob(&key)) {
         Ok(Some(bytes)) => {
+          if sendme_share::sha256_hex(&bytes) != payload.hash || bytes.len() as i64 != payload.size {
+            log::warn!("Ignoring Iroh bytes that do not match share ticket");
+            continue;
+          }
           let local_hash = state.blob_store.store_blob(&bytes)?;
           let cid = payload.cid.clone().or(Some(key));
           let (record, _) = state
@@ -4319,7 +4403,15 @@ fn set_reading_current(
   work: String,
   chapter: String,
 ) -> Result<(), String> {
-  let _ = check_session_rate_limit(&state, &session_token)?;
+  let handle = check_session_rate_limit(&state, &session_token)?;
+  // Only the circle creator may change the current work/chapter
+  let created_by = state
+    .db
+    .get_reading_circle_creator(circle_id)
+    .map_err(|e| e.to_string())?;
+  if created_by != handle {
+    return Err("Only the reading circle creator can set the current work".to_string());
+  }
   state
     .db
     .set_reading_current(circle_id, &work, &chapter)
@@ -5085,7 +5177,7 @@ pub fn run() {
       verify_session,
       logout,
       store_key,
-      get_key,
+      export_recovery_key,
       has_key,
       get_user,
       list_users,

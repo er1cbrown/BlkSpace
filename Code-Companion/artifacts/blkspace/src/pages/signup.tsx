@@ -15,8 +15,11 @@ import {
   storeIdentity,
   authenticateWithNostr,
   createNostrIdentity,
+  nsecToMnemonic,
+  markFirstRunComplete,
 } from "@/lib/auth";
 import { isTauri, tauriCreateUser } from "@/lib/tauri-api";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function SignupPage() {
   const [, navigate] = useLocation();
@@ -24,6 +27,8 @@ export default function SignupPage() {
   const [handle, setHandle] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
+  const [phraseAck, setPhraseAck] = useState(false);
 
   const joinYard = async () => {
     const cleanHandle = handle.trim() || `user_${Date.now().toString(36)}`;
@@ -37,12 +42,19 @@ export default function SignupPage() {
       }
       const token = await authenticateWithNostr(cleanHandle, identity.nsecHex);
       await storeIdentity(token, cleanHandle, identity.nsecHex, cleanName);
-      navigate("/feed");
+      setRecoveryPhrase(nsecToMnemonic(identity.nsecHex));
+      setPhraseAck(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Signup failed — try again");
     } finally {
       setSaving(false);
     }
+  };
+
+  const finishSignup = () => {
+    if (!phraseAck || !recoveryPhrase) return;
+    markFirstRunComplete();
+    navigate("/feed");
   };
 
   return (
@@ -51,9 +63,13 @@ export default function SignupPage() {
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-lg border-primary/10">
           <CardHeader className="text-center pb-6">
-            <CardTitle className="text-3xl font-serif">Join the Yard</CardTitle>
+            <CardTitle className="text-3xl font-serif">
+              {recoveryPhrase ? "Save Recovery Phrase" : "Join the Yard"}
+            </CardTitle>
             <CardDescription className="text-base">
-              Create your free account in seconds
+              {recoveryPhrase
+                ? "Write down these 24 words — this is the only way to recover your account"
+                : "Create your free account in seconds"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -62,6 +78,34 @@ export default function SignupPage() {
                 {error}
               </div>
             )}
+            {recoveryPhrase ? (
+              <>
+                <Textarea
+                  readOnly
+                  value={recoveryPhrase}
+                  className="font-mono min-h-[120px] text-sm"
+                />
+                <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={phraseAck}
+                    onChange={(e) => setPhraseAck(e.target.checked)}
+                  />
+                  <span>
+                    I wrote down my 24-word recovery phrase in a safe place
+                  </span>
+                </label>
+                <Button
+                  onClick={finishSignup}
+                  className="w-full rounded-full h-12 text-base font-bold"
+                  disabled={!phraseAck}
+                >
+                  Continue to feed
+                </Button>
+              </>
+            ) : (
+              <>
             <div className="space-y-2">
               <Label htmlFor="name">Display Name</Label>
               <Input
@@ -84,8 +128,8 @@ export default function SignupPage() {
               />
             </div>
             <p className="text-xs text-muted-foreground text-center">
-              No wallet needed. Your account is secured automatically — save
-              your backup code in Settings when you want to cash out.
+              No wallet needed. You will be shown a 24-word recovery phrase
+              before entering the yard — save it offline.
             </p>
             <Button
               onClick={joinYard}
@@ -94,6 +138,8 @@ export default function SignupPage() {
             >
               {saving ? "Creating..." : "Join the Yard"}
             </Button>
+              </>
+            )}
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
               <Link

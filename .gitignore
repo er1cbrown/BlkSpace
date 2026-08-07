@@ -23,7 +23,10 @@ tmp/
 # Rust / Tauri
 # ============================================================================
 src-tauri/target/
+# Library crates may omit lockfiles; track app/workspace locks for reproducible builds.
 Cargo.lock
+!Code-Companion/artifacts/blkspace/src-tauri/Cargo.lock
+!Code-Companion/artifacts/solana/Cargo.lock
 *.rs.bk
 
 # ============================================================================

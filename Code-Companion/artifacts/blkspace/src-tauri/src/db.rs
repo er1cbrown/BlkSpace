@@ -4631,6 +4631,21 @@ impl Database {
     Ok(())
   }
 
+  /// Mark synced only if the action belongs to `author_handle` (prevents cross-user queue tampering).
+  pub fn mark_offline_action_synced_for_handle(&self, id: i64, author_handle: &str) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    let affected = conn.execute(
+      "UPDATE offline_queue SET synced = 1 WHERE id = ?1 AND author_handle = ?2",
+      params![id, author_handle],
+    )?;
+    if affected == 0 {
+      return Err(AppError::Validation(
+        "Offline action not found or not owned by session".into(),
+      ));
+    }
+    Ok(())
+  }
+
   pub fn clear_synced_offline_actions(&self, author_handle: &str) -> Result<usize> {
     let conn = self.conn.lock().unwrap();
     let affected = conn.execute(
@@ -5910,6 +5925,22 @@ impl Database {
     let conn = self.conn.lock().unwrap();
     crate::club_activities::set_current_read(&conn, circle_id, work, chapter)
       .map_err(AppError::from)
+  }
+
+  pub fn get_reading_circle_creator(&self, circle_id: i64) -> Result<String, AppError> {
+    let conn = self.conn.lock().unwrap();
+    conn
+      .query_row(
+        "SELECT created_by FROM reading_circles WHERE id = ?1",
+        params![circle_id],
+        |r| r.get(0),
+      )
+      .map_err(|e| match e {
+        rusqlite::Error::QueryReturnedNoRows => {
+          AppError::Validation("Reading circle not found".into())
+        }
+        other => AppError::from(other),
+      })
   }
 
   pub fn add_reading_entry(

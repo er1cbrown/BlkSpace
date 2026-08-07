@@ -163,20 +163,15 @@ export default function SettingsPage() {
     try {
       const sessionToken = getSessionToken();
       if (!sessionToken) {
-        // Try localStorage fallback
-        const nsec = localStorage.getItem("blkspace_nsec");
-        if (nsec) setRevealedPhrase(nsecToMnemonic(nsec));
-        else setRevealedPhrase(null);
+        setRevealedPhrase(null);
         return;
       }
+      // Explicit export only — no localStorage secret fallback (purged / insecure)
       const nsec = await getStoredNsec(sessionToken, handle);
       if (nsec) setRevealedPhrase(nsecToMnemonic(nsec));
       else setRevealedPhrase(null);
     } catch {
-      // Fallback to localStorage
-      const nsec = localStorage.getItem("blkspace_nsec");
-      if (nsec) setRevealedPhrase(nsecToMnemonic(nsec));
-      else setRevealedPhrase(null);
+      setRevealedPhrase(null);
     } finally {
       setLoadingPhrase(false);
     }
@@ -585,7 +580,8 @@ export default function SettingsPage() {
                 Recovery Phrase
               </CardTitle>
               <CardDescription>
-                Your 12-word seed phrase is the only way to recover your account
+                Your 24-word recovery phrase is the only way to recover your
+                account
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

@@ -6,7 +6,7 @@ import {
   likesTable,
   repliesTable,
 } from "@workspace/db";
-import { eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 import {
   ListPostsQueryParams,
   CreatePostBody,
@@ -18,6 +18,7 @@ import {
   CreateReplyParams,
   CreateReplyBody,
 } from "@workspace/api-zod";
+import { requireDemoWrites } from "../middlewares/demo-auth";
 
 const router = Router();
 
@@ -34,7 +35,12 @@ async function enrichPost(
     const [like] = await db
       .select()
       .from(likesTable)
-      .where(eq(likesTable.postId, post.id));
+      .where(
+        and(
+          eq(likesTable.postId, post.id),
+          eq(likesTable.userHandle, viewerHandle),
+        ),
+      );
     liked = !!like;
   }
   return {
@@ -66,7 +72,7 @@ router.get("/", async (req, res) => {
   res.json(enriched);
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireDemoWrites, async (req, res) => {
   const parsed = CreatePostBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid input" });
@@ -117,7 +123,7 @@ router.get("/:id", async (req, res) => {
   res.json(enriched);
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireDemoWrites, async (req, res) => {
   const parsed = DeletePostParams.safeParse({ id: parseInt(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -127,7 +133,7 @@ router.delete("/:id", async (req, res) => {
   res.status(204).send();
 });
 
-router.post("/:id/like", async (req, res) => {
+router.post("/:id/like", requireDemoWrites, async (req, res) => {
   const parsed = LikePostParams.safeParse({ id: parseInt(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -141,20 +147,29 @@ router.post("/:id/like", async (req, res) => {
     res.status(404).json({ error: "Post not found" });
     return;
   }
-  await db
+  const userHandle =
+    typeof req.body?.userHandle === "string" && req.body.userHandle.trim()
+      ? req.body.userHandle.trim()
+      : "demo_user";
+  const inserted = await db
     .insert(likesTable)
-    .values({ postId: parsed.data.id, userHandle: "current_user" })
-    .onConflictDoNothing();
-  const [updated] = await db
-    .update(postsTable)
-    .set({ likesCount: sql`${postsTable.likesCount} + 1` })
-    .where(eq(postsTable.id, parsed.data.id))
+    .values({ postId: parsed.data.id, userHandle })
+    .onConflictDoNothing()
     .returning();
-  const enriched = await enrichPost(updated);
+  // Only bump counter when a new like row was created
+  const [updated] =
+    inserted.length > 0
+      ? await db
+          .update(postsTable)
+          .set({ likesCount: sql`${postsTable.likesCount} + 1` })
+          .where(eq(postsTable.id, parsed.data.id))
+          .returning()
+      : [post];
+  const enriched = await enrichPost(updated, userHandle);
   res.json(enriched);
 });
 
-router.delete("/:id/like", async (req, res) => {
+router.delete("/:id/like", requireDemoWrites, async (req, res) => {
   const parsed = UnlikePostParams.safeParse({ id: parseInt(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -168,13 +183,28 @@ router.delete("/:id/like", async (req, res) => {
     res.status(404).json({ error: "Post not found" });
     return;
   }
-  await db.delete(likesTable).where(eq(likesTable.postId, parsed.data.id));
-  const [updated] = await db
-    .update(postsTable)
-    .set({ likesCount: sql`GREATEST(${postsTable.likesCount} - 1, 0)` })
-    .where(eq(postsTable.id, parsed.data.id))
+  const userHandle =
+    typeof req.body?.userHandle === "string" && req.body.userHandle.trim()
+      ? req.body.userHandle.trim()
+      : "demo_user";
+  const removed = await db
+    .delete(likesTable)
+    .where(
+      and(
+        eq(likesTable.postId, parsed.data.id),
+        eq(likesTable.userHandle, userHandle),
+      ),
+    )
     .returning();
-  const enriched = await enrichPost(updated);
+  const [updated] =
+    removed.length > 0
+      ? await db
+          .update(postsTable)
+          .set({ likesCount: sql`GREATEST(${postsTable.likesCount} - 1, 0)` })
+          .where(eq(postsTable.id, parsed.data.id))
+          .returning()
+      : [post];
+  const enriched = await enrichPost(updated, userHandle);
   res.json(enriched);
 });
 
@@ -205,7 +235,7 @@ router.get("/:id/replies", async (req, res) => {
   res.json(enriched);
 });
 
-router.post("/:id/replies", async (req, res) => {
+router.post("/:id/replies", requireDemoWrites, async (req, res) => {
   const paramsParsed = CreateReplyParams.safeParse({
     id: parseInt(req.params.id),
   });

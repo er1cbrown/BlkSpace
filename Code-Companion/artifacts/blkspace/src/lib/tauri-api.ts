@@ -374,11 +374,27 @@ export function tauriStoreKey(
   return invoke("store_key", { sessionToken, handle, key });
 }
 
+/**
+ * Explicit recovery export only. Requires user-confirmed backup reveal.
+ * Routine signing must stay in Rust (never call this for publish/login).
+ */
+export function tauriExportRecoveryKey(
+  sessionToken: string,
+  handle: string,
+): Promise<string | null> {
+  return invoke("export_recovery_key", {
+    sessionToken,
+    handle,
+    confirmExport: "EXPORT_RECOVERY_KEY",
+  });
+}
+
+/** @deprecated Use tauriExportRecoveryKey */
 export function tauriGetKey(
   sessionToken: string,
   handle: string,
 ): Promise<string | null> {
-  return invoke("get_key", { sessionToken, handle });
+  return tauriExportRecoveryKey(sessionToken, handle);
 }
 
 export function tauriHasKey(
@@ -1050,9 +1066,10 @@ export function tauriGetSendmeCliCommands(
 export function tauriLinkPubkey(
   handle: string,
   newPubkey: string,
+  challenge: string,
   authEvent: string,
 ): Promise<string> {
-  return invoke("link_pubkey", { handle, newPubkey, authEvent });
+  return invoke("link_pubkey", { handle, newPubkey, challenge, authEvent });
 }
 
 // ─── Relay Networking Commands ──────────────────────────
@@ -1507,11 +1524,17 @@ export interface RelayConsensusStats {
 }
 
 export function tauriRecordRelayConsensus(
+  sessionToken: string,
   eventId: string,
   relayUrl: string,
   contentHash: string,
 ): Promise<boolean> {
-  return invoke("record_relay_consensus", { eventId, relayUrl, contentHash });
+  return invoke("record_relay_consensus", {
+    sessionToken,
+    eventId,
+    relayUrl,
+    contentHash,
+  });
 }
 
 export function tauriGetRelayConsensus(
@@ -1595,8 +1618,10 @@ export function tauriGetMaliciousIntentScores(
   return invoke("get_malicious_intent_scores", { handle });
 }
 
-export function tauriRecalculateAllMaliciousIntentScores(): Promise<number> {
-  return invoke("recalculate_all_malicious_intent_scores", {});
+export function tauriRecalculateAllMaliciousIntentScores(
+  sessionToken: string,
+): Promise<number> {
+  return invoke("recalculate_all_malicious_intent_scores", { sessionToken });
 }
 
 export function tauriJoinYard(

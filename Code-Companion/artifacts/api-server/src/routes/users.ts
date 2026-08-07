@@ -8,6 +8,7 @@ import {
   UpdateUserBody,
   CreateUserBody,
 } from "@workspace/api-zod";
+import { requireDemoWrites } from "../middlewares/demo-auth";
 
 const router = Router();
 
@@ -19,7 +20,7 @@ router.get("/", async (req, res) => {
   res.json(users);
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireDemoWrites, async (req, res) => {
   const parsed = CreateUserBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid input" });
@@ -46,7 +47,7 @@ router.get("/:handle", async (req, res) => {
   res.json(user);
 });
 
-router.patch("/:handle", async (req, res) => {
+router.patch("/:handle", requireDemoWrites, async (req, res) => {
   const paramsParsed = UpdateUserParams.safeParse(req.params);
   const bodyParsed = UpdateUserBody.safeParse(req.body);
   if (!paramsParsed.success || !bodyParsed.success) {

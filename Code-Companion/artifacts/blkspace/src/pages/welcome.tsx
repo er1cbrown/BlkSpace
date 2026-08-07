@@ -21,9 +21,11 @@ import {
   storeIdentity,
   authenticateWithNostr,
   enterGuestMode,
+  nsecToMnemonic,
+  markFirstRunComplete,
 } from "@/lib/auth";
 import { isTauri, tauriCreateUser, tauriUpdateUser } from "@/lib/tauri-api";
-import { markFirstRunComplete } from "@/lib/auth";
+import { Textarea } from "@/components/ui/textarea";
 import { BRAND } from "@/lib/brand";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { applyMedSchoolOnboarding } from "@/lib/focus-mode";
@@ -46,8 +48,18 @@ export default function WelcomePage() {
   const [yardId, setYardId] = useState("tsu");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
+  const [phraseAck, setPhraseAck] = useState(false);
+  const [postJoinPath, setPostJoinPath] = useState("/feed");
 
   const totalSteps = 3;
+
+  const finishWithPhraseAck = () => {
+    if (!phraseAck || !recoveryPhrase) return;
+    markFirstRunComplete();
+    markJustJoined(yardId || "tsu");
+    navigate(postJoinPath);
+  };
 
   const joinYard = async () => {
     const cleanHandle = handle.trim() || `user_${Date.now().toString(36)}`;
@@ -122,15 +134,15 @@ export default function WelcomePage() {
         /* mesh optional on first join if offline */
       }
 
-      markFirstRunComplete();
-      markJustJoined(yardId || "tsu");
-      navigate(
+      const next =
         path === "med_focus"
           ? "/focus"
           : path === "faculty"
             ? "/faculty"
-            : "/feed",
-      );
+            : "/feed";
+      setPostJoinPath(next);
+      setRecoveryPhrase(nsecToMnemonic(identity.nsecHex));
+      setPhraseAck(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not create account");
     } finally {
@@ -294,8 +306,8 @@ export default function WelcomePage() {
           </p>
         </div>
         <p className="text-xs text-muted-foreground text-center">
-          Your account is secured automatically. Save your backup code later in
-          Settings when you&apos;re ready to cash out.
+          After join you must save a 24-word recovery phrase before entering the
+          yard.
         </p>
         {error && (
           <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">
@@ -306,13 +318,59 @@ export default function WelcomePage() {
     </div>,
   ];
 
+  if (recoveryPhrase) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <Card className="w-full max-w-lg shadow-lg border-primary/10">
+            <CardHeader className="text-center pb-4">
+              <CardTitle className="text-2xl font-serif">
+                Save Recovery Phrase
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Write down these 24 words offline. Anyone with them can take
+                over your account.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Textarea
+                readOnly
+                value={recoveryPhrase}
+                className="font-mono min-h-[120px] text-sm"
+              />
+              <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={phraseAck}
+                  onChange={(e) => setPhraseAck(e.target.checked)}
+                />
+                <span>
+                  I wrote down my 24-word recovery phrase in a safe place
+                </span>
+              </label>
+              <Button
+                onClick={finishWithPhraseAck}
+                disabled={!phraseAck}
+                className="w-full rounded-full h-12 font-bold bg-green-600 hover:bg-green-700"
+              >
+                Continue
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-lg shadow-lg border-primary/10">
           <CardHeader className="text-center pb-4">
-            <div className="flex items-center justify-center gap-2 mb-2">
+            <div className="flex items-center gap-2 justify-center mb-2">
               {Array.from({ length: totalSteps }).map((_, i) => (
                 <div
                   key={i}

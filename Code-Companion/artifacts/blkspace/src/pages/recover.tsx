@@ -13,9 +13,10 @@ import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  mnemonicToNsec,
+  normalizeSecretKey,
   derivePubkey,
   authenticateWithNostr,
+  storeIdentity,
 } from "@/lib/auth";
 import { isTauri, tauriCreateUser, tauriGetUser } from "@/lib/tauri-api";
 
@@ -31,17 +32,19 @@ export default function RecoverPage() {
     setSaving(true);
     setError("");
     try {
-      const nsecHex = mnemonicToNsec(phrase);
+      const nsecHex = normalizeSecretKey(phrase);
       const pubkey = derivePubkey(nsecHex);
+      const cleanHandle = handle.trim();
 
       if (isTauri()) {
-        const existing = await tauriGetUser(handle.trim());
+        const existing = await tauriGetUser(cleanHandle);
         if (!existing) {
-          await tauriCreateUser(handle.trim(), handle.trim(), pubkey);
+          await tauriCreateUser(cleanHandle, cleanHandle, pubkey);
         }
       }
 
-      await authenticateWithNostr(handle.trim(), nsecHex);
+      const token = await authenticateWithNostr(cleanHandle, nsecHex);
+      await storeIdentity(token, cleanHandle, nsecHex, cleanHandle);
       navigate("/feed");
     } catch (e) {
       setError(
@@ -62,7 +65,7 @@ export default function RecoverPage() {
               Recover Account
             </CardTitle>
             <CardDescription className="text-base">
-              Enter your 12-word backup code
+              Enter your 24-word recovery phrase
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -85,7 +88,7 @@ export default function RecoverPage() {
               <Label htmlFor="phrase">Recovery Phrase</Label>
               <Textarea
                 id="phrase"
-                placeholder="Enter your 12-word phrase separated by spaces"
+                placeholder="Enter your 24-word phrase separated by spaces"
                 value={phrase}
                 onChange={(e) => setPhrase(e.target.value)}
                 className="font-mono min-h-[100px]"

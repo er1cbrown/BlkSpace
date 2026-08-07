@@ -1376,7 +1376,16 @@ export function useTauriRecordRelayConsensus() {
       eventId: string;
       relayUrl: string;
       contentHash: string;
-    }) => tauri.tauriRecordRelayConsensus(eventId, relayUrl, contentHash),
+    }) => {
+      const sessionToken = getSessionToken() || "";
+      if (!sessionToken) return Promise.reject(new Error("Not authenticated"));
+      return tauri.tauriRecordRelayConsensus(
+        sessionToken,
+        eventId,
+        relayUrl,
+        contentHash,
+      );
+    },
   });
 }
 
@@ -1453,7 +1462,11 @@ export function useTauriGetMaliciousIntentScores(handle: string) {
 
 export function useTauriRecalculateAllMaliciousIntentScores() {
   return useMutation({
-    mutationFn: () => tauri.tauriRecalculateAllMaliciousIntentScores(),
+    mutationFn: () => {
+      const sessionToken = getSessionToken() || "";
+      if (!sessionToken) return Promise.reject(new Error("Not authenticated"));
+      return tauri.tauriRecalculateAllMaliciousIntentScores(sessionToken);
+    },
   });
 }
 

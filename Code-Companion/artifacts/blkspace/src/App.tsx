@@ -7,13 +7,13 @@ import NotFound from "@/pages/not-found";
 
 import LandingPage from "@/pages/landing";
 import WelcomePage from "@/pages/welcome";
-import { isFirstRun } from "@/lib/auth";
+import { isFirstRun, verifySessionOnBoot } from "@/lib/auth";
 import { OfflineSyncProvider } from "@/lib/offline-sync";
 import { GuestModeProvider, useGuestMode } from "@/lib/guest-mode";
 import { GuestCTA } from "@/components/social/GuestCTA";
 import { UiPrefsProvider } from "@/components/ui-prefs/UiPrefsProvider";
 import { BLoader } from "@/components/brand/BLoader";
-import React from "react";
+import React, { useEffect } from "react";
 
 // Lazy load non-initial pages so a bad import/module in one of them
 // doesn't break the initial landing/welcome render (common cause of blank "no display").
@@ -211,6 +211,13 @@ function GuestRoute({ component: Comp }: { component: React.ComponentType }) {
   return <Comp />;
 }
 
+function SessionBoot() {
+  useEffect(() => {
+    void verifySessionOnBoot();
+  }, []);
+  return null;
+}
+
 function App() {
   return (
     <ErrorBoundary>
@@ -220,6 +227,7 @@ function App() {
             <GuestModeProvider>
               <UiPrefsProvider>
                 <TooltipProvider>
+                  <SessionBoot />
                   <WouterRouter
                     base={import.meta.env.BASE_URL.replace(/\/$/, "")}
                   >

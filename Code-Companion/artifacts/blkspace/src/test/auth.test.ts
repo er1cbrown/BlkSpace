@@ -4,6 +4,7 @@ import {
   derivePubkey,
   nsecToMnemonic,
   mnemonicToNsec,
+  normalizeSecretKey,
   isFirstRun,
   markFirstRunComplete,
   getCurrentHandle,
@@ -85,6 +86,25 @@ describe("auth.ts", () => {
       const withExtraSpaces = `  ${mnemonic}  `.toUpperCase();
       const recoveredNsec = mnemonicToNsec(withExtraSpaces);
       expect(recoveredNsec.toLowerCase()).toBe(identity.nsecHex.toLowerCase());
+    });
+  });
+
+  describe("normalizeSecretKey", () => {
+    it("accepts 64-char hex", () => {
+      const identity = createNostrIdentity();
+      expect(normalizeSecretKey(identity.nsecHex)).toBe(identity.nsecHex);
+    });
+
+    it("accepts 24-word mnemonic", () => {
+      const identity = createNostrIdentity();
+      const mnemonic = nsecToMnemonic(identity.nsecHex);
+      expect(normalizeSecretKey(mnemonic).toLowerCase()).toBe(
+        identity.nsecHex.toLowerCase(),
+      );
+    });
+
+    it("rejects garbage", () => {
+      expect(() => normalizeSecretKey("not-a-key")).toThrow();
     });
   });
 
