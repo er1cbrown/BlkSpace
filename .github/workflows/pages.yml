@@ -50,7 +50,7 @@ jobs:
           echo "<!-- BlkSpace campus web preview · Tier 0 UI · uploads/post need desktop Yard MSI for full features -->" >> "$PUB/index.html"
           ls -la "$PUB" | head -20
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
