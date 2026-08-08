@@ -199,8 +199,21 @@ export default function ProfilePage() {
     if (!user) return;
     setProfileTheme(themeKeyFromId((user as any).themeId ?? 0));
     const mh = (user as any).musicHash as string | undefined;
-    setProfileSong(mh && mh.length > 0 ? mh : null);
-  }, [user]);
+    if (mh && mh.length > 0) {
+      setProfileSong(mh);
+      return;
+    }
+    // Web: restore browser-local profile song when account field empty
+    if (!isTauri()) {
+      void import("@/lib/profile-music-web").then(({ loadWebProfileMusic }) => {
+        const rec = loadWebProfileMusic(profileHandle);
+        if (rec) setProfileSong(rec.id);
+        else setProfileSong(null);
+      });
+      return;
+    }
+    setProfileSong(null);
+  }, [user, profileHandle]);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -263,10 +276,20 @@ export default function ProfilePage() {
     setIsFollowing(merged.has(target));
   }, [handle, currentUser, remoteFollowing]);
 
-  // Real Iroh audio for profile song (if profileSong is a blob hash/CID from Tauri)
+  // Profile song: Tauri blob bytes, or web data-URL store
   useEffect(() => {
-    if (!isTauri() || !profileSong) {
+    if (!profileSong) {
       setAudioSrc(null);
+      return;
+    }
+    if (!isTauri()) {
+      void import("@/lib/profile-music-web").then(({ loadWebProfileMusic }) => {
+        const rec = loadWebProfileMusic(profileHandle);
+        setAudioSrc(rec?.dataUrl ?? null);
+        if (rec && profileSong !== rec.id) {
+          setProfileSong(rec.id);
+        }
+      });
       return;
     }
     const token = getSessionToken();
@@ -278,7 +301,7 @@ export default function ProfilePage() {
         }
       })
       .catch(() => setAudioSrc(null));
-  }, [profileSong]);
+  }, [profileSong, profileHandle]);
 
   // Banner image from blob hash
   useEffect(() => {
@@ -827,11 +850,14 @@ export default function ProfilePage() {
                         </div>
                         <div className="text-sm text-muted-foreground mb-3">
                           {profileSong
-                            ? `hash ${profileSong.slice(0, 12)}…`
-                            : "Upload audio on Media to set your profile song"}
+                            ? isTauri()
+                              ? `hash ${profileSong.slice(0, 12)}…`
+                              : "Browser track (web preview)"
+                            : isTauri()
+                              ? "Upload audio on Media to set your profile song"
+                              : "Use Customize → Music to upload a track in this browser"}
                         </div>
 
-                        {/* Real Iroh audio if set, else demo */}
                         <div className="bg-muted/40 p-3 rounded-lg">
                           <ProfileMusicPlayer
                             hash={profileSong}
@@ -839,25 +865,32 @@ export default function ProfilePage() {
                             trackName={
                               currentSongBlob?.filename ||
                               (profileSong ? "Uploaded track" : null) ||
-                              "Demo track"
+                              undefined
                             }
                             subtitle={
                               profileSong
                                 ? "Your profile song"
-                                : "Demo — upload to set yours"
+                                : "No song set yet"
                             }
                           />
                           <p className="text-[10px] text-center mt-2 text-muted-foreground">
-                            Profile song — powered by Iroh blobs when uploaded
+                            {isTauri()
+                              ? "Profile song — local / Iroh blobs when uploaded"
+                              : "Profile song — web data URL when set in Customize"}
                           </p>
                         </div>
 
                         {isOwnProfile && (
                           <div className="mt-4 flex flex-wrap gap-2">
-                            {audioBlobs.length === 0 ? (
+                            {audioBlobs.length === 0 && isTauri() ? (
                               <p className="text-sm text-muted-foreground w-full">
                                 Upload audio on the Media page to set a profile
                                 song.
+                              </p>
+                            ) : audioBlobs.length === 0 ? (
+                              <p className="text-sm text-muted-foreground w-full">
+                                Open Customize → Music to upload a profile song
+                                for this browser preview.
                               </p>
                             ) : (
                               audioBlobs.map((blob) => (

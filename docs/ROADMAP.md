@@ -96,7 +96,9 @@ Mobile (~10%)           ██░░░░░░░░  Planned (Tauri); not shi
 
 **Still open:** Part A student path on Device B (guest browse, TSU account/post, Customize/Live, Tier 0 benchmark) and Part C announce / `TIER0_USER` link check.
 
-Checklist: [`YARD_RELEASE_CHECKLIST.md`](YARD_RELEASE_CHECKLIST.md)
+Checklist: [`YARD_RELEASE_CHECKLIST.md`](YARD_RELEASE_CHECKLIST.md) · IEEE operator pack: [`IEEE_CONFERENCE_PACK.md`](IEEE_CONFERENCE_PACK.md)
+
+**Product pack (2026-08):** 24h dual-mode Stories + web profile-song path + IEEE Connect seeds (see conference pack Track B/C).
 
 ### 2. Credibility layer — ProjectConnectBKSPC ← **build before mainnet finance**
 

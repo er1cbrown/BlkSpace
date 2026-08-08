@@ -323,6 +323,19 @@ const DEMO_ORGS: ConnectOrg[] = [
     opportunityCount: 3,
     createdAt: "2026-08-07T14:00:00",
   },
+  {
+    id: "org_ieee_tsu",
+    slug: "ieee-student-branch-tsu",
+    name: "IEEE Student Branch · TSU",
+    orgType: "professional",
+    yardId: "tsu",
+    description:
+      "IEEE student branch for systems, networking, and socio-technical demos. Use ProjectConnect for paper dry-runs, Device B smoke crews, and faculty review — not token marketing.",
+    createdBy: "demo_user",
+    memberCount: 4,
+    opportunityCount: 3,
+    createdAt: "2026-08-08T10:00:00",
+  },
 ];
 
 const DEMO_OPPS: ConnectOpportunity[] = [
@@ -739,6 +752,54 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     createdAt: "2026-08-07T14:15:00",
   },
   {
+    id: 100,
+    orgId: "org_ieee_tsu",
+    orgName: "IEEE Student Branch · TSU",
+    orgType: "professional",
+    title: "Device B Tier 0 smoke crew (IEEE evaluation)",
+    description:
+      "Run the Yard student smoke checklist on a 4–8 GB Windows laptop: install MSI, guest browse, TSU account/post, Customize, Live, Tier 0 benchmark. Fill the results sheet — this is the conference evidence path, not a marketing demo.",
+    durationText: "1–2 hr · per device",
+    tagsJson:
+      '["ieee","device-b","tier0","evaluation","systems","smoke-test"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 2,
+    createdAt: "2026-08-08T10:00:00",
+  },
+  {
+    id: 101,
+    orgId: "org_ieee_tsu",
+    orgName: "IEEE Student Branch · TSU",
+    orgType: "research",
+    title: "Federated campus mesh · abstract dry-run",
+    description:
+      "Peer review a 150-word abstract and methods outline for the hybrid Nostr/Iroh campus mesh claim. Flag overclaims (full P2P, mainnet cash-out, mandatory AI). Completions may be endorsed for Yard Cred.",
+    durationText: "1 week · async",
+    tagsJson:
+      '["ieee","research","abstract","mesh","networking","peer-review"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 1,
+    createdAt: "2026-08-08T10:15:00",
+  },
+  {
+    id: 102,
+    orgId: "org_ieee_tsu",
+    orgName: "IEEE Student Branch · TSU",
+    orgType: "professional",
+    title: "Persona use-case runner · Fisk / Meharry / Fashion",
+    description:
+      "Execute one IEEE-style persona script (finance, NPHC fellowship, or campus brand) with P/W/F scoring and screenshots. Results feed the conference pack — no real money, no brokerage claims.",
+    durationText: "90 min · per persona",
+    tagsJson:
+      '["ieee","use-case","evaluation","credibility","persona"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-08T10:30:00",
+  },
+  {
     id: 95,
     orgId: "org_fisk_finance",
     orgName: "Fisk Investment & Finance Club",
@@ -855,7 +916,7 @@ function loadWeb(): WebState {
       for (const p of DEMO_OPPS) {
         if (!oppIds.has(p.id)) s.opps.push(structuredClone(p));
       }
-      s.nextOppId = Math.max(s.nextOppId || 100, 100);
+      s.nextOppId = Math.max(s.nextOppId || 200, 200);
       return s;
     }
   } catch {
@@ -865,7 +926,7 @@ function loadWeb(): WebState {
     orgs: structuredClone(DEMO_ORGS),
     opps: structuredClone(DEMO_OPPS),
     interests: [],
-    nextOppId: 100,
+    nextOppId: 200,
     nextInterestId: 1,
   };
 }

@@ -38,6 +38,12 @@ import {
   Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCurrentHandle } from "@/lib/auth";
+import {
+  clearWebProfileMusic,
+  saveWebProfileMusic,
+} from "@/lib/profile-music-web";
+import { toast } from "sonner";
 
 type ThemeKey = "classic" | "pro" | "vibrant" | "myspace";
 
@@ -501,11 +507,42 @@ export function CustomizeStation({
               onCheckedChange={(v) => patchA({ showMusic: v })}
             />
           </div>
-          {audioBlobs.length === 0 ? (
+          {!isTauri() && (
+            <div className="space-y-2">
+              <Label>Upload audio (web preview)</Label>
+              <Input
+                type="file"
+                accept="audio/*"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  if (f.size > 8 * 1024 * 1024) {
+                    toast.error("Keep audio under 8 MB for browser storage");
+                    return;
+                  }
+                  void (async () => {
+                    const dataUrl = await readFileAsDataUrl(f);
+                    const handle = getCurrentHandle();
+                    const rec = saveWebProfileMusic(handle, {
+                      trackName: f.name,
+                      dataUrl,
+                    });
+                    setMusic(rec.id);
+                    toast.success("Profile song ready — Save MyYard");
+                  })();
+                }}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Stored in this browser only (Tier 0 web path). Desktop uses
+                account blobs.
+              </p>
+            </div>
+          )}
+          {audioBlobs.length === 0 && isTauri() ? (
             <p className="text-sm text-muted-foreground">
-              Upload audio from Create (desktop) to pick a profile song.
+              Upload audio from Media or Create (desktop) to pick a profile song.
             </p>
-          ) : (
+          ) : audioBlobs.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {audioBlobs.map((b) => (
                 <Button
@@ -522,13 +559,32 @@ export function CustomizeStation({
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setMusic(null)}
+                  onClick={() => {
+                    setMusic(null);
+                    if (!isTauri()) clearWebProfileMusic(getCurrentHandle());
+                  }}
                 >
                   Clear song
                 </Button>
               )}
             </div>
-          )}
+          ) : music && !isTauri() ? (
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="default">
+                ✓ Web track set
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setMusic(null);
+                  clearWebProfileMusic(getCurrentHandle());
+                }}
+              >
+                Clear song
+              </Button>
+            </div>
+          ) : null}
         </TabsContent>
 
         <TabsContent value="type" className="space-y-4 mt-4">

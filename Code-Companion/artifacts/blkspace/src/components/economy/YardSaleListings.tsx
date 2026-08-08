@@ -68,7 +68,7 @@ function appliedPurchaseMessage(
 export function YardSaleListings({
   listings,
   yardIdFilter,
-  emptyMessage = "No listings yet.",
+  emptyMessage = "No listings yet — list an item from the form above (soft WeixBucks; not real money).",
   bkspcWired = false,
 }: YardSaleListingsProps) {
   const handle = getCurrentHandle();

@@ -18,10 +18,12 @@ import {
   showEarnFromResult,
   showPostEarnCelebration,
 } from "@/components/economy/EarnToast";
-import { WB_EARN, KARMA_EARN } from "@/lib/earn-sources";
+import { WB_EARN } from "@/lib/earn-sources";
 import { getListPostsQueryKey } from "@workspace/api-client-react";
 import { loadUiPrefs } from "@/lib/ui-prefs";
 import { getYardTheme } from "@/lib/yard-themes";
+import { createYardStory } from "@/lib/yard-stories";
+import { toast } from "sonner";
 
 export default function CreatePage() {
   const queryClient = useQueryClient();
@@ -33,15 +35,37 @@ export default function CreatePage() {
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
   const [mode, setMode] = useState<"post" | "reel" | "story">("post");
   const [showDrop, setShowDrop] = useState(false);
+  const [storyPending, setStoryPending] = useState(false);
   const createPost = useAppCreatePost();
 
   const submit = () => {
     const body = content.trim();
     const media = mediaHashes.filter(Boolean);
     if (!body && media.length === 0) return;
+
+    // 24h ephemeral story — local dual-mode store (not permanent feed post)
+    if (mode === "story") {
+      setStoryPending(true);
+      try {
+        createYardStory({
+          content: body || "📸",
+          mediaHashes: media,
+          townTag: town,
+        });
+        setContent("");
+        setMediaHashes([]);
+        toast.success("Story live for 24h — see the ring on Home");
+        window.dispatchEvent(new CustomEvent("blkspace-stories"));
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "Could not post story");
+      } finally {
+        setStoryPending(false);
+      }
+      return;
+    }
+
     const postContent =
-      body ||
-      (mode === "reel" ? "🎬 New reel" : mode === "story" ? "📸" : "📎");
+      body || (mode === "reel" ? "🎬 New reel" : "📎");
     createPost.mutate(
       {
         content: postContent,
@@ -56,12 +80,7 @@ export default function CreatePage() {
             if (mode === "post") {
               showPostEarnCelebration(result.earn);
             } else {
-              showEarnFromResult(
-                result.earn,
-                mode === "reel"
-                  ? "Reel posted to your grid"
-                  : "Posted to your profile",
-              );
+              showEarnFromResult(result.earn, "Reel posted to your grid");
             }
           }
           queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
@@ -126,29 +145,46 @@ export default function CreatePage() {
         mediaHashes={mediaHashes}
         onMediaHashesChange={setMediaHashes}
         onSubmit={submit}
-        isSubmitting={createPost.isPending}
+        isSubmitting={createPost.isPending || storyPending}
         onUploadSuccess={(earn) => showEarnFromResult(earn, "Media upload")}
         placeholder={
           mode === "reel"
             ? "Caption your reel — shows on Watch + your grid"
             : mode === "story"
-              ? "24h story (ring) — coming soon, saves as post for now"
+              ? "24h story — appears in the Home ring, then expires"
               : "What's happening on the yard?"
         }
       />
 
       <Card className="mt-6 border-primary/15">
         <CardHeader>
-          <CardTitle className="text-sm">You earn when you post</CardTitle>
+          <CardTitle className="text-sm">
+            {mode === "story"
+              ? "Stories are ephemeral"
+              : "You earn when you post"}
+          </CardTitle>
         </CardHeader>
         <CardContent className="text-xs text-muted-foreground space-y-1">
-          <p>
-            Soft credits (WeixBucks) — not real money yet. Example: post +
-            {WB_EARN.feedPost} WB.
-          </p>
-          <p>
-            Upload media +{WB_EARN.mediaUpload} WB · likes boost others too.
-          </p>
+          {mode === "story" ? (
+            <>
+              <p>
+                Stories live <strong className="text-foreground">24 hours</strong>{" "}
+                on this device / browser, then disappear. They do not stay on
+                the permanent feed.
+              </p>
+              <p>No soft-credit farm on stories — keep the economy honest.</p>
+            </>
+          ) : (
+            <>
+              <p>
+                Soft credits (WeixBucks) — not real money yet. Example: post +
+                {WB_EARN.feedPost} WB.
+              </p>
+              <p>
+                Upload media +{WB_EARN.mediaUpload} WB · likes boost others too.
+              </p>
+            </>
+          )}
         </CardContent>
       </Card>
 

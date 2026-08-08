@@ -57,10 +57,12 @@ Detailed mapping to Kurose & Ross: `docs/TOP_DOWN_APPROACH.md`
 
 | Topic | File |
 |-------|------|
+| **Conference pack (start here)** | `docs/IEEE_CONFERENCE_PACK.md` |
 | Networking layer mapping | `docs/TOP_DOWN_APPROACH.md` |
 | System architecture | `docs/architecture-blueprint.md` |
 | Security / attack mitigations | `docs/security-considerations.md` |
 | Economy model | `docs/economy-uniform-model.md`, `docs/tokenomics-policy.md` |
+| Credibility before finance | `docs/features/project-connect-credibility-layer.md` |
 | BKSPC token launch | `docs/bkspc-pumpfun-launch.md` |
 | Project status | `FLESHTHEORY.md` |
 
