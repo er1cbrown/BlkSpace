@@ -168,6 +168,32 @@ const DEMO_ORGS: ConnectOrg[] = [
     createdAt: "2026-08-01T12:00:00",
   },
   {
+    id: "org_tsu_fashion_society",
+    slug: "tsu-fashion-society",
+    name: "TSU Fashion Society",
+    orgType: "club",
+    yardId: "tsu",
+    description:
+      "Campus fashion society for student brands, photoshoot crews, and merch. Credible MyYard portfolio + Yard Sale hosts can verify — multi-campus expansion (e.g. Fisk) with identity, not anonymous Fizz threads.",
+    createdBy: "demo_user",
+    memberCount: 5,
+    opportunityCount: 3,
+    createdAt: "2026-08-07T16:00:00",
+  },
+  {
+    id: "org_fisk_fashion_market",
+    slug: "fisk-campus-creatives-market",
+    name: "Fisk Campus Creatives Market",
+    orgType: "club",
+    yardId: "fisk",
+    description:
+      "Cross-yard creative market at Fisk: student brands, lookbooks, pop-up collabs. Hosts and buyers use BlkSpace identity + soft escrow for a portable reputation trail.",
+    createdBy: "demo_user",
+    memberCount: 3,
+    opportunityCount: 2,
+    createdAt: "2026-08-07T16:15:00",
+  },
+  {
     id: "org_fashion_howard",
     slug: "fashion-howard",
     name: "Howard Style Lab",
@@ -270,6 +296,32 @@ const DEMO_ORGS: ConnectOrg[] = [
     memberCount: 1,
     opportunityCount: 2,
     createdAt: "2026-08-03T15:30:00",
+  },
+  {
+    id: "org_opp_meharry",
+    slug: "omega-psi-phi-meharry",
+    name: "Omega Psi Phi · Meharry",
+    orgType: "professional",
+    yardId: "meharry",
+    description:
+      "Brotherhood · scholarship · service · uplift. Graduate and professional students connecting with NPHC and campus orgs for fellowship, community service, and conference prep.",
+    createdBy: "demo_user",
+    memberCount: 3,
+    opportunityCount: 3,
+    createdAt: "2026-08-07T12:00:00",
+  },
+  {
+    id: "org_fisk_finance",
+    slug: "fisk-investment-finance-club",
+    name: "Fisk Investment & Finance Club",
+    orgType: "professional",
+    yardId: "fisk",
+    description:
+      "Markets literacy, case comps, brokerage career prep. Practice credits on the yard — real brokerage accounts stay with licensed firms. Educational only; not investment advice.",
+    createdBy: "demo_user",
+    memberCount: 4,
+    opportunityCount: 3,
+    createdAt: "2026-08-07T14:00:00",
   },
 ];
 
@@ -607,6 +659,165 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     interestCount: 0,
     createdAt: "2026-08-01T13:00:00",
   },
+  {
+    id: 90,
+    orgId: "org_opp_meharry",
+    orgName: "Omega Psi Phi · Meharry",
+    orgType: "professional",
+    title: "Academic fellowship interest · Meharry brothers (demo)",
+    description:
+      "IEEE / campus product test opportunity. Express interest for scholarship-style fellowship narrative: standing, service hours, academic goals. Not a funded award — structures real chapter ops on Connect.",
+    durationText: "rolling · semester",
+    tagsJson:
+      '["scholarship","fellowship","omega","meharry","nphc","professional"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 2,
+    createdAt: "2026-08-07T12:00:00",
+  },
+  {
+    id: 91,
+    orgId: "org_opp_meharry",
+    orgName: "Omega Psi Phi · Meharry",
+    orgType: "service",
+    title: "Community service day · volunteer signup (demo)",
+    description:
+      "Brotherhood service project near campus. Sign up to volunteer; leads may endorse completion for Yard Cred. Demo content for product review.",
+    durationText: "1 day · recurring",
+    tagsJson: '["service","volunteer","community","omega","meharry"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 1,
+    createdAt: "2026-08-07T12:30:00",
+  },
+  {
+    id: 92,
+    orgId: "org_opp_meharry",
+    orgName: "Omega Psi Phi · Meharry",
+    orgType: "professional",
+    title: "Conference / convention crew · logistics volunteers",
+    description:
+      "Help with district/national conference prep: travel logistics, program booklet, debrief night. Pair with a yard event for visibility on the feed.",
+    durationText: "6 weeks",
+    tagsJson:
+      '["conference","convention","fellowship","omega","leadership","meharry"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-07T13:00:00",
+  },
+  {
+    id: 93,
+    orgId: "org_fisk_finance",
+    orgName: "Fisk Investment & Finance Club",
+    orgType: "professional",
+    title: "Mock equity research note (educational demo)",
+    description:
+      "Write a 1-page public-company note using only public filings/news. Peer feedback in club. Educational simulation — not a stock recommendation or brokerage service.",
+    durationText: "2 weeks",
+    tagsJson:
+      '["finance","equity","research","literacy","fisk","markets","nasdaq"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 3,
+    createdAt: "2026-08-07T14:00:00",
+  },
+  {
+    id: 94,
+    orgId: "org_fisk_finance",
+    orgName: "Fisk Investment & Finance Club",
+    orgType: "professional",
+    title: "Brokerage career paths · mentor AMA interest",
+    description:
+      "Sign up for alumni/mentor panels on what brokerages do (orders, KYC, careers). No securities sold. Real accounts remain off-platform with licensed firms.",
+    durationText: "rolling",
+    tagsJson:
+      '["finance","brokerage","career","literacy","fisk","professional"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 1,
+    createdAt: "2026-08-07T14:15:00",
+  },
+  {
+    id: 95,
+    orgId: "org_fisk_finance",
+    orgName: "Fisk Investment & Finance Club",
+    orgType: "service",
+    title: "Personal finance clinic · peer educators",
+    description:
+      "Help classmates with budgeting metaphors using soft WeixBucks concepts (caps, fees). Service hours + Yard Cred. Not licensed financial advice.",
+    durationText: "ongoing · 2 hr/month",
+    tagsJson:
+      '["finance","budget","literacy","service","fisk","volunteer"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-07T14:30:00",
+  },
+  {
+    id: 96,
+    orgId: "org_tsu_fashion_society",
+    orgName: "TSU Fashion Society",
+    orgType: "club",
+    title: "Brand lookbook photoshoot · models & assistants (TSU)",
+    description:
+      "Jimmy’s campus brand needs models, a shooter assist, and styling hands for a TSU lookbook. Build portfolio credits on Connect — then list drops on Yard Sale with escrow. Demo venture ops.",
+    durationText: "1 weekend shoot",
+    tagsJson:
+      '["fashion","photoshoot","brand","lookbook","tsu","studio","portfolio"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 4,
+    createdAt: "2026-08-07T16:00:00",
+  },
+  {
+    id: 97,
+    orgId: "org_tsu_fashion_society",
+    orgName: "TSU Fashion Society",
+    orgType: "club",
+    title: "Cross-yard seller intro · expand TSU brand to Fisk",
+    description:
+      "TSU student brands seeking Fisk hosts/buyers for a pop-up or digital drop. Portable identity + Yard Cred beat anonymous Fizz posts. Pair with Fisk Campus Creatives Market.",
+    durationText: "4 weeks",
+    tagsJson:
+      '["fashion","merch","cross-yard","fisk","tsu","yard-sale","host"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 2,
+    createdAt: "2026-08-07T16:20:00",
+  },
+  {
+    id: 98,
+    orgId: "org_fisk_fashion_market",
+    orgName: "Fisk Campus Creatives Market",
+    orgType: "club",
+    title: "Host a visiting TSU brand drop (Fisk)",
+    description:
+      "Fisk hosts: help a TSU fashion brand run a soft pop-up or digital merch drop. Escrow-friendly listings; host gets collaboration credit on profile. Not Fizz-only anonymity.",
+    durationText: "2 weeks · event weekend",
+    tagsJson:
+      '["fashion","host","fisk","merch","pop-up","yard-sale","collab"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 1,
+    createdAt: "2026-08-07T16:30:00",
+  },
+  {
+    id: 99,
+    orgId: "org_tsu_fashion_society",
+    orgName: "TSU Fashion Society",
+    orgType: "club",
+    title: "Studio portfolio polish · shoot archive to MyYard",
+    description:
+      "Upload past photoshoot sets to Studio / MyYard grid so buyers and hosts see a credible trail before purchasing on Yard Sale. Completions build Yard Cred.",
+    durationText: "ongoing",
+    tagsJson:
+      '["fashion","studio","portfolio","myyard","brand","credibility"]',
+    status: "open",
+    createdBy: "demo_user",
+    interestCount: 0,
+    createdAt: "2026-08-07T16:45:00",
+  },
 ];
 
 type WebState = {
@@ -633,7 +844,20 @@ function loadSavedOpportunityIds(): number[] {
 function loadWeb(): WebState {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw) as WebState;
+    if (raw) {
+      const s = JSON.parse(raw) as WebState;
+      // Merge seed demos so new org packs (e.g. ΩΨΦ Meharry) appear without wipe
+      const orgIds = new Set((s.orgs || []).map((o) => o.id));
+      for (const o of DEMO_ORGS) {
+        if (!orgIds.has(o.id)) s.orgs.push(structuredClone(o));
+      }
+      const oppIds = new Set((s.opps || []).map((o) => o.id));
+      for (const p of DEMO_OPPS) {
+        if (!oppIds.has(p.id)) s.opps.push(structuredClone(p));
+      }
+      s.nextOppId = Math.max(s.nextOppId || 100, 100);
+      return s;
+    }
   } catch {
     /* ignore */
   }

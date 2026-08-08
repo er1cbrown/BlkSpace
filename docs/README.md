@@ -28,6 +28,8 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 | [`phase-0-status.md`](phase-0-status.md) | Living checklist & M0 progress |
 | [`features/use-case-capability-log.md`](features/use-case-capability-log.md) | Campus use cases: Done / Partial / Out of scope |
 | [`features/brand-trademark-and-bkspc-rights.md`](features/brand-trademark-and-bkspc-rights.md) | **BlkSpace** mark vs **BKSPC** coin ticker |
+| [`features/scale-matrix-complexity-compare.md`](features/scale-matrix-complexity-compare.md) | **Theory of computing + linear algebra scale model** vs competitors |
+| [`theory-of-computing-scale.md`](theory-of-computing-scale.md) | Short entry → scale / space / matrix model |
 | [`../FLESHTHEORY.md`](../FLESHTHEORY.md) | Full product theory |
 | [`codebase-overview.md`](codebase-overview.md) | Where code lives |
 
@@ -38,6 +40,7 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 | Tier 0 performance | [`tier0-load-optimization.md`](tier0-load-optimization.md) |
 | Nostr + mesh testing | [`implementation/DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) |
 | Economy / WeixBucks | [`reward-formulas.md`](reward-formulas.md) · [`economy-student-terms.md`](economy-student-terms.md) · [`features/four-pillar-economy.md`](features/four-pillar-economy.md) · [`features/wb-progression-v2.md`](features/wb-progression-v2.md) |
+| IEEE campus use cases | [`features/use-case-omega-psi-phi-meharry-ieee.md`](features/use-case-omega-psi-phi-meharry-ieee.md) · [`features/use-case-fisk-finance-ieee.md`](features/use-case-fisk-finance-ieee.md) · [`features/use-case-jimmy-tsu-fashion-ieee.md`](features/use-case-jimmy-tsu-fashion-ieee.md) |
 | Solana / BKSPC | [`solana-blueprint.md`](solana-blueprint.md) · [`bkspc-devnet-runbook.md`](bkspc-devnet-runbook.md) |
 | Security | [`security-considerations.md`](security-considerations.md) |
 

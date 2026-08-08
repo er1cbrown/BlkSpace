@@ -7,6 +7,11 @@ const StoryStrip = React.lazy(() =>
     default: m.StoryStrip,
   })),
 );
+const ConnectDiscoveryRail = React.lazy(() =>
+  import("@/components/social/ConnectDiscoveryRail").then((m) => ({
+    default: m.ConnectDiscoveryRail,
+  })),
+);
 const WatchFeed = React.lazy(() =>
   import("@/components/feed/WatchFeed").then((m) => ({
     default: m.WatchFeed,
@@ -471,6 +476,16 @@ export default function FeedPage() {
         {(activeTab === "watch" || activeTab === "read") && (
           <Suspense fallback={null}>
             <StoryStrip />
+          </Suspense>
+        )}
+
+        {/* Fellowship / org discovery — bridge FYP awareness → ProjectConnect */}
+        {(activeTab === "local" ||
+          activeTab === "watch" ||
+          activeTab === "read" ||
+          activeTab === "following") && (
+          <Suspense fallback={null}>
+            <ConnectDiscoveryRail yardId={selectedTown} />
           </Suspense>
         )}
 
