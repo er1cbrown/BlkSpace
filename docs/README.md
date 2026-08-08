@@ -29,6 +29,7 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 | [`features/use-case-capability-log.md`](features/use-case-capability-log.md) | Campus use cases: Done / Partial / Out of scope |
 | [`features/brand-trademark-and-bkspc-rights.md`](features/brand-trademark-and-bkspc-rights.md) | **BlkSpace** mark vs **BKSPC** coin ticker |
 | [`features/scale-matrix-complexity-compare.md`](features/scale-matrix-complexity-compare.md) | **Theory of computing + linear algebra scale model** vs competitors |
+| [`features/bkspc-university-vision.md`](features/bkspc-university-vision.md) | **BKSPC University** — feed IA, discipline tracks, anti-extraction claim |
 | [`theory-of-computing-scale.md`](theory-of-computing-scale.md) | Short entry → scale / space / matrix model |
 | [`../FLESHTHEORY.md`](../FLESHTHEORY.md) | Full product theory |
 | [`codebase-overview.md`](codebase-overview.md) | Where code lives |

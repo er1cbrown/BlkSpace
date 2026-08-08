@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -33,10 +33,17 @@ import {
   Radio,
 } from "lucide-react";
 import { toast } from "sonner";
+import { loadUiPrefs } from "@/lib/ui-prefs";
+import {
+  disciplineUpliftLine,
+  getDisciplineTrack,
+  orderHubTopicsForTrack,
+} from "@/lib/discipline-track";
 
 /**
  * Content Hub — amalgamation media shelf (chess lessons, live links, fashion,
  * pro portfolios). Complements feed; focuses topic discovery + earn literacy.
+ * Topic order follows BKSPC University discipline track.
  */
 export default function HubPage() {
   const { isGuest } = useGuestMode();
@@ -48,11 +55,34 @@ export default function HubPage() {
   const [pubTopic, setPubTopic] = useState<HubTopic>("chess");
   const [kind, setKind] = useState<HubItemKind>("post");
   const [tick, setTick] = useState(0);
+  const [prefsTick, setPrefsTick] = useState(0);
+
+  const uiPrefs = useMemo(() => {
+    void prefsTick;
+    try {
+      return loadUiPrefs();
+    } catch {
+      return null;
+    }
+  }, [prefsTick]);
+
+  const discipline = getDisciplineTrack(uiPrefs?.disciplineTrack);
+  const orderedTopics = useMemo(
+    () => orderHubTopicsForTrack(HUB_TOPICS, discipline.id),
+    [discipline.id],
+  );
 
   const items = useMemo(() => {
     void tick;
     return listHubItems(topic);
   }, [topic, tick]);
+
+  // Live-update when settings save discipline track
+  useEffect(() => {
+    const onPrefs = () => setPrefsTick((n) => n + 1);
+    window.addEventListener("blkspace-ui-prefs", onPrefs);
+    return () => window.removeEventListener("blkspace-ui-prefs", onPrefs);
+  }, []);
 
   const publish = () => {
     if (isGuest) {
@@ -98,7 +128,14 @@ export default function HubPage() {
             One shelf for underrepresented-network culture — chess lessons, live
             link-outs, fashion drops, study hours, pro portfolios. Same{" "}
             {BRAND.name} identity and soft-earn story as the feed, yards, and
-            Connect.
+            Connect. Topics reorder for your{" "}
+            <span className="text-foreground font-medium">
+              {discipline.label}
+            </span>{" "}
+            track.
+          </p>
+          <p className="text-xs text-primary/90 max-w-2xl">
+            {disciplineUpliftLine(discipline.id)}
           </p>
           <div className="flex flex-wrap gap-2">
             <Link href="/wallet">
@@ -113,6 +150,11 @@ export default function HubPage() {
                 Create post
               </Button>
             </Link>
+            <Link href="/settings">
+              <Button size="sm" variant="outline">
+                Change discipline
+              </Button>
+            </Link>
             <Button
               size="sm"
               className="gap-1"
@@ -125,7 +167,7 @@ export default function HubPage() {
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          {HUB_TOPICS.map((t) => (
+          {orderedTopics.map((t) => (
             <button
               key={t.id}
               type="button"

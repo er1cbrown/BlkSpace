@@ -36,12 +36,15 @@ Everything runs on the **WeixNet decentralized hub** (Nostr events + Iroh blobs 
 ## Priority Future Social Features (Roadmap)
 
 ### 1. Feeds — Twitter + Instagram Hybrid (High Priority)
-- **Following tab** (pure Twitter): Chronological posts from accounts + towns you explicitly follow.
-- **For You (FYP)**: Smart mix — high-engagement, content from your interests + "viral in other yards", serendipity. Use engagement quality + simple signals (no heavy ML at first).
-- **Local Yard** (core identity): Your college town's primary feed.
-- **Trending / Bridge** (existing): Cross-town summaries + discovery.
-- **Topics / Hashtags** + saved feeds.
+- **Following tab** (pure Twitter): Chronological posts from accounts + towns you explicitly follow. ✅ primary tab
+- **My Yard / Local**: Your college town's primary feed. ✅ primary tab
+- **Blog FYP**: Text-first ranked discovery (yard + follow + substance; **not buyable rank**). ✅ primary tab (`blog-fyp.ts`)
+- **Connect**: Pathways rail (research / fellowships / faculty) → Cred. ✅ primary tab
+- **Watch** (secondary): Video-first scroll. **Trending / Bridge**: feature-flagged advanced.
+- **Discipline track** (Settings): reorders Hub for finance / creative / research / faculty — see `features/bkspc-university-vision.md`
+- **Topics / Hashtags** + saved feeds (partial via Hub).
 - Infinite scroll + real-time updates via Nostr subscriptions.
+
 
 ### 2. Communities — Discord-like Yards (High Priority)
 - **Channels** per Yard: #general, #events, #music, #study-hall, #networking, #market, #voice-lounge (future).

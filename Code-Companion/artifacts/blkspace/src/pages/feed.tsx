@@ -43,13 +43,6 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Heart, MessageSquare, Repeat2, MoreHorizontal } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -91,17 +84,35 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { BETA_FEATURES } from "@/lib/beta-features";
 import { getHomeYardId, loadFocusPrefs } from "@/lib/focus-mode";
-import { HeartPulse, GraduationCap } from "lucide-react";
+import { HeartPulse, GraduationCap, Briefcase, BookOpen } from "lucide-react";
 import { YardOrientationCard } from "@/components/social/YardOrientationCard";
 import { markFirstPostDone } from "@/lib/yard-orientation";
 import { getYardTheme } from "@/lib/yard-themes";
+import { rankBlogFypPosts, isHighRiskPost } from "@/lib/blog-fyp";
+import { loadUiPrefs } from "@/lib/ui-prefs";
+import {
+  disciplineUpliftLine,
+  getDisciplineTrack,
+} from "@/lib/discipline-track";
+
+/** Primary product tabs — BKSPC University feed IA */
+type FeedTab =
+  | "following"
+  | "local"
+  | "blog"
+  | "connect"
+  | "watch"
+  | "bridge"
+  | "trending"
+  /** legacy alias mapped to blog */
+  | "read";
 
 export default function FeedPage() {
   const queryClient = useQueryClient();
   const { isGuest } = useGuestMode();
   const { requireWallet } = useRequiresWallet();
-  const [activeTab, setActiveTab] = useState(
-    BETA_FEATURES.tier0Lite ? "local" : "watch",
+  const [activeTab, setActiveTab] = useState<FeedTab>(() =>
+    BETA_FEATURES.tier0Lite ? "local" : "local",
   );
   const [selectedTown, setSelectedTown] = useState(
     () => getHomeYardId() || "tsu",
@@ -113,20 +124,35 @@ export default function FeedPage() {
       return null;
     }
   }, []);
+  const uiPrefs = useMemo(() => {
+    try {
+      return loadUiPrefs();
+    } catch {
+      return null;
+    }
+  }, []);
+  const discipline = getDisciplineTrack(uiPrefs?.disciplineTrack);
   const [content, setContent] = useState("");
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
-  const [showFlagged, setShowFlagged] = useState(false);
+  const [showFlagged] = useState(false);
   const [bridgeTownFilter, setBridgeTownFilter] = useState("all");
   const [localFollowed, setLocalFollowed] = useState<string[]>(() => {
     const saved = localStorage.getItem("blkspace_followed") || "[]";
     return JSON.parse(saved);
   });
 
-  const needsLocalPosts = ["watch", "read", "following", "local"].includes(
+  const needsLocalPosts = [
+    "watch",
+    "read",
+    "blog",
+    "following",
+    "local",
+  ].includes(activeTab);
+  const needsTrending = ["watch", "read", "blog", "trending"].includes(
     activeTab,
   );
-  const needsTrending = ["watch", "read", "trending"].includes(activeTab);
-  const needsFollowing = activeTab === "following";
+  const needsFollowing =
+    activeTab === "following" || activeTab === "blog" || activeTab === "watch";
   const needsBridge = activeTab === "bridge" && BETA_FEATURES.showBridgeTab();
 
   const { data: remoteFollowing = [] } = useTauriGetFollowing(needsFollowing);
@@ -184,6 +210,20 @@ export default function FeedPage() {
       .slice(0, 12);
   }, [localPosts, followedHandles, followingReposts]);
 
+  // Blog FYP: text-first sparse rank (yard + follow + substance) — never paid rank
+  const blogFypPosts = useMemo(
+    () =>
+      rankBlogFypPosts(
+        [...(trendingFeed || []), ...(localPosts || [])] as any[],
+        {
+          homeYardId: selectedTown,
+          followedHandles: followedHandles,
+          limit: 24,
+        },
+      ),
+    [trendingFeed, localPosts, selectedTown, followedHandles],
+  );
+
   const fypRankScore = (p: {
     likesCount?: number;
     engagementQuality?: number;
@@ -193,10 +233,9 @@ export default function FeedPage() {
     (p.engagementQuality || 1) *
     (1 - (p.maliciousScore || 0));
 
-  const isHighRisk = (p: { riskLevel?: string; maliciousScore?: number }) =>
-    p.riskLevel === "high" || (p.maliciousScore ?? 0) > 0.7;
+  const isHighRisk = isHighRiskPost;
 
-  // FYP: rank by engagement × quality × (1 − MIDF); demote high-risk posts
+  // Watch FYP: engagement × quality × (1 − MIDF); demote high-risk posts
   const fypPosts = [...(trendingFeed || []), ...(localPosts || [])]
     .filter((p: any) => !isHighRisk(p))
     .sort((a: any, b: any) => fypRankScore(b) - fypRankScore(a))
@@ -312,8 +351,10 @@ export default function FeedPage() {
       { toHandle: item.authorHandle, amount: 5 },
       {
         onSuccess: () => {
-          toast.success(`Boosted @${item.authorHandle} with 5 WeixBucks!`);
-          // Refresh feeds to reflect any engagement/quality updates
+          toast.success(
+            `Tipped @${item.authorHandle} 5 WeixBucks (creator transfer — not rank)`,
+          );
+          // Refresh feeds; tips never purchase FYP rank
           queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
           queryClient.invalidateQueries({
             queryKey: getListPostsQueryKey({ town: selectedTown }),
@@ -328,12 +369,15 @@ export default function FeedPage() {
   const filterFlagged = (list: any[]) =>
     showFlagged ? list : list.filter((p: any) => !isHighRisk(p));
 
-  // Select data source based on tab for Twitter (Following) + IG FYP (For You) + classic local
+  // Select data source: Following · Yard · Blog FYP · Connect (+ Watch secondary)
   let posts: any[] = [];
   let isLoading = false;
 
-  if (activeTab === "watch" || activeTab === "read") {
+  if (activeTab === "watch") {
     posts = fypPosts;
+    isLoading = trendingLoading || localLoading;
+  } else if (activeTab === "blog" || activeTab === "read") {
+    posts = blogFypPosts;
     isLoading = trendingLoading || localLoading;
   } else if (activeTab === "following") {
     posts = filterFlagged(followingPosts as any[]);
@@ -341,6 +385,9 @@ export default function FeedPage() {
   } else if (activeTab === "local") {
     posts = filterFlagged(localPosts || []);
     isLoading = localLoading;
+  } else if (activeTab === "connect") {
+    posts = [];
+    isLoading = false;
   } else if (activeTab === "bridge") {
     posts = [];
     isLoading = crossTownLoading;
@@ -354,8 +401,8 @@ export default function FeedPage() {
       ? "Share with your people..."
       : activeTab === "watch"
         ? "Caption your video..."
-        : activeTab === "read"
-          ? "What's on your mind?"
+        : activeTab === "blog" || activeTab === "read"
+          ? "Write a yard note or blog-style post..."
           : "What's happening on the yard?";
 
   const showBridge = BETA_FEATURES.showBridgeTab();
@@ -382,8 +429,17 @@ export default function FeedPage() {
             </Link>
             {" · "}
             <span className="text-muted-foreground">
-              tabs below switch what you see
+              Following · Yard · Blog FYP · Connect
             </span>
+            {uiPrefs?.disciplineTrack &&
+              uiPrefs.disciplineTrack !== "general" && (
+                <>
+                  {" · "}
+                  <span className="text-primary/90 font-medium">
+                    {discipline.short} track
+                  </span>
+                </>
+              )}
           </p>
         </div>
       </div>
@@ -414,82 +470,146 @@ export default function FeedPage() {
         </Card>
       )}
       <Tabs
-        defaultValue="watch"
+        defaultValue="local"
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={(v) => setActiveTab(v as FeedTab)}
         className="mb-6"
       >
         <p className="text-[11px] text-muted-foreground mb-2">
           {activeTab === "local"
             ? `My Yard — only ${yardLabel}`
-            : activeTab === "watch"
-              ? "Watch — video-first scroll (like Reels)"
-              : activeTab === "read"
-                ? "Read — text & photo posts"
-                : activeTab === "following"
-                  ? "Following — people you follow"
-                  : activeTab === "bridge"
-                    ? "Bridge — other campuses (advanced)"
-                    : "Trending across the network"}
+            : activeTab === "blog" || activeTab === "read"
+              ? "Blog FYP — ranked notes & essays (rank is not for sale)"
+              : activeTab === "following"
+                ? "Following — people you follow (chrono)"
+                : activeTab === "connect"
+                  ? "Connect — research, fellowships, faculty paths → Cred"
+                  : activeTab === "watch"
+                    ? "Watch — video-first scroll"
+                    : activeTab === "bridge"
+                      ? "Bridge — other campuses (advanced)"
+                      : "Trending across the network"}
         </p>
 
-        <TabsList
-          className={`grid w-full mb-4 h-11 ${
-            showBridge && showTrending
-              ? "grid-cols-4 sm:grid-cols-6"
-              : "grid-cols-4"
-          }`}
-        >
-          <TabsTrigger value="local" className="text-xs sm:text-sm font-bold">
-            My Yard
-          </TabsTrigger>
-          <TabsTrigger value="watch" className="text-xs sm:text-sm font-bold">
-            Watch
-          </TabsTrigger>
-          <TabsTrigger value="read" className="text-xs sm:text-sm font-bold">
-            Read
-          </TabsTrigger>
+        <TabsList className="grid w-full mb-2 h-11 grid-cols-4">
           <TabsTrigger
             value="following"
             className="text-xs sm:text-sm font-bold"
           >
             Following
           </TabsTrigger>
-          {showBridge && (
-            <TabsTrigger
-              value="bridge"
-              className="text-xs sm:text-sm font-bold hidden sm:flex"
-            >
-              Bridge
-            </TabsTrigger>
-          )}
-          {showTrending && (
-            <TabsTrigger
-              value="trending"
-              className="text-xs sm:text-sm font-bold hidden lg:flex"
-            >
-              Trending
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="local" className="text-xs sm:text-sm font-bold">
+            Yard
+          </TabsTrigger>
+          <TabsTrigger value="blog" className="text-xs sm:text-sm font-bold">
+            Blog FYP
+          </TabsTrigger>
+          <TabsTrigger value="connect" className="text-xs sm:text-sm font-bold">
+            Connect
+          </TabsTrigger>
         </TabsList>
 
-        {(activeTab === "watch" || activeTab === "read") && (
+        {/* Secondary discovery surfaces */}
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          <Button
+            type="button"
+            size="sm"
+            variant={activeTab === "watch" ? "default" : "outline"}
+            className="h-7 text-[11px]"
+            onClick={() => setActiveTab("watch")}
+          >
+            Watch
+          </Button>
+          {showBridge && (
+            <Button
+              type="button"
+              size="sm"
+              variant={activeTab === "bridge" ? "default" : "outline"}
+              className="h-7 text-[11px]"
+              onClick={() => setActiveTab("bridge")}
+            >
+              Bridge
+            </Button>
+          )}
+          {showTrending && (
+            <Button
+              type="button"
+              size="sm"
+              variant={activeTab === "trending" ? "default" : "outline"}
+              className="h-7 text-[11px]"
+              onClick={() => setActiveTab("trending")}
+            >
+              Trending
+            </Button>
+          )}
+          <Link href="/settings">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 text-[11px] text-muted-foreground"
+            >
+              Discipline: {discipline.short}
+            </Button>
+          </Link>
+        </div>
+
+        {(activeTab === "watch" ||
+          activeTab === "blog" ||
+          activeTab === "read") && (
           <Suspense fallback={null}>
             <StoryStrip />
           </Suspense>
         )}
 
-        {/* Fellowship / org discovery — bridge FYP awareness → ProjectConnect */}
-        {(activeTab === "local" ||
-          activeTab === "watch" ||
-          activeTab === "read" ||
-          activeTab === "following") && (
+        {activeTab === "connect" && (
+          <Card className="mb-4 border-primary/25 bg-primary/5">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <Briefcase className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold">
+                    Pathways, not ad slots
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {disciplineUpliftLine(discipline.id)} Interest → completion
+                    → Yard Cred. Spend (when you do) should buy tickets and
+                    access to people — never rank.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link href="/connect">
+                  <Button size="sm" className="gap-1">
+                    <Briefcase className="w-3.5 h-3.5" />
+                    Open ProjectConnect
+                  </Button>
+                </Link>
+                <Link href="/faculty">
+                  <Button size="sm" variant="outline" className="gap-1">
+                    <GraduationCap className="w-3.5 h-3.5" />
+                    Faculty Desk
+                  </Button>
+                </Link>
+                <Link href="/wallet">
+                  <Button size="sm" variant="outline" className="gap-1">
+                    <BookOpen className="w-3.5 h-3.5" />
+                    Literacy
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === "connect" && (
           <Suspense fallback={null}>
             <ConnectDiscoveryRail yardId={selectedTown} />
           </Suspense>
         )}
 
         {activeTab !== "bridge" &&
+          activeTab !== "connect" &&
           (isGuest ? (
             <GuestCTA
               compact
@@ -549,15 +669,16 @@ export default function FeedPage() {
             </>
           ))}
 
-        <TabsContent value="watch" />
-        <TabsContent value="read" />
         <TabsContent value="following" />
         <TabsContent value="local" />
+        <TabsContent value="blog" />
+        <TabsContent value="connect" />
+        <TabsContent value="watch" />
         {showBridge && <TabsContent value="bridge" />}
         {showTrending && <TabsContent value="trending" />}
       </Tabs>
 
-      {activeTab === "bridge" ? (
+      {activeTab === "connect" ? null : activeTab === "bridge" ? (
         <Suspense fallback={feedPanelFallback}>
           <BridgeFeed
             events={crossTownFeed || []}
@@ -573,7 +694,7 @@ export default function FeedPage() {
         <Suspense fallback={feedPanelFallback}>
           <WatchFeed posts={posts} onLike={handleLike} />
         </Suspense>
-      ) : activeTab === "read" ? (
+      ) : activeTab === "blog" || activeTab === "read" ? (
         <Suspense fallback={feedPanelFallback}>
           <ReadFeed posts={posts} onLike={handleLike} onRepost={handleRepost} />
         </Suspense>
@@ -589,12 +710,16 @@ export default function FeedPage() {
               <p className="text-lg font-semibold text-foreground mb-2">
                 {activeTab === "following"
                   ? "Your circle is quiet"
-                  : "The yard is quiet"}
+                  : activeTab === "blog" || activeTab === "read"
+                    ? "No blog-style posts yet"
+                    : "The yard is quiet"}
               </p>
               <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
                 {activeTab === "following"
                   ? "Follow people from Search or Yards — their posts show up here."
-                  : "Be the first to post today. Students earn WeixBucks for showing up."}
+                  : activeTab === "blog" || activeTab === "read"
+                    ? "Write a longer yard note. Blog FYP ranks substance + yard locality — not paid boosts."
+                    : "Be the first to post today. Students earn WeixBucks for showing up."}
               </p>
               {isGuest ? (
                 <Link href="/welcome">
@@ -752,7 +877,7 @@ export default function FeedPage() {
                           disabled={isCrossTown}
                         >
                           <Repeat2 className="w-3.5 h-3.5 mr-2" />
-                          Boost (5 WB)
+                          Tip creator (5 WB)
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

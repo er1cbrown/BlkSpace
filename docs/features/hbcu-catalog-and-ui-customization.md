@@ -39,8 +39,11 @@ Stored on-device as `blkspace_ui_prefs_v1` via `src/lib/ui-prefs.ts`, applied on
 | Profile theme | classic / pro / vibrant / myspace (MyYard) |
 | Reduce motion / calm campus skins | a11y + softer gradients |
 | Start path | feed / hub / focus / yards / connect |
+| Discipline track | general / finance / creative / research / faculty — reorders Hub (`discipline-track.ts`) |
 | Pinned Hub modules | events, studio, clubs, yard sale, literacy |
 | Focus / Faculty nav flags | shell navigation |
+
+See also: [`bkspc-university-vision.md`](bkspc-university-vision.md) for feed tabs (Following · Yard · Blog FYP · Connect).
 
 **Settings → Appearance** is the control surface. Welcome + med/faculty paths seed home yard and nav flags.
 

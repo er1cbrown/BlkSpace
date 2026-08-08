@@ -5,6 +5,10 @@
  */
 
 import { yardAccentHsl } from "@/lib/yard-colors";
+import {
+  isDisciplineTrack,
+  type DisciplineTrack,
+} from "@/lib/discipline-track";
 
 /** Matches MyYard profile chrome ids without importing myyard-catalog. */
 export type ProfileThemeId = "classic" | "pro" | "vibrant" | "myspace";
@@ -24,9 +28,13 @@ export type FeedLayoutId = "cards" | "compact" | "magazine";
 export type NavStyleId = "full" | "icons" | "minimal";
 export type RadiusId = "sharp" | "default" | "soft";
 
+export type { DisciplineTrack };
+
 export interface UiPrefs {
   /** Home yard id from HBCU catalog */
   homeYardId: string;
+  /** BKSPC University discipline skin (Hub order + emphasis) */
+  disciplineTrack: DisciplineTrack;
   /** Profile chrome theme (MyYard) */
   profileTheme: ProfileThemeId;
   /** Accent color preset for app chrome */
@@ -56,6 +64,7 @@ export interface UiPrefs {
 
 export const DEFAULT_UI_PREFS: UiPrefs = {
   homeYardId: "tsu",
+  disciplineTrack: "general",
   profileTheme: "classic",
   accent: "brand",
   density: "comfortable",
@@ -162,11 +171,16 @@ export function normalizeUiPrefs(
       ? p.startPath
       : "/feed";
 
+  const disciplineTrack: DisciplineTrack = isDisciplineTrack(p.disciplineTrack)
+    ? p.disciplineTrack
+    : DEFAULT_UI_PREFS.disciplineTrack;
+
   return {
     homeYardId:
       typeof p.homeYardId === "string" && p.homeYardId.trim()
         ? p.homeYardId.trim()
         : DEFAULT_UI_PREFS.homeYardId,
+    disciplineTrack,
     profileTheme,
     accent,
     density,

@@ -77,6 +77,11 @@ import {
   loadUiPrefs,
   saveUiPrefs,
 } from "@/lib/ui-prefs";
+import {
+  DISCIPLINE_TRACKS,
+  applyDisciplineToUiPrefs,
+  type DisciplineTrack,
+} from "@/lib/discipline-track";
 import { MYARD_PROFILE_THEMES } from "@/lib/myyard-catalog";
 import { YardPicker } from "@/components/ui-prefs/YardPicker";
 import { useAppGetUser } from "@/hooks/use-app-data";
@@ -463,6 +468,39 @@ export default function SettingsPage() {
                     >
                       {t.label}
                     </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>BKSPC University · discipline track</Label>
+                <p className="text-xs text-muted-foreground">
+                  Reorders Content Hub and emphasis. Does not buy rank or Cred.
+                  Same four-pillar economy for every track.
+                </p>
+                <div className="grid gap-2">
+                  {DISCIPLINE_TRACKS.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        setUiPrefs((prev) =>
+                          applyDisciplineToUiPrefs(prev, t.id as DisciplineTrack, {
+                            setStartPath: false,
+                          }),
+                        );
+                      }}
+                      className={`rounded-lg border px-3 py-2 text-left text-sm ${
+                        uiPrefs.disciplineTrack === t.id
+                          ? "border-primary bg-primary/10"
+                          : "border-border"
+                      }`}
+                    >
+                      <span className="font-medium">{t.label}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {t.blurb}
+                      </span>
+                    </button>
                   ))}
                 </div>
               </div>
