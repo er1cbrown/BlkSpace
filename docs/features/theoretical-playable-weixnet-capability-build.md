@@ -2,9 +2,9 @@
 
 **Purpose:** Review use-case capability rows **15** and **15b**, map a **theoretical** product path that preserves the student-creator vision **without** GitHub-as-forge, and conclude from **current external technology** (not only in-repo research).
 
-**Status:** Theoretical design + **T1 implementation landed** (2026-08) — share card, profile external links, Hub `playable` + `/play` shell, systems club kit, optional SpaceXAI proxy.  
+**Status:** Theoretical design + **T1 implementation landed** (2026-08) — share card, profile external links, Hub `playable` + `/play` shell, systems club kit, no client AI.  
 **Last updated:** 2026-08-09  
-**AI policy:** Optional **SpaceXAI** (xAI) only — never required for the playable path; never ship `XAI_API_KEY` in Tauri/Vite client bundles.
+**AI policy:** No client AI required. Tier 0 / Yard runs without any model API.
 
 ### T1 shipped (code)
 
@@ -15,7 +15,7 @@
 | Hub `systems` + kind `playable` | `content-hub.ts` + hub UI |
 | Play shell | `/play?url=` sandboxed iframe — `pages/play.tsx` |
 | Systems club kit | `club-activities.ts` template `systems` |
-| SpaceXAI optional | `spacexai-assist.ts` + `bun run spacexai:assist` proxy; `VITE_SPACEXAI_PROXY` |
+| Client AI | **Not in product** — Tier 0 runs without models |
 
 **Not in T1:** live iroh provider for N, git forge, client API keys.
 
