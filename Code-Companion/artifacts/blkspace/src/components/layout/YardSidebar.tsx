@@ -12,6 +12,7 @@ import {
   Settings,
   Code2,
   Trophy,
+  Joystick,
 } from "lucide-react";
 import { getCurrentHandle } from "@/lib/auth";
 import { useAppGetUser, useAppGetTrendingFeed } from "@/hooks/use-app-data";
@@ -117,6 +118,25 @@ export function YardSidebar() {
                 </div>
               </Link>
             ))}
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <Joystick className="w-4 h-4 text-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="font-medium text-sm">Yard Arcade</p>
+              <p className="text-[11px] text-muted-foreground truncate">
+                Homebrew games · not Steam
+              </p>
+            </div>
+          </div>
+          <Link href="/arcade">
+            <Button size="sm" variant="default" className="shrink-0">
+              Play
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 

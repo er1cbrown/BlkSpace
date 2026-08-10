@@ -40,6 +40,8 @@ const HubPage = React.lazy(() => import("@/pages/hub"));
 const FocusPage = React.lazy(() => import("@/pages/focus"));
 const FacultyPage = React.lazy(() => import("@/pages/faculty"));
 const MessagesPage = React.lazy(() => import("@/pages/messages"));
+const PlayPage = React.lazy(() => import("@/pages/play"));
+const ArcadePage = React.lazy(() => import("@/pages/arcade"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -188,6 +190,8 @@ function Router() {
         <Route path="/leaderboard" component={LeaderboardPage} />
         <Route path="/media" component={MediaPage} />
         <Route path="/hub" component={HubPage} />
+        <Route path="/arcade" component={ArcadePage} />
+        <Route path="/play" component={PlayPage} />
         <Route path="/focus" component={FocusPage} />
         <Route path="/faculty" component={FacultyPage} />
         <Route
@@ -229,7 +233,7 @@ function App() {
                 <TooltipProvider>
                   <SessionBoot />
                   <WouterRouter
-                    base={import.meta.env.BASE_URL.replace(/\/$/, "")}
+                    base={(import.meta.env?.BASE_URL ?? "/").replace(/\/$/, "")}
                   >
                     <Router />
                   </WouterRouter>

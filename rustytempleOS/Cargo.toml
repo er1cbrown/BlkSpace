@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = ["crates/rtos-shell"]
+default-members = ["crates/rtos-shell"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["er1cbrown"]
+repository = "https://github.com/er1cbrown/rustytempleOS"
+
+[workspace.lints.rust]
+unsafe_code = "warn"

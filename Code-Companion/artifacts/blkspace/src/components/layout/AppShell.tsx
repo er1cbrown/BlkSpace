@@ -17,12 +17,14 @@ import {
   Plus,
   ArrowRight,
   Handshake,
+  MessageCircle,
   Layers,
   HeartPulse,
   Building2,
   MoreHorizontal,
   Settings,
   Trophy,
+  Joystick,
 } from "lucide-react";
 import { getCurrentHandle } from "@/lib/auth";
 import { useAppGetUser } from "@/hooks/use-app-data";
@@ -41,19 +43,30 @@ interface AppShellProps {
   fullWidth?: boolean;
 }
 
-/** Student core — five primary destinations (plain language). */
+/** Student core — everyday destinations (Connect = ProjectConnect). */
 const PRIMARY_NAV = [
   { href: "/feed", label: "Home", sub: "Your feed", icon: Home },
   { href: "/communities", label: "Yards", sub: "Campuses", icon: Users },
+  {
+    href: "/connect",
+    label: "Connect",
+    sub: "ProjectConnect",
+    icon: Handshake,
+  },
   { href: "/create", label: "Create", sub: "New post", icon: Clapperboard },
-  { href: "/connect", label: "Connect", sub: "Jobs & opps", icon: Handshake },
+  {
+    href: "/messages",
+    label: "Messages",
+    sub: "Your conversations",
+    icon: MessageCircle,
+  },
 ] as const;
 
 const MOBILE_NAV = [
   { href: "/feed", label: "Home", icon: Home },
   { href: "/communities", label: "Yards", icon: Users },
-  { href: "/create", label: "Create", icon: Plus, accent: true },
   { href: "/connect", label: "Connect", icon: Handshake },
+  { href: "/create", label: "Create", icon: Plus, accent: true },
   { href: "/profile", label: "You", icon: User, profile: true },
 ] as const;
 
@@ -147,8 +160,11 @@ export function AppShell({
     ? PRIMARY_NAV.filter((item) => item.href !== "/create")
     : [...PRIMARY_NAV];
 
+  // Connect is primary nav; More holds secondary destinations
   const moreItems = [
+    { href: "/messages", label: "Messages", icon: MessageCircle, show: true },
     { href: "/hub", label: "Hub", icon: Layers, show: true },
+    { href: "/arcade", label: "Arcade", icon: Joystick, show: true },
     {
       href: "/focus",
       label: "Focus",
@@ -165,7 +181,6 @@ export function AppShell({
     { href: "/leaderboard", label: "Leaderboard", icon: Trophy, show: true },
     { href: "/settings", label: "Settings", icon: Settings, show: !isGuest },
   ].filter((i) => i.show);
-  // Hub stays under More — not a first-day destination
 
   const mobileNav = isGuest
     ? MOBILE_NAV.filter((item) => item.href !== "/create")

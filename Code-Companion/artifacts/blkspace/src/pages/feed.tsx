@@ -44,6 +44,7 @@ import { Link } from "wouter";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Heart, MessageSquare, Repeat2, MoreHorizontal } from "lucide-react";
+import { ShareCardButton } from "@/components/social/ShareCardButton";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -860,6 +861,17 @@ export default function FeedPage() {
                       />{" "}
                       {item.likesCount || 0}
                     </Button>
+                    <ShareCardButton
+                      size="icon"
+                      className="h-8 w-8"
+                      share={{
+                        kind: "post",
+                        body: String(item.content || displayContent || ""),
+                        authorHandle: item.authorHandle,
+                        yardId: item.townTag || selectedTown,
+                        path: `/posts/${item.id}`,
+                      }}
+                    />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button

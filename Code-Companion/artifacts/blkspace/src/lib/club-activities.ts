@@ -176,12 +176,27 @@ const TEMPLATES: ClubTemplate[] = [
     ],
     suggestedEventKind: "study",
   },
+  {
+    id: "systems",
+    name: "Systems / Retro / Playables",
+    description:
+      "Rust OS demos, WASM play nights, Sendme-class drops — Slack-range lab, not a GitHub replacement.",
+    channels: [
+      "general",
+      "playable-drops",
+      "boot-notes",
+      "pin-sessions",
+      "collab",
+      "share-cards",
+    ],
+    suggestedEventKind: "social",
+  },
 ];
 
 function defaultDemo(): Demo {
   return {
     applied: {
-      tsu: ["anime", "gaming", "study"],
+      tsu: ["anime", "gaming", "study", "systems"],
       meharry: ["med", "study"],
     },
     circles: [

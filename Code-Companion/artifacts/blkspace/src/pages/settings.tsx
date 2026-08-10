@@ -49,6 +49,10 @@ import {
   getStoredPubkey,
 } from "@/lib/auth";
 import {
+  getWebProfilePatch,
+  saveWebProfilePatch,
+} from "@/lib/web-userspace";
+import {
   Eye,
   EyeOff,
   Shield,
@@ -149,6 +153,9 @@ export default function SettingsPage() {
   const [name, setName] = useState(getCurrentDisplayName());
   const [handle] = useState(getCurrentHandle());
   const [bio, setBio] = useState("");
+  const [githubUrl, setGithubUrl] = useState("");
+  const [xUrl, setXUrl] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [saved, setSaved] = useState(false);
   const [revealedPhrase, setRevealedPhrase] = useState<string | null>(null);
   const [loadingPhrase, setLoadingPhrase] = useState(false);
@@ -186,9 +193,27 @@ export default function SettingsPage() {
     localStorage.setItem("blkspace_display_name", name);
     const next = { ...uiPrefs, homeYardId: uiPrefs.homeYardId };
     saveUiPrefs(next);
+    // Bio + external forge/social links (forge is link-out only — not a git host)
+    saveWebProfilePatch({
+      ...getWebProfilePatch(),
+      bio: bio.trim() || undefined,
+      displayName: name.trim() || undefined,
+      githubUrl: githubUrl.trim(),
+      xUrl: xUrl.trim(),
+      websiteUrl: websiteUrl.trim(),
+    });
     setSaved(true);
+    toast.success("Profile saved");
     setTimeout(() => setSaved(false), 2000);
   };
+
+  useEffect(() => {
+    const patch = getWebProfilePatch();
+    if (patch.bio) setBio(patch.bio);
+    if (patch.githubUrl) setGithubUrl(patch.githubUrl);
+    if (patch.xUrl) setXUrl(patch.xUrl);
+    if (patch.websiteUrl) setWebsiteUrl(patch.websiteUrl);
+  }, []);
 
   const patchUi = (patch: Partial<UiPrefs>) => {
     setUiPrefs((prev) => ({ ...prev, ...patch }));
@@ -312,6 +337,40 @@ export default function SettingsPage() {
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="Tell the yard about yourself..."
                   rows={4}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="github">GitHub (forge — link only)</Label>
+                <Input
+                  id="github"
+                  value={githubUrl}
+                  onChange={(e) => setGithubUrl(e.target.value)}
+                  placeholder="https://github.com/you/project"
+                  inputMode="url"
+                />
+                <p className="text-xs text-muted-foreground">
+                  BlkSpace is not a git host. Source stays on GitHub; the yard is
+                  your stage.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="xurl">X / Twitter</Label>
+                <Input
+                  id="xurl"
+                  value={xUrl}
+                  onChange={(e) => setXUrl(e.target.value)}
+                  placeholder="https://x.com/you"
+                  inputMode="url"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="website">Website / portfolio</Label>
+                <Input
+                  id="website"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  placeholder="https://…"
+                  inputMode="url"
                 />
               </div>
               <div className="space-y-2">

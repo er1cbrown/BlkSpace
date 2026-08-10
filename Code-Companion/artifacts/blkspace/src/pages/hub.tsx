@@ -27,6 +27,7 @@ import { BRAND } from "@/lib/brand";
 import {
   Clapperboard,
   ExternalLink,
+  Gamepad2,
   GraduationCap,
   Layers,
   Plus,
@@ -39,6 +40,8 @@ import {
   getDisciplineTrack,
   orderHubTopicsForTrack,
 } from "@/lib/discipline-track";
+import { ShareCardButton } from "@/components/social/ShareCardButton";
+import { playShellPath } from "@/lib/share-card";
 
 /**
  * Content Hub — amalgamation media shelf (chess lessons, live links, fashion,
@@ -144,6 +147,12 @@ export default function HubPage() {
                 Money literacy
               </Button>
             </Link>
+            <Link href="/arcade">
+              <Button size="sm" variant="default" className="gap-1">
+                <Gamepad2 className="w-3.5 h-3.5" />
+                Yard Arcade
+              </Button>
+            </Link>
             <Link href="/create">
               <Button size="sm" variant="outline" className="gap-1">
                 <Clapperboard className="w-3.5 h-3.5" />
@@ -237,6 +246,7 @@ export default function HubPage() {
                         "stream",
                         "article",
                         "portfolio",
+                        "playable",
                       ] as HubItemKind[]
                     ).map((k) => (
                       <SelectItem key={k} value={k}>
@@ -258,14 +268,15 @@ export default function HubPage() {
                 rows={3}
               />
               <Input
-                placeholder="Optional link (Lichess, Twitch, YT, portfolio…)"
+                placeholder="Optional link (Lichess, Twitch, YT, WASM demo, portfolio…)"
                 value={mediaUrl}
                 onChange={(e) => setMediaUrl(e.target.value)}
               />
               <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                 <Radio className="w-3 h-3" />
-                Live? Use kind <strong>stream</strong> + your watch URL. Native
-                ingest comes later — link-out is the honest MVP.
+                Live? Use kind <strong>stream</strong> + watch URL. Playable?
+                Use kind <strong>playable</strong> + HTTPS static/WASM URL →
+                Play shell.
               </p>
               <Button size="sm" disabled={!title.trim()} onClick={publish}>
                 Publish
@@ -293,6 +304,38 @@ export default function HubPage() {
                   {item.title}
                 </h2>
                 <p className="text-sm text-muted-foreground">{item.body}</p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <ShareCardButton
+                    variant="outline"
+                    share={{
+                      kind: item.kind === "playable" ? "playable" : "hub",
+                      title: item.title,
+                      body: item.body,
+                      authorHandle: item.authorHandle,
+                      yardId: item.yardId,
+                      path:
+                        item.kind === "playable" &&
+                        item.mediaUrl &&
+                        isSafeHttpUrl(item.mediaUrl)
+                          ? playShellPath(item.mediaUrl)
+                          : "/hub",
+                      externalUrl: item.mediaUrl || undefined,
+                    }}
+                  />
+                  {item.kind === "playable" &&
+                    item.mediaUrl &&
+                    isSafeHttpUrl(item.mediaUrl) && (
+                      <Link
+                        href={playShellPath(item.mediaUrl) +
+                          `&title=${encodeURIComponent(item.title)}`}
+                      >
+                        <Button size="sm" className="gap-1 h-8">
+                          <Gamepad2 className="w-3.5 h-3.5" />
+                          Play in BlkSpace
+                        </Button>
+                      </Link>
+                    )}
+                </div>
                 {item.mediaUrl && isSafeHttpUrl(item.mediaUrl) && (
                   <a
                     href={item.mediaUrl}

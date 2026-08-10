@@ -15,10 +15,17 @@ export type HubTopic =
   | "pro"
   | "culture"
   | "live"
-  | "gaming";
+  | "gaming"
+  | "systems";
 
 export type HubItemKind =
-  "post" | "video" | "article" | "stream" | "portfolio" | "lesson";
+  | "post"
+  | "video"
+  | "article"
+  | "stream"
+  | "portfolio"
+  | "lesson"
+  | "playable";
 
 export interface HubItem {
   id: string;
@@ -98,6 +105,13 @@ export const HUB_TOPICS: {
     label: "Gaming",
     blurb: "Brackets, VODs, LFG, merch.",
     earnAngle: "Tournaments · content · merch",
+  },
+  {
+    id: "systems",
+    label: "Systems / playables",
+    blurb:
+      "Rust demos, WASM/static play, retro OS energy — yard stage, not a git forge.",
+    earnAngle: "Hub playable · share card · club pin nights",
   },
 ];
 
@@ -182,6 +196,19 @@ function seed(): HubItem[] {
       createdAt: new Date(now - 9000000).toISOString(),
       earnHint: "ProjectConnect research interest · low-bandwidth",
     },
+    {
+      id: `hub_${now}_7`,
+      topic: "systems",
+      kind: "playable",
+      title: "TempleOS-energy · tiny WASM shell demo (sample URL)",
+      body: "Student systems creators: publish a small HTTPS static/WASM demo, open it in BlkSpace Play shell, share card to X. GitHub stays the forge — yard is the stage.",
+      mediaUrl: "https://webassembly.github.io/wabt/demo/",
+      authorHandle: "demo_user",
+      authorDisplayName: "Demo User",
+      yardId: "tsu",
+      createdAt: new Date(now - 1800000).toISOString(),
+      earnHint: "Playable Hub · share card · systems club",
+    },
   ];
 }
 
@@ -251,4 +278,14 @@ export function publishHubItem(input: {
 
 export function hubTopicLabel(id: HubTopic): string {
   return HUB_TOPICS.find((t) => t.id === id)?.label || id;
+}
+
+/** Insert items by title if missing (Yard Arcade / system seeds). */
+export function injectHubItemsIfAbsent(items: HubItem[]): number {
+  const cur = load();
+  const titles = new Set(cur.map((i) => i.title));
+  const add = items.filter((i) => i.title && !titles.has(i.title));
+  if (!add.length) return 0;
+  save([...add, ...cur]);
+  return add.length;
 }

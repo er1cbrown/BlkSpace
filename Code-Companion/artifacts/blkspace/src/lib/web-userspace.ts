@@ -125,6 +125,12 @@ export interface WebProfilePatch {
   bio?: string;
   displayName?: string;
   town?: string;
+  /** External forge — out of product scope as host; link-out only */
+  githubUrl?: string;
+  /** X / Twitter profile URL */
+  xUrl?: string;
+  /** Personal site / portfolio */
+  websiteUrl?: string;
 }
 
 export function getWebProfilePatch(): WebProfilePatch {
@@ -205,6 +211,9 @@ export function buildWebUser(handle: string) {
       ? 5 + listWebUserPosts().filter((p) => p.authorHandle === h).length * 3
       : 42,
     commentKarma: isMe ? 2 : 18,
+    githubUrl: isMe ? patch.githubUrl || "" : "",
+    xUrl: isMe ? patch.xUrl || "" : "",
+    websiteUrl: isMe ? patch.websiteUrl || "" : "",
     proProfileJson: "{}",
     profileLayoutJson: "{}",
     topFriendsJson: "[]",

@@ -27,6 +27,7 @@ import { SignatureWarningBanner } from "@/components/ui/signature-warning-banner
 import { ExperimentalMessagingWarning } from "@/components/ui/experimental-messaging-warning";
 import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { getCurrentHandle } from "@/lib/auth";
+import { ShareCardButton } from "@/components/social/ShareCardButton";
 
 export default function PostPage() {
   const queryClient = useQueryClient();
@@ -130,7 +131,7 @@ export default function PostPage() {
                 {new Date(post.createdAt).toLocaleDateString()}
               </div>
             </CardContent>
-            <CardFooter className="flex gap-8 py-4 border-t border-border/50 text-muted-foreground">
+            <CardFooter className="flex flex-wrap gap-6 py-4 border-t border-border/50 text-muted-foreground items-center">
               <div className="flex gap-2 items-center">
                 <MessageSquare className="w-5 h-5" />{" "}
                 <span className="font-medium text-foreground">
@@ -152,6 +153,16 @@ export default function PostPage() {
                 </span>{" "}
                 Likes
               </div>
+              <ShareCardButton
+                variant="outline"
+                share={{
+                  kind: "post",
+                  body: post.content,
+                  authorHandle: post.authorHandle,
+                  yardId: post.townTag,
+                  path: `/posts/${post.id}`,
+                }}
+              />
             </CardFooter>
           </Card>
 

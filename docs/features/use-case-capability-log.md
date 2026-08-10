@@ -3,7 +3,7 @@
 **Product:** **BlkSpace** (trademark-intent UI / app brand)  
 **Coin ticker:** **BKSPC** = **BlkSpace Coin** (settlement rights path — gated)  
 **Soft credits:** WeixBucks (WB)  
-**Last updated:** 2026-08-02  
+**Last updated:** 2026-08-09  
 **Repo:** [er1cbrown/BlkSpace](https://github.com/er1cbrown/BlkSpace)
 
 This log is the living answer to: *“Can this campus story run on BlkSpace?”*  
@@ -27,6 +27,9 @@ Trademark intent: protect **BlkSpace** as product. **BKSPC** is the short ticker
 
 | # | Persona / use case | Status | What works on BlkSpace | Still missing |
 |---|-------------------|--------|------------------------|---------------|
+| 0 | TSU EE · IEEE Student Branch · eval/research opps | **Partial** | Seed org `IEEE Student Branch · TSU` + 3 eval opps; Connect interest/complete/Cred; Yard events; sheet [`use-case-tsu-ee-ieee-branch.md`](use-case-tsu-ee-ieee-branch.md) | Filled Device B evidence; optional SpaceXAI remains operator-only |
+| 0b | Campus production · ~$1 mental-model photo · instant unlock | **Partial** | Studio + Yard Sale digital list; WB pay; 5% fee; instant grant path; theory scale sheet [`use-case-campus-production-photos.md`](use-case-campus-production-photos.md) | Real USD / card rails; official WB↔USD peg; native TikTok FYP + Creator Fund |
+| 0c | Orgs · donors · investors · capital roles | **Partial** | Theory only: planes P/R/S, today/next/never — [`capital-roles-theoretical.md`](capital-roles-theoretical.md) | Live USD rails, sponsor registry UI, traction metrics page, counsel-reviewed PSP |
 | 1 | Multi-campus fashion majors · P2P sell art/mockups/tech packs · club split | **Done** | Yard Sale types, 2-party escrow, org split, Cred withdraw gate | Physical shipping, card payments, mainnet BKSPC escrow |
 | 2 | ProjectConnect · research / NSBE-style · GPA privacy | **Done** | Orgs, opportunities, interest, inbox, endorsements, Yard Cred, GPA modes | Official campus SSO / SIS |
 | 3 | Billy post-internship · open to work / research · find labs | **Done** | Pro Profile flags, Connect talent board, express interest | Fortune-500 cold outreach, LinkedIn Recruiter |
@@ -47,6 +50,10 @@ Trademark intent: protect **BlkSpace** as product. **BKSPC** is the short ticker
 | 12 | Licensed anime/TV / Netflix-class media | **Out of scope** | — | Rights + CDN product |
 | 13 | University SIS / official transcript / legal ID | **Out of scope** | Nostr handle identity | Campus ERP integration |
 | 14 | Global Eventbrite / Posh / LinkedIn / Twitch replacements | **Out of scope** | Campus amalgamation slices only | Full category products |
+| 15 | Young Rust OS hacker · TempleOS rebuild · Discord+GitHub home · X updates | **Partial** | Share card (X paste); profile GitHub/X/site links; systems club kit; feed/Studio/Connect; sheet [`use-case-rust-templeos-hacker.md`](use-case-rust-templeos-hacker.md) | Native voice/live; git host/PRs; X OAuth; huge artifact path on Yard |
+| 15b | Browser-playable on WeixNet · Sendme multi-user (Slack-N) · short+long social | **Partial** | Hub kind `playable` + `/play` sandbox shell; systems topic; share cards; tickets still thin; sheet [`use-case-playable-sendme-yard.md`](use-case-playable-sendme-yard.md) | Always-on pin for N; club ticket auto-announce; small-artifact Yard budget enforcement |
+| 15c | Theoretical build path · 15/15b vision kept · GitHub out · optional SpaceXAI | **Partial** | T1 landed: share, links, play shell, systems kit; SpaceXAI proxy optional (`spacexai:assist`) — [`theoretical-playable-weixnet-capability-build.md`](theoretical-playable-weixnet-capability-build.md) | T2 pin-for-N; Device B proof |
+| 16 | **Yard Arcade** · campus homebrew games shelf (Newgrounds/Y8 class) | **Partial** | `/arcade` catalog + publish; Play shell; size classes; Hub/nav/sidebar; not Steam/Roblox — [`yard-arcade.md`](yard-arcade.md) | Full pin nights; Yard Sale escrow deep-link; optional Ruffle SWF; byte-size enforce |
 
 ---
 
@@ -94,6 +101,13 @@ BlkSpace product use (yards, Connect, studio, escrow)
 
 | Date | Note |
 |------|------|
+| 2026-08-09 | Yard Arcade vertical (`/arcade`) — homebrew shelf, capability row 16 |
+| 2026-08-09 | T1 implement: share card, profile links, Hub playable + /play, systems club, optional SpaceXAI proxy |
+| 2026-08-09 | Theoretical playable WeixNet build (row 15c) — current tech conclusion, GitHub out, SpaceXAI optional |
+| 2026-08-09 | Rust TempleOS hacker + playable Sendme yard use cases (rows 15 / 15b) |
+| 2026-08-09 | Capital roles theoretical impl (org/donor/investor planes) |
+| 2026-08-09 | Campus production photo micro-price use case (n) + scale note for \(N_u=50\) |
+| 2026-08-09 | Theoretical TSU EE · IEEE Student Branch use-case sheet + capability row 0 |
 | 2026-08-03 | Faculty events + secure handle DMs + ethical identity (No-PHI, IEEE principles, claim levels) |
 | 2026-08-03 | Faculty harden: org lead post auth, connect_interest notify, faculty badge, Rust pipeline seed, broadcast-after-post |
 | 2026-08-03 | Faculty Desk: private-uni → Meharry/HBCU pipeline; welcome faculty path; Connect CTA |

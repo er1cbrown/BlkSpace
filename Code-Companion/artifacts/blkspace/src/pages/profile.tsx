@@ -27,8 +27,13 @@ import {
   Store,
   BookOpen,
   Award,
+  ExternalLink,
+  Github,
 } from "lucide-react";
 import { Link } from "wouter";
+import { ShareCardButton } from "@/components/social/ShareCardButton";
+import { isSafeHttpUrl } from "@/lib/amalgamation-meta";
+import { getWebProfilePatch } from "@/lib/web-userspace";
 import {
   useAppGetUser,
   useAppGetUserPosts,
@@ -494,6 +499,65 @@ export default function ProfilePage() {
             <p className="text-lg mb-2 max-w-2xl">
               {user.bio || "No bio yet. Edit to tell your story."}
             </p>
+            {(() => {
+              const patch =
+                handle === currentUser || !handle
+                  ? getWebProfilePatch()
+                  : {};
+              const github =
+                (user as { githubUrl?: string }).githubUrl ||
+                patch.githubUrl ||
+                "";
+              const x =
+                (user as { xUrl?: string }).xUrl || patch.xUrl || "";
+              const web =
+                (user as { websiteUrl?: string }).websiteUrl ||
+                patch.websiteUrl ||
+                "";
+              const links = [
+                { label: "GitHub", href: github, icon: Github },
+                { label: "X", href: x, icon: ExternalLink },
+                { label: "Site", href: web, icon: ExternalLink },
+              ].filter((l) => l.href && isSafeHttpUrl(l.href));
+              if (!links.length && !isOwnProfile) return null;
+              return (
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {links.map((l) => (
+                    <a
+                      key={l.label}
+                      href={l.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1 text-xs"
+                      >
+                        <l.icon className="w-3.5 h-3.5" />
+                        {l.label}
+                      </Button>
+                    </a>
+                  ))}
+                  <ShareCardButton
+                    variant="outline"
+                    share={{
+                      kind: "profile",
+                      authorHandle: user.handle,
+                      body: user.bio || "",
+                      path: `/profile/${user.handle}`,
+                    }}
+                  />
+                  {isOwnProfile && links.length === 0 && (
+                    <Link href="/settings">
+                      <Button size="sm" variant="ghost" className="h-7 text-xs">
+                        Add GitHub / X links
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              );
+            })()}
             {aesthetic.about ? (
               <p className="text-sm text-muted-foreground mb-4 max-w-2xl whitespace-pre-wrap">
                 {aesthetic.about}

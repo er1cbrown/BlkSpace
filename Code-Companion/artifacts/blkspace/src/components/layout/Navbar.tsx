@@ -14,6 +14,7 @@ export function Navbar() {
   const navItems = [
     { href: "/feed", label: "Feed" },
     { href: "/hub", label: "Hub" },
+    { href: "/arcade", label: "Arcade" },
     { href: "/focus", label: "Focus" },
     { href: "/faculty", label: "Faculty" },
     { href: "/messages", label: "Messages" },
