@@ -8,6 +8,7 @@ import type { HubTopic } from "@/lib/content-hub";
 
 export type DisciplineTrack =
   | "general"
+  | "social"
   | "finance"
   | "creative"
   | "research"
@@ -75,6 +76,36 @@ export const DISCIPLINE_TRACKS: DisciplineTrackMeta[] = [
     startPath: "/feed",
   },
   {
+    id: "social",
+    label: "Campus life · your yard",
+    short: "Your yard",
+    blurb:
+      "People, clubs, fashion energy, and nights out — not living in someone else's finance tab. Same app; your track.",
+    hubTopicOrder: [
+      "culture",
+      "live",
+      "fashion",
+      "music",
+      "gaming",
+      "chess",
+      "study",
+      "pro",
+      "systems",
+      "med",
+    ],
+    connectDomainHint: "all",
+    showFacultyNav: false,
+    showFocusNav: true,
+    pinnedModules: {
+      events: true,
+      studio: true,
+      clubs: true,
+      yardSale: true,
+      literacy: false,
+    },
+    startPath: "/feed",
+  },
+  {
     id: "finance",
     label: "Finance & literacy",
     short: "Finance",
@@ -108,7 +139,8 @@ export const DISCIPLINE_TRACKS: DisciplineTrackMeta[] = [
     id: "creative",
     label: "Creative & fashion",
     short: "Creative",
-    blurb: "Studio, fashion drops, music, and Yard Sale — creator-first shelf.",
+    blurb:
+      "Studio, fashion drops, music, and Yard Sale — creator-first. Build your look and list, not only watch a wallet.",
     hubTopicOrder: [
       "fashion",
       "music",
@@ -202,6 +234,7 @@ const TRACK_BY_ID = Object.fromEntries(
 export function isDisciplineTrack(v: unknown): v is DisciplineTrack {
   return (
     v === "general" ||
+    v === "social" ||
     v === "finance" ||
     v === "creative" ||
     v === "research" ||
@@ -263,6 +296,8 @@ export function disciplineUpliftLine(track: DisciplineTrack): string {
   switch (track) {
     case "finance":
       return "Learn markets · build Cred · then optional settlement — never buy rank.";
+    case "social":
+      return "Your yard: clubs, posts, nights, fashion energy — not only someone else's finance grind.";
     case "creative":
       return "Create, list, tip creators. Spend funds people — not ads.";
     case "research":
@@ -272,4 +307,13 @@ export function disciplineUpliftLine(track: DisciplineTrack): string {
     default:
       return "Uplift the yard: gatherings, creators, and pathways — not attention extraction.";
   }
+}
+
+/** Partner / non-finance campus life — see use-case-her-yard-path.md */
+export const YOUR_YARD_TRACK: DisciplineTrack = "social";
+
+export function isYourYardOrientedTrack(
+  track: DisciplineTrack | string | undefined | null,
+): boolean {
+  return track === "social" || track === "creative" || track === "general";
 }

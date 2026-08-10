@@ -85,6 +85,7 @@ Stored as `disciplineTrack` in `blkspace_ui_prefs_v1`:
 | Track | Hub priority | Default emphasis |
 |-------|--------------|------------------|
 | `general` | Culture, live, study… | Balanced campus |
+| `social` | Culture, live, fashion, music… | **Your yard** — clubs/nights; not wallet-first ([her path](use-case-her-yard-path.md)) |
 | `finance` | Pro, study, culture | Literacy + Connect finance domain |
 | `creative` | Fashion, music, live, culture | Studio / Yard Sale |
 | `research` | Med, study, pro | Connect research + Focus |

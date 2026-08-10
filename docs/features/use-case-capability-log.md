@@ -54,6 +54,14 @@ Trademark intent: protect **BlkSpace** as product. **BKSPC** is the short ticker
 | 15b | Browser-playable on WeixNet · Sendme multi-user (Slack-N) · short+long social | **Partial** | Hub kind `playable` + `/play` sandbox shell; systems topic; share cards; tickets still thin; sheet [`use-case-playable-sendme-yard.md`](use-case-playable-sendme-yard.md) | Always-on pin for N; club ticket auto-announce; small-artifact Yard budget enforcement |
 | 15c | Theoretical build path · 15/15b vision kept · GitHub out · optional SpaceXAI | **Partial** | T1 landed: share, links, play shell, systems kit; no client AI — [`theoretical-playable-weixnet-capability-build.md`](theoretical-playable-weixnet-capability-build.md) | T2 pin-for-N; Device B proof |
 | 16 | **Yard Arcade** · campus homebrew games shelf (Newgrounds/Y8 class) | **Partial** | `/arcade` catalog + publish; Play shell; size classes; Hub/nav/sidebar; not Steam/Roblox — [`yard-arcade.md`](yard-arcade.md) | Full pin nights; Yard Sale escrow deep-link; optional Ruffle SWF; byte-size enforce |
+| 17 | Chess friends → Club Inc. → HBCU virtual open + spectator hub + yard spirit swag / limited cosmetics | **Partial** | Multi-round auto-bracket; settle ladder (1st/2nd soft WB, 3rd free spirit, free clothing market claim); in-app board embed; Chess Open pack + spirit shop — [`use-case-hbcu-chess-club-yard-spirit.md`](use-case-hbcu-chess-club-yard-spirit.md) | True native chess engine; USD/mainnet cash; full 3D Habbo/Roblox world; product AI |
+| 18 | **Reticulum** optional mesh lane (WeixNet resilient transport) | **Partial** | Bridge detect + status + yard announce/note spool; Mesh Test tab; Tier 0 OK without `rns` — [`../implementation/RETICULUM_INTEGRATION.md`](../implementation/RETICULUM_INTEGRATION.md) | Full LXMF DM path; rnsd auto-config UI; radio/RNode default profiles |
+| 19 | **ProjectB(XK20)=ProjectBlackSpaceFighters** · Super BlkSpace Fighters **series** | **Partial** | Trilogy vision + host UI: **YDB1** Yard Day Brawl 1.0 (Rumble *class*), **XQ5D** SBF 2.0 (Smash Flash *class*), **5DXQ** Tag 3.0 (Capoeira *craft* + 2XKO-style tag) — [`super-blkspace-fighters-series.md`](super-blkspace-fighters-series.md) · [`yard-day-brawl.md`](yard-day-brawl.md) | Shipped WASM engines 1.0→3.0; netplay; full mascot art pipeline |
+| 19b | Host homebrew HBCU Flash-nostalgia series on Yard Arcade / WeixNet | **Partial** | Arcade catalog + Play shell + size classes + series seeds; optional SWF runtime path documented | Pin nights for Full packs; Device B multiplayer proof |
+| 19c | **5DXQ** Tag expansion (Project L–class full download + mascot staples) | **Vision** | Product id **5DXQ** locked; tag/assist design on paper | Real tag engine + expansion pack binary |
+| 19d | **Rollback netplay** (Tough Love Arena–class connectivity for SBF) | **Partial** | **N1** local trainer `/rollback` · deterministic sim + predict/rollback/resim + input log verify — [`sbf-rollback-netplay.md`](sbf-rollback-netplay.md) · `sbf-rollback-core.ts` | N2 loopback 2-instance; N3 friend-code WAN; TURN; club result events |
+| 20 | **3-route secure connectivity** (A social ∥ B RNS ∥ C play) | **Partial** | Model + probe UI on Mesh Test → **3 Routes**; Turso = A cache only — [`secure-connectivity-three-routes.md`](secure-connectivity-three-routes.md) | Full Device B on A; LXMF on B; shipped rollback on C |
+| 21 | **Your yard path** · not just finance (partner/campus life track) | **Partial** | Discipline track `social` + feed `YourYardPathCard` + creative track copy — [`use-case-her-yard-path.md`](use-case-her-yard-path.md) | Deeper onboarding analytics; couple shared club night pack |
 
 ---
 
@@ -101,6 +109,11 @@ BlkSpace product use (yards, Connect, studio, escrow)
 
 | Date | Note |
 |------|------|
+| 2026-08-10 | Yard Day Brawl original (row 19) — not Newgrounds Rumble clone |
+| 2026-08-10 | Reticulum optional bridge (row 18) — markqvist/RNS, no replace Nostr |
+| 2026-08-09 | Multi-round bracket + WB prize ladder + free clothing market claim (row 17) |
+| 2026-08-09 | Implement Chess Open pack + spirit cosmetics shop (row 17 code) |
+| 2026-08-09 | HBCU Chess Club Inc. + yard spirit swag use case (row 17) |
 | 2026-08-09 | Yard Arcade vertical (`/arcade`) — homebrew shelf, capability row 16 |
 | 2026-08-09 | T1 implement: share card, profile links, Hub playable + /play, systems club, optional SpaceXAI proxy |
 | 2026-08-09 | Theoretical playable WeixNet build (row 15c) — current tech conclusion, GitHub out, SpaceXAI optional |

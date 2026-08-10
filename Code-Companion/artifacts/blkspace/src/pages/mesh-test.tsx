@@ -48,9 +48,11 @@ import {
   Network,
 } from "lucide-react";
 import { SendmeSharePanel } from "@/components/media/SendmeSharePanel";
+import { ReticulumPanel } from "@/components/media/ReticulumPanel";
+import { SecureConnectivityRoutesPanel } from "@/components/media/SecureConnectivityRoutesPanel";
 
 export default function DeviceMeshTestPage() {
-  const [activeTab, setActiveTab] = useState("sync");
+  const [activeTab, setActiveTab] = useState("routes");
   const [deviceId, setDeviceId] = useState(() => {
     const stored = localStorage.getItem("device_id");
     if (stored) return stored;
@@ -202,10 +204,10 @@ export default function DeviceMeshTestPage() {
             </h1>
           </div>
           <p className="text-lg opacity-90 max-w-2xl">
-            Cross-device sync + HBCU intranet — {topo.totalYards} yards on one
-            shared relay wire (not{" "}
-            {topo.pairwiseLinksIfFullMesh.toLocaleString()} pairwise links).
-            Nostr tags, Iroh media, offline queue.
+            Secure connectivity · 3 routes (Social ∥ Resilient ∥ Play). Cross-device
+            sync + HBCU intranet — {topo.totalYards} yards on shared relays (not{" "}
+            {topo.pairwiseLinksIfFullMesh.toLocaleString()} pairwise). Nostr,
+            optional RNS, play/rollback design — not one spaghetti pipe.
           </p>
           <div className="flex items-center gap-2 mt-4 text-sm">
             <Badge variant="outline" className="bg-background/20">
@@ -235,17 +237,27 @@ export default function DeviceMeshTestPage() {
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="grid grid-cols-6 w-full max-w-4xl">
-            <TabsTrigger value="sync">Sync</TabsTrigger>
+          <TabsList className="grid grid-cols-4 sm:grid-cols-8 w-full max-w-6xl h-auto gap-1">
+            <TabsTrigger value="routes">3 Routes</TabsTrigger>
+            <TabsTrigger value="sync">Sync · A</TabsTrigger>
             <TabsTrigger value="drop">Drop</TabsTrigger>
+            <TabsTrigger value="reticulum">RNS · B</TabsTrigger>
             <TabsTrigger value="recovery">Recovery</TabsTrigger>
             <TabsTrigger value="offline">Offline</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="rewards">Rewards</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="routes" className="space-y-6">
+            <SecureConnectivityRoutesPanel />
+          </TabsContent>
+
           <TabsContent value="drop" className="space-y-6">
             <SendmeSharePanel />
+          </TabsContent>
+
+          <TabsContent value="reticulum" className="space-y-6">
+            <ReticulumPanel />
           </TabsContent>
 
           <TabsContent value="sync" className="space-y-6">

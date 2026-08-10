@@ -39,6 +39,10 @@ import {
   type ArcadeSizeClass,
 } from "@/lib/yard-arcade";
 import {
+  SUPER_BLKSPACE_FIGHTERS,
+  PROJECT_B_EQUATION,
+} from "@/lib/yard-day-brawl";
+import {
   Gamepad2,
   Joystick,
   Plus,
@@ -136,7 +140,19 @@ export default function ArcadePage() {
               Play shell
             </Link>
             , share with the yard, optional soft WB list later. Same{" "}
-            {BRAND.name} identity as Hub, Yards, and Yard Sale.
+            {BRAND.name} identity as Hub, Yards, and Yard Sale.{" "}
+            <strong className="text-foreground font-medium">
+              {SUPER_BLKSPACE_FIGHTERS}
+            </strong>{" "}
+            series{" "}
+            <span className="font-mono text-[11px]">
+              ({PROJECT_B_EQUATION} · YDB1/XQ5D/5DXQ)
+            </span>{" "}
+            — Flash nostalgia trilogy (Rumble → Smash Flash → Capoeira/tag
+            classes), original cast only.{" "}
+            <Link href="/rollback" className="text-primary underline-offset-2 hover:underline font-medium">
+              Rollback lab (N1)
+            </Link>
           </p>
         </div>
 
