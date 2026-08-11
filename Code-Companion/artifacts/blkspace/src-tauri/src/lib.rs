@@ -12,6 +12,7 @@ mod blob_store;
 mod key_store;
 mod relay_manager;
 mod sendme_share;
+mod reticulum_bridge;
 mod tier0_benchmark;
 
 #[cfg(feature = "iroh")]
@@ -3428,6 +3429,26 @@ fn run_tier0_benchmark(state: State<AppState>) -> Result<tier0_benchmark::Tier0B
   Ok(tier0_benchmark::run_tier0_benchmarks(&state.db, &state.blob_store))
 }
 
+/// Mark first `/feed` interactive moment for cold-start telemetry (process clock).
+/// Idempotent: first call wins; returns recorded ms from process start.
+#[tauri::command]
+fn mark_tier0_feed_interactive() -> Result<Option<u64>, String> {
+  Ok(tier0_benchmark::mark_feed_interactive())
+}
+
+/// Snapshot current process elapsed ms (debug / Device B console).
+#[tauri::command]
+fn get_tier0_boot_timing() -> Result<serde_json::Value, String> {
+  Ok(serde_json::json!({
+    "processElapsedMs": tier0_benchmark::process_elapsed_ms(),
+    "dbOpenMs": tier0_benchmark::db_open_ms(),
+    "shellReadyMs": tier0_benchmark::shell_ready_ms(),
+    "feedInteractiveMs": tier0_benchmark::feed_interactive_ms(),
+    "shellReadyTargetMs": tier0_benchmark::SHELL_READY_TARGET_MS,
+    "feedInteractiveTargetMs": tier0_benchmark::FEED_INTERACTIVE_TARGET_MS,
+  }))
+}
+
 #[derive(serde::Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct NostrVisibilityTestResult {
@@ -4140,6 +4161,27 @@ fn receive_blob_share_ticket(
       "Install: cargo install sendme"
     }
   ))
+}
+
+// ─── Reticulum optional mesh lane (https://github.com/markqvist/reticulum) ───
+
+#[tauri::command]
+fn reticulum_status() -> reticulum_bridge::ReticulumStatus {
+  reticulum_bridge::reticulum_status()
+}
+
+#[tauri::command]
+fn reticulum_announce_yard(yard: String, handle: String) -> Result<serde_json::Value, String> {
+  reticulum_bridge::reticulum_announce_yard(&yard, &handle)
+}
+
+#[tauri::command]
+fn reticulum_send_yard_note(
+  yard: String,
+  handle: String,
+  text: String,
+) -> Result<serde_json::Value, String> {
+  reticulum_bridge::reticulum_send_yard_note(&yard, &handle, &text)
 }
 
 #[tauri::command]
@@ -4959,11 +5001,15 @@ fn get_platform() -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  // Cold-start clock: process start before DB open / mesh work.
+  tier0_benchmark::mark_process_start();
+
   let app_dir = dirs::data_local_dir()
     .unwrap_or_else(|| std::path::PathBuf::from("."))
     .join("com.blkspace.app");
 
   let database = Database::new(app_dir.clone()).expect("Failed to initialize database");
+  tier0_benchmark::mark_db_open_complete();
   let blob_store = BlobStore::new(&app_dir);
   let relay_manager = RelayManager::new();
 
@@ -5167,6 +5213,15 @@ pub fn run() {
         }
       });
 
+      // Window show path unblocked once setup returns — record shell-ready here.
+      tier0_benchmark::mark_shell_ready();
+      if let Some(ms) = tier0_benchmark::shell_ready_ms() {
+        log::info!(
+          "Tier0 cold start: shell ready in {ms}ms (target <{}ms)",
+          tier0_benchmark::SHELL_READY_TARGET_MS
+        );
+      }
+
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -5247,6 +5302,9 @@ pub fn run() {
       receive_blob_share_ticket,
       get_sendme_cli_info,
       get_sendme_cli_commands,
+      reticulum_status,
+      reticulum_announce_yard,
+      reticulum_send_yard_note,
       link_pubkey,
       connect_to_relay,
       disconnect_from_relay,
@@ -5290,6 +5348,8 @@ pub fn run() {
       get_user_account_data,
       log_device_sync,
       run_tier0_benchmark,
+      mark_tier0_feed_interactive,
+      get_tier0_boot_timing,
       get_device_sync_history,
       record_relay_consensus,
       get_relay_consensus,

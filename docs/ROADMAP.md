@@ -20,7 +20,7 @@ Economy MVP (~50%)      █████░░░░░  WB + escrow; BKSPC devne
 Mobile (~10%)           ██░░░░░░░░  Planned (Tauri); not shipping yet
 ```
 
-**Works today:** install on **Windows / macOS / Linux** → welcome → feed → **MyYard** → yards → wallet (WB) → **Yard Sale** (instant + escrow) → **Connect** → **Events/tickets** → **Clubs** (reading/tournaments) → **Studio** (portfolio + client delivery). Local DB **Turso** on desktop.
+**Works today:** install on **Windows / macOS / Linux** → welcome → feed → **MyYard** → yards → wallet (WB) → **Yard Sale** (instant + escrow) → **Connect** → **Events/tickets** → **Clubs** (reading/tournaments) → **Studio** (portfolio + client delivery). Local DB **Turso** on desktop. **ClinYard** (`/clinyard`) — offline ClinFusion-style med study drills for professional students (see [`features/clinyard-med-study.md`](features/clinyard-med-study.md)).
 
 **Not ready for real money yet:** mainnet **BKSPC** public launch, full Eventbrite/Pixieset/Twitch clones, live streaming, Device B sign-off on a 4 GB Windows laptop.
 
@@ -143,12 +143,12 @@ Detail: [`../DEVOPS.md`](../DEVOPS.md) · Roadmap table there is the DevOps chec
 
 | Metric | Target | Where measured |
 |--------|--------|----------------|
-| Window visible | < 3 s | Installed Yard build |
-| Feed interactive | < 3 s | `/feed` local tab |
-| Feed 50 posts | < 2 s | Sync Test benchmark |
-| Post create | < 1 s | Sync Test benchmark |
+| Window visible / shell ready | < 3 s | Live Tauri: `run_tier0_benchmark` → **Tauri shell ready (process)** |
+| Feed interactive | < 3 s | Open `/feed` once, then Sync Test → **Feed interactive (process)** |
+| Feed 50 posts | < 2 s | Sync Test benchmark + `bun run test:tier0` |
+| Post create | < 1 s | Sync Test benchmark + `bun run test:tier0` |
 
-Plan: [`tier0-load-optimization.md`](tier0-load-optimization.md)
+Process clock: `tier0_benchmark` (`mark_process_start` / `mark_shell_ready` / `mark_feed_interactive`). Plan: [`tier0-load-optimization.md`](tier0-load-optimization.md)
 
 ---
 

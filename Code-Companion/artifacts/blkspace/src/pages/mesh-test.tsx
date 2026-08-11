@@ -688,8 +688,10 @@ export default function DeviceMeshTestPage() {
                   <Laptop className="w-5 h-5" /> Tier 0 Performance Benchmark
                 </CardTitle>
                 <CardDescription>
-                  Target: Windows 10, 4GB RAM, i3 — run on Tier 0 hardware and
-                  sign off DEVICE_MESH_TESTING.md §4.1
+                  Target: Windows 10, 4GB RAM, i3 — shell ready &amp; feed
+                  interactive &lt;3s (process clock) plus SQLite/blob gates. Sign
+                  off DEVICE_MESH_TESTING.md §4.1 / YARD_RELEASE_CHECKLIST A4.
+                  Open /feed once this session before bench for feed-interactive.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -709,6 +711,35 @@ export default function DeviceMeshTestPage() {
                     </Button>
                     {benchReport && (
                       <div className="space-y-4 pt-2">
+                        {(benchReport.shellReadyMs != null ||
+                          benchReport.feedInteractiveMs != null ||
+                          benchReport.dbOpenMs != null) && (
+                          <div className="rounded-md border px-3 py-2 text-xs space-y-1">
+                            <p className="font-medium">Process cold start</p>
+                            {benchReport.dbOpenMs != null && (
+                              <p className="text-muted-foreground">
+                                DB open: {benchReport.dbOpenMs}ms
+                              </p>
+                            )}
+                            {benchReport.shellReadyMs != null && (
+                              <p className="text-muted-foreground">
+                                Shell ready: {benchReport.shellReadyMs}ms / &lt;
+                                3000ms
+                              </p>
+                            )}
+                            {benchReport.feedInteractiveMs != null ? (
+                              <p className="text-muted-foreground">
+                                Feed interactive:{" "}
+                                {benchReport.feedInteractiveMs}ms / &lt; 3000ms
+                              </p>
+                            ) : (
+                              <p className="text-amber-600 dark:text-amber-400">
+                                Feed interactive: not marked — visit /feed once,
+                                then re-run.
+                              </p>
+                            )}
+                          </div>
+                        )}
                         {benchReport.metrics.map((m) => (
                           <div key={m.name}>
                             <div className="flex justify-between text-sm mb-1">

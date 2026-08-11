@@ -119,7 +119,7 @@ BlkSpace cannot match TikTok's CDN without infrastructure spend — but it **can
 
 1. **Progressive media pipeline**: generate 240p poster + audio preview on upload (Rust thumbnail job), feed loads posters first
 2. **Service worker + feed cache** for web preview (read-only yard, stale-while-revalidate)
-3. **Startup telemetry**: extend `tier0_benchmark.rs` with cold-start ms + JS bundle parse time; gate CI on regression
+3. **Startup telemetry**: ~~extend `tier0_benchmark.rs` with cold-start ms~~ **done** (process shell ready + feed interactive + DB open); optional JS parse / rollup visualizer still open
 4. **Radix diet**: replace rarely-used primitives with native HTML on Tier 0 paths (dropdowns on feed cards)
 
 ---
@@ -176,7 +176,8 @@ flowchart LR
 - [x] Feed default tab `local` in tier0Lite; defer AppShell user IPC + offline flush (3s)
 - [x] Vite `optimizeDeps` + `server.warmup`; `dev:tier0` / `tauri:dev:tier0` scripts
 - [x] Tier 0 bundle budget gate in CI (`check:bundle:tier0` — entry + total JS gzip limits)
-- [ ] Extend tier0_benchmark with cold-start metrics; optional rollup visualizer artifact
+- [x] Extend tier0_benchmark with cold-start metrics (process start → DB open / shell ready / feed interactive; targets &lt;3s shell + feed; in-app Sync Test → Performance)
+- [ ] Optional rollup visualizer artifact + CI regression gate on shell metrics
 - [x] CI Yard artifacts (`BlkSpace-Yard-Windows-x64.msi`, macOS dmg, Linux AppImage) via `build-tauri-yard` job
 - [x] CI dual release artifacts (`BlkSpace-Full-*` with Iroh for power users) via `build-tauri-full` (Tier B)
 

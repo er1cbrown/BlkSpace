@@ -38,6 +38,7 @@ const MeshTestPage = React.lazy(() => import("@/pages/mesh-test"));
 const ConnectPage = React.lazy(() => import("@/pages/connect"));
 const HubPage = React.lazy(() => import("@/pages/hub"));
 const FocusPage = React.lazy(() => import("@/pages/focus"));
+const ClinyardPage = React.lazy(() => import("@/pages/clinyard"));
 const FacultyPage = React.lazy(() => import("@/pages/faculty"));
 const MessagesPage = React.lazy(() => import("@/pages/messages"));
 const PlayPage = React.lazy(() => import("@/pages/play"));
@@ -195,6 +196,10 @@ function Router() {
         <Route path="/play" component={PlayPage} />
         <Route path="/rollback" component={RollbackPage} />
         <Route path="/focus" component={FocusPage} />
+        <Route path="/clinyard" component={ClinyardPage} />
+        {/* Aliases — people search "yard clinic" / medtech drills */}
+        <Route path="/yardclinic" component={ClinyardPage} />
+        <Route path="/yard-clinic" component={ClinyardPage} />
         <Route path="/faculty" component={FacultyPage} />
         <Route
           path="/messages"

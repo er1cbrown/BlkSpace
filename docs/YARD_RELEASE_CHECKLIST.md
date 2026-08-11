@@ -57,11 +57,14 @@ Use a **Windows 10+ laptop with 4–8 GB RAM** (Device B ideal).
 
 ### A4. Tier 0 benchmark
 
+- [ ] Cold start app → open **`/feed`** once (records feed-interactive process mark)
 - [ ] Open **Sync Test** (`/mesh-test`) → **Performance** tab
 - [ ] **Run Tier 0 Benchmark** — all metrics pass:
 
 | Metric | Target | Actual | Pass |
 |--------|--------|--------|------|
+| Tauri shell ready (process) | < 3 s | | ☐ |
+| Feed interactive (process) | < 3 s | | ☐ |
 | Feed load (50 posts) | < 2 s | | ☐ |
 | Post creation | < 1 s | | ☐ |
 | Blob round-trip (512 KiB) | < 30 s | | ☐ |

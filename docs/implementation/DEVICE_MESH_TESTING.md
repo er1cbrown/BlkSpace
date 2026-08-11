@@ -268,16 +268,20 @@ Uses shipped **offline queue** (`queue_offline_action` → `flush_offline_queue`
 
 | Metric | Target | Automated | Manual sign-off |
 |--------|--------|-----------|-----------------|
-| App startup | < 5 seconds | — | [ ] Device B timer |
+| Tauri shell ready (process) | < 3 seconds | [x] live Tauri bench (`run_tier0_benchmark`) | [ ] Device B |
+| Feed interactive (process) | < 3 seconds | [x] live Tauri after `/feed` mark | [ ] Device B |
+| App startup (stopwatch) | < 5 seconds (legacy gate) | — | [ ] Device B timer |
 | Feed load (50 posts) | < 2 seconds | [x] `bun run test:tier0` (dev Mac) | [ ] Device B |
 | Post creation | < 1 second | [x] `bun run test:tier0` (dev Mac) | [ ] Device B |
 | Blob round-trip (512 KiB) | < 30 seconds | [x] `bun run test:tier0` (dev Mac) | [ ] Device B |
 | Memory usage | < 500 MB | — | [ ] Device B Task Manager |
 | CPU usage | < 50% | — | [ ] Device B Task Manager |
 
-**Automated baseline (dev hardware):** `bun run test:tier0` runs `test_tier0_benchmark_feed_post_blob_targets` — passes on Tier 2 Mac (2026-06-16); does **not** replace Device B sign-off.
+**Automated baseline (dev hardware):** `bun run test:tier0` runs `test_tier0_benchmark_feed_post_blob_targets` (SQLite/blob gates only) — passes on Tier 2 Mac (2026-06-16); does **not** replace Device B sign-off.
 
-**In-app:** Sync Test → **Performance** → **Run Tier 0 Benchmark** (`run_tier0_benchmark` Tauri command).
+**Process cold start (live Tauri):** `mark_process_start` at `run()`, `mark_shell_ready` at end of setup, `mark_tier0_feed_interactive` on first settled `/feed` paint. Snapshot via `get_tier0_boot_timing`. Product targets **&lt;3s** for shell ready and feed interactive; keep stopwatch **&lt;5s** as Device B legacy wall-clock gate if needed.
+
+**In-app:** Open **`/feed` once** this session → Sync Test → **Performance** → **Run Tier 0 Benchmark** (`run_tier0_benchmark`).
 
 ### 4.2 Stress Test
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, Suspense } from "react";
+import React, { useState, useMemo, Suspense, useEffect, useRef } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PostComposer } from "@/components/social/PostComposer";
 
@@ -80,12 +80,16 @@ import { getCurrentHandle } from "@/lib/auth";
 import { useGuestMode } from "@/lib/guest-mode";
 import { useRequiresWallet } from "@/hooks/use-requires-wallet";
 import { GuestCTA } from "@/components/social/GuestCTA";
-import { isTauri, type TauriCrossTownEvent } from "@/lib/tauri-api";
+import {
+  isTauri,
+  tauriMarkTier0FeedInteractive,
+  type TauriCrossTownEvent,
+} from "@/lib/tauri-api";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { BETA_FEATURES } from "@/lib/beta-features";
 import { getHomeYardId, loadFocusPrefs } from "@/lib/focus-mode";
-import { HeartPulse, GraduationCap, Briefcase, BookOpen } from "lucide-react";
+import { HeartPulse, Briefcase } from "lucide-react";
 import { YardOrientationCard } from "@/components/social/YardOrientationCard";
 import { YourYardPathCard } from "@/components/social/YourYardPathCard";
 import { markFirstPostDone } from "@/lib/yard-orientation";
@@ -171,6 +175,18 @@ export default function FeedPage() {
   } = useAppListPosts(selectedTown, getCurrentHandle(), needsLocalPosts);
   const { data: trendingFeed, isLoading: trendingLoading } =
     useAppGetTrendingFeed(getCurrentHandle(), needsTrending);
+
+  // Cold-start telemetry: first settled /feed paint → process clock (Yard <3s target).
+  const feedInteractiveMarked = useRef(false);
+  useEffect(() => {
+    if (!isTauri() || feedInteractiveMarked.current) return;
+    if (!needsLocalPosts || localLoading) return;
+    feedInteractiveMarked.current = true;
+    void tauriMarkTier0FeedInteractive().catch(() => {
+      // Non-fatal — older binaries without the command ignore.
+      feedInteractiveMarked.current = false;
+    });
+  }, [localLoading, needsLocalPosts]);
   const bridgeTownArg =
     bridgeTownFilter === "all" ? undefined : bridgeTownFilter;
   const { data: crossTownFeed, isLoading: crossTownLoading } =
@@ -419,106 +435,73 @@ export default function FeedPage() {
       <YardOrientationCard />
       <YourYardPathCard />
 
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Home</h1>
-          <p className="text-xs text-muted-foreground">
-            Feed for{" "}
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h1 className="text-lg font-bold tracking-tight">
+          Home
+          <span className="ml-2 text-sm font-normal text-muted-foreground">
             <Link
               href={`/communities/${selectedTown}`}
-              className="text-primary font-medium hover:underline"
+              className="text-primary hover:underline"
             >
               {yardLabel}
             </Link>
-            {" · "}
-            <span className="text-muted-foreground">
-              Following · Yard · Blog FYP · Connect
-            </span>
-            {uiPrefs?.disciplineTrack &&
-              uiPrefs.disciplineTrack !== "general" && (
-                <>
-                  {" · "}
-                  <span className="text-primary/90 font-medium">
-                    {discipline.short} track
-                  </span>
-                </>
-              )}
-          </p>
-        </div>
+          </span>
+        </h1>
+        <Link href="/settings">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 text-[11px] text-muted-foreground"
+          >
+            {discipline.short}
+          </Button>
+        </Link>
       </div>
 
       {(focusPrefs?.persona === "meharry_med" ||
-        focusPrefs?.studyOnlyFeed ||
-        selectedTown === "meharry") && (
-        <Card className="mb-4 border-teal-500/30 bg-teal-500/5">
-          <CardContent className="p-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-            <div className="space-y-0.5 text-sm">
-              <p className="font-medium flex items-center gap-1.5">
-                <HeartPulse className="w-4 h-4 text-teal-500" />
-                Focus Path active
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Study tools on — open Focus when you need quiet mode.
-              </p>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              <Link href="/focus">
-                <Button size="sm" variant="default" className="gap-1">
-                  <GraduationCap className="w-3.5 h-3.5" />
-                  Open Focus
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+        focusPrefs?.studyOnlyFeed) && (
+        <div className="mb-2 flex items-center gap-2 rounded-md border border-teal-500/20 bg-teal-500/5 px-2.5 py-1.5 text-xs">
+          <HeartPulse className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+          <span className="text-muted-foreground flex-1">Focus Path on</span>
+          <Link href="/focus">
+            <Button size="sm" variant="ghost" className="h-6 text-[11px] px-2">
+              Open
+            </Button>
+          </Link>
+        </div>
       )}
       <Tabs
         defaultValue="local"
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as FeedTab)}
-        className="mb-6"
+        className="mb-4"
       >
-        <p className="text-[11px] text-muted-foreground mb-2">
-          {activeTab === "local"
-            ? `My Yard — only ${yardLabel}`
-            : activeTab === "blog" || activeTab === "read"
-              ? "Blog FYP — ranked notes & essays (rank is not for sale)"
-              : activeTab === "following"
-                ? "Following — people you follow (chrono)"
-                : activeTab === "connect"
-                  ? "Connect — research, fellowships, faculty paths → Cred"
-                  : activeTab === "watch"
-                    ? "Watch — video-first scroll"
-                    : activeTab === "bridge"
-                      ? "Bridge — other campuses (advanced)"
-                      : "Trending across the network"}
-        </p>
-
-        <TabsList className="grid w-full mb-2 h-11 grid-cols-4">
+        <TabsList className="grid w-full mb-2 h-10 grid-cols-4">
           <TabsTrigger
             value="following"
-            className="text-xs sm:text-sm font-bold"
+            className="text-xs sm:text-sm font-semibold"
           >
             Following
           </TabsTrigger>
-          <TabsTrigger value="local" className="text-xs sm:text-sm font-bold">
+          <TabsTrigger value="local" className="text-xs sm:text-sm font-semibold">
             Yard
           </TabsTrigger>
-          <TabsTrigger value="blog" className="text-xs sm:text-sm font-bold">
-            Blog FYP
+          <TabsTrigger value="blog" className="text-xs sm:text-sm font-semibold">
+            Blog
           </TabsTrigger>
-          <TabsTrigger value="connect" className="text-xs sm:text-sm font-bold">
+          <TabsTrigger value="connect" className="text-xs sm:text-sm font-semibold">
             Connect
           </TabsTrigger>
         </TabsList>
 
-        {/* Secondary discovery surfaces */}
-        <div className="flex flex-wrap gap-1.5 mb-4">
+        {/* Secondary surfaces — one compact row, less chrome */}
+        <div className="flex flex-wrap items-center gap-1 mb-3">
           <Button
             type="button"
             size="sm"
-            variant={activeTab === "watch" ? "default" : "outline"}
-            className="h-7 text-[11px]"
+            variant={activeTab === "watch" ? "secondary" : "ghost"}
+            className="h-6 text-[10px] px-2"
             onClick={() => setActiveTab("watch")}
           >
             Watch
@@ -527,8 +510,8 @@ export default function FeedPage() {
             <Button
               type="button"
               size="sm"
-              variant={activeTab === "bridge" ? "default" : "outline"}
-              className="h-7 text-[11px]"
+              variant={activeTab === "bridge" ? "secondary" : "ghost"}
+              className="h-6 text-[10px] px-2"
               onClick={() => setActiveTab("bridge")}
             >
               Bridge
@@ -538,23 +521,13 @@ export default function FeedPage() {
             <Button
               type="button"
               size="sm"
-              variant={activeTab === "trending" ? "default" : "outline"}
-              className="h-7 text-[11px]"
+              variant={activeTab === "trending" ? "secondary" : "ghost"}
+              className="h-6 text-[10px] px-2"
               onClick={() => setActiveTab("trending")}
             >
               Trending
             </Button>
           )}
-          <Link href="/settings">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-7 text-[11px] text-muted-foreground"
-            >
-              Discipline: {discipline.short}
-            </Button>
-          </Link>
         </div>
 
         {(activeTab === "watch" ||
@@ -566,43 +539,22 @@ export default function FeedPage() {
         )}
 
         {activeTab === "connect" && (
-          <Card className="mb-4 border-primary/25 bg-primary/5">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-start gap-2">
-                <Briefcase className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold">
-                    Pathways, not ad slots
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {disciplineUpliftLine(discipline.id)} Interest → completion
-                    → Yard Cred. Spend (when you do) should buy tickets and
-                    access to people — never rank.
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Link href="/connect">
-                  <Button size="sm" className="gap-1">
-                    <Briefcase className="w-3.5 h-3.5" />
-                    Open ProjectConnect
-                  </Button>
-                </Link>
-                <Link href="/faculty">
-                  <Button size="sm" variant="outline" className="gap-1">
-                    <GraduationCap className="w-3.5 h-3.5" />
-                    Faculty Desk
-                  </Button>
-                </Link>
-                <Link href="/wallet">
-                  <Button size="sm" variant="outline" className="gap-1">
-                    <BookOpen className="w-3.5 h-3.5" />
-                    Literacy
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-muted/20 px-2.5 py-2 text-xs">
+            <Briefcase className="w-3.5 h-3.5 text-primary shrink-0" />
+            <span className="text-muted-foreground flex-1 min-w-[12rem]">
+              {disciplineUpliftLine(discipline.id)}
+            </span>
+            <Link href="/connect">
+              <Button size="sm" className="h-7 text-[11px]">
+                ProjectConnect
+              </Button>
+            </Link>
+            <Link href="/faculty">
+              <Button size="sm" variant="ghost" className="h-7 text-[11px]">
+                Faculty
+              </Button>
+            </Link>
+          </div>
         )}
 
         {activeTab === "connect" && (

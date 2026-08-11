@@ -1494,10 +1494,34 @@ export interface Tier0BenchmarkReport {
   metrics: Tier0BenchmarkMetric[];
   allPass: boolean;
   deviceNote: string;
+  /** Process start → setup complete (ms). Live Tauri only. */
+  shellReadyMs?: number | null;
+  /** Process start → first /feed interactive mark (ms). */
+  feedInteractiveMs?: number | null;
+  /** Process start → DB open (ms). */
+  dbOpenMs?: number | null;
+}
+
+export interface Tier0BootTiming {
+  processElapsedMs?: number | null;
+  dbOpenMs?: number | null;
+  shellReadyMs?: number | null;
+  feedInteractiveMs?: number | null;
+  shellReadyTargetMs: number;
+  feedInteractiveTargetMs: number;
 }
 
 export function tauriRunTier0Benchmark(): Promise<Tier0BenchmarkReport> {
   return invoke("run_tier0_benchmark");
+}
+
+/** First-call wins: mark /feed interactive for process cold-start telemetry. */
+export function tauriMarkTier0FeedInteractive(): Promise<number | null> {
+  return invoke("mark_tier0_feed_interactive");
+}
+
+export function tauriGetTier0BootTiming(): Promise<Tier0BootTiming> {
+  return invoke("get_tier0_boot_timing");
 }
 
 export interface NostrVisibilityTestResult {
