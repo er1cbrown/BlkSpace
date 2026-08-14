@@ -92,8 +92,8 @@ When Part A passes (and CI green on `main`):
 ```bash
 cd BlkSpace
 git pull origin main
-git tag -a v0.1.0-yard -m "First student-facing Yard build (Tier 0, no Iroh default)"
-git push origin v0.1.0-yard
+git tag -a v0.1.1-yard -m "Yard patch: Buffer polyfill so Join works (Tier 0, no Iroh default)"
+git push origin v0.1.1-yard
 ```
 
 - [ ] GitHub Actions **Release** workflow completes

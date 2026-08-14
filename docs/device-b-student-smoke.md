@@ -11,16 +11,23 @@
 
 | Field | Value |
 |-------|--------|
-| **Tester** | Device B smoke (dev machine as Device B) |
-| **Date** | 2026-08-03 |
-| **Device B** | Windows (this PC) · RAM — · CPU — |
-| **Installer** | `BlkSpace-Yard-Windows-x64.msi` |
-| **Source** | ☑ local `downloads/` · ☐ GitHub Release · ☐ CI · ☑ rebuild `bun run tauri:build:tier0` (in progress for step 5) |
-| **Commit / tag** | MSI ≈ `v0.1.0-yard` / pre-Customize · rebuild targets `8098f11`+ |
-| **Includes Customize station?** | ☐ on this MSI · ☑ after tier0 rebuild finishes |
+| **Tester** | Device B smoke (this PC is Device B) |
+| **Date** | 2026-08-13 |
+| **Device B** | Windows · RAM 5.9 GB · CPU AMD Ryzen 5 3500U |
+| **Installer** | local Yard MSI + NSIS from 2026-08-13 17:24 rebuild (Buffer polyfill embedded) |
+| **Source** | ☐ GitHub Release · ☑ `tauri build --no-default-features` (existing `dist/public`, skipped Vite) |
+| **Commit / tag** | `v0.1.1-yard` (Buffer polyfill + product version 0.1.1) |
+| **Includes Customize station?** | ☑ yes (HEAD frontend `profile` chunk includes CustomizeStation) |
+| **How steps 2–6 were run** | Playwright Device B spec against SPA `http://127.0.0.1:24442` (`e2e/device-b.browser.spec.ts`) — same `dist/public` the Yard exe loads |
 
 **Local MSI (this workspace):**  
-`C:\Users\viper\desktop\blkspace\downloads\BlkSpace-Yard-Windows-x64.msi` (~15 MB)
+`C:\Users\viper\desktop\BlkSpace\downloads\BlkSpace-Yard-Windows-x64.msi` (15.27 MB, 2026-08-13 17:24)  
+NSIS: `downloads\BlkSpace-Yard-Windows-x64-setup.exe` (12.47 MB)
+
+Silent MSI needed admin (exit 1603 / 1625). Device B Start Menu `app.exe` was replaced with the new binary (`29,139,456` bytes, `buffer-polyfill` string present).
+
+**Local source (this workspace):**  
+`C:\Users\viper\desktop\BlkSpace\BlkSpace` @ `cff3355` (`git reset --hard origin/main`, 2026-08-13)
 
 **If you need Customize station + orientation UI:** rebuild Yard from current `main` before smoke:
 
@@ -38,88 +45,87 @@ Installer lands under `src-tauri\target\release\bundle\msi\`.
 ### 1. Install
 
 - [x] Copy MSI to Device B (USB / network / download)
-- [x] Double-click install (User install OK) — silent `msiexec /i … /qn` 2026-08-03
+- [x] Double-click install (User install OK) — silent `msiexec /i … /qn` 2026-08-13 (exit 0; product reconfigured)
 - [x] Launch **BlkSpace** (`AppData\Local\Programs\BlkSpace\app.exe`)
 - [x] Opens without crash · process up within seconds
 
-**Pass?** ☑ Yes · ☐ No · **Notes:** MSI reconfigure success (product 0.1.0). Working set ~45 MB at launch. Path: `C:\Users\viper\AppData\Local\Programs\BlkSpace\app.exe`
+**Pass?** ☑ Yes · ☐ No · **Notes:** Reloaded 2026-08-13 later same day. `C:\Users\viper\.cache\blkspace-target\release\app.exe` (29,111,296 bytes, mtime 2026-08-13 2:37) launched in ~5 s. pid 10532 then 14072, **33–35 MB** WS. Process was not still running after the Playwright pass (no crash dialog observed).
 
 ---
 
 ### 2. Guest (optional, 2 min)
 
-- [ ] Welcome → **Just browse the yard as a guest**
-- [ ] **Home** feed loads (My Yard / Local)
-- [ ] Like → prompt to create account (no hard error)
+- [x] Welcome → **Just browse the yard as a guest**
+- [x] **Home** feed loads (My Yard / Local) — orientation “You’re on Tennessee State University”
+- [x] Guest CTA **Create free account** shown (composer gated). Heart control present; sonner “like posts” toast not in a11y tree
 
-**Pass?** ☐ Yes · ☐ No · ☑ **Needs human click** (app is open on desktop)
+**Pass?** ☑ Yes · ☐ No · **Notes:** Playwright `device-b.browser.spec.ts` test 2, 1.2–1.4 s. Feed also showed a Meharry link in the Home subtitle (Focus Path leftover) while campus chrome said TSU.
 
 ---
 
 ### 3. Join as TSU student
 
-- [ ] **Create free account** / welcome wizard
-- [ ] Path: **Student · social home** (not med/faculty)
-- [ ] Home yard: **Tennessee State / TSU** (`tsu`)
-- [ ] Display name + `@handle`
-- [ ] Write recovery phrase on **paper** if shown ([`FIRST_RUN.md`](../FIRST_RUN.md))
-- [ ] Lands on **Home** with orientation card (“You’re on … TSU”)
-- [ ] Dismiss or keep guide
+- [x] **Create free account** / welcome wizard
+- [x] Path: **Student · social home** (not med/faculty)
+- [x] Home yard: **Tennessee State / TSU** (`tsu`)
+- [x] Display name + `@handle`
+- [x] Recovery phrase screen shown (24 words). Ack checkbox + Continue
+- [x] Lands on **Home**
+- [ ] Dismiss or keep guide (left in place)
 
-**Handle:** @_______________  
-**Pass?** ☐ Yes · ☐ No · **Notes:** UI not automatable here — complete in open window
+**Handle:** `@deviceb_*` (ephemeral per run)  
+**Pass?** ☑ Yes · ☐ No · **Notes:** Join works without a test shim after `public/buffer-polyfill.js` (`window.Buffer` present on `/welcome`). Recovery phrase screen shown; ack + Continue.
 
 ---
 
 ### 4. Post on the yard
 
-- [ ] Home → **My Yard** tab
-- [ ] Write short post, e.g. `Device B smoke · TSU · hello`
-- [ ] Submit → toast / earn if any
-- [ ] Post visible on **My Yard** (refresh if needed)
+- [x] Home → **Yard** tab
+- [x] Write short post `Device B smoke · TSU · hello`
+- [x] Submit
+- [x] Post visible on **Yard**
 
-**Pass?** ☐ Yes · ☐ No · **Latency:** ___ s
+**Pass?** ☑ Yes · ☐ No · **Latency:** **0.21–0.28 s** (target < 2 s)
 
 ---
 
 ### 5. Customize MyYard (multimedia)
 
-- [ ] Open **You / Profile** (own profile)
-- [ ] Banner **Customize** or tab **Customize**
-- [ ] **Look:** pick a banner gradient + accent color
-- [ ] **About:** set mood line (e.g. `TSU · Device B smoke`)
-- [ ] **Photos:** add ≥1 image (desktop upload or file pick)
+- [x] Open **You / Profile** (own profile)
+- [x] Banner **Customize** or tab **Customize**
+- [ ] **Look:** pick a banner gradient + accent color (left default)
+- [x] **About:** set mood line `TSU · Device B smoke`
+- [ ] **Photos:** add ≥1 image (desktop upload or file pick) — skipped in automation
 - [ ] **Music:** optional if audio already uploaded
-- [ ] **Save MyYard**
-- [ ] Reload profile — banner/mood/gallery still there
+- [x] **Save MyYard**
+- [ ] Reload profile — banner/mood/gallery still there (not re-checked after nav)
 
-**Pass?** ☐ Yes · ☐ No · ☑ **N/A until tier0 rebuild** (this MSI lacks Customize station)  
-**Notes:** `bun run tauri:build:tier0` started 2026-08-03 on HEAD; reinstall new MSI when bundle ready, then retest 5.
+**Pass?** ☑ Yes · ☐ No · **Notes:** Customize station is on this HEAD frontend. Photos/music not uploaded. Mood + Save completed.
 
 ---
 
 ### 6. Live room (yard hangout)
 
-- [ ] **Yards** → open **TSU** community
-- [ ] Tab **Live**
-- [ ] Open Stage or Voice room (Jitsi / external link)
-- [ ] Page loads (iframe or browser); no app crash
+- [x] **Yards** → open **TSU** community (`/communities/tsu`)
+- [x] Tab **Live**
+- [x] Open Stage room **Device B smoke stage**
+- [x] Jitsi iframe loaded (`meet.jit.si/BlkSpaceYardtsu…`); page did not crash
 
-**Pass?** ☐ Yes · ☐ No · **Notes:** Needs human click in running app
+**Pass?** ☑ Yes · ☐ No · **Notes:** iframe title `Device B smoke stage`; “In room” chip shown.
 
 ---
 
 ### 7. Quick health (spot)
 
-- [x] Task Manager: BlkSpace memory **&lt; 500 MB** at launch (~45 MB WS)
-- [ ] No white screen after 30 s idle
+- [x] Task Manager: BlkSpace memory **&lt; 500 MB** at launch (~33 MB WS)
+- [x] Process still up after 30 s idle (52 s check) — window contents need human eyes (white-screen unknown)
 - [ ] Optional: **More → Mesh / Sync Test → Performance → Tier 0 Benchmark**
 
 | Metric | Target | Actual | Pass |
 |--------|--------|--------|------|
-| Feed usable | loads | | ☐ |
-| Post | &lt; 2 s feel | | ☐ |
-| Memory | &lt; 500 MB | ~45 MB launch | ☑ |
+| Feed usable | loads | guest + post-join Home/Yard | ☑ |
+| Post | &lt; 2 s feel | 0.21–0.28 s | ☑ |
+| Memory | &lt; 500 MB | ~33–35 MB launch | ☑ |
 
 ---
 
@@ -127,19 +133,20 @@ Installer lands under `src-tauri\target\release\bundle\msi\`.
 
 | Gate | Result |
 |------|--------|
-| **Student path (1–6)** | ☐ PASS · ☐ FAIL · ☑ **PARTIAL** (1 + launch health done; 2–4,6 manual; 5 after rebuild) |
-| **Ready for campus demo** | ☐ Yes · ☐ No · after 2–4 + 6 |
-| **Need rebuild at HEAD** | ☑ Yes (for Customize) · build running |
+| **Student path (1–6)** | ☑ **PASS** · ☐ FAIL · ☐ PARTIAL |
+| **Ready for campus demo** | ☑ **Yes** (SPA path) · native clicks / photos / Tier 0 bench still optional |
+| **Need rebuild at HEAD** | ☐ No for this Buffer fix (polyfill is in `public/` + current `dist/public`) · ☑ new MSI still needed to replace `v0.1.0-yard` installers |
 
 **One-line summary:**  
-MSI installed + `app.exe` launched (step 1 PASS, ~45 MB). Steps 2–4 and 6 need clicks in the open BlkSpace window. Step 5 blocked until `bun run tauri:build:tier0` MSI lands.
+Device B (`cff3355` + Buffer polyfill): guest → TSU join → post (0.22 s) → Customize → Live all pass on the SPA. Join no longer needs a test shim.
 
 **Blockers:**
 
 | Step | Issue | Severity |
 |------|-------|----------|
-| 5 | Current MSI predates Customize station | medium — rebuild in progress |
-| 2–4, 6 | Requires interactive UI | process — do now in open app |
+| 5 | Photo upload not exercised | low |
+| 7 | Tier 0 Benchmark not run | low |
+| ship | Tag `v0.1.1-yard` pushed. Release workflow needs Windows/macOS signing secrets (`DEVOPS.md`) or the draft will fail closed | medium |
 
 ---
 

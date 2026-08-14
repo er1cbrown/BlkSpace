@@ -14,7 +14,9 @@
 //! `cargo install sendme` for campus LAN / relay P2P file drops.
 
 use base64::Engine;
+use nostr_sdk::prelude::Keys;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::process::Command;
 
 pub const TICKET_PREFIX: &str = "blkspace1.";
@@ -31,6 +33,68 @@ pub struct BlobSharePayload {
   pub size: i64,
   #[serde(default = "default_src")]
   pub src: String,
+  #[serde(default)]
+  pub issued_at: i64,
+  #[serde(default)]
+  pub expires_at: i64,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub issuer: Option<String>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub signature: Option<String>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub p2p_ticket: Option<String>,
+}
+
+pub fn sha256_hex(bytes: &[u8]) -> String {
+  hex::encode(Sha256::digest(bytes))
+}
+
+fn signing_material(p: &BlobSharePayload) -> String {
+  format!(
+    "{}|{}|{}|{}|{}|{}|{}",
+    p.v,
+    p.hash,
+    p.cid.clone().unwrap_or_default(),
+    p.name,
+    p.size,
+    p.issued_at,
+    p.expires_at
+  )
+}
+
+/// Stamp issuer + expiry and attach a checksum signature (Device B / HEAD glue).
+pub fn sign_payload(
+  mut payload: BlobSharePayload,
+  keys: &Keys,
+  ttl_secs: u64,
+) -> Result<BlobSharePayload, String> {
+  let now = chrono::Utc::now().timestamp();
+  payload.issued_at = now;
+  payload.expires_at = now.saturating_add(i64::try_from(ttl_secs).unwrap_or(86_400));
+  let pk = keys.public_key().to_hex();
+  payload.issuer = Some(pk.clone());
+  payload.signature = Some(sha256_hex(
+    format!("{pk}|{}", signing_material(&payload)).as_bytes(),
+  ));
+  Ok(payload)
+}
+
+pub fn verify_payload(payload: &BlobSharePayload) -> Result<(), String> {
+  if payload.expires_at > 0 && chrono::Utc::now().timestamp() > payload.expires_at {
+    return Err("Share ticket expired".into());
+  }
+  let Some(sig) = payload.signature.as_ref() else {
+    return Ok(());
+  };
+  let issuer = payload
+    .issuer
+    .as_ref()
+    .ok_or_else(|| "Signed ticket missing issuer".to_string())?;
+  let expected = sha256_hex(format!("{issuer}|{}", signing_material(payload)).as_bytes());
+  if sig != &expected {
+    return Err("Share ticket signature mismatch".into());
+  }
+  Ok(())
 }
 
 fn default_src() -> String {
@@ -199,6 +263,11 @@ mod tests {
       mime: "application/pdf".into(),
       size: 1200,
       src: "blkspace".into(),
+      issued_at: 0,
+      expires_at: 0,
+      issuer: None,
+      signature: None,
+      p2p_ticket: None,
     };
     let t = p.encode_ticket().unwrap();
     assert!(t.starts_with(TICKET_PREFIX));

@@ -241,6 +241,10 @@ if (
 fs.writeFileSync(jsSrc, js);
 
 fs.mkdirSync(liveDist, { recursive: true });
+const bufferPolyfillSrc = path.join(root, "public", "buffer-polyfill.js");
+if (fs.existsSync(bufferPolyfillSrc)) {
+  fs.copyFileSync(bufferPolyfillSrc, path.join(liveDist, "buffer-polyfill.js"));
+}
 fs.copyFileSync(jsSrc, path.join(liveDist, "main.emergency.js"));
 if (fs.existsSync(cssSrc)) {
   fs.copyFileSync(cssSrc, path.join(liveDist, "main.emergency.css"));
@@ -274,6 +278,7 @@ const indexHtml = `<!doctype html>
     <div id="boot-splash" aria-busy="true"><div><div class="b">B</div><div class="msg">BlkSpace</div></div></div>
     <div id="boot-error"></div>
     <div id="root"></div>
+    <script src="/buffer-polyfill.js"></script>
     <script type="module" src="/main.emergency.js?v=${Date.now()}"></script>
     <script>
       (function () {

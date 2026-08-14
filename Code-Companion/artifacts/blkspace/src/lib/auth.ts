@@ -1,3 +1,4 @@
+import "@/lib/buffer-polyfill";
 import {
   isTauri,
   tauriStoreKey,

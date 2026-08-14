@@ -57,6 +57,8 @@ export default defineConfig({
       "lucide-react",
       "sonner",
       "next-themes",
+      "buffer",
+      "bip39",
       "@radix-ui/react-tabs",
       "@radix-ui/react-dialog",
       "@radix-ui/react-dropdown-menu",
