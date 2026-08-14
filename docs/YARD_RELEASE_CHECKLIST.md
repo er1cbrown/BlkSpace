@@ -103,7 +103,7 @@ git push origin v0.1.1-yard
 
 ### Release prerequisites added in CI
 
-Before creating a new signed tag, configure the secrets listed in [`../DEVOPS.md`](../DEVOPS.md). The Release workflow now fails closed on macOS and Windows when signing credentials are missing. GitHub Pages is also a repository setting: choose **Settings → Pages → Source: GitHub Actions** once, then run `Deploy Web Preview (Pages)` manually to verify the campus preview.
+Signing secrets in [`../DEVOPS.md`](../DEVOPS.md) are optional. Without them, Release uploads unsigned Yard/Full installers. GitHub Pages is a repository setting: choose **Settings → Pages → Source: GitHub Actions** once, then run `Deploy Web Preview (Pages)` manually to verify the campus preview.
 
 ---
 

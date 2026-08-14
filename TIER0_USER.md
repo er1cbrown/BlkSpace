@@ -28,6 +28,12 @@ Tier 0 is the computer you already have: a low-end or older Windows laptop with 
 
 2. **Install** like any other app (double-click → Install).
 
+   Yard installers are **unsigned** open-source builds (no paid Apple/Windows certificate). That is expected.
+
+   - **Windows:** SmartScreen may say “Windows protected your PC.” Click **More info** → **Run anyway**. Then run the installer.
+   - **macOS:** Gatekeeper may say the app is from an unidentified developer. In Finder, **right-click** (or Control-click) the app → **Open** → **Open**. Do not just double-click the first time.
+   - **Linux AppImage:** mark executable if needed (right-click → Properties → Allow executing).
+
 3. **Open** BlkSpace and follow the Welcome Wizard.
 
 Platform-specific screenshots and troubleshooting: [`INSTALL.md`](INSTALL.md).

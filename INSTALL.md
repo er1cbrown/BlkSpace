@@ -13,7 +13,7 @@ No technical knowledge required. If you can install Spotify or Discord, you can 
 ### For Windows (Tier 0 Laptops)
 1. Go to **https://github.com/er1cbrown/BlkSpace/releases**
 2. Download **`BlkSpace-Yard-Windows-x64.msi`** (from [Releases](https://github.com/er1cbrown/BlkSpace/releases) or CI artifact `BlkSpace-Yard-windows-latest`)
-3. Double-click the file
+3. Double-click the file. If **SmartScreen** says “Windows protected your PC,” click **More info** → **Run anyway**. Installers are unsigned on purpose (open-source; no paid code-signing cert).
 4. Click "Install" (no admin rights needed)
 5. BlkSpace opens automatically
 
@@ -22,7 +22,7 @@ No technical knowledge required. If you can install Spotify or Discord, you can 
 2. Download `BlkSpace-Setup-Mac.dmg`
 3. Double-click the file
 4. Drag the BlkSpace icon into your Applications folder
-5. Open from Applications (right-click → Open the first time)
+5. Open from Applications. First time: **right-click** (Control-click) → **Open** → **Open**. macOS will warn because the DMG is unsigned (no Apple Developer ID). Do not only double-click the first launch.
 
 ### For Linux (Ubuntu, Debian, etc.)
 1. Go to **https://github.com/er1cbrown/BlkSpace/releases**

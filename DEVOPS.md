@@ -57,7 +57,7 @@ Tag v* → Create draft release (auto notes) → Build Yard + Full (matrix) → 
 ```
 
 - **Draft + notes**: `softprops/action-gh-release` with `draft: true` and `generate_release_notes: true`
-- **Signing / notarization**: release jobs fail closed unless Apple and Windows signing secrets are configured; CI artifacts remain unsigned
+- **Signing / notarization**: optional. If Apple or Windows secrets are missing, Release still builds and uploads **unsigned** Yard/Full installers. When secrets are set, macOS/Windows artifacts are signed as before.
 - First student tag shipped: **`v0.1.0-yard`** (Yard + Full assets on GitHub Releases)
 
 Platform targets:
@@ -200,7 +200,7 @@ Before merging to `main`:
 | 3 | Automated release drafting (`v*` → draft release + notes + installers) | ✅ Done |
 | — | Tier 0 bundle-size budget in CI (`check:bundle:tier0`) | ✅ Done |
 | — | Tag + ship `v0.1.0-yard` installers | ✅ Done |
-| **Next** | Add signing secrets and run a signed `v*` release | ⏳ Workflow wired |
+| — | Optional signing; unsigned Yard/Full upload when secrets absent | ✅ Done |
 | **Next** | Enable **GitHub Pages** for Deploy Web Preview campus demo | ⏳ Repo setting pending |
 | **Next** | Device B student smoke close-out (see `docs/YARD_RELEASE_CHECKLIST.md` Part A) | ⏳ Partial |
 | — | CI job gating + non-blocking Nostr smoke + `cargo --locked` | ✅ Done (2026-08) |
@@ -219,9 +219,8 @@ Follow [`docs/YARD_RELEASE_CHECKLIST.md`](docs/YARD_RELEASE_CHECKLIST.md) Part A
 2. Confirm `Deploy Web Preview (Pages)` succeeds after a `main` push under `Code-Companion/**`
 3. Open `https://er1cbrown.github.io/BlkSpace/` and check asset paths
 
-### 3. Signing secrets (signed installers)
-Add under repo **Settings → Secrets and variables → Actions** (see Security section above).  
-Then push a draft test tag (e.g. `v0.1.1-yard-sign-test`) and confirm release job signs macOS + Windows.
+### 3. Signing secrets (optional)
+Unsigned installers ship without secrets. To sign later, add the names in the Security section under repo **Settings → Secrets and variables → Actions**, then re-run Release.
 
 ### 4. Local disk (Tier 0 hosts + agent machines)
 Keep Rust artifacts off iCloud/Desktop when possible:

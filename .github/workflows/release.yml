@@ -72,7 +72,8 @@ jobs:
             libsecret-1-dev
       - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - name: Verify Apple signing secrets
+      - name: Detect Apple signing
+        id: apple_sign
         if: matrix.os == 'macos-latest'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -82,15 +83,30 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          test -n "$APPLE_CERTIFICATE" || { echo "Missing APPLE_CERTIFICATE"; exit 1; }
-          test -n "$APPLE_CERTIFICATE_PASSWORD" || { echo "Missing APPLE_CERTIFICATE_PASSWORD"; exit 1; }
-          test -n "$APPLE_SIGNING_IDENTITY" || { echo "Missing APPLE_SIGNING_IDENTITY"; exit 1; }
-          test -n "$APPLE_ID" || { echo "Missing APPLE_ID"; exit 1; }
-          test -n "$APPLE_PASSWORD" || { echo "Missing APPLE_PASSWORD"; exit 1; }
-          test -n "$APPLE_TEAM_ID" || { echo "Missing APPLE_TEAM_ID"; exit 1; }
+          if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_CERTIFICATE_PASSWORD" ] && [ -n "$APPLE_SIGNING_IDENTITY" ] && [ -n "$APPLE_ID" ] && [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Apple signing secrets absent — uploading unsigned DMG"
+          fi
+      - name: Detect Windows signing
+        id: win_sign
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_CERT }}
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+        run: |
+          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT) -and -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT_PASSWORD)) {
+            "enabled=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+            "enabled=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Host "Windows signing secrets absent — uploading unsigned MSI"
+          }
       - run: bun run build:tier0
         working-directory: ./Code-Companion/artifacts/blkspace
-      - name: Build signed Yard installer
+      - name: Build Yard installer (signed macOS)
+        if: matrix.os == 'macos-latest' && steps.apple_sign.outputs.enabled == 'true'
         run: bun run tauri build --target ${{ matrix.target }} -- --no-default-features
         working-directory: ./Code-Companion/artifacts/blkspace
         env:
@@ -100,17 +116,12 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      - name: Verify Windows signing secret
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        env:
-          WINDOWS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_CERT }}
-          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT)) { throw "Missing WINDOWS_SIGNING_CERT" }
-          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT_PASSWORD)) { throw "Missing WINDOWS_SIGNING_CERT_PASSWORD" }
+      - name: Build Yard installer
+        if: matrix.os != 'macos-latest' || steps.apple_sign.outputs.enabled != 'true'
+        run: bun run tauri build --target ${{ matrix.target }} -- --no-default-features
+        working-directory: ./Code-Companion/artifacts/blkspace
       - name: Sign Windows Yard installer
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-latest' && steps.win_sign.outputs.enabled == 'true'
         shell: pwsh
         env:
           WINDOWS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_CERT }}
@@ -187,7 +198,8 @@ jobs:
             libsecret-1-dev
       - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
-      - name: Verify Apple signing secrets
+      - name: Detect Apple signing
+        id: apple_sign
         if: matrix.os == 'macos-latest'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -197,15 +209,30 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          test -n "$APPLE_CERTIFICATE" || { echo "Missing APPLE_CERTIFICATE"; exit 1; }
-          test -n "$APPLE_CERTIFICATE_PASSWORD" || { echo "Missing APPLE_CERTIFICATE_PASSWORD"; exit 1; }
-          test -n "$APPLE_SIGNING_IDENTITY" || { echo "Missing APPLE_SIGNING_IDENTITY"; exit 1; }
-          test -n "$APPLE_ID" || { echo "Missing APPLE_ID"; exit 1; }
-          test -n "$APPLE_PASSWORD" || { echo "Missing APPLE_PASSWORD"; exit 1; }
-          test -n "$APPLE_TEAM_ID" || { echo "Missing APPLE_TEAM_ID"; exit 1; }
+          if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_CERTIFICATE_PASSWORD" ] && [ -n "$APPLE_SIGNING_IDENTITY" ] && [ -n "$APPLE_ID" ] && [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Apple signing secrets absent — uploading unsigned DMG"
+          fi
+      - name: Detect Windows signing
+        id: win_sign
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_CERT }}
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+        run: |
+          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT) -and -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT_PASSWORD)) {
+            "enabled=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+            "enabled=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Host "Windows signing secrets absent — uploading unsigned MSI"
+          }
       - run: bun run build:full
         working-directory: ./Code-Companion/artifacts/blkspace
-      - name: Build signed Full installer
+      - name: Build Full installer (signed macOS)
+        if: matrix.os == 'macos-latest' && steps.apple_sign.outputs.enabled == 'true'
         run: bun run tauri build --target ${{ matrix.target }}
         working-directory: ./Code-Companion/artifacts/blkspace
         env:
@@ -215,17 +242,12 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      - name: Verify Windows signing secret
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        env:
-          WINDOWS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_CERT }}
-          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT)) { throw "Missing WINDOWS_SIGNING_CERT" }
-          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT_PASSWORD)) { throw "Missing WINDOWS_SIGNING_CERT_PASSWORD" }
+      - name: Build Full installer
+        if: matrix.os != 'macos-latest' || steps.apple_sign.outputs.enabled != 'true'
+        run: bun run tauri build --target ${{ matrix.target }}
+        working-directory: ./Code-Companion/artifacts/blkspace
       - name: Sign Windows Full installer
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-latest' && steps.win_sign.outputs.enabled == 'true'
         shell: pwsh
         env:
           WINDOWS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_CERT }}
