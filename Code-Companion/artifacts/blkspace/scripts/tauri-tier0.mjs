@@ -290,7 +290,23 @@ if (mode === "dev") {
   }
   args.push("--", "--no-default-features");
 } else {
-  // build
+  // build — Device B / 6 GB: BLKSPACE_SKIP_FRONTEND=1 skips Vite when dist/public exists
+  const skipFe =
+    process.env.BLKSPACE_SKIP_FRONTEND === "1" ||
+    process.env.BLKSPACE_SKIP_FRONTEND === "true";
+  if (skipFe) {
+    const mergePath = path.join(root, "src-tauri", "blkspace-device-b-build.json");
+    if (!fs.existsSync(mergePath)) {
+      fail(`BLKSPACE_SKIP_FRONTEND=1 but missing ${mergePath}`);
+    }
+    if (!fs.existsSync(distIndex)) {
+      fail(
+        `BLKSPACE_SKIP_FRONTEND=1 needs ${distIndex}. Build frontend first or unset the flag.`,
+      );
+    }
+    log("frontend: skip Vite (BLKSPACE_SKIP_FRONTEND=1) — existing dist/public");
+    args.push("--config", mergePath);
+  }
   args.push("--", "--no-default-features");
 }
 

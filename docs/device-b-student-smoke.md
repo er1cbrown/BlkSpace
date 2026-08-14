@@ -33,10 +33,13 @@ Silent MSI needed admin (exit 1603 / 1625). Device B Start Menu `app.exe` was re
 
 ```bat
 cd BlkSpace\Code-Companion\artifacts\blkspace
+set BLKSPACE_SKIP_FRONTEND=1
 bun run tauri:build:tier0
 ```
 
-Installer lands under `src-tauri\target\release\bundle\msi\`.
+`BLKSPACE_SKIP_FRONTEND=1` uses `src-tauri/blkspace-device-b-build.json` (empty `beforeBuildCommand`) so 6 GB hosts skip Vite and embed the existing `dist/public`. Unset the flag on CI / full rebuilds.
+
+Installer lands under `%CARGO_TARGET_DIR%\release\bundle\msi\` (default `~\.cache\blkspace-target\`).
 
 ---
 
