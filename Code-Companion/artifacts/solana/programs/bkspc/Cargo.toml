@@ -1,7 +1,7 @@
 [package]
 name = "bkspc"
 version = "0.1.0"
-description = "BlkSpace Settlement (BKSPC) — SPL settlement token"
+description = "BKSPC settlement — Token-2022 convert + legacy SPL mint/burn"
 edition = "2021"
 
 [lib]
@@ -17,4 +17,4 @@ default = []
 
 [dependencies]
 anchor-lang = "0.29.0"
-anchor-spl = "0.29.0"
+anchor-spl = { version = "0.29.0", features = ["token", "token_2022"] }

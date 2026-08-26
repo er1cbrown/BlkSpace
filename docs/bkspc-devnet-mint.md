@@ -21,4 +21,20 @@ Public JSON (no secrets): [`../Code-Companion/artifacts/solana/devnet/bkspc-toke
 
 Local secrets stay gitignored: `devnet/deployer.json`, `devnet/bkspc-token2022-mint.json`.
 
-**Next:** Ticket 0.2 — `convert_wb_to_bkspc` (move mint authority to program PDA).
+## Ticket 0.2 (code landed, deploy pending)
+
+| PDA | Address |
+|-----|---------|
+| Mint authority | `55hw5PBVtYCxqgE6rjQrPuAXLtLhpYDxYyPT26bd8gcw` |
+| Convert config | `3bJXBvnihAdMCKYWPpvFzQwiFrmhyF7QgtPKAWWW9LTv` |
+
+Program source: `initialize_convert` + `convert_wb_to_bkspc`. Wire after BPF deploy:
+
+```powershell
+cd Code-Companion\artifacts\solana
+bun run wire-bkspc-token2022-convert
+```
+
+**Do not** transfer mint authority until the upgraded program is on Devnet — otherwise the mint cannot mint or recover.
+
+**Next:** BPF deploy (`cargo-build-sbf` + `solana program deploy`) then wire. Ticket 0.3 client helper after that.

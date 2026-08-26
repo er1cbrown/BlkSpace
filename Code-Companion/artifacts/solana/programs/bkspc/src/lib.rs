@@ -1,10 +1,16 @@
-//! BKSPC settlement program — mint authority held by program PDA; treasury 2-of-2 signs mints.
+//! BKSPC settlement program — mint authority held by program PDA.
+//! Legacy SPL: treasury 2-of-2 `mint_rewards`. Token-2022: user-signed `convert_wb_to_bkspc`.
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Burn, Mint, MintTo, SetAuthority, Token, TokenAccount};
+use anchor_spl::token_2022::{self, Token2022};
+use anchor_spl::token_interface::{
+    Mint as InterfaceMint, TokenAccount as InterfaceTokenAccount,
+};
 
 declare_id!("7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs");
 
 pub const CONFIG_SEED: &[u8] = b"config";
+pub const CONVERT_CONFIG_SEED: &[u8] = b"convert_config";
 pub const MINT_AUTHORITY_SEED: &[u8] = b"mint_authority";
 
 #[program]
@@ -101,6 +107,73 @@ pub mod bkspc {
         )?;
         Ok(())
     }
+
+    /// One-time Token-2022 handoff: move mint authority to program PDA.
+    pub fn initialize_convert(ctx: Context<InitializeConvert>) -> Result<()> {
+        let cfg = &mut ctx.accounts.convert_config;
+        cfg.mint = ctx.accounts.mint.key();
+        cfg.bump = ctx.bumps.convert_config;
+        cfg.mint_authority_bump = ctx.bumps.mint_authority;
+
+        token_2022::set_authority(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                token_2022::SetAuthority {
+                    current_authority: ctx.accounts.current_mint_authority.to_account_info(),
+                    account_or_mint: ctx.accounts.mint.to_account_info(),
+                },
+            ),
+            token_2022::spl_token_2022::instruction::AuthorityType::MintTokens,
+            Some(ctx.accounts.mint_authority.key()),
+        )?;
+        Ok(())
+    }
+
+    /// Mint already-fee-adjusted BKSPC to the signing user's ATA. Eligibility is off-chain.
+    pub fn convert_wb_to_bkspc(
+        ctx: Context<ConvertWbToBkspc>,
+        amount_bkspc: u64,
+    ) -> Result<()> {
+        require!(amount_bkspc > 0, BkspcError::InvalidAmount);
+        require!(
+            ctx.accounts.mint.key() == ctx.accounts.convert_config.mint,
+            BkspcError::InvalidMint
+        );
+        require!(
+            ctx.accounts.user_ata.owner == ctx.accounts.user.key(),
+            BkspcError::InvalidAtaOwner
+        );
+        require!(
+            ctx.accounts.user_ata.mint == ctx.accounts.mint.key(),
+            BkspcError::InvalidMint
+        );
+
+        let seeds = &[
+            MINT_AUTHORITY_SEED,
+            &[ctx.accounts.convert_config.mint_authority_bump],
+        ];
+        let signer = &[&seeds[..]];
+
+        token_2022::mint_to(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                token_2022::MintTo {
+                    mint: ctx.accounts.mint.to_account_info(),
+                    to: ctx.accounts.user_ata.to_account_info(),
+                    authority: ctx.accounts.mint_authority.to_account_info(),
+                },
+                signer,
+            ),
+            amount_bkspc,
+        )?;
+
+        emit!(BkspcConverted {
+            user: ctx.accounts.user.key(),
+            amount: amount_bkspc,
+            mint: ctx.accounts.mint.key(),
+        });
+        Ok(())
+    }
 }
 
 #[account]
@@ -114,6 +187,25 @@ pub struct GlobalConfig {
 
 impl GlobalConfig {
     pub const INIT_SPACE: usize = 32 + 32 + 32 + 1 + 1;
+}
+
+/// Token-2022 convert path (Design 1). Separate from legacy GlobalConfig.
+#[account]
+pub struct ConvertConfig {
+    pub mint: Pubkey,
+    pub bump: u8,
+    pub mint_authority_bump: u8,
+}
+
+impl ConvertConfig {
+    pub const INIT_SPACE: usize = 32 + 1 + 1;
+}
+
+#[event]
+pub struct BkspcConverted {
+    pub user: Pubkey,
+    pub amount: u64,
+    pub mint: Pubkey,
 }
 
 #[derive(Accounts)]
@@ -188,6 +280,61 @@ pub struct BurnTokens<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct InitializeConvert<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + ConvertConfig::INIT_SPACE,
+        seeds = [CONVERT_CONFIG_SEED],
+        bump
+    )]
+    pub convert_config: Account<'info, ConvertConfig>,
+
+    #[account(mut)]
+    pub mint: InterfaceAccount<'info, InterfaceMint>,
+
+    /// Current Token-2022 mint authority (deployer before handoff).
+    pub current_mint_authority: Signer<'info>,
+
+    /// CHECK: PDA becomes mint authority via set_authority CPI.
+    #[account(seeds = [MINT_AUTHORITY_SEED], bump)]
+    pub mint_authority: UncheckedAccount<'info>,
+
+    pub token_program: Program<'info, Token2022>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ConvertWbToBkspc<'info> {
+    pub user: Signer<'info>,
+
+    #[account(seeds = [CONVERT_CONFIG_SEED], bump = convert_config.bump)]
+    pub convert_config: Account<'info, ConvertConfig>,
+
+    #[account(mut, address = convert_config.mint)]
+    pub mint: InterfaceAccount<'info, InterfaceMint>,
+
+    #[account(
+        mut,
+        constraint = user_ata.mint == mint.key() @ BkspcError::InvalidMint,
+        constraint = user_ata.owner == user.key() @ BkspcError::InvalidAtaOwner
+    )]
+    pub user_ata: InterfaceAccount<'info, InterfaceTokenAccount>,
+
+    /// CHECK: PDA signs mint_to CPI.
+    #[account(
+        seeds = [MINT_AUTHORITY_SEED],
+        bump = convert_config.mint_authority_bump
+    )]
+    pub mint_authority: UncheckedAccount<'info>,
+
+    pub token_program: Program<'info, Token2022>,
+}
+
 #[error_code]
 pub enum BkspcError {
     #[msg("Treasury signer pubkey invalid or duplicate")]
@@ -198,4 +345,6 @@ pub enum BkspcError {
     InvalidAmount,
     #[msg("Mint does not match program config")]
     InvalidMint,
+    #[msg("ATA owner must be the signing user")]
+    InvalidAtaOwner,
 }

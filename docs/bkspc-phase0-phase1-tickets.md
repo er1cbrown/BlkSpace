@@ -16,7 +16,7 @@ Do not recreate the Solana workspace. Gap is **Token-2022 convert path + documen
 | Ticket | Status | What already exists |
 |--------|--------|---------------------|
 | **0.1** Mint | **Done** | Token-2022 mint `HBcTHr2LEC7wb1Y5Sni8pgBp8ChduHuf4sk2tLgykZPx` on Devnet (decimals 6, BKSPC Coin). Record: [`bkspc-devnet-mint.md`](bkspc-devnet-mint.md). |
-| **0.2** Convert ix | **Partial** | `mint_rewards` (treasury 2-of-2 + PDA) and `burn_tokens` in `programs/bkspc`. Tests in `tests/bkspc.ts`. **Missing:** user-signed `convert_wb_to_bkspc` as specified; Token-2022 program. |
+| **0.2** Convert ix | **Code complete, not deployed** | `initialize_convert` + `convert_wb_to_bkspc` in `programs/bkspc` (`cargo check` clean). Tests: `tests/bkspc-convert.ts`. Wire: `bun run wire-bkspc-token2022-convert`. **Blocked:** this PC has no `cargo-build-sbf` / `solana` CLI, so the upgraded `.so` is not on Devnet. **Do not** move mint authority until that deploy. PDA will be `55hw5PBVtYCxqgE6rjQrPuAXLtLhpYDxYyPT26bd8gcw`. |
 | **0.3** Client helper | **Partial** | `setup-bkspc-devnet`, `init-bkspc-devnet-mint.ts`, `wire-bkspc-program-devnet.ts`. **Missing:** convert-tx helper + “mint X to this wallet” against Token-2022. |
 | **1.1** Eligibility | **Mostly done** | `evaluate_withdraw_eligibility` in `db.rs` (age, karma, posts, weekly cap, cooldown, Yard Cred). UI: `WithdrawEligibilityPanel`. **Tighten:** abuse/MIDF flag in the same result; expose `maxConvertibleWb` / `cooldownEndsAt` as the ticket shape. |
 | **1.2** Conversion UI | **Partial** | Wallet withdraw panel + `withdraw_to_solana`. Optimistic `EconomicAction` just landed. **Missing:** required disclaimer set, Devnet explorer link, rollback wired to convert ix. |
@@ -56,12 +56,13 @@ Do not recreate the Solana workspace. Gap is **Token-2022 convert path + documen
 **Goal:** Safe on-chain mint instruction that only the protocol can call.
 
 **Tasks:**
-- [ ] Write `convert_wb_to_bkspc` (or equivalent) instruction
-- [ ] Validate amount > 0
-- [ ] Mint exact BKSPC amount to user’s Associated Token Account
-- [ ] Ensure ATA is owned by the signing user
-- [ ] Emit event / log for indexing
-- [ ] Basic unit tests on local validator / Surfpool
+- [x] Write `convert_wb_to_bkspc` (or equivalent) instruction
+- [x] Validate amount > 0
+- [x] Mint exact BKSPC amount to user’s Associated Token Account
+- [x] Ensure ATA is owned by the signing user
+- [x] Emit event / log for indexing (`BkspcConverted`)
+- [x] Basic unit tests (`tests/bkspc-convert.ts`) — needs local validator
+- [ ] Deploy upgraded program to Devnet + `initialize_convert` (moves authority to PDA)
 
 **Instruction Sketch:**
 ```text

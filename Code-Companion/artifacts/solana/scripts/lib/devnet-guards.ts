@@ -21,10 +21,20 @@ export function devnetRpc(): string {
 }
 
 export function loadDeployerKeypair(): Keypair {
-  const walletPath =
-    process.env.ANCHOR_WALLET ?? join(homedir(), ".config/solana/id.json");
-  const secret = JSON.parse(readFileSync(walletPath, "utf8")) as number[];
-  return Keypair.fromSecretKey(Uint8Array.from(secret));
+  const candidates = [
+    process.env.ANCHOR_WALLET,
+    join(ROOT, "devnet", "deployer.json"),
+    join(homedir(), ".config/solana/id.json"),
+  ].filter((p): p is string => !!p);
+  for (const walletPath of candidates) {
+    if (existsSync(walletPath)) {
+      const secret = JSON.parse(readFileSync(walletPath, "utf8")) as number[];
+      return Keypair.fromSecretKey(Uint8Array.from(secret));
+    }
+  }
+  throw new Error(
+    `No deployer keypair. Tried: ${candidates.join(", ")}`,
+  );
 }
 
 export function loadKeypairFile(path: string): Keypair {

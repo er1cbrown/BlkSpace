@@ -41,6 +41,31 @@
         { "name": "tokenProgram", "isMut": false, "isSigner": false }
       ],
       "args": [{ "name": "amount", "type": "u64" }]
+    },
+    {
+      "name": "initializeConvert",
+      "accounts": [
+        { "name": "payer", "isMut": true, "isSigner": true },
+        { "name": "convertConfig", "isMut": true, "isSigner": false },
+        { "name": "mint", "isMut": true, "isSigner": false },
+        { "name": "currentMintAuthority", "isMut": false, "isSigner": true },
+        { "name": "mintAuthority", "isMut": false, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "convertWbToBkspc",
+      "accounts": [
+        { "name": "user", "isMut": false, "isSigner": true },
+        { "name": "convertConfig", "isMut": false, "isSigner": false },
+        { "name": "mint", "isMut": true, "isSigner": false },
+        { "name": "userAta", "isMut": true, "isSigner": false },
+        { "name": "mintAuthority", "isMut": false, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [{ "name": "amountBkspc", "type": "u64" }]
     }
   ],
   "accounts": [
@@ -56,6 +81,54 @@
           { "name": "mintAuthorityBump", "type": "u8" }
         ]
       }
+    },
+    {
+      "name": "ConvertConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "mint", "type": "publicKey" },
+          { "name": "bump", "type": "u8" },
+          { "name": "mintAuthorityBump", "type": "u8" }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "BkspcConverted",
+      "fields": [
+        { "name": "user", "type": "publicKey", "index": false },
+        { "name": "amount", "type": "u64", "index": false },
+        { "name": "mint", "type": "publicKey", "index": false }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidTreasurySigner",
+      "msg": "Treasury signer pubkey invalid or duplicate"
+    },
+    {
+      "code": 6001,
+      "name": "UnauthorizedTreasurySigner",
+      "msg": "Caller is not an authorized treasury signer"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidAmount",
+      "msg": "Amount must be positive"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidMint",
+      "msg": "Mint does not match program config"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidAtaOwner",
+      "msg": "ATA owner must be the signing user"
     }
   ],
   "types": [],
