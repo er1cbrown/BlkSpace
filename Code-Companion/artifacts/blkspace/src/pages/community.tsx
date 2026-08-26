@@ -75,7 +75,7 @@ type CommunityView = {
   color?: string;
 };
 
-/** Resolve any catalog campus (albany-st, tsu, vanderbilt, …). */
+/** Resolve any HBCU catalog campus (albany-st, tsu, howard, …). */
 function resolveCommunityFromCatalog(rawId: string): CommunityView | null {
   if (!rawId) return null;
   const id = decodeURIComponent(rawId).trim().toLowerCase();

@@ -8,7 +8,6 @@ import {
   FEATURED_YARD_IDS,
   getHbcu,
   hbcuLocation,
-  yardKind,
   type FeaturedYardId,
 } from "@/lib/hbcu-catalog";
 import { yardAccentHsl } from "@/lib/yard-colors";
@@ -217,46 +216,6 @@ const FEATURED_OVERRIDES: Record<
     weatherHint: "Texas heat",
     fanbase: "Panther nation",
   },
-  vanderbilt: {
-    mascot: "⚓ Commodores",
-    gradient: "from-black to-amber-700",
-    accentClass: "text-amber-600 dark:text-amber-400",
-    cardBorderClass: "border-amber-600/20",
-    tagline: "West End — SEC academics, Nashville nights",
-    norms: ["Black & gold", "SEC", "Music Row next door"],
-    weatherHint: "Same city as TSU · humid summers",
-    fanbase: "Commodore nation",
-  },
-  belmont: {
-    mascot: "🐻 Bruins",
-    gradient: "from-blue-900 to-red-700",
-    accentClass: "text-red-600 dark:text-red-400",
-    cardBorderClass: "border-red-500/20",
-    tagline: "Music city campus — Bruins on the hill",
-    norms: ["Navy & red", "Curb College", "Nashville"],
-    weatherHint: "Midtown humidity · mild winters",
-    fanbase: "Bruin nation",
-  },
-  tennessee: {
-    mascot: "🧡 Volunteers",
-    gradient: "from-orange-500 to-orange-800",
-    accentClass: "text-orange-600 dark:text-orange-400",
-    cardBorderClass: "border-orange-500/20",
-    tagline: "Rocky Top — orange nation, SEC Saturdays",
-    norms: ["Tennessee orange", "Checkerboard", "Vol Navy"],
-    weatherHint: "Smokies fall · hot game days",
-    fanbase: "Vol nation",
-  },
-  "ut-austin": {
-    mascot: "🤘 Longhorns",
-    gradient: "from-orange-600 to-neutral-900",
-    accentClass: "text-orange-600 dark:text-orange-400",
-    cardBorderClass: "border-orange-600/20",
-    tagline: "Hook 'em — forty acres, SEC now",
-    norms: ["Burnt orange", "Bevo", "Austin nights"],
-    weatherHint: "Texas heat year-round",
-    fanbase: "Longhorn nation",
-  },
 };
 
 function buildPackFromCatalog(id: string): YardThemePack | null {
@@ -265,10 +224,8 @@ function buildPackFromCatalog(id: string): YardThemePack | null {
   const idx = colorIndex(id);
   const featured = (FEATURED_YARD_IDS as readonly string[]).includes(id);
   const override = featured ? FEATURED_OVERRIDES[id as FeaturedYardId] : null;
-  const kind = yardKind(h);
-  const campusWord = kind === "ncaa" ? "campus" : "campus";
-  const sector =
-    h.conference ?? (kind === "ncaa" ? "NCAA" : h.control === "public" ? "Public" : "Private");
+  const campusWord = "campus";
+  const sector = h.control === "public" ? "Public" : "Private";
 
   const base: YardThemePack = {
     id: h.id,

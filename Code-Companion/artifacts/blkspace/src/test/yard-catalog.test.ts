@@ -4,12 +4,12 @@ import {
   ALL_YARD_CATALOG,
   catalogStats,
   getHbcu,
+  HBCU_CATALOG,
   searchHbcus,
-  yardKind,
 } from "@/lib/hbcu-catalog";
 import { getYardTheme } from "@/lib/yard-themes";
 
-describe("BKSPC brand + inclusive yards", () => {
+describe("BKSPC brand + HBCU-only yards", () => {
   it("product name is BKSPC only", () => {
     expect(BRAND.name).toBe("BKSPC");
     expect(BRAND.product).toBe("BKSPC");
@@ -17,30 +17,29 @@ describe("BKSPC brand + inclusive yards", () => {
     expect(BRAND.coinName).toBe("BKSPC Coin");
   });
 
-  it("catalog includes HBCU and SEC/NCAA yards at the same table", () => {
+  it("catalog is HBCU campuses only", () => {
     expect(getHbcu("tsu")?.school).toContain("Tennessee State");
-    expect(getHbcu("vanderbilt")?.conference).toBe("SEC");
-    expect(getHbcu("belmont")?.school).toContain("Belmont");
-    expect(getHbcu("tennessee")?.school).toContain("Tennessee");
-    expect(getHbcu("ut-austin")?.id).toBe("ut-austin");
-    expect(yardKind(getHbcu("tsu")!)).toBe("hbcu");
-    expect(yardKind(getHbcu("vanderbilt")!)).toBe("ncaa");
-    expect(catalogStats().total).toBe(ALL_YARD_CATALOG.length);
-    expect(catalogStats().total).toBeGreaterThan(100);
+    expect(getHbcu("howard")?.school).toContain("Howard");
+    expect(getHbcu("vanderbilt")).toBeNull();
+    expect(getHbcu("belmont")).toBeNull();
+    expect(getHbcu("tennessee")).toBeNull();
+    expect(getHbcu("ut-austin")).toBeNull();
+    expect(ALL_YARD_CATALOG).toBe(HBCU_CATALOG);
+    expect(catalogStats().total).toBe(HBCU_CATALOG.length);
+    expect(catalogStats().total).toBeGreaterThan(80);
   });
 
-  it("search finds SEC schools and HBCUs together", () => {
-    const vandy = searchHbcus("vanderbilt");
-    expect(vandy.some((h) => h.id === "vanderbilt")).toBe(true);
-    const sec = searchHbcus("SEC");
-    expect(sec.some((h) => h.id === "tennessee")).toBe(true);
+  it("search finds HBCUs and not SEC/NCAA schools", () => {
     const tsu = searchHbcus("tsu");
     expect(tsu.some((h) => h.id === "tsu")).toBe(true);
+    expect(searchHbcus("vanderbilt")).toHaveLength(0);
+    expect(searchHbcus("SEC")).toHaveLength(0);
   });
 
-  it("themes resolve for crossover yards", () => {
-    expect(getYardTheme("vanderbilt")?.school).toContain("Vanderbilt");
-    expect(getYardTheme("ut-austin")?.mascot).toContain("Longhorns");
+  it("themes resolve for HBCU yards only", () => {
     expect(getYardTheme("tsu")?.school).toContain("Tennessee State");
+    expect(getYardTheme("howard")?.school).toContain("Howard");
+    expect(getYardTheme("vanderbilt")).toBeNull();
+    expect(getYardTheme("ut-austin")).toBeNull();
   });
 });

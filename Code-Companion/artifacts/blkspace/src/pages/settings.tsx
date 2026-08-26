@@ -375,7 +375,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Home yard (any campus)</Label>
+                <Label>Home yard (any public or private HBCU)</Label>
                 <YardPicker
                   value={uiPrefs.homeYardId}
                   onChange={(id) => patchUi({ homeYardId: id })}

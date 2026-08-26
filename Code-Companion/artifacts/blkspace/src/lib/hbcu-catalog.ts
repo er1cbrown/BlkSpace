@@ -1,10 +1,9 @@
 /**
- * Yard catalog — every campus sits at the same table.
- * HBCU list (DOE/NCES) plus NCAA/SEC crossover yards. Not HBCU-only.
+ * Full HBCU yard catalog — public & private (DOE/NCES-aligned current list).
+ * Yards are HBCU campuses only. SEC / NCAA / PWI schools are not in the picker.
  */
 
 export type HbcuControl = "public" | "private";
-export type YardKind = "hbcu" | "ncaa";
 
 export interface HbcuInstitution {
   id: string;
@@ -16,10 +15,6 @@ export interface HbcuInstitution {
   control: HbcuControl;
   /** Short yard label shown in UI */
   yardLabel: string;
-  /** Default hbcu when omitted (legacy generated rows). */
-  kind?: YardKind;
-  /** Optional conference / league label (SEC, MVC, …). */
-  conference?: string;
 }
 
 /** Featured yards with richer skins (gradients in yard-themes). */
@@ -36,10 +31,6 @@ export const FEATURED_YARD_IDS = [
   "jsu",
   "grambling",
   "pvamu",
-  "vanderbilt",
-  "belmont",
-  "tennessee",
-  "ut-austin",
 ] as const;
 
 export type FeaturedYardId = (typeof FEATURED_YARD_IDS)[number];
@@ -1082,230 +1073,15 @@ export const HBCU_CATALOG: HbcuInstitution[] = [
   },
 ];
 
-/** SEC + named NCAA yards — same picker, same table as every HBCU. */
-export const NCAA_CROSSOVER_CATALOG: HbcuInstitution[] = [
-  {
-    id: "vanderbilt",
-    school: "Vanderbilt University",
-    shortName: "Vanderbilt",
-    city: "Nashville",
-    state: "TN",
-    founded: 1873,
-    control: "private",
-    yardLabel: "Vanderbilt Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "belmont",
-    school: "Belmont University",
-    shortName: "Belmont",
-    city: "Nashville",
-    state: "TN",
-    founded: 1890,
-    control: "private",
-    yardLabel: "Belmont Yard",
-    kind: "ncaa",
-    conference: "MVC",
-  },
-  {
-    id: "tennessee",
-    school: "University of Tennessee",
-    shortName: "Tennessee",
-    city: "Knoxville",
-    state: "TN",
-    founded: 1794,
-    control: "public",
-    yardLabel: "Tennessee Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "ut-austin",
-    school: "University of Texas at Austin",
-    shortName: "Texas",
-    city: "Austin",
-    state: "TX",
-    founded: 1883,
-    control: "public",
-    yardLabel: "Texas Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "alabama",
-    school: "University of Alabama",
-    shortName: "Alabama",
-    city: "Tuscaloosa",
-    state: "AL",
-    founded: 1831,
-    control: "public",
-    yardLabel: "Alabama Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "auburn",
-    school: "Auburn University",
-    shortName: "Auburn",
-    city: "Auburn",
-    state: "AL",
-    founded: 1856,
-    control: "public",
-    yardLabel: "Auburn Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "florida",
-    school: "University of Florida",
-    shortName: "Florida",
-    city: "Gainesville",
-    state: "FL",
-    founded: 1853,
-    control: "public",
-    yardLabel: "Florida Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "georgia",
-    school: "University of Georgia",
-    shortName: "Georgia",
-    city: "Athens",
-    state: "GA",
-    founded: 1785,
-    control: "public",
-    yardLabel: "Georgia Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "kentucky",
-    school: "University of Kentucky",
-    shortName: "Kentucky",
-    city: "Lexington",
-    state: "KY",
-    founded: 1865,
-    control: "public",
-    yardLabel: "Kentucky Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "lsu",
-    school: "Louisiana State University",
-    shortName: "LSU",
-    city: "Baton Rouge",
-    state: "LA",
-    founded: 1860,
-    control: "public",
-    yardLabel: "LSU Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "ole-miss",
-    school: "University of Mississippi",
-    shortName: "Ole Miss",
-    city: "Oxford",
-    state: "MS",
-    founded: 1848,
-    control: "public",
-    yardLabel: "Ole Miss Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "miss-st",
-    school: "Mississippi State University",
-    shortName: "Mississippi State",
-    city: "Starkville",
-    state: "MS",
-    founded: 1878,
-    control: "public",
-    yardLabel: "Mississippi State Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "missouri",
-    school: "University of Missouri",
-    shortName: "Missouri",
-    city: "Columbia",
-    state: "MO",
-    founded: 1839,
-    control: "public",
-    yardLabel: "Missouri Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "south-carolina",
-    school: "University of South Carolina",
-    shortName: "South Carolina",
-    city: "Columbia",
-    state: "SC",
-    founded: 1801,
-    control: "public",
-    yardLabel: "South Carolina Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "arkansas",
-    school: "University of Arkansas",
-    shortName: "Arkansas",
-    city: "Fayetteville",
-    state: "AR",
-    founded: 1871,
-    control: "public",
-    yardLabel: "Arkansas Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "texas-am",
-    school: "Texas A&M University",
-    shortName: "Texas A&M",
-    city: "College Station",
-    state: "TX",
-    founded: 1876,
-    control: "public",
-    yardLabel: "Texas A&M Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-  {
-    id: "oklahoma",
-    school: "University of Oklahoma",
-    shortName: "Oklahoma",
-    city: "Norman",
-    state: "OK",
-    founded: 1890,
-    control: "public",
-    yardLabel: "Oklahoma Yard",
-    kind: "ncaa",
-    conference: "SEC",
-  },
-];
-
-export function yardKind(h: HbcuInstitution): YardKind {
-  return h.kind ?? "hbcu";
-}
-
-/** Every pickable yard — HBCU catalog + NCAA/SEC crossover. */
-export const ALL_YARD_CATALOG: HbcuInstitution[] = [
-  ...HBCU_CATALOG,
-  ...NCAA_CROSSOVER_CATALOG,
-];
+/** Pickable yards — HBCU catalog only. */
+export const ALL_YARD_CATALOG: HbcuInstitution[] = HBCU_CATALOG;
 
 export const HBCU_BY_ID: Record<string, HbcuInstitution> = Object.fromEntries(
-  ALL_YARD_CATALOG.map((h) => [h.id, h]),
+  HBCU_CATALOG.map((h) => [h.id, h]),
 );
 
 export const HBCU_STATES = Array.from(
-  new Set(ALL_YARD_CATALOG.map((h) => h.state)),
+  new Set(HBCU_CATALOG.map((h) => h.state)),
 ).sort();
 
 export function getHbcu(id: string): HbcuInstitution | null {
@@ -1319,7 +1095,7 @@ export function searchHbcus(
   const q = query.trim().toLowerCase();
   const state = opts?.state && opts.state !== "all" ? opts.state : null;
   const control = opts?.control && opts.control !== "all" ? opts.control : null;
-  return ALL_YARD_CATALOG.filter((h) => {
+  return HBCU_CATALOG.filter((h) => {
     if (state && h.state !== state) return false;
     if (control && h.control !== control) return false;
     if (!q) return true;
@@ -1329,8 +1105,7 @@ export function searchHbcus(
       h.city.toLowerCase().includes(q) ||
       h.state.toLowerCase().includes(q) ||
       h.id.includes(q) ||
-      h.yardLabel.toLowerCase().includes(q) ||
-      (h.conference?.toLowerCase().includes(q) ?? false)
+      h.yardLabel.toLowerCase().includes(q)
     );
   });
 }
@@ -1344,10 +1119,10 @@ export function catalogStats(): {
   public: number;
   private: number;
 } {
-  const publicN = ALL_YARD_CATALOG.filter((h) => h.control === "public").length;
+  const publicN = HBCU_CATALOG.filter((h) => h.control === "public").length;
   return {
-    total: ALL_YARD_CATALOG.length,
+    total: HBCU_CATALOG.length,
     public: publicN,
-    private: ALL_YARD_CATALOG.length - publicN,
+    private: HBCU_CATALOG.length - publicN,
   };
 }

@@ -9,6 +9,7 @@ import {
   isDisciplineTrack,
   type DisciplineTrack,
 } from "@/lib/discipline-track";
+import { getHbcu } from "@/lib/hbcu-catalog";
 
 /** Matches MyYard profile chrome ids without importing myyard-catalog. */
 export type ProfileThemeId = "classic" | "pro" | "vibrant" | "myspace";
@@ -188,10 +189,13 @@ export function normalizeUiPrefs(
     : DEFAULT_UI_PREFS.disciplineTrack;
 
   return {
-    homeYardId:
-      typeof p.homeYardId === "string" && p.homeYardId.trim()
-        ? p.homeYardId.trim()
-        : DEFAULT_UI_PREFS.homeYardId,
+    homeYardId: (() => {
+      const id =
+        typeof p.homeYardId === "string" && p.homeYardId.trim()
+          ? p.homeYardId.trim()
+          : DEFAULT_UI_PREFS.homeYardId;
+      return getHbcu(id) ? id : DEFAULT_UI_PREFS.homeYardId;
+    })(),
     disciplineTrack,
     profileTheme,
     accent,

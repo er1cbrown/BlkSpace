@@ -43,7 +43,7 @@ Platform-specific screenshots and troubleshooting: [`INSTALL.md`](INSTALL.md).
 ## First run (5 minutes)
 
 1. **Read** [`FIRST_RUN.md`](FIRST_RUN.md) — especially the recovery phrase section.
-2. **Create your profile** (handle, display name, your campus yard).
+2. **Create your profile** (handle, display name, your Yard / HBCU).
 3. **Write down your 12-word recovery phrase on paper.** No screenshots, no notes app.
 4. **Verify** the phrase when prompted.
 

@@ -2,7 +2,7 @@
  * BKSPC brand lock — single source of truth for product UI + settlement ticker.
  *
  * Product name is **BKSPC** only. Not BlkSpace. Not a dual mark.
- * Yards are all-inclusive: any campus (HBCU, SEC, NCAA, independent).
+ * Yards are HBCU campuses only — no SEC / NCAA / PWI picker.
  * Soft credits stay WeixBucks (WB). Settlement ticker is the same mark: BKSPC.
  *
  * Site: bkspc.app · GitHub repo path stays er1cbrown/BlkSpace (history).
@@ -20,7 +20,7 @@ export const BRAND = {
   softCurrency: "WeixBucks",
   softCurrencySymbol: "WB",
   tagline: "The social network that pays you to post",
-  /** In-app cultural layer — campus space, any school */
+  /** In-app cultural layer — HBCU campus space */
   lore: "the yard",
   /** Product site (custom domain) */
   siteUrl: "https://bkspc.app",

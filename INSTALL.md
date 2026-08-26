@@ -1,6 +1,6 @@
 # Installing BKSPC
 
-**For students, alumni, and anyone with a campus yard.**
+**For HBCU students, alumni, and community members.**
 
 No technical knowledge required. If you can install Spotify or Discord, you can install BKSPC.
 

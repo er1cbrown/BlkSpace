@@ -26,7 +26,7 @@ When you open BKSPC for the first time, you'll see a **Welcome Wizard**. Here's 
 ### Step 1: Create Your Profile
 - **Handle**: Your username (like @campus_king)
 - **Display Name**: Your real name or whatever you want people to see
-- **Town**: Your campus (TSU, Vanderbilt, Tennessee, Howard, …)
+- **Town**: Your HBCU (TSU, Howard, FAMU, etc.)
 
 ### Step 2: Your Recovery Phrase
 

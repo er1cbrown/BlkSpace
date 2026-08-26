@@ -14,7 +14,7 @@
 | **Coin long name** | **BKSPC Coin** | Tokenomics, legal-facing settlement copy |
 | **Soft credits** | WeixBucks (**WB**) | Earn/spend, marketplace, escrow — **not** the product mark |
 
-The product is **all-inclusive campus social**. Yards are any school (HBCU, SEC, NCAA). Not an HBCU-only product.
+The product is **HBCU campus social**. Yards are historically Black colleges and universities only — not SEC, NCAA, or PWI campuses.
 
 GitHub repo path stays [`er1cbrown/BlkSpace`](https://github.com/er1cbrown/BlkSpace) for history. Chrome never says BlkSpace.
 
@@ -22,7 +22,7 @@ GitHub repo path stays [`er1cbrown/BlkSpace`](https://github.com/er1cbrown/BlkSp
 
 - Do **not** ship “BlkSpace” as the product name in UI.  
 - Do **not** market mainnet BKSPC as “already live rights for everyone” without Cred gates + counsel.  
-- Do **not** position the app as HBCU-only.
+- Do **not** add SEC / NCAA / PWI yards to the campus picker.
 
 ---
 

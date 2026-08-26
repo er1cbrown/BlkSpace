@@ -141,7 +141,7 @@ export default function WelcomePage() {
         }
       }
 
-      // Join campus intranet backbone (shared relays + all-yard tags)
+      // Join HBCU intranet backbone (shared relays + all-yard tags)
       try {
         await ensureIntranetConnected(yardId);
       } catch {
@@ -174,8 +174,8 @@ export default function WelcomePage() {
       </h2>
       <p className="text-lg text-muted-foreground">{BRAND.tagline}</p>
       <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-        Think Instagram for your campus — pick any school, scroll Home, post,
-        earn soft credits. Nothing crypto until you want cash-out later.
+        Think Instagram for your HBCU — pick a campus, scroll Home, post, earn
+        soft credits. Nothing crypto until you want cash-out later.
       </p>
       <div className="grid grid-cols-3 gap-3 text-sm pt-2">
         <div className="bg-card p-3 rounded-xl border">
