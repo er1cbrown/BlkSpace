@@ -13,8 +13,11 @@ import {
   useEscrowRefund,
 } from "@/hooks/use-app-data";
 import { getCurrentHandle } from "@/lib/auth";
-import { statusLabel } from "@/lib/marketplace-escrow";
+import { escrowEvents, statusLabel } from "@/lib/marketplace-escrow";
 import { itemTypeLabel } from "@/lib/myyard-catalog";
+import { toCanonicalEscrowStatus } from "@/lib/economic-types";
+import { EconomicStatusBadge } from "@/components/economy/EconomicStatusBadge";
+import { EscrowTimeline } from "@/components/economy/EscrowTimeline";
 
 export function EscrowTradesPanel() {
   const handle = getCurrentHandle() || "demo_user";
@@ -25,12 +28,14 @@ export function EscrowTradesPanel() {
   const refund = useEscrowRefund();
   const [deliveryRefs, setDeliveryRefs] = useState<Record<number, string>>({});
 
-  const open = trades.filter(
-    (t) => t.status !== "released" && t.status !== "refunded",
-  );
-  const closed = trades.filter(
-    (t) => t.status === "released" || t.status === "refunded",
-  );
+  const open = trades.filter((t) => {
+    const s = toCanonicalEscrowStatus(t.status);
+    return s !== "released" && s !== "refunded";
+  });
+  const closed = trades.filter((t) => {
+    const s = toCanonicalEscrowStatus(t.status);
+    return s === "released" || s === "refunded";
+  });
 
   if (trades.length === 0) {
     return (
@@ -68,6 +73,7 @@ export function EscrowTradesPanel() {
           {open.map((t) => {
             const isBuyer = t.buyerHandle === handle;
             const isSeller = t.sellerHandle === handle;
+            const canonical = toCanonicalEscrowStatus(t.status);
             return (
               <div
                 key={t.id}
@@ -78,7 +84,7 @@ export function EscrowTradesPanel() {
                   <Badge variant="outline" className="text-[10px]">
                     {itemTypeLabel(t.itemType)}
                   </Badge>
-                  <Badge className="text-[10px]">{statusLabel(t.status)}</Badge>
+                  <EconomicStatusBadge status={canonical} />
                   {t.orgName && (
                     <Badge variant="secondary" className="text-[10px]">
                       {t.orgName}
@@ -96,10 +102,17 @@ export function EscrowTradesPanel() {
                     {t.deliveryNote ? ` · ${t.deliveryNote}` : ""}
                   </div>
                 )}
+                {t.disputeReason && canonical === "dispute" && (
+                  <p className="text-xs text-destructive">
+                    Dispute: {t.disputeReason}
+                  </p>
+                )}
+                <EscrowTimeline events={escrowEvents(t)} />
 
                 <div className="flex flex-wrap gap-2">
                   {isSeller &&
-                    (t.status === "funded" || t.status === "disputed") && (
+                    (canonical === "funds_locked" ||
+                      canonical === "dispute") && (
                       <>
                         <Input
                           className="h-8 text-xs max-w-xs"
@@ -135,7 +148,8 @@ export function EscrowTradesPanel() {
                     )}
 
                   {isBuyer &&
-                    (t.status === "delivered" || t.status === "funded") && (
+                    (canonical === "delivered" ||
+                      canonical === "funds_locked") && (
                       <Button
                         size="sm"
                         disabled={confirmRelease.isPending}
@@ -143,7 +157,7 @@ export function EscrowTradesPanel() {
                           try {
                             const r = await confirmRelease.mutateAsync(t.id);
                             toast.success(
-                              `Released ${r.sellerNet ?? t.sellerNet} WB to seller`,
+                              `Released ${r.sellerNet ?? t.sellerNet} WB to seller · Yard Cred +1`,
                             );
                           } catch (e) {
                             toast.error(String(e));
@@ -151,12 +165,13 @@ export function EscrowTradesPanel() {
                         }}
                       >
                         <CheckCircle2 className="w-3 h-3 mr-1" />
-                        Confirm & release
+                        Confirm receipt
                       </Button>
                     )}
 
                   {(isBuyer || isSeller) &&
-                    (t.status === "funded" || t.status === "delivered") && (
+                    (canonical === "funds_locked" ||
+                      canonical === "delivered") && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -178,7 +193,9 @@ export function EscrowTradesPanel() {
                       </Button>
                     )}
 
-                  {(isBuyer || isSeller) && t.status !== "released" && (
+                  {(isBuyer || isSeller) &&
+                    canonical !== "released" &&
+                    canonical !== "refunded" && (
                     <Button
                       size="sm"
                       variant="ghost"

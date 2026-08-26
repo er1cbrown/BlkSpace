@@ -28,7 +28,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
 import {
   useTauriGetWalletTx,
-  useAppSendWeixBucks,
   useAppGetUser,
   useAppWithdrawToSolana,
   useTauriGetWithdrawEligibility,
@@ -54,6 +53,12 @@ import { OwnedNftsPanel } from "@/components/economy/OwnedNftsPanel";
 import { EconomyPillarsBar } from "@/components/economy/EconomyPillarsBar";
 import { ProgressionCard } from "@/components/economy/ProgressionCard";
 import { formatFeePercent, FEE_BPS } from "@/lib/tokenomics";
+import { useTip } from "@/hooks/use-tip";
+import { useOptimisticBalance } from "@/hooks/use-economic-ledger";
+import { TransactionHistory } from "@/components/economy/TransactionHistory";
+import { FeeBreakdown } from "@/components/economy/FeeBreakdown";
+import { SelfCustodyCard } from "@/components/economy/SelfCustodyCard";
+import { privilegesForCred } from "@/lib/yard-cred-privileges";
 import { toast } from "sonner";
 import { WalletContextProvider } from "@/components/WalletContextProvider";
 import { BkspcMainnetPanel } from "@/components/economy/BkspcMainnetPanel";
@@ -120,23 +125,37 @@ function mapTx(tx: TauriWalletTx) {
   };
 }
 
-function SendDialog({ balance }: { balance: number }) {
+function SendDialog({
+  baseBalance,
+  yardCred = 0,
+}: {
+  baseBalance: number;
+  yardCred?: number;
+}) {
   const [toHandle, setToHandle] = useState("");
   const [amount, setAmount] = useState("");
-  const sendMut = useAppSendWeixBucks();
+  const [message, setMessage] = useState("");
+  const { sendTip, phase, lastError, balance } = useTip(baseBalance);
+  const busy = phase === "submitting" || phase === "settling";
+  const priv = privilegesForCred(yardCred);
+  const feeBps = priv.effectiveTipFeeBps;
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const amt = parseInt(amount, 10);
     if (!toHandle.trim() || isNaN(amt) || amt <= 0 || amt > balance) return;
-    sendMut.mutate(
-      { toHandle: toHandle.trim(), amount: amt },
-      {
-        onSuccess: () => {
-          setToHandle("");
-          setAmount("");
-        },
-      },
-    );
+    try {
+      await sendTip({
+        toHandle: toHandle.trim(),
+        amount: amt,
+        message: message.trim() || undefined,
+        feeBps,
+      });
+      setToHandle("");
+      setAmount("");
+      setMessage("");
+    } catch {
+      /* toast + rollback handled in useTip */
+    }
   };
 
   return (
@@ -150,7 +169,10 @@ function SendDialog({ balance }: { balance: number }) {
         <DialogHeader>
           <DialogTitle>Send WeixBucks</DialogTitle>
           <DialogDescription>
-            Transfer to another user on the yard.
+            Instant local confirm. Settlement runs in the background.
+            {priv.tipFeeDiscountBps > 0
+              ? ` Yard Cred ${priv.score} lowered the tip fee.`
+              : ""}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -180,22 +202,19 @@ function SendDialog({ balance }: { balance: number }) {
             Balance: {balance.toLocaleString()} WB
           </p>
           {amount && parseInt(amount, 10) > 0 && (
-            <p className="text-[10px] text-muted-foreground">
-              Platform fee ({formatFeePercent(FEE_BPS.tip)}): recipient gets{" "}
-              {Math.max(
-                0,
-                parseInt(amount, 10) -
-                  Math.floor((parseInt(amount, 10) * FEE_BPS.tip) / 10000),
-              )}{" "}
-              WB net
-            </p>
+            <FeeBreakdown amount={parseInt(amount, 10)} feeBps={feeBps} />
           )}
-          {sendMut.isError && (
-            <p className="text-sm text-destructive">
-              {sendMut.error instanceof Error
-                ? sendMut.error.message
-                : "Send failed"}
-            </p>
+          <div className="space-y-2">
+            <Label htmlFor="tip-msg">Message (optional)</Label>
+            <Input
+              id="tip-msg"
+              placeholder="Appreciate you"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+            />
+          </div>
+          {lastError && (
+            <p className="text-sm text-destructive">{lastError}</p>
           )}
         </div>
         <DialogFooter>
@@ -204,9 +223,13 @@ function SendDialog({ balance }: { balance: number }) {
           </DialogClose>
           <Button
             onClick={handleSend}
-            disabled={sendMut.isPending || !toHandle.trim() || !amount}
+            disabled={busy || !toHandle.trim() || !amount}
           >
-            {sendMut.isPending ? "Sending..." : "Send"}
+            {phase === "settling"
+              ? "Settling…"
+              : busy
+                ? "Sending..."
+                : "Send"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -453,7 +476,10 @@ function WalletPageContent() {
 
   const txHistory =
     isTauri() && Array.isArray(tauriTx) ? tauriTx.map(mapTx) : mockTxHistory;
-  const balance = isTauri() && user ? ((user as any).weixBucks ?? 1250) : 1250;
+  const rawBalance =
+    isTauri() && user ? ((user as any).weixBucks ?? 1250) : 1250;
+  const balance = useOptimisticBalance(rawBalance);
+  const yardCred = Number((user as any)?.yardCred ?? 0);
   const quality =
     isTauri() && user ? ((user as any).engagementQuality ?? 1.0) : 1.0;
 
@@ -497,6 +523,7 @@ function WalletPageContent() {
       </div>
 
       <WalletDisclaimer />
+      <SelfCustodyCard yardCred={yardCred} />
       <EconomyPillarsBar handle={handle} />
       <ProgressionCard summary={earnSummary} />
 
@@ -528,7 +555,7 @@ function WalletPageContent() {
             Earn-only soft currency · tier daily cap {dailyCap} WB · not cash
           </p>
           <div className="flex gap-3 flex-wrap">
-            <SendDialog balance={balance} />
+            <SendDialog baseBalance={rawBalance} yardCred={yardCred} />
             <WithdrawDialog balance={balance} />
             <Button variant="outline" size="sm" onClick={handleClaimRewards}>
               Node claim (disabled faucet)
@@ -592,43 +619,7 @@ function WalletPageContent() {
         </TabsList>
 
         <TabsContent value="history" className="space-y-1">
-          {txHistory.map((tx) => (
-            <Card
-              key={tx.id}
-              className="border-0 shadow-none rounded-none border-b border-border/30 last:border-0"
-            >
-              <CardContent className="flex items-center justify-between py-4 px-2">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`p-2 rounded-full ${tx.amount > 0 ? "bg-green-500/10" : "bg-destructive/10"}`}
-                  >
-                    {tx.amount > 0 ? (
-                      <ArrowUpRight className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <ArrowDownLeft className="w-4 h-4 text-destructive" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{tx.user}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {tx.description} • {tx.time}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p
-                    className={`text-sm font-bold ${tx.amount > 0 ? "text-green-500" : "text-destructive"}`}
-                  >
-                    {tx.amount > 0 ? "+" : ""}
-                    {tx.amount}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {tx.balance} WB
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <TransactionHistory fallback={txHistory} />
         </TabsContent>
 
         <TabsContent value="earn" className="space-y-6">

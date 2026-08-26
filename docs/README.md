@@ -40,7 +40,7 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 | UI / pages | [`blkspace-ui-system-plan.md`](blkspace-ui-system-plan.md) |
 | Tier 0 performance | [`tier0-load-optimization.md`](tier0-load-optimization.md) |
 | Nostr + mesh testing | [`implementation/DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) |
-| Economy / WeixBucks | [`reward-formulas.md`](reward-formulas.md) · [`economy-student-terms.md`](economy-student-terms.md) · [`features/four-pillar-economy.md`](features/four-pillar-economy.md) · [`features/wb-progression-v2.md`](features/wb-progression-v2.md) |
+| Economy / WeixBucks | [`reward-formulas.md`](reward-formulas.md) · [`economy-student-terms.md`](economy-student-terms.md) · [`features/four-pillar-economy.md`](features/four-pillar-economy.md) · [`features/wb-progression-v2.md`](features/wb-progression-v2.md) · [`economy-fast-transparent.md`](economy-fast-transparent.md) |
 | IEEE campus use cases | [`IEEE_CONFERENCE_PACK.md`](IEEE_CONFERENCE_PACK.md) (start) · [`features/use-case-omega-psi-phi-meharry-ieee.md`](features/use-case-omega-psi-phi-meharry-ieee.md) · [`features/use-case-fisk-finance-ieee.md`](features/use-case-fisk-finance-ieee.md) · [`features/use-case-jimmy-tsu-fashion-ieee.md`](features/use-case-jimmy-tsu-fashion-ieee.md) |
 | Solana / BKSPC | [`solana-blueprint.md`](solana-blueprint.md) · [`bkspc-devnet-runbook.md`](bkspc-devnet-runbook.md) |
 | Security | [`security-considerations.md`](security-considerations.md) |

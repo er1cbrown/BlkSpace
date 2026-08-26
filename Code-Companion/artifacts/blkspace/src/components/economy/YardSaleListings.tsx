@@ -108,6 +108,16 @@ export function YardSaleListings({
       )
     : listings;
 
+  const bestPriceByType = new Map<string, number>();
+  for (const item of filtered) {
+    const prev = bestPriceByType.get(item.itemType);
+    if (prev === undefined || item.price < prev) {
+      bestPriceByType.set(item.itemType, item.price);
+    }
+  }
+  const globalBest =
+    filtered.length > 0 ? Math.min(...filtered.map((i) => i.price)) : 0;
+
   const handleBuyWithBkspc = async (item: Listing) => {
     if (!connected || !publicKey || !signTransaction) {
       toast.error("Connect Phantom to pay with BKSPC");
@@ -163,11 +173,17 @@ export function YardSaleListings({
 
   return (
     <div className="space-y-2">
+      <p className="text-[10px] text-muted-foreground px-1">
+        Best available {globalBest} WB
+        {filtered.length > 1 ? ` · ${filtered.length} listings in view` : ""}
+      </p>
       {filtered.map((item) => {
         const themeName = themeLabelFromRef(item.itemRef);
         const yard = item.townTag ? getYardTheme(item.townTag) : null;
         const isEscrow = (item.fulfillmentMode || "instant") === "escrow";
         const me = (user as { handle?: string })?.handle || handle;
+        const typeBest = bestPriceByType.get(item.itemType) ?? item.price;
+        const isBest = item.price === typeBest;
 
         return (
           <div
@@ -187,6 +203,15 @@ export function YardSaleListings({
                     className="text-[10px] font-normal border-amber-500/50 text-amber-700 dark:text-amber-400"
                   >
                     Escrow
+                  </Badge>
+                )}
+                {isBest ? (
+                  <Badge variant="secondary" className="text-[10px] font-normal">
+                    Best available
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    +{item.price - typeBest} WB vs best
                   </Badge>
                 )}
                 {item.orgName && (

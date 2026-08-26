@@ -6,6 +6,15 @@ import { isTauri } from "@/lib/tauri-api";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { invoke } from "@tauri-apps/api/core";
 import { ESCROW_DEFAULT_TYPES } from "@/lib/myyard-catalog";
+import {
+  assertEscrowTransition,
+  ESCROW_STATUS_LABEL,
+  toCanonicalEscrowStatus,
+  type EscrowEvent,
+  type EscrowStatusExtended,
+} from "@/lib/economic-types";
+import { applyBalanceDelta, pushHistory } from "@/lib/economic-store";
+import { YARD_CRED_RELEASE_DELTA } from "@/lib/yard-cred-privileges";
 
 export type FulfillmentMode = "instant" | "escrow";
 
@@ -43,6 +52,8 @@ export interface EscrowTrade {
   status: string;
   deliveryRef?: string | null;
   deliveryNote?: string | null;
+  disputeReason?: string | null;
+  events?: EscrowEvent[];
   receiptJson?: string | null;
   listingTitle: string;
   itemType: string;
@@ -203,6 +214,47 @@ function defaultMode(itemType: string): FulfillmentMode {
     : "instant";
 }
 
+function nowMs() {
+  return Date.now();
+}
+
+function pushEvent(
+  e: EscrowTrade,
+  status: EscrowStatusExtended,
+  by: string,
+  note?: string,
+) {
+  const from = toCanonicalEscrowStatus(e.status);
+  if (from !== status) assertEscrowTransition(from, status);
+  e.status = status;
+  e.updatedAt = new Date().toISOString();
+  e.events = e.events || [];
+  e.events.push({ status, at: nowMs(), by, note });
+}
+
+function recordEscrowHistory(
+  e: EscrowTrade,
+  amount: number,
+  actor: string,
+) {
+  const canonical = toCanonicalEscrowStatus(e.status);
+  pushHistory({
+    id: `hist_escrow_${e.id}_${canonical}`,
+    kind: "escrow",
+    title: e.listingTitle,
+    description: `${ESCROW_STATUS_LABEL[canonical]} · @${actor}`,
+    amount,
+    fee: e.platformFee,
+    status: canonical,
+    createdAt: nowMs(),
+    counterparty:
+      actor === e.buyerHandle ? e.sellerHandle : e.buyerHandle,
+    nostrEventId: `local:escrow:${e.id}:${canonical}`,
+    yardCredDelta:
+      canonical === "released" ? YARD_CRED_RELEASE_DELTA : undefined,
+  });
+}
+
 // ─── Public API ──────────────────────────────────────────
 
 export async function listMarketplace(): Promise<MarketplaceListing[]> {
@@ -296,6 +348,7 @@ export async function buyMarketplaceListing(
   if (mode === "escrow") {
     listing.soldTo = me;
     const escrowId = s.nextEscrowId++;
+    const t0 = nowMs();
     const trade: EscrowTrade = {
       id: escrowId,
       listingId: listing.id,
@@ -307,20 +360,27 @@ export async function buyMarketplaceListing(
       sellerNet,
       orgId: listing.orgId,
       orgName: listing.orgName,
-      status: "funded",
+      status: "listed",
       listingTitle: listing.title,
       itemType: listing.itemType,
       townTag: listing.townTag || "tsu",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      events: [
+        { status: "listed", at: t0, by: listing.sellerHandle, note: "Listing" },
+      ],
     };
+    pushEvent(trade, "matched", me, "Buyer matched");
+    pushEvent(trade, "funds_locked", me, "Funds locked");
     s.escrows.push(trade);
     s.balances[me] = (s.balances[me] || 0) - listing.price;
+    applyBalanceDelta(me, -listing.price);
+    recordEscrowHistory(trade, -listing.price, me);
     save(s);
     return {
       escrowId,
       listingId: listing.id,
-      status: "funded",
+      status: "funds_locked",
       fulfillmentMode: "escrow",
       seller: listing.sellerHandle,
       amount: listing.price,
@@ -377,14 +437,15 @@ export async function escrowMarkDelivered(
   const e = s.escrows.find((x) => x.id === escrowId);
   if (!e) throw new Error("Escrow not found");
   if (e.sellerHandle !== me) throw new Error("Only seller can mark delivered");
-  if (e.status !== "funded" && e.status !== "disputed") {
+  const from = toCanonicalEscrowStatus(e.status);
+  if (from !== "funds_locked" && from !== "dispute") {
     throw new Error(`Cannot deliver from status '${e.status}'`);
   }
   if (!deliveryRef.trim()) throw new Error("Delivery ref required");
-  e.status = "delivered";
   e.deliveryRef = deliveryRef.trim();
   e.deliveryNote = deliveryNote || "";
-  e.updatedAt = new Date().toISOString();
+  pushEvent(e, "delivered", me, e.deliveryRef);
+  recordEscrowHistory(e, 0, me);
   save(s);
   return {
     escrowId,
@@ -408,11 +469,13 @@ export async function escrowConfirmRelease(
   const e = s.escrows.find((x) => x.id === escrowId);
   if (!e) throw new Error("Escrow not found");
   if (e.buyerHandle !== me) throw new Error("Only buyer can confirm release");
-  if (e.status !== "delivered" && e.status !== "funded") {
+  const from = toCanonicalEscrowStatus(e.status);
+  if (from !== "delivered" && from !== "funds_locked") {
     throw new Error(`Cannot release from status '${e.status}'`);
   }
-  e.status = "released";
-  e.updatedAt = new Date().toISOString();
+  pushEvent(e, "released", me, "Buyer confirmed receipt");
+  applyBalanceDelta(e.sellerHandle, e.sellerNet);
+  recordEscrowHistory(e, e.sellerNet, me);
   s.balances[e.sellerHandle] = (s.balances[e.sellerHandle] || 0) + e.sellerNet;
   if (e.orgFee > 0 && e.orgId) {
     // Demo: credit org seller-side club owner heuristically
@@ -469,16 +532,18 @@ export async function escrowOpenDispute(
   if (e.buyerHandle !== me && e.sellerHandle !== me) {
     throw new Error("Not a party to this escrow");
   }
-  if (e.status !== "funded" && e.status !== "delivered") {
+  const from = toCanonicalEscrowStatus(e.status);
+  if (from !== "funds_locked" && from !== "delivered") {
     throw new Error(`Cannot dispute from status '${e.status}'`);
   }
-  e.status = "disputed";
-  e.deliveryNote = [e.deliveryNote, `dispute: ${reason || "opened"}`]
+  e.disputeReason = reason || "opened";
+  e.deliveryNote = [e.deliveryNote, `dispute: ${e.disputeReason}`]
     .filter(Boolean)
     .join(" | ");
-  e.updatedAt = new Date().toISOString();
+  pushEvent(e, "dispute", me, e.disputeReason);
+  recordEscrowHistory(e, 0, me);
   save(s);
-  return { escrowId, status: "disputed", openedBy: me };
+  return { escrowId, status: "dispute", openedBy: me };
 }
 
 export async function escrowRefund(
@@ -500,8 +565,9 @@ export async function escrowRefund(
   if (e.status === "released" || e.status === "refunded") {
     throw new Error(`Cannot refund from status '${e.status}'`);
   }
-  e.status = "refunded";
-  e.updatedAt = new Date().toISOString();
+  pushEvent(e, "refunded", me, "Refunded to buyer");
+  applyBalanceDelta(e.buyerHandle, e.amount);
+  recordEscrowHistory(e, e.amount, me);
   s.balances[e.buyerHandle] = (s.balances[e.buyerHandle] || 0) + e.amount;
   const listing = s.listings.find((l) => l.id === e.listingId);
   if (listing) listing.soldTo = null;
@@ -516,18 +582,10 @@ export async function escrowRefund(
 }
 
 export function statusLabel(status: string): string {
-  switch (status) {
-    case "funded":
-      return "Paid · awaiting delivery";
-    case "delivered":
-      return "Delivered · confirm to release";
-    case "released":
-      return "Released · complete";
-    case "disputed":
-      return "Disputed";
-    case "refunded":
-      return "Refunded";
-    default:
-      return status;
-  }
+  const canonical = toCanonicalEscrowStatus(status);
+  return ESCROW_STATUS_LABEL[canonical] || status;
+}
+
+export function escrowEvents(trade: EscrowTrade): EscrowEvent[] {
+  return trade.events || [];
 }

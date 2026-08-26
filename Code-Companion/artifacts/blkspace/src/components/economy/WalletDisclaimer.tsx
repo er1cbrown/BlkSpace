@@ -17,8 +17,9 @@ export function WalletDisclaimer() {
           <strong className="text-foreground">Yard Cred</strong> is reliability
           (ProjectConnect).{" "}
           <strong className="text-foreground">Settlement (BKSPC)</strong> is
-          optional and gated — not a day-trading product. Save your recovery
-          phrase in Settings before you care about balances.
+          optional, gated, and user-initiated — you hold identity keys; the app
+          never holds settlement longer than escrow. Save your recovery phrase
+          in Settings before you care about balances.
         </span>
       </p>
       <p className="text-xs pl-6">
