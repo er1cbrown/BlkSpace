@@ -1,9 +1,9 @@
 # IEEE Conference Pack — BlkSpace (all tracks)
 
 **Purpose:** Single operator pack to compete on a **systems / socio-technical** IEEE-style submission without marketing inflation.  
-**Freeze baseline (code):** `a2b3991` on `main` (pre-pack work); re-run `git rev-parse --short HEAD` after merge and paste below.  
-**Freeze after this pack:** _______________  
-**Date:** 2026-08-08  
+**Freeze baseline (code):** `7df108d` on `main` (2026-08-26).  
+**Operator briefing for 2026-08-27:** [`IEEE_PREVIEW_2026-08-27.md`](IEEE_PREVIEW_2026-08-27.md)  
+**Date:** 2026-08-26 (preview event 2026-08-27)  
 
 **Related:** [`ieee-review-brief.md`](ieee-review-brief.md) · [`ieee-features-review.md`](ieee-features-review.md) · [`YARD_RELEASE_CHECKLIST.md`](YARD_RELEASE_CHECKLIST.md) · use-case sheets under [`features/`](features/)
 

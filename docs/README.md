@@ -24,6 +24,7 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 ### I need the big picture
 | Doc | Why |
 |-----|-----|
+| [`IEEE_PREVIEW_2026-08-27.md`](IEEE_PREVIEW_2026-08-27.md) | **IEEE preview briefing (2026-08-27)** — whole-project packet |
 | [`ROADMAP.md`](ROADMAP.md) | **What's done, what's next** (plain English) |
 | [`phase-0-status.md`](phase-0-status.md) | Living checklist & M0 progress |
 | [`features/use-case-capability-log.md`](features/use-case-capability-log.md) | Campus use cases: Done / Partial / Out of scope |
