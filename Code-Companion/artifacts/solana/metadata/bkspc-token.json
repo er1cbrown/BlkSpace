@@ -1,14 +1,17 @@
 {
-  "name": "BKSPC",
+  "name": "BKSPC Coin",
   "symbol": "BKSPC",
-  "description": "BKSPC — the social network that pays you to post. Solana community token for the creator economy: earn WeixBucks in-app, cash out to BKSPC. Built for campus yards and creator communities. Always DYOR.",
+  "description": "BKSPC Coin — optional on-chain settlement of earned WeixBucks. No guaranteed value or price. Not investment advice. Devnet first; mainnet only after eligibility gates and counsel.",
   "image": "",
   "external_url": "https://bkspc.app",
   "attributes": [
     { "trait_type": "Platform", "value": "BKSPC" },
-    { "trait_type": "Type", "value": "Community Token" },
+    { "trait_type": "Type", "value": "Settlement Token" },
+    { "trait_type": "Standard", "value": "Token-2022" },
     { "trait_type": "Network", "value": "Solana" },
-    { "trait_type": "Cluster", "value": "mainnet" }
+    { "trait_type": "Cluster", "value": "devnet" },
+    { "trait_type": "Decimals", "value": "6" },
+    { "trait_type": "Issuance", "value": "Earned WB conversion only" }
   ],
   "properties": {
     "category": "fungible",
