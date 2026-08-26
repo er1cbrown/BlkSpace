@@ -15,7 +15,7 @@ Do not recreate the Solana workspace. Gap is **Token-2022 convert path + documen
 
 | Ticket | Status | What already exists |
 |--------|--------|---------------------|
-| **0.1** Mint | **In progress** | Token-2022 script + metadata JSON landed. Deployer `3M29LLWvrrQf5Lf4cRqh3Yqw5SE1H2vBKtCCGyUipe1e` created (gitignored key). **Blocked:** Devnet faucet 429 — need ≥0.25 SOL then re-run `bun run init-bkspc-token2022-devnet`. See [`bkspc-devnet-mint.md`](bkspc-devnet-mint.md). |
+| **0.1** Mint | **Done** | Token-2022 mint `HBcTHr2LEC7wb1Y5Sni8pgBp8ChduHuf4sk2tLgykZPx` on Devnet (decimals 6, BKSPC Coin). Record: [`bkspc-devnet-mint.md`](bkspc-devnet-mint.md). |
 | **0.2** Convert ix | **Partial** | `mint_rewards` (treasury 2-of-2 + PDA) and `burn_tokens` in `programs/bkspc`. Tests in `tests/bkspc.ts`. **Missing:** user-signed `convert_wb_to_bkspc` as specified; Token-2022 program. |
 | **0.3** Client helper | **Partial** | `setup-bkspc-devnet`, `init-bkspc-devnet-mint.ts`, `wire-bkspc-program-devnet.ts`. **Missing:** convert-tx helper + “mint X to this wallet” against Token-2022. |
 | **1.1** Eligibility | **Mostly done** | `evaluate_withdraw_eligibility` in `db.rs` (age, karma, posts, weekly cap, cooldown, Yard Cred). UI: `WithdrawEligibilityPanel`. **Tighten:** abuse/MIDF flag in the same result; expose `maxConvertibleWb` / `cooldownEndsAt` as the ticket shape. |
@@ -37,12 +37,12 @@ Do not recreate the Solana workspace. Gap is **Token-2022 convert path + documen
 
 **Tasks:**
 - [x] Create or restore Solana/Anchor workspace (suggested path: `programs/bkspc` or `artifacts/solana`) — **restore/extend existing**
-- [ ] Initialize Token-2022 mint on **Devnet** (script ready; faucet blocked)
+- [x] Initialize Token-2022 mint on **Devnet** — `HBcTHr2LEC7wb1Y5Sni8pgBp8ChduHuf4sk2tLgykZPx`
 - [x] Set decimals (recommend 6) — script uses 6
 - [x] Add on-chain metadata (Name: “BKSPC Coin”, Symbol: “BKSPC”, URI) — wired in script + `metadata/bkspc-token.json`
 - [x] Set mint authority to a PDA or temporary controlled keypair/multisig — deployer keypair pending convert PDA
-- [ ] Record mint address, authority, and metadata URI in project config
-- [ ] Verify mint on Solana Explorer (Devnet)
+- [x] Record mint address, authority, and metadata URI in project config
+- [x] Verify mint on Solana Explorer (Devnet)
 
 **Acceptance Criteria:**
 - Mint address is public and verifiable on Devnet
@@ -225,7 +225,7 @@ interface BkspcConversion {
 
 ## Definition of Done (Phase 0 + 1)
 
-- [ ] Live Token-2022 BKSPC mint on Solana Devnet
+- [x] Live Token-2022 BKSPC mint on Solana Devnet (`HBcTHr2LEC7wb1Y5Sni8pgBp8ChduHuf4sk2tLgykZPx`)
 - [ ] Controlled mint authority
 - [ ] Eligibility gates enforced in app
 - [ ] Full conversion UI with required disclaimers

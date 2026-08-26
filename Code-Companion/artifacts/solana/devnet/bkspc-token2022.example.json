@@ -1,0 +1,18 @@
+{
+  "cluster": "devnet",
+  "tokenProgram": "Token-2022",
+  "name": "BKSPC Coin",
+  "symbol": "BKSPC",
+  "decimals": 6,
+  "mint": "HBcTHr2LEC7wb1Y5Sni8pgBp8ChduHuf4sk2tLgykZPx",
+  "mintAuthority": "3M29LLWvrrQf5Lf4cRqh3Yqw5SE1H2vBKtCCGyUipe1e",
+  "mintAuthorityType": "deployer-pending-convert-pda",
+  "programId": "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs",
+  "metadataUri": "https://raw.githubusercontent.com/er1cbrown/BlkSpace/main/Code-Companion/artifacts/solana/metadata/bkspc-token.json",
+  "initSignature": "3wzCi3qMAPZF197J6T2JH3ELJwwCB5TZfiK8f4ZTPNUjEK8pHLLa2EoxZpLJYvzVUZBD9wRmgWfotCtoDrM5gmQ",
+  "explorerMint": "https://explorer.solana.com/address/HBcTHr2LEC7wb1Y5Sni8pgBp8ChduHuf4sk2tLgykZPx?cluster=devnet",
+  "explorerTx": "https://explorer.solana.com/tx/3wzCi3qMAPZF197J6T2JH3ELJwwCB5TZfiK8f4ZTPNUjEK8pHLLa2EoxZpLJYvzVUZBD9wRmgWfotCtoDrM5gmQ?cluster=devnet",
+  "notice": "Public Token-2022 mint record. No secrets. Devnet only. Not for sale.",
+  "wbToBkspcRatio": 1000,
+  "policy": "docs/bkspc-tokenomics-policy.md"
+}
