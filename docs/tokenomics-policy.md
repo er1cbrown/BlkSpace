@@ -46,8 +46,9 @@ Fees are burned (reduce WB in circulation). Recipients receive **net** after fee
 
 ## Treasury / mint
 
-- **Mainnet launch:** pump.fun community launch (see `docs/bkspc-pumpfun-launch.md`)
-- **WB settlement mint path:** treasury multisig + timelock, only after WB debit + eligibility (`solana-security.md`)
+- **Phase A issuance (locked):** earned WB → BKSPC only. Policy: [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md). Tickets: [`bkspc-phase0-phase1-tickets.md`](bkspc-phase0-phase1-tickets.md).
+- **Mainnet launch:** not a bonding-curve dump of supply. Pump.fun notes in `docs/bkspc-pumpfun-launch.md` are **not** the primary mint path.
+- **WB settlement mint path:** PDA / treasury + timelock, only after WB debit + eligibility (`solana-security.md`)
 - No insider presale mint
 - Mint logs: SQLite + Nostr audit trail
 - Ratio: **1,000 WB → 1 BKSPC** (fixed until counsel approves change)
@@ -77,6 +78,8 @@ See in-app **Economy terms** on `/wallet` and `docs/economy-student-terms.md`.
 
 | Piece | Location |
 |-------|----------|
+| Locked Phase A policy | `docs/bkspc-tokenomics-policy.md` |
+| Phase 0–1 tickets | `docs/bkspc-phase0-phase1-tickets.md` |
 | Uniform model doc | `docs/economy-uniform-model.md` |
 | Policy constants | `db.rs` → `TokenomicsPolicy::published()` |
 | Labels | `lib/tokenomics.ts` |

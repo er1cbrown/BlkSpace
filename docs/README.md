@@ -42,7 +42,7 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 | Nostr + mesh testing | [`implementation/DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) |
 | Economy / WeixBucks | [`reward-formulas.md`](reward-formulas.md) · [`economy-student-terms.md`](economy-student-terms.md) · [`features/four-pillar-economy.md`](features/four-pillar-economy.md) · [`features/wb-progression-v2.md`](features/wb-progression-v2.md) · [`economy-fast-transparent.md`](economy-fast-transparent.md) |
 | IEEE campus use cases | [`IEEE_CONFERENCE_PACK.md`](IEEE_CONFERENCE_PACK.md) (start) · [`features/use-case-omega-psi-phi-meharry-ieee.md`](features/use-case-omega-psi-phi-meharry-ieee.md) · [`features/use-case-fisk-finance-ieee.md`](features/use-case-fisk-finance-ieee.md) · [`features/use-case-jimmy-tsu-fashion-ieee.md`](features/use-case-jimmy-tsu-fashion-ieee.md) |
-| Solana / BKSPC | [`solana-blueprint.md`](solana-blueprint.md) · [`bkspc-devnet-runbook.md`](bkspc-devnet-runbook.md) |
+| Solana / BKSPC | [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md) (locked Design 1) · [`bkspc-phase0-phase1-tickets.md`](bkspc-phase0-phase1-tickets.md) · [`bkspc-devnet-runbook.md`](bkspc-devnet-runbook.md) · [`solana-blueprint.md`](solana-blueprint.md) |
 | Security | [`security-considerations.md`](security-considerations.md) |
 
 ### Yard release to students
