@@ -104,7 +104,7 @@ class ErrorBoundary extends React.Component<
               letterSpacing: "-0.06em",
             }}
           >
-            B
+            BK
           </div>
           <h1 style={{ margin: 0, fontSize: 20 }}>
             {isChunk ? "Page didn’t load" : "Something went wrong"}
@@ -128,7 +128,7 @@ class ErrorBoundary extends React.Component<
               cursor: "pointer",
             }}
           >
-            Reload BlkSpace
+            Reload BKSPC
           </button>
           {!isChunk && (
             <pre

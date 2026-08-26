@@ -1,10 +1,10 @@
 /**
  * ProjectB (XK20) = ProjectBlackSpaceFighters
  *
- * Super BlkSpace Fighters series — three Flash-nostalgia homebrew titles on Yard Arcade.
+ * Super BKSPC Fighters series — three Flash-nostalgia homebrew titles on Yard Arcade.
  *
  *   YDB1  Yard Day Brawl 1.0           — Newgrounds Rumble *class* (least cast)
- *   XQ5D  Super BlkSpace Fighters 2.0  — Super Smash Flash *class* (platformer depth)
+ *   XQ5D  Super BKSPC Fighters 2.0  — Super Smash Flash *class* (platformer depth)
  *   5DXQ  SBF Tag 3.0                  — Capoeira Fighter *craft* + 2XKO-style tag
  *                                         (HBCU mascot staples, expansion pack)
  *
@@ -37,7 +37,7 @@ export const PROJECT_BLACK_SPACE_FIGHTERS_ID = "XQ5D";
 
 /** Game 1 product id — Yard Day Brawl 1.0 */
 export const PRODUCT_ID_YARD_DAY_BRAWL = "YDB1";
-/** Game 2 product id — Super BlkSpace Fighters 2.0 (Smash Flash class) */
+/** Game 2 product id — Super BKSPC Fighters 2.0 (Smash Flash class) */
 export const PRODUCT_ID_SBF_2 = "XQ5D";
 /** Game 3 product id — SBF Tag 3.0 (Capoeira craft + tag expansion) */
 export const PRODUCT_ID_SBF_TAG_3 = "5DXQ";
@@ -51,7 +51,7 @@ export type SbfSeriesEntry = {
   headline: string;
 };
 
-/** Ordered Super BlkSpace Fighters trilogy */
+/** Ordered Super BKSPC Fighters trilogy */
 export const SBF_SERIES: readonly SbfSeriesEntry[] = [
   {
     productId: PRODUCT_ID_YARD_DAY_BRAWL,
@@ -64,7 +64,7 @@ export const SBF_SERIES: readonly SbfSeriesEntry[] = [
   {
     productId: PRODUCT_ID_SBF_2,
     version: "2.0",
-    title: "Super BlkSpace Fighters",
+    title: "Super BKSPC Fighters",
     nostalgiaClass: "Super Smash Flash class",
     castNote: "More characters · better platforming",
     headline: "% KO platform fighter · deeper specials · yard stages",
@@ -72,7 +72,7 @@ export const SBF_SERIES: readonly SbfSeriesEntry[] = [
   {
     productId: PRODUCT_ID_SBF_TAG_3,
     version: "3.0",
-    title: "Super BlkSpace Fighters: Tag",
+    title: "Super BKSPC Fighters: Tag",
     nostalgiaClass: "Capoeira Fighter craft + 2XKO-style tag + MUGEN host energy",
     castNote: "Staple HBCU-inspired mascots (original designs) + series vets",
     headline:
@@ -81,7 +81,7 @@ export const SBF_SERIES: readonly SbfSeriesEntry[] = [
 ] as const;
 
 /** Player-facing series title */
-export const SUPER_BLKSPACE_FIGHTERS = "Super BlkSpace Fighters";
+export const SUPER_BLKSPACE_FIGHTERS = "Super BKSPC Fighters";
 /** Short UI tag */
 export const SBF_SHORT = "SBF";
 /** Game 1 display name */

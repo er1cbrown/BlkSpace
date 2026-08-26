@@ -1,38 +1,32 @@
 /**
- * BlkSpace brand lock — single source of truth for product UI + coin ticker.
+ * BKSPC brand lock — single source of truth for product UI + settlement ticker.
  *
- * | Layer | Mark | Role |
- * |-------|------|------|
- * | Product / app / campus UI | **BlkSpace** | Trademark-intent name (capital B + S). GitHub: er1cbrown/BlkSpace |
- * | Settlement token | **BKSPC** | BlkSpace Coin — Solana ticker / “coin rights” path |
- * | Soft credits | WeixBucks (WB) | Earn-only in-app; not the trademark product name |
+ * Product name is **BKSPC** only. Not BlkSpace. Not a dual mark.
+ * Yards are all-inclusive: any campus (HBCU, SEC, NCAA, independent).
+ * Soft credits stay WeixBucks (WB). Settlement ticker is the same mark: BKSPC.
  *
- * Do **not** replace BlkSpace with BKSPC in chrome (nav, welcome, about).
- * Do **use** BKSPC only for settlement / Solana / investor token copy.
- * Campus culture: “the yard” — lore, not the legal product mark.
- *
- * Trademark / counsel: product mark = BlkSpace; ticker = BKSPC. Not legal advice.
+ * Site: bkspc.app · GitHub repo path stays er1cbrown/BlkSpace (history).
  */
 export const BRAND = {
-  /** Primary product name — UI, GitHub, installers, trademark path */
-  name: "BlkSpace",
+  /** Primary product name — UI, installers, window chrome */
+  name: "BKSPC",
   /** Same as name; explicit for copy that says “product” */
-  product: "BlkSpace",
-  /** Solana token ticker (BlkSpace Coin) — coin rights path */
+  product: "BKSPC",
+  /** Solana token ticker — same as the product mark */
   symbol: "BKSPC",
   /** Long form for settlement / legal-facing token copy */
-  coinName: "BlkSpace Coin",
+  coinName: "BKSPC Coin",
   /** Soft currency (not the product trademark) */
   softCurrency: "WeixBucks",
   softCurrencySymbol: "WB",
   tagline: "The social network that pays you to post",
-  /** In-app cultural layer */
+  /** In-app cultural layer — campus space, any school */
   lore: "the yard",
   /** Product site (custom domain) */
   siteUrl: "https://bkspc.app",
   /** GitHub Pages until custom domain is live */
   pagesUrl: "https://er1cbrown.github.io/BlkSpace",
-  /** Canonical monorepo — keep BlkSpace casing for trademark consistency */
+  /** Canonical monorepo (folder/history name; product chrome is BKSPC) */
   githubRepo: "https://github.com/er1cbrown/BlkSpace",
   githubOrgOrUser: "er1cbrown",
   githubRepoName: "BlkSpace",

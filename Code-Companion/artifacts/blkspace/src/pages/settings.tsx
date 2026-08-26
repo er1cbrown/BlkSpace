@@ -61,6 +61,7 @@ import {
   GraduationCap,
   AlertTriangle,
   Palette,
+  TerminalSquare,
 } from "lucide-react";
 import {
   GPA_VISIBILITY_HELP,
@@ -222,7 +223,7 @@ export default function SettingsPage() {
   const handleSaveAppearance = () => {
     saveUiPrefs(uiPrefs);
     setUiSaved(true);
-    toast.success("Your BlkSpace look is saved");
+    toast.success("Your BKSPC look is saved");
     setTimeout(() => setUiSaved(false), 2000);
   };
 
@@ -349,7 +350,7 @@ export default function SettingsPage() {
                   inputMode="url"
                 />
                 <p className="text-xs text-muted-foreground">
-                  BlkSpace is not a git host. Source stays on GitHub; the yard is
+                  BKSPC is not a git host. Source stays on GitHub; the yard is
                   your stage.
                 </p>
               </div>
@@ -374,7 +375,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Home yard (any public or private HBCU)</Label>
+                <Label>Home yard (any campus)</Label>
                 <YardPicker
                   value={uiPrefs.homeYardId}
                   onChange={(id) => patchUi({ homeYardId: id })}
@@ -393,7 +394,7 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Palette className="w-5 h-5 text-primary" />
-                Tailor your BlkSpace
+                Tailor your BKSPC
               </CardTitle>
               <CardDescription>
                 Density, accent, feed layout, and campus vibe — unique per user
@@ -401,6 +402,41 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {isTauri() && (
+                <div className="space-y-2">
+                  <Label>Look</Label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next =
+                        uiPrefs.chromeSkin === "terminal"
+                          ? "default"
+                          : "terminal";
+                      const prefs = { ...uiPrefs, chromeSkin: next };
+                      setUiPrefs(prefs);
+                      if (next === "terminal") setTheme("dark");
+                      saveUiPrefs(prefs);
+                    }}
+                    className={`flex w-full items-start gap-3 rounded-lg border px-3 py-3 text-left ${
+                      uiPrefs.chromeSkin === "terminal"
+                        ? "border-primary bg-primary/10"
+                        : "border-border"
+                    }`}
+                  >
+                    <TerminalSquare className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                    <span>
+                      <span className="block text-sm font-medium">
+                        Terminal mode
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        Desktop only — paints on Tauri boot. Night · mono ·
+                        status line.
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Color mode</Label>
                 <div className="flex gap-2">

@@ -1,14 +1,14 @@
 # First Run Security Guide
 
-**Read this BEFORE you create your BlkSpace account.**
+**Read this BEFORE you create your BKSPC account.**
 
 This takes 5 minutes. It will save you from losing your account forever.
 
 ---
 
-## What Makes BlkSpace Different
+## What Makes BKSPC Different
 
-**BlkSpace is NOT like Instagram or Twitter.**
+**BKSPC is NOT like Instagram or Twitter.**
 
 - **No company owns your account** — you do
 - **No "Forgot Password" button** — there's no password
@@ -21,18 +21,18 @@ This is **freedom with responsibility.**
 
 ## The First Run Wizard
 
-When you open BlkSpace for the first time, you'll see a **Welcome Wizard**. Here's what each step does:
+When you open BKSPC for the first time, you'll see a **Welcome Wizard**. Here's what each step does:
 
 ### Step 1: Create Your Profile
 - **Handle**: Your username (like @campus_king)
 - **Display Name**: Your real name or whatever you want people to see
-- **Town**: Your HBCU (TSU, Howard, FAMU, etc.)
+- **Town**: Your campus (TSU, Vanderbilt, Tennessee, Howard, …)
 
 ### Step 2: Your Recovery Phrase
 
 This is the **most important step.**
 
-BlkSpace will show you **12 words** like this:
+BKSPC will show you **12 words** like this:
 
 ```
 abandon ability able about above absent absorb abstract absurd abuse

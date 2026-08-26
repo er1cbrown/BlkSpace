@@ -331,7 +331,7 @@ export default function HubPage() {
                       >
                         <Button size="sm" className="gap-1 h-8">
                           <Gamepad2 className="w-3.5 h-3.5" />
-                          Play in BlkSpace
+                          Play in BKSPC
                         </Button>
                       </Link>
                     )}

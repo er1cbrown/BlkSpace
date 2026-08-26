@@ -33,7 +33,7 @@ The search results for "Weixnet 社交 平台" did not show a clear platform. It
 
 Relevant pages found.
 
-The user might be asking about creating NFT DJ CDs or digital DJ mixes on a social media platform called "Weixnet" (which might be "WeChat" or "Weixin") and "Blkspace" (which might be "Blankspace" or "BlockchainSpace"). However, the phrasing is ambiguous. Perhaps the user is referring to a specific platform called "Weixnet" that is part of "Blkspace social media". Let me search for "Weixnet Blkspace" together.
+Thzyvie user might be asking about creating NFT DJ CDs or digital DJ mixes on a social media platform called "Weixnet" (which might be "WeChat" or "Weixin") and "Blkspace" (which might be "Blankspace" or "BlockchainSpace"). However, the phrasing is ambiguous. Perhaps the user is referring to a specific platform called "Weixnet" that is part of "Blkspace social media". Let me search for "Weixnet Blkspace" together.
 
 Relevant pages found.
 

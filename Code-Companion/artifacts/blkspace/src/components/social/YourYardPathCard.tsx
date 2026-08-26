@@ -87,7 +87,7 @@ export function YourYardPathCard() {
             </p>
             <p className="text-xs text-muted-foreground">
               {onFinance
-                ? "If someone else lives in literacy and wallet mode, you still get a full campus life — clubs, look, posts, nights. Same BlkSpace; your track isn't their grind."
+                ? "If someone else lives in literacy and wallet mode, you still get a full campus life — clubs, look, posts, nights. Same BKSPC; your track isn't their grind."
                 : "Finance is one room. Your room is people, creative energy, and belonging — soft WB only when you choose tickets or drops."}
             </p>
           </div>

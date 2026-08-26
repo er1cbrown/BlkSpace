@@ -48,7 +48,8 @@ export function YardPicker({
     <div className={cn("space-y-3", className)}>
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span>
-          {stats.total} HBCUs · {stats.public} public · {stats.private} private
+          {stats.total} campuses · {stats.public} public · {stats.private}{" "}
+          private
         </span>
         {selected && (
           <Badge variant="secondary" className="text-[10px]">

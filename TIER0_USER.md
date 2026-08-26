@@ -1,14 +1,14 @@
-# BlkSpace on Your Laptop (Tier 0 Guide)
+# BKSPC on Your Laptop (Tier 0 Guide)
 
-**For HBCU students using an everyday Windows laptop — no coding, no builds.**
+**For students on an everyday Windows laptop — no coding, no builds.**
 
-If you can install Spotify or Discord, you can use BlkSpace. Developers build the app on their machines and in CI; **you only download and run the installer.**
+If you can install Spotify or Discord, you can use BKSPC. Developers build the app on their machines and in CI; **you only download and run the installer.**
 
 ---
 
 ## What is Tier 0?
 
-Tier 0 is the computer you already have: a low-end or older Windows laptop with **4–8 GB RAM**, integrated graphics, and limited disk space. BlkSpace is built for that hardware first. You are not expected to install Rust, Node, or clone the repo.
+Tier 0 is the computer you already have: a low-end or older Windows laptop with **4–8 GB RAM**, integrated graphics, and limited disk space. BKSPC is built for that hardware first. You are not expected to install Rust, Node, or clone the repo.
 
 | You need | You do **not** need |
 |----------|---------------------|
@@ -34,7 +34,7 @@ Tier 0 is the computer you already have: a low-end or older Windows laptop with 
    - **macOS:** Gatekeeper may say the app is from an unidentified developer. In Finder, **right-click** (or Control-click) the app → **Open** → **Open**. Do not just double-click the first time.
    - **Linux AppImage:** mark executable if needed (right-click → Properties → Allow executing).
 
-3. **Open** BlkSpace and follow the Welcome Wizard.
+3. **Open** BKSPC and follow the Welcome Wizard.
 
 Platform-specific screenshots and troubleshooting: [`INSTALL.md`](INSTALL.md).
 
@@ -43,7 +43,7 @@ Platform-specific screenshots and troubleshooting: [`INSTALL.md`](INSTALL.md).
 ## First run (5 minutes)
 
 1. **Read** [`FIRST_RUN.md`](FIRST_RUN.md) — especially the recovery phrase section.
-2. **Create your profile** (handle, display name, your Yard / HBCU).
+2. **Create your profile** (handle, display name, your campus yard).
 3. **Write down your 12-word recovery phrase on paper.** No screenshots, no notes app.
 4. **Verify** the phrase when prompted.
 
@@ -53,7 +53,7 @@ Platform-specific screenshots and troubleshooting: [`INSTALL.md`](INSTALL.md).
 
 ## What to expect on a slow laptop
 
-BlkSpace is lighter than running the dev tools, but it still does more than Instagram (local database, your Yard relay, optional wallet features). On Tier 0 hardware:
+BKSPC is lighter than running the dev tools, but it still does more than Instagram (local database, your Yard relay, optional wallet features). On Tier 0 hardware:
 
 | Moment | Typical experience |
 |--------|-------------------|
@@ -74,7 +74,7 @@ If the app feels stuck for more than ~30 seconds on first launch, close it once 
 
 - **Close other heavy apps** (Chrome with 50 tabs, games) when posting video.
 - **Stay on Wi‑Fi** for first sync; offline reading improves after your feed has loaded once.
-- **Keep ~1 GB free** on your drive so Windows and BlkSpace do not fight for swap space.
+- **Keep ~1 GB free** on your drive so Windows and BKSPC do not fight for swap space.
 - **One Yard at a time** — pick your campus; cross-town features are for later / stronger devices.
 
 ---

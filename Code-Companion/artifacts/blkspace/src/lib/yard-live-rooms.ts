@@ -69,7 +69,7 @@ export function createLiveRoom(input: {
   const title = input.title.trim() || "Yard stage";
   const id = `live_${Date.now().toString(36)}`;
   const handle = getCurrentHandle();
-  const jitsiSlug = `BlkSpaceYard${slugify(input.yardId)}${slugify(title)}${id.slice(-4)}`;
+  const jitsiSlug = `BkspcYard${slugify(input.yardId)}${slugify(title)}${id.slice(-4)}`;
   const room: YardLiveRoom = {
     id,
     yardId: input.yardId,

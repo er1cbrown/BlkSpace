@@ -27,8 +27,15 @@ export type FontScaleId = "sm" | "md" | "lg";
 export type FeedLayoutId = "cards" | "compact" | "magazine";
 export type NavStyleId = "full" | "icons" | "minimal";
 export type RadiusId = "sharp" | "default" | "soft";
+/** App chrome: default social UI, or LazyVim-style terminal night. */
+export type ChromeSkinId = "default" | "terminal";
 
 export type { DisciplineTrack };
+
+/** Desktop-only chrome (terminal mode). Web preview stays social. */
+export function isTauriRuntime(): boolean {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
 
 export interface UiPrefs {
   /** Home yard id from HBCU catalog */
@@ -44,6 +51,8 @@ export interface UiPrefs {
   feedLayout: FeedLayoutId;
   navStyle: NavStyleId;
   radius: RadiusId;
+  /** Whole-app chrome: social default or terminal (Tokyo Night / LazyVim). */
+  chromeSkin: ChromeSkinId;
   reduceMotion: boolean;
   /** Soften gradients / high-contrast campus packs */
   calmCampusSkins: boolean;
@@ -72,6 +81,7 @@ export const DEFAULT_UI_PREFS: UiPrefs = {
   feedLayout: "cards",
   navStyle: "full",
   radius: "default",
+  chromeSkin: "default",
   reduceMotion: false,
   calmCampusSkins: false,
   showFocusNav: true,
@@ -155,6 +165,8 @@ export function normalizeUiPrefs(
     p.navStyle === "icons" || p.navStyle === "minimal" ? p.navStyle : "full";
   const radius: RadiusId =
     p.radius === "sharp" || p.radius === "soft" ? p.radius : "default";
+  const chromeSkin: ChromeSkinId =
+    p.chromeSkin === "terminal" ? "terminal" : "default";
   const accent: AccentPreset =
     p.accent && p.accent in ACCENT_HSL ? p.accent : "brand";
   const profileTheme: ProfileThemeId =
@@ -188,6 +200,7 @@ export function normalizeUiPrefs(
     feedLayout,
     navStyle,
     radius,
+    chromeSkin,
     reduceMotion: !!p.reduceMotion,
     calmCampusSkins: !!p.calmCampusSkins,
     showFocusNav: p.showFocusNav !== false,
@@ -212,7 +225,15 @@ export function applyUiPrefsToDocument(prefs: UiPrefs): void {
   root.dataset.feedLayout = prefs.feedLayout;
   root.dataset.navStyle = prefs.navStyle;
   root.dataset.radius = prefs.radius;
+  const chrome =
+    prefs.chromeSkin === "terminal" && isTauriRuntime()
+      ? "terminal"
+      : "default";
+  root.dataset.chrome = chrome;
   root.dataset.calmCampus = prefs.calmCampusSkins ? "1" : "0";
+  if (chrome === "terminal") {
+    root.classList.add("dark");
+  }
   if (prefs.reduceMotion) {
     root.dataset.reduceMotion = "1";
   } else {
@@ -254,7 +275,7 @@ export const ACCENT_OPTIONS: {
   label: string;
   swatch: string;
 }[] = [
-  { id: "brand", label: "BlkSpace orange", swatch: "bg-orange-500" },
+  { id: "brand", label: "BKSPC orange", swatch: "bg-orange-500" },
   {
     id: "yard",
     label: "Match my yard",

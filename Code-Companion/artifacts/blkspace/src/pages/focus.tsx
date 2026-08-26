@@ -174,7 +174,7 @@ export default function FocusPage() {
             <CardContent className="space-y-3">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">
-                  Soft BlkSpace minutes
+                  Soft BKSPC minutes
                 </span>
                 <span className="font-medium tabular-nums">
                   {prefs.weeklyMinutesUsed} / {prefs.weeklyMinutesBudget} min

@@ -72,7 +72,7 @@ export function YardOrientationCard() {
             ) : null}
           </h2>
           <p className="text-sm text-muted-foreground max-w-xl">
-            BlkSpace is your HBCU social feed.{" "}
+            BKSPC is your campus social feed.{" "}
             <strong className="text-foreground font-medium">Home</strong> is the
             scroll.{" "}
             <strong className="text-foreground font-medium">Yards</strong> are

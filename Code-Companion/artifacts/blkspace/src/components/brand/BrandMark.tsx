@@ -2,8 +2,7 @@ import { BRAND } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 /**
- * Product wordmark: orange capital B + rest of BlkSpace.
- * Trademark-intent UI mark — never render whole name as BKSPC.
+ * Product wordmark: orange BK + SPC. The only product name is BKSPC.
  */
 export function BrandMark({
   className,
@@ -30,8 +29,8 @@ export function BrandMark({
       )}
       aria-label={BRAND.name}
     >
-      <span className="text-primary">B</span>
-      <span className="text-foreground">lkSpace</span>
+      <span className="text-primary">BK</span>
+      <span className="text-foreground">SPC</span>
     </span>
   );
 }

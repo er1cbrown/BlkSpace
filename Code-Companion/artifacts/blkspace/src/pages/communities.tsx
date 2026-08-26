@@ -157,8 +157,8 @@ export default function CommunitiesPage() {
       </div>
       <p className="text-muted-foreground text-base mb-2">
         A <strong className="text-foreground font-medium">yard</strong> is one
-        HBCU campus space — feed, chat, events, Live. Your home yard is sorted
-        first.
+        campus space — HBCU, SEC, NCAA, any school. Feed, chat, events, Live.
+        Your home yard is sorted first.
       </p>
       {homeTheme && homeYard && (
         <p className="text-sm mb-6">

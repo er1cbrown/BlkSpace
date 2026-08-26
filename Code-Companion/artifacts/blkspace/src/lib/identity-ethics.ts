@@ -37,8 +37,8 @@ const CLAIM_KEY = "blkspace_institutional_claim_v1";
 const ETHICS_KEY = "blkspace_ethics_ack_v1";
 
 export const NO_PHI_POLICY = {
-  title: "No PHI / clinical secrets on BlkSpace",
-  body: "BlkSpace is not a covered entity EMR and is not HIPAA-certified clinical messaging. Never send patient names, MRNs, diagnoses, images, or identifiable health data. Use official hospital systems for clinical work. Violations may result in blocks and account review.",
+  title: "No PHI / clinical secrets on BKSPC",
+  body: "BKSPC is not a covered entity EMR and is not HIPAA-certified clinical messaging. Never send patient names, MRNs, diagnoses, images, or identifiable health data. Use official hospital systems for clinical work. Violations may result in blocks and account review.",
 } as const;
 
 export const IEEE_ETHICS_PRINCIPLES = [

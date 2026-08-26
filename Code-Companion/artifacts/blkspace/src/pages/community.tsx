@@ -75,7 +75,7 @@ type CommunityView = {
   color?: string;
 };
 
-/** Resolve any catalog HBCU (albany-st, tsu, …) — not just 5 hard-coded yards. */
+/** Resolve any catalog campus (albany-st, tsu, vanderbilt, …). */
 function resolveCommunityFromCatalog(rawId: string): CommunityView | null {
   if (!rawId) return null;
   const id = decodeURIComponent(rawId).trim().toLowerCase();
@@ -104,7 +104,7 @@ function resolveCommunityFromCatalog(rawId: string): CommunityView | null {
     members: 0,
     description:
       theme?.tagline ||
-      `${hbcu.shortName} — ${hbcu.control} HBCU · est. ${hbcu.founded}. Join the yard and post.`,
+      `${hbcu.shortName} — ${hbcu.control} campus · est. ${hbcu.founded}. Join the yard and post.`,
     packActive: false,
     purchaseCount: 0,
     color: theme?.gradient,
@@ -741,7 +741,7 @@ export default function CommunityPage() {
                   )}
                   <div className="pt-4 border-t">
                     <strong>Casual rules:</strong> Keep it fun, respectful, and
-                    HBCU-proud. Professional networking welcome in #networking.
+                    campus-proud. Professional networking welcome in #networking.
                     MyYards on this mesh can look different — campus theme ≠
                     your personal creator space.
                   </div>

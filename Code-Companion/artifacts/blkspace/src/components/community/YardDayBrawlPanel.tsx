@@ -62,7 +62,7 @@ export function YardDayBrawlPanel({ communityId }: { communityId: string }) {
 
   const host = async () => {
     if (isGuest) {
-      toast("Create an account to host ProjectB / Super BlkSpace Fighters");
+      toast("Create an account to host ProjectB / Super BKSPC Fighters");
       return;
     }
     setBusy(true);

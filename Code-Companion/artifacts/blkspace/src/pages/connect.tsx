@@ -208,7 +208,7 @@ function ConnectHub() {
               chapters, clubs, and service hubs for underrepresented campuses.
               Express interest, get endorsed, grow Yard Cred.{" "}
               <strong className="text-foreground">
-                BKSPC (BlkSpace Coin) stays gated
+                BKSPC Coin stays gated
               </strong>{" "}
               until credibility is real — soft WeixBucks today, settlement
               later.

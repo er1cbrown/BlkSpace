@@ -26,7 +26,7 @@ export function WalletDisclaimer() {
         <Link href="/wallet" className="text-primary underline-offset-2 hover:underline">
           Learn markets
         </Link>{" "}
-        — BlkSpace is not a brokerage.
+        — BKSPC is not a brokerage.
       </p>
     </div>
   );

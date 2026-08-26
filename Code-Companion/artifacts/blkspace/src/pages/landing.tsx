@@ -30,8 +30,8 @@ export default function LandingPage() {
           <div className="container relative z-10 mx-auto px-4 text-center">
             <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
               <h1 className="text-6xl md:text-9xl font-black tracking-tighter mb-4">
-                <span className="text-primary">B</span>
-                <span className="text-foreground">lkSpace</span>
+                <span className="text-primary">BK</span>
+                <span className="text-foreground">SPC</span>
               </h1>
               <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-2 font-medium">
                 {BRAND.tagline}

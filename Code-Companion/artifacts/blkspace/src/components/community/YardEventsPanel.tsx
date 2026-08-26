@@ -223,7 +223,7 @@ function CreateEventDialog({
             />
             <p className="text-[10px] text-muted-foreground">
               Link-out live for now (IG/TikTok/Twitch class). Native ingest
-              later — yard RSVP + identity stay on BlkSpace.
+              later — yard RSVP + identity stay on BKSPC.
             </p>
           </div>
           <div className="space-y-1.5">

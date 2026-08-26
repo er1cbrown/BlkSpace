@@ -105,7 +105,7 @@ function TemplatesSection({ communityId }: { communityId: string }) {
       <p className="text-xs text-muted-foreground">
         One-click club kits spin up channels for anime, chess, gaming, creators,
         study hours, or faculty scholarships. Live stays link-out for now —
-        identity + earn stay on BlkSpace.
+        identity + earn stay on BKSPC.
       </p>
       <div className="grid sm:grid-cols-2 gap-3">
         {templates.map((t) => {

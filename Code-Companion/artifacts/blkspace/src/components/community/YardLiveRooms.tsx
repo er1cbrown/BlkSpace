@@ -288,7 +288,7 @@ export function YardLiveRooms({
               />
             )}
             <p className="text-[10px] text-muted-foreground px-3 py-2">
-              Powered by public Jitsi Meet (meet.jit.si) — no BlkSpace media
+              Powered by public Jitsi Meet (meet.jit.si) — no BKSPC media
               server. Mute when idle; campus norms apply.
             </p>
           </CardContent>

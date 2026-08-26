@@ -15,6 +15,7 @@ import {
   HeartPulse,
   GraduationCap,
   Building2,
+  TerminalSquare,
 } from "lucide-react";
 import {
   createNostrIdentity,
@@ -32,7 +33,11 @@ import { applyMedSchoolOnboarding } from "@/lib/focus-mode";
 import { applyFacultyOnboarding } from "@/lib/faculty-desk";
 import { getYardTheme } from "@/lib/yard-themes";
 import { YardPicker } from "@/components/ui-prefs/YardPicker";
-import { loadUiPrefs, saveUiPrefs } from "@/lib/ui-prefs";
+import {
+  loadUiPrefs,
+  saveUiPrefs,
+  type ChromeSkinId,
+} from "@/lib/ui-prefs";
 import { ensureIntranetConnected } from "@/lib/hbcu-intranet";
 import { markJustJoined } from "@/lib/yard-orientation";
 import { cn } from "@/lib/utils";
@@ -46,8 +51,17 @@ export default function WelcomePage() {
   const [handle, setHandle] = useState("");
   const [path, setPath] = useState<OnboardingPath>("general");
   const [yardId, setYardId] = useState("tsu");
+  const [chromeSkin, setChromeSkin] = useState<ChromeSkinId>(
+    () => loadUiPrefs().chromeSkin,
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const pickLook = (skin: ChromeSkinId) => {
+    setChromeSkin(skin);
+    const prefs = loadUiPrefs();
+    saveUiPrefs({ ...prefs, chromeSkin: skin });
+  };
   const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
   const [phraseAck, setPhraseAck] = useState(false);
   const [postJoinPath, setPostJoinPath] = useState("/feed");
@@ -84,7 +98,7 @@ export default function WelcomePage() {
       try {
         localStorage.setItem("blkspace_home_yard", yardId);
         const prefs = loadUiPrefs();
-        saveUiPrefs({ ...prefs, homeYardId: yardId });
+        saveUiPrefs({ ...prefs, homeYardId: yardId, chromeSkin });
       } catch {
         /* ignore */
       }
@@ -127,7 +141,7 @@ export default function WelcomePage() {
         }
       }
 
-      // Join HBCU intranet backbone (shared relays + all-yard tags)
+      // Join campus intranet backbone (shared relays + all-yard tags)
       try {
         await ensureIntranetConnected(yardId);
       } catch {
@@ -160,8 +174,8 @@ export default function WelcomePage() {
       </h2>
       <p className="text-lg text-muted-foreground">{BRAND.tagline}</p>
       <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-        Think Instagram for your HBCU — pick a campus, scroll Home, post, earn
-        soft credits. Nothing crypto until you want cash-out later.
+        Think Instagram for your campus — pick any school, scroll Home, post,
+        earn soft credits. Nothing crypto until you want cash-out later.
       </p>
       <div className="grid grid-cols-3 gap-3 text-sm pt-2">
         <div className="bg-card p-3 rounded-xl border">
@@ -180,6 +194,47 @@ export default function WelcomePage() {
           <p className="text-muted-foreground text-[11px]">WeixBucks</p>
         </div>
       </div>
+      {isTauri() && (
+        <div className="text-left space-y-2 pt-2">
+          <p className="text-xs font-medium text-center">
+            How should the app look? (this device)
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => pickLook("default")}
+              className={cn(
+                "rounded-xl border p-3 text-left transition-colors",
+                chromeSkin === "default"
+                  ? "border-primary bg-primary/10"
+                  : "border-border hover:border-primary/40",
+              )}
+            >
+              <Sparkles className="w-4 h-4 text-primary mb-1" />
+              <p className="text-xs font-medium">Social</p>
+              <p className="text-[11px] text-muted-foreground">
+                Default yard feed
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => pickLook("terminal")}
+              className={cn(
+                "rounded-xl border p-3 text-left transition-colors",
+                chromeSkin === "terminal"
+                  ? "border-primary bg-primary/10"
+                  : "border-border hover:border-primary/40",
+              )}
+            >
+              <TerminalSquare className="w-4 h-4 text-primary mb-1" />
+              <p className="text-xs font-medium">Terminal</p>
+              <p className="text-[11px] text-muted-foreground">
+                Night · mono · status line
+              </p>
+            </button>
+          </div>
+        </div>
+      )}
     </div>,
 
     <div className="space-y-5" key="path">

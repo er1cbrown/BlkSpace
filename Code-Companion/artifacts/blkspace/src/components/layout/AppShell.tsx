@@ -25,6 +25,7 @@ import {
   Settings,
   Trophy,
   Joystick,
+  TerminalSquare,
 } from "lucide-react";
 import { getCurrentHandle } from "@/lib/auth";
 import { useAppGetUser } from "@/hooks/use-app-data";
@@ -32,7 +33,7 @@ import { useGuestMode } from "@/lib/guest-mode";
 import { YardSidebar } from "@/components/layout/YardSidebar";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { loadUiPrefs } from "@/lib/ui-prefs";
+import { isTauriRuntime, loadUiPrefs, saveUiPrefs } from "@/lib/ui-prefs";
 import { getYardTheme } from "@/lib/yard-themes";
 import { applyUiPrefsToDocument } from "@/lib/ui-prefs";
 
@@ -322,6 +323,27 @@ export function AppShell({
               <Moon className="h-5 w-5 hidden dark:block" />
               Theme
             </button>
+            {isTauriRuntime() && (
+              <button
+                type="button"
+                onClick={() => {
+                  const next =
+                    uiPrefs.chromeSkin === "terminal" ? "default" : "terminal";
+                  const prefs = { ...uiPrefs, chromeSkin: next as const };
+                  if (next === "terminal") setTheme("dark");
+                  saveUiPrefs(prefs);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm hover:bg-muted/60 hover:text-foreground",
+                  uiPrefs.chromeSkin === "terminal"
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground",
+                )}
+              >
+                <TerminalSquare className="h-5 w-5" />
+                Terminal
+              </button>
+            )}
           </div>
 
           {isGuest ? (
@@ -369,6 +391,7 @@ export function AppShell({
         <main
           className={cn(
             "flex-1 min-w-0 border-x border-border/40 min-h-screen pb-20 md:pb-6",
+            uiPrefs.chromeSkin === "terminal" && "md:pb-10",
             fullWidth ? "max-w-5xl" : wide ? "max-w-3xl" : "max-w-[640px]",
           )}
         >
@@ -423,6 +446,25 @@ export function AppShell({
           })}
         </div>
       </nav>
+
+      {isTauriRuntime() && uiPrefs.chromeSkin === "terminal" && (
+        <div
+          className="fixed inset-x-0 bottom-16 md:bottom-0 z-[60] flex h-6 items-center gap-3 border-t border-border bg-[#1a1b26] px-3 font-mono text-[11px] text-[#c0caf5]"
+          role="status"
+        >
+          <span className="bg-[#7aa2f7] px-2 font-semibold text-[#1a1b26]">
+            NORMAL
+          </span>
+          <span className="text-[#7aa2f7]">blkspace</span>
+          <span className="text-[#565f89]">·</span>
+          <span className="truncate text-[#9ece6a]">
+            {isGuest ? "guest" : `@${handle}`}
+          </span>
+          <span className="ml-auto truncate text-[#565f89]">
+            {yardTheme?.school || uiPrefs.homeYardId} · terminal
+          </span>
+        </div>
+      )}
     </div>
   );
 }

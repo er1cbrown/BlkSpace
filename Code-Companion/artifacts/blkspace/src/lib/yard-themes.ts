@@ -1,13 +1,14 @@
 /**
- * Campus Yard theme packs — every HBCU in the catalog gets a yard skin.
+ * Campus Yard theme packs — every school in the catalog gets a yard skin.
  * Featured schools keep hand-tuned gradients/norms; others are generated.
  */
 
 import {
+  ALL_YARD_CATALOG,
   FEATURED_YARD_IDS,
-  HBCU_CATALOG,
   getHbcu,
   hbcuLocation,
+  yardKind,
   type FeaturedYardId,
 } from "@/lib/hbcu-catalog";
 import { yardAccentHsl } from "@/lib/yard-colors";
@@ -216,6 +217,46 @@ const FEATURED_OVERRIDES: Record<
     weatherHint: "Texas heat",
     fanbase: "Panther nation",
   },
+  vanderbilt: {
+    mascot: "⚓ Commodores",
+    gradient: "from-black to-amber-700",
+    accentClass: "text-amber-600 dark:text-amber-400",
+    cardBorderClass: "border-amber-600/20",
+    tagline: "West End — SEC academics, Nashville nights",
+    norms: ["Black & gold", "SEC", "Music Row next door"],
+    weatherHint: "Same city as TSU · humid summers",
+    fanbase: "Commodore nation",
+  },
+  belmont: {
+    mascot: "🐻 Bruins",
+    gradient: "from-blue-900 to-red-700",
+    accentClass: "text-red-600 dark:text-red-400",
+    cardBorderClass: "border-red-500/20",
+    tagline: "Music city campus — Bruins on the hill",
+    norms: ["Navy & red", "Curb College", "Nashville"],
+    weatherHint: "Midtown humidity · mild winters",
+    fanbase: "Bruin nation",
+  },
+  tennessee: {
+    mascot: "🧡 Volunteers",
+    gradient: "from-orange-500 to-orange-800",
+    accentClass: "text-orange-600 dark:text-orange-400",
+    cardBorderClass: "border-orange-500/20",
+    tagline: "Rocky Top — orange nation, SEC Saturdays",
+    norms: ["Tennessee orange", "Checkerboard", "Vol Navy"],
+    weatherHint: "Smokies fall · hot game days",
+    fanbase: "Vol nation",
+  },
+  "ut-austin": {
+    mascot: "🤘 Longhorns",
+    gradient: "from-orange-600 to-neutral-900",
+    accentClass: "text-orange-600 dark:text-orange-400",
+    cardBorderClass: "border-orange-600/20",
+    tagline: "Hook 'em — forty acres, SEC now",
+    norms: ["Burnt orange", "Bevo", "Austin nights"],
+    weatherHint: "Texas heat year-round",
+    fanbase: "Longhorn nation",
+  },
 };
 
 function buildPackFromCatalog(id: string): YardThemePack | null {
@@ -224,22 +265,22 @@ function buildPackFromCatalog(id: string): YardThemePack | null {
   const idx = colorIndex(id);
   const featured = (FEATURED_YARD_IDS as readonly string[]).includes(id);
   const override = featured ? FEATURED_OVERRIDES[id as FeaturedYardId] : null;
+  const kind = yardKind(h);
+  const campusWord = kind === "ncaa" ? "campus" : "campus";
+  const sector =
+    h.conference ?? (kind === "ncaa" ? "NCAA" : h.control === "public" ? "Public" : "Private");
 
   const base: YardThemePack = {
     id: h.id,
     name: h.yardLabel,
     school: h.school,
     location: hbcuLocation(h),
-    mascot: h.control === "public" ? "🎓 Public HBCU" : "🏛️ Private HBCU",
+    mascot: h.control === "public" ? "🎓 Public campus" : "🏛️ Private campus",
     gradient: GRADIENT_PAIRS[idx],
     accentClass: ACCENT_CLASSES[idx],
     cardBorderClass: BORDER_CLASSES[idx],
-    tagline: `${h.shortName} yard — ${h.control} HBCU · est. ${h.founded}`,
-    norms: [
-      h.control === "public" ? "State HBCU" : "Private HBCU",
-      h.state,
-      `Founded ${h.founded}`,
-    ],
+    tagline: `${h.shortName} yard — ${h.control} ${campusWord} · est. ${h.founded}`,
+    norms: [sector, h.state, `Founded ${h.founded}`],
     weatherHint: "Join the yard to set local norms",
     fanbase: `${h.shortName} family`,
     control: h.control,
@@ -266,7 +307,7 @@ function buildPackFromCatalog(id: string): YardThemePack | null {
 /** All yards — full catalog, featured first. */
 export const YARD_THEME_PACKS: Record<string, YardThemePack> =
   Object.fromEntries(
-    HBCU_CATALOG.map((h) => {
+    ALL_YARD_CATALOG.map((h) => {
       const pack = buildPackFromCatalog(h.id)!;
       return [h.id, pack];
     }),
@@ -275,7 +316,7 @@ export const YARD_THEME_PACKS: Record<string, YardThemePack> =
 /** Featured + commonly used IDs for onboarding grids (not full 100+). */
 export const YARD_IDS: string[] = [
   ...FEATURED_YARD_IDS,
-  ...HBCU_CATALOG.map((h) => h.id).filter(
+  ...ALL_YARD_CATALOG.map((h) => h.id).filter(
     (id) =>
       !(FEATURED_YARD_IDS as readonly string[]).includes(id as FeaturedYardId),
   ),
@@ -296,7 +337,7 @@ export function listYardThemes(opts?: {
   control?: "public" | "private";
   query?: string;
 }): YardThemePack[] {
-  let list = HBCU_CATALOG.map((h) => YARD_THEME_PACKS[h.id]).filter(Boolean);
+  let list = ALL_YARD_CATALOG.map((h) => YARD_THEME_PACKS[h.id]).filter(Boolean);
   if (opts?.featuredOnly) {
     list = list.filter((y) => y.featured);
   }

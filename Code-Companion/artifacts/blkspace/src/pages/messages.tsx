@@ -238,7 +238,7 @@ export default function MessagesPage() {
                   checked={phiAck}
                   onChange={(e) => setPhiAck(e.target.checked)}
                 />
-                I will never send PHI / clinical secrets on BlkSpace
+                I will never send PHI / clinical secrets on BKSPC
               </label>
               <label className="flex gap-2 text-xs cursor-pointer">
                 <input

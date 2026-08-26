@@ -850,7 +850,7 @@ function ClientShootView({
         </Button>
         <p className="text-[10px] text-muted-foreground">
           All-in-one access: every file in this shoot. Use mediaRef with
-          BlkSpace blob APIs or your linked storage to pull full resolution.
+          BKSPC blob APIs or your linked storage to pull full resolution.
         </p>
       </CardContent>
     </Card>

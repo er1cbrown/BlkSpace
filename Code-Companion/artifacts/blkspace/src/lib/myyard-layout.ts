@@ -52,7 +52,7 @@ export const BANNER_GRADIENTS = [
   },
   {
     id: "classic",
-    label: "BlkSpace orange",
+    label: "BKSPC orange",
     css: "linear-gradient(135deg,#ea580c,#fb923c,#fdba74)",
   },
 ] as const;

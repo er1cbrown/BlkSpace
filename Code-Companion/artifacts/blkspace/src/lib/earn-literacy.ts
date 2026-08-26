@@ -53,7 +53,7 @@ export const LITERACY_PATHS: LiteracyPath[] = [
     href: "/hub",
     wbExample: "RSVP earn · content engagement · tips later",
     literacyTip:
-      "Don't confuse platform rent (Twitch ads) with ownership. Your yard graph should stay on BlkSpace.",
+      "Don't confuse platform rent (Twitch ads) with ownership. Your yard graph should stay on BKSPC.",
   },
   {
     id: "compete",
@@ -124,7 +124,7 @@ export const LITERACY_PRINCIPLES = [
   },
 ] as const;
 
-/** Markets 101 — education only. BlkSpace is not a brokerage. */
+/** Markets 101 — education only. BKSPC is not a brokerage. */
 export const MARKETS_101 = [
   {
     title: "What a brokerage does",
@@ -132,14 +132,14 @@ export const MARKETS_101 = [
   },
   {
     title: "Stocks (e.g. NASDAQ-listed)",
-    body: "Shares are ownership claims traded on regulated markets. Prices move with company and market risk. You open a real brokerage account for this — not BlkSpace practice credits.",
+    body: "Shares are ownership claims traded on regulated markets. Prices move with company and market risk. You open a real brokerage account for this — not BKSPC practice credits.",
   },
   {
     title: "Crypto assets",
     body: "Crypto is highly volatile and often unregulated compared with listed equities. Never confuse platform soft credits or optional settlement receipts with a diversified investment plan.",
   },
   {
-    title: "What BlkSpace is (and is not)",
+    title: "What BKSPC is (and is not)",
     body: "WeixBucks = practice credits for campus activity and creator shop. Yard Cred = reliability. BKSPC settlement = optional gated receipt of earned surplus after eligibility — not investment advice, not a promise of profit, not a NASDAQ or crypto exchange.",
   },
   {
