@@ -1,10 +1,12 @@
 # BlkSpace Finance Layer Strategy
 
 **Document:** `docs/finance-l1-strategy.md`  
-**Status:** Product decision (2026-08-26)  
-**Tokens:** WeixBucks (off-chain) → BLACKINCCOIN / BI9 (on-chain)  
-**Settlement target:** HyperEVM (Hyperliquid / HYPE chain)  
-**Related products:** BlkBridge (Yard-class), BLKSHI (Kalshi-inspired)
+**Status:** Product decision (2026-08-26) · jobs split 2026-08-27  
+**Tokens:** WeixBucks (off-chain) · BKSPC (Solana student micro-settlement) · BI9 (HyperEVM governance)  
+**Student micro-settlement:** Solana Devnet (BKSPC Token-2022, 1,000 WB → 1 BKSPC)  
+**Sovereign backplane:** HyperEVM (BI9 — **no** WeixBucks path)  
+**Related products:** BlkBridge (Yard-class), BLKSHI (Kalshi-inspired)  
+**Role split:** [`features/comparative-multi-chain-prototyping-study.md`](features/comparative-multi-chain-prototyping-study.md)
 
 **Follow-ups from this decision:** [`tokenomics.md`](tokenomics.md) · [`blkbridge.md`](blkbridge.md) · [`blkshi.md`](blkshi.md) · Solidity skeleton in `Code-Companion/artifacts/hyperevm/`
 
@@ -22,8 +24,8 @@ BlkSpace inherits the **Hyperliquid trajectory**, not Solana’s general-purpose
 | Stay specialized | Finance-focused L1 behavior | Finance-focused application network |
 | Do not become everything | Not a general app chain | Not a general social L1 |
 
-**Decision:** BI9 lives on the **HYPE chain (HyperEVM)**.  
-Solana remains optional later for wallet reach. It is not the home of BI9.
+**Decision:** BI9 lives on the **HYPE chain (HyperEVM)** as the **governance / sovereign backplane**. It is **not** student settlement.  
+Solana Devnet is the **social micro-settlement** tier (WB → BKSPC). It is not the home of BI9. Neither chain is the protocol’s single primary settlement layer.
 
 BlkSpace is **not** trying to be another general-purpose chain. It is an app-specific network that expands into finance.
 

@@ -1,6 +1,6 @@
 /**
- * Canonical on-chain home of BI9: Hyperliquid HyperEVM (chain id 999).
- * WeixBucks never appear here. Solana BKSPC is optional wallet-reach only.
+ * HyperEVM sovereign backplane (BI9 governance). Chain id 999.
+ * WeixBucks never appear here. Student micro-settlement is Solana BKSPC.
  */
 
 export const HYPEREVM_MAINNET = {
@@ -228,7 +228,8 @@ export async function fetchHyperevmBalances(
 
 export const HYPEREVM_GATES_COPY = [
   "WeixBucks stay in the app. They do not convert to BI9.",
-  "BI9 lives on HyperEVM (chain 999). Mint is off until a timelocked cap is set.",
+  "BI9 is governance on HyperEVM (chain 999) — not student settlement.",
+  "Student receipts are BKSPC on Solana. This panel does not mint them.",
   "HYPE is gas. Staking HYPE is a sleeve, not yield.",
   "BlkFinance is advanced mode — not the student home screen.",
 ] as const;

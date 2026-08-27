@@ -1,7 +1,7 @@
 /**
- * BKSPC settlement network config.
- * Soft WB stays in-app; BKSPC is optional Solana settlement after Cred gates.
- * Mainnet mint is empty until you launch (pump.fun / counsel) and set VITE_BKSPC_MINT.
+ * BKSPC student micro-settlement (Solana). Power of 2 Tier 1.
+ * Soft WB stays in-app; BKSPC is optional Token-2022 receipt after Cred gates.
+ * HyperEVM / BI9 does not occupy this job. Mainnet mint is empty until launch + counsel.
  */
 
 import { BRAND } from "@/lib/brand";
@@ -130,6 +130,7 @@ export function formatWbToBkspc(wb: number, ratio = WB_TO_BKSPC_RATIO): string {
 export const BKSPC_GATES_COPY = [
   "Earn WeixBucks (WB) in-app — not sold for USD",
   "Yard Cred + account age + posts gate withdraw",
-  "1,000 WB ≈ 1 BKSPC (published ratio)",
+  "1,000 WB ≈ 1 BKSPC (published ratio) — Solana micro-settlement only",
+  "BI9 on HyperEVM is governance and is not minted from WeixBucks",
   "Mainnet mint only after launch + counsel gates",
 ] as const;

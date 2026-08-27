@@ -82,8 +82,9 @@ export function BkspcMainnetPanel({
       <CardContent className="space-y-4 text-sm">
         <p className="text-muted-foreground text-xs leading-relaxed">
           Soft {BRAND.softCurrency} stay in-app. {BRAND.symbol} (
-          {BRAND.coinName}) is optional Solana settlement after Cred gates — not
-          a casino pitch.
+          {BRAND.coinName}) is optional Solana micro-settlement of earned value
+          after Cred gates — not governance, not a casino pitch. BI9 on
+          HyperEVM is a different rail.
         </p>
 
         <div className="rounded-xl border bg-muted/30 p-3 space-y-1">

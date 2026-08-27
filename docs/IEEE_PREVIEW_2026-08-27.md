@@ -185,6 +185,9 @@ Wallet at freeze includes **optimistic tips**, shared **escrow status**, fee bre
 **If asked “can I convert WB to BKSPC in the app tomorrow?”**  
 Eligibility UI exists. A **successful user mint** requires the upgraded program on-chain. Do **not** say conversion is live end-to-end. Say: **mint exists; convert instruction is implemented; authority has not moved; no user supply yet.**
 
+**If asked why Solana and HyperEVM both exist (optional Track E):**  
+They are **not** two primary settlement layers. Solana Devnet = student **micro-settlement** (1,000 WB → 1 BKSPC). HyperEVM BI9 = **institutional governance** and does **not** touch WeixBucks. Omit if time-short. Paper: [`features/comparative-multi-chain-prototyping-study.md`](features/comparative-multi-chain-prototyping-study.md).
+
 ---
 
 ## 7. Device B evaluation (this laptop)

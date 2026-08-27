@@ -529,19 +529,20 @@ function WalletPageContent() {
       <EconomyPillarsBar handle={handle} />
       <ProgressionCard summary={earnSummary} />
 
+      <div id="settlement" className="mb-8">
+        <BkspcMainnetPanel wbBalance={balance} />
+      </div>
+
       {BETA_FEATURES.showBlkFinance() ? (
         <div id="hyperevm" className="mb-8">
           <HyperEvmPanel />
         </div>
       ) : (
         <p id="hyperevm" className="mb-4 text-xs text-muted-foreground">
-          BlkFinance / HyperEVM is advanced mode — not in this Yard lite build.
+          HyperEVM / BI9 is institutional governance — not in this Yard lite
+          build. Student settlement is BKSPC on Solana (above).
         </p>
       )}
-
-      <div id="settlement" className="mb-8">
-        <BkspcMainnetPanel wbBalance={balance} />
-      </div>
 
       <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20 shadow-lg mb-8">
         <CardContent className="p-8">

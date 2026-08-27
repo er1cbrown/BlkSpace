@@ -2,7 +2,8 @@
 pragma solidity ^0.8.24;
 
 /// @title BLACKINCCOIN (BI9)
-/// @notice Canonical BlkSpace on-chain asset on Hyperliquid HyperEVM.
+/// @notice BI9 governance token on Hyperliquid HyperEVM (sovereign backplane).
+///         Student micro-settlement is Solana BKSPC; this contract never sees WeixBucks.
 /// @dev No public mint. No WeixBucks conversion. Cap of 0 keeps minting disabled.
 ///      Admin is expected to be a TimelockAdmin, not an EOA, on any live deploy.
 contract BI9 {

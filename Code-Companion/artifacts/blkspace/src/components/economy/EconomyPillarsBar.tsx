@@ -1,6 +1,9 @@
 import { Link } from "wouter";
 import { Award, BookOpen, Coins, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { settlementPillar } from "@/lib/power-of-2";
+
+const settlement = settlementPillar();
 
 const PILLARS = [
   {
@@ -27,9 +30,9 @@ const PILLARS = [
   },
   {
     id: "settlement",
-    label: "Settlement",
-    sub: "HyperEVM · BI9",
-    href: "#hyperevm",
+    label: settlement.label,
+    sub: settlement.sub,
+    href: settlement.href,
     icon: Landmark,
   },
 ] as const;
