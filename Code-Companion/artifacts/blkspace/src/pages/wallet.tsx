@@ -62,7 +62,9 @@ import { privilegesForCred } from "@/lib/yard-cred-privileges";
 import { toast } from "sonner";
 import { WalletContextProvider } from "@/components/WalletContextProvider";
 import { BkspcMainnetPanel } from "@/components/economy/BkspcMainnetPanel";
+import { HyperEvmPanel } from "@/components/economy/HyperEvmPanel";
 import { getBkspcConfig } from "@/lib/bkspc-config";
+import { BETA_FEATURES } from "@/lib/beta-features";
 import { useTauriGetEarnSummary } from "@/hooks/use-app-data";
 
 const mockTxHistory = [
@@ -526,6 +528,16 @@ function WalletPageContent() {
       <SelfCustodyCard yardCred={yardCred} />
       <EconomyPillarsBar handle={handle} />
       <ProgressionCard summary={earnSummary} />
+
+      {BETA_FEATURES.showBlkFinance() ? (
+        <div id="hyperevm" className="mb-8">
+          <HyperEvmPanel />
+        </div>
+      ) : (
+        <p id="hyperevm" className="mb-4 text-xs text-muted-foreground">
+          BlkFinance / HyperEVM is advanced mode — not in this Yard lite build.
+        </p>
+      )}
 
       <div id="settlement" className="mb-8">
         <BkspcMainnetPanel wbBalance={balance} />

@@ -32,6 +32,8 @@ import {
 import { toast } from "sonner";
 import {
   MEDIA_ACCEPT,
+  MEDIA_ACCEPT_VIDEO,
+  MAX_VIDEOS_PER_POST,
   type PendingAttach,
   fileToBase64,
   formatBytes,
@@ -91,7 +93,9 @@ export function PostComposer({
   maxFiles = 6,
 }: PostComposerProps) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
+  const videoInputId = useId();
   const prevHashCount = useRef(mediaHashes.length);
   const handle = getCurrentHandle();
   const { data: user } = useAppGetUser(handle);
@@ -139,8 +143,8 @@ export function PostComposer({
     });
   };
 
-  const openPicker = () => {
-    const el = fileRef.current;
+  const openPicker = (video = false) => {
+    const el = video ? videoRef.current : fileRef.current;
     if (!el) {
       toast.error("File picker unavailable — refresh the page");
       return;
@@ -149,11 +153,39 @@ export function PostComposer({
     el.click();
   };
 
-  const uploadFiles = async (files: FileList | File[]) => {
-    const list = Array.from(files);
+  const uploadFiles = async (
+    files: FileList | File[],
+    opts?: { videoOnly?: boolean },
+  ) => {
+    let list = Array.from(files);
     if (list.length === 0) return;
 
-    const room = maxFiles - pending.length;
+    if (opts?.videoOnly) {
+      list = list.filter((f) => mediaKindFromFile(f) === "video");
+      if (list.length === 0) {
+        toast.error("Pick an mp4 / mov / webm clip");
+        return;
+      }
+      list = list.slice(0, MAX_VIDEOS_PER_POST);
+      // X-style: one video on the post — drop a previous clip
+      setPending((prev) => {
+        const kept = prev.filter((p) => {
+          if (p.kind !== "video") return true;
+          if (p.previewUrl.startsWith("blob:")) URL.revokeObjectURL(p.previewUrl);
+          if (p.hash && isWebBlobId(p.hash)) webDeleteBlob(p.hash);
+          return false;
+        });
+        return kept;
+      });
+    }
+
+    const occupied = opts?.videoOnly
+      ? 0
+      : pending.filter((p) => p.kind !== "video").length +
+        pending.filter((p) => p.kind === "video").length;
+    const room = opts?.videoOnly
+      ? MAX_VIDEOS_PER_POST
+      : maxFiles - occupied;
     if (room <= 0) {
       toast.error(`Max ${maxFiles} files per post`);
       return;
@@ -317,9 +349,11 @@ export function PostComposer({
                     ) : p.kind === "video" ? (
                       <video
                         src={p.previewUrl}
-                        className="w-full h-28 object-cover"
-                        muted
+                        className="w-full h-36 object-cover bg-black"
+                        controls
                         playsInline
+                        muted
+                        preload="metadata"
                       />
                     ) : (
                       <div className="h-28 flex flex-col items-center justify-center gap-1 p-2 text-center">
@@ -383,6 +417,17 @@ export function PostComposer({
                   className="sr-only"
                   onChange={handleFileChange}
                 />
+                <input
+                  id={videoInputId}
+                  ref={videoRef}
+                  type="file"
+                  accept={MEDIA_ACCEPT_VIDEO}
+                  className="sr-only"
+                  onChange={(e) => {
+                    if (e.target.files?.length)
+                      void uploadFiles(e.target.files, { videoOnly: true });
+                  }}
+                />
                 <Button
                   type="button"
                   variant="ghost"
@@ -392,9 +437,25 @@ export function PostComposer({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    openPicker();
+                    openPicker(true);
                   }}
-                  title="Photo, video, audio, PDF, docs"
+                  title="Upload a video (like X — one clip on the post)"
+                >
+                  <Film className="h-4 w-4" />
+                  <span className="hidden sm:inline">Video</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 shrink-0 text-xs cursor-pointer"
+                  disabled={uploading || pending.length >= maxFiles}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openPicker(false);
+                  }}
+                  title="Photo, audio, PDF, docs"
                 >
                   {uploading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -402,7 +463,7 @@ export function PostComposer({
                     <Paperclip className="h-4 w-4" />
                   )}
                   <span className="hidden sm:inline">
-                    {uploading ? "Uploading…" : "Attach"}
+                    {uploading ? "Uploading…" : "Photo"}
                   </span>
                 </Button>
               </div>
@@ -416,9 +477,9 @@ export function PostComposer({
               </Button>
             </div>
             <p className="text-[10px] text-muted-foreground mt-2">
-              Photos · video · audio · PDF · docs — drag & drop or Attach · up
-              to {maxFiles} files
-              {!isTauri() && " · browser session (desktop for permanent store)"}
+              Video like X — one mp4/mov/webm, up to 50MB, plays on the wall.
+              Photos via Photo. Drag & drop works too.
+              {!isTauri() && " · browser session (desktop app keeps the file)"}
             </p>
           </div>
         </div>

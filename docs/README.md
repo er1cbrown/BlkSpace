@@ -34,6 +34,7 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 | [`theory-of-computing-scale.md`](theory-of-computing-scale.md) | Short entry → scale / space / matrix model |
 | [`../FLESHTHEORY.md`](../FLESHTHEORY.md) | Full product theory |
 | [`codebase-overview.md`](codebase-overview.md) | Where code lives |
+| [`amalgamation-honest-competitive-review.md`](amalgamation-honest-competitive-review.md) | Honest review vs TikTok / IG / Discord / campus apps |
 
 ### I'm working on a specific feature
 | Topic | Doc |
@@ -41,10 +42,14 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 | UI / pages | [`blkspace-ui-system-plan.md`](blkspace-ui-system-plan.md) |
 | Tier 0 performance | [`tier0-load-optimization.md`](tier0-load-optimization.md) |
 | Nostr + mesh testing | [`implementation/DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) |
+| Mesh skeleton (intra → internet) | [`mesh-perfect-skeleton.md`](mesh-perfect-skeleton.md) |
 | Economy / WeixBucks | [`reward-formulas.md`](reward-formulas.md) · [`economy-student-terms.md`](economy-student-terms.md) · [`features/four-pillar-economy.md`](features/four-pillar-economy.md) · [`features/wb-progression-v2.md`](features/wb-progression-v2.md) · [`economy-fast-transparent.md`](economy-fast-transparent.md) |
 | IEEE campus use cases | [`IEEE_CONFERENCE_PACK.md`](IEEE_CONFERENCE_PACK.md) (start) · [`features/use-case-omega-psi-phi-meharry-ieee.md`](features/use-case-omega-psi-phi-meharry-ieee.md) · [`features/use-case-fisk-finance-ieee.md`](features/use-case-fisk-finance-ieee.md) · [`features/use-case-jimmy-tsu-fashion-ieee.md`](features/use-case-jimmy-tsu-fashion-ieee.md) |
-| Solana / BKSPC | [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md) (locked Design 1) · [`bkspc-phase0-phase1-tickets.md`](bkspc-phase0-phase1-tickets.md) · [`bkspc-devnet-mint.md`](bkspc-devnet-mint.md) · [`bkspc-devnet-runbook.md`](bkspc-devnet-runbook.md) · [`solana-blueprint.md`](solana-blueprint.md) |
+| Finance layer (HyperEVM) | [`finance-l1-strategy.md`](finance-l1-strategy.md) (decision) · [`tokenomics.md`](tokenomics.md) (canonical chain = HyperEVM, BI9) · [`blkbridge.md`](blkbridge.md) · [`blkshi.md`](blkshi.md) |
+| Solana / BKSPC (legacy scaffolding) | [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md) (historical Design 1) · [`bkspc-phase0-phase1-tickets.md`](bkspc-phase0-phase1-tickets.md) · [`bkspc-devnet-mint.md`](bkspc-devnet-mint.md) · [`bkspc-devnet-runbook.md`](bkspc-devnet-runbook.md) · [`solana-blueprint.md`](solana-blueprint.md) |
 | Security | [`security-considerations.md`](security-considerations.md) |
+| Amalgamation / competitors | [`blkspace-hybrid.md`](blkspace-hybrid.md) (Facebook+IG+Threads · Myspace/Newgrounds) · [`amalgamation-honest-competitive-review.md`](amalgamation-honest-competitive-review.md) · [`amalgamation-use-case-testing.md`](amalgamation-use-case-testing.md) · [`amalgamation-feature-gap-and-mobile-roadmap.md`](amalgamation-feature-gap-and-mobile-roadmap.md) |
+| Account recovery | [`campus-account-recovery.md`](campus-account-recovery.md) · [`../FIRST_RUN.md`](../FIRST_RUN.md) |
 
 ### Yard release to students
 | Doc | Why |
@@ -72,7 +77,7 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 | **0–1** | App boots, auth, feed, SQLite — **done** |
 | **2** | Nostr relays, Iroh blobs, offline queue — **~90%** (Device B sign-off pending) |
 | **3** | Yards, MySpace, rewards polish — **~55–75%** |
-| **4** | Real on-chain marketplace, NFT, BKSPC — **early** |
+| **4** | On-chain finance (BI9 on HyperEVM; BlkBridge / BLKSHI later) — **early**; Solana BKSPC is legacy scaffolding |
 | **5** | Scripture NLP, anti-abuse ML, LogosDecks — **not started** |
 
 Details: [`ROADMAP.md`](ROADMAP.md)

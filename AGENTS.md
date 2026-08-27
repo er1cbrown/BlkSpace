@@ -2,7 +2,7 @@
 
 ## Project Overview
 BlkSpace (weixblack.net) — amalgamation social platform.
-Tauri 2 + React + TypeScript + Solana + Anchor.
+Tauri 2 + React + TypeScript. BlkCore is off-chain (Nostr + Iroh + WeixBucks). Canonical on-chain token (BI9) is Solidity on HyperEVM. Solana/Anchor is optional wallet-reach scaffolding only.
 Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 
 ## Dev Environment
@@ -24,6 +24,8 @@ Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 - `docs/TOP_DOWN_APPROACH.md` — Nostr/Iroh/Solana to 5-layer network stack
 - `docs/security-considerations.md` — Nostr attack mitigations
 - `docs/architecture-blueprint.md` — Federated College-Town Relay Mesh
+- `docs/finance-l1-strategy.md` — BI9 on HyperEVM; BlkBridge + BLKSHI (do not skip BlkCore)
+- `docs/tokenomics.md` — canonical tokenomics (WeixBucks off-chain, BI9 on HyperEVM)
 - `.github/workflows/ci.yml` — lint → typecheck → test → gated Yard/Full multi-OS builds
 - `.github/workflows/release.yml` — tag-triggered releases (macOS + Linux + Windows)
 - `.github/workflows/pages.yml` — campus web preview (enable repo Pages setting)
@@ -54,7 +56,8 @@ BlkSpace/ (cloned root)
 │   │   ├── blkspace/       ← React frontend (src/) + Rust backend (src-tauri/)
 │   │   ├── api-server/     ← Express API server (alternative deployment)
 │   │   ├── mockup-sandbox/ ← UI component showcase
-│   │   └── solana/         ← Anchor programs (Phase 4)
+│   │   ├── solana/         ← Anchor programs (legacy BKSPC / optional wallet reach)
+│   │   └── hyperevm/       ← Solidity: BI9 + stake + timelock (canonical on-chain)
 │   ├── lib/                ← workspace packages (api-client-react, api-spec, api-zod, db)
 │   ├── scripts/            ← utility scripts
 │   └── package.json        ← Bun workspace root
@@ -69,7 +72,7 @@ BlkSpace/ (cloned root)
 3. Push to GitHub to trigger CI — don't build Tauri locally unless necessary
 4. Write tests for new features (Vitest for frontend, Rust tests for Tauri)
 5. Keep dependencies minimal — every byte counts on low-end machines
-6. All blockchain code goes through Anchor framework
+6. Blockchain: BlkCore stays off-chain. New token/staking/governance work is **Solidity on HyperEVM** (`Code-Companion/artifacts/hyperevm/`). Do not put BI9 on Solana. Existing Anchor programs under `artifacts/solana/` are optional wallet-reach / legacy BKSPC scaffolding — do not extend them as the canonical mint. Never auto-convert WeixBucks to BI9.
 7. Use **Bun** only (`bun install`, `bun run …`). Do not use pnpm/npm/yarn.
 
 ## Agent Safety & Destructive Operation Guardrails

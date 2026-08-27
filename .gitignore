@@ -55,6 +55,15 @@ Cargo.lock
 Thumbs.db
 
 # ============================================================================
+# Foundry / HyperEVM (BI9)
+# ============================================================================
+Code-Companion/artifacts/hyperevm/cache/
+Code-Companion/artifacts/hyperevm/out/
+Code-Companion/artifacts/hyperevm/broadcast/
+Code-Companion/artifacts/hyperevm/lib/
+Code-Companion/artifacts/hyperevm/deployments/last-run.json
+
+# ============================================================================
 # Environment & Secrets
 # ============================================================================
 .env

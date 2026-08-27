@@ -2,7 +2,12 @@
 
 **Status:** Implemented in `db.rs` + wallet UI  
 **Uniform model:** `creator-marketplace` — see `docs/economy-uniform-model.md`  
-**On-chain token:** **BKSPC** (`BLKSPACE COIN`)
+**On-chain token (canonical):** **BLACKINCCOIN / BI9** on **HyperEVM** — see [`tokenomics.md`](tokenomics.md)  
+**Decision:** [`finance-l1-strategy.md`](finance-l1-strategy.md)
+
+> **2026-08-26:** HyperEVM is the home of the on-chain asset. This file remains the **live WeixBucks** policy (fees, caps, marketplace). Solana **BKSPC** rows below are historical Phase A scaffolding, not the canonical mint.
+
+**On-chain token (legacy Solana name):** BKSPC — optional wallet reach later, not BI9’s home.
 
 ---
 
@@ -15,7 +20,8 @@ BlkSpace runs a **creator marketplace economy** — the same class as Roblox (Ro
 | **WeixBucks (WB)** | Soft currency | Earn from posts, yards, node work. Spend on tips and **creator marketplace**. **Not purchasable with USD.** |
 | **Creator marketplace** | UGC shop | List media, mixes, themes, services, tickets. Buyers pay WB; sellers get net after 5% fee. |
 | **Karma** | Reputation | Leaderboard / visibility only. **Never spendable, never convertible to WB.** |
-| **BKSPC** | Solana community token (Phase 4+) | The on-chain layer of BlkSpace on Solana. Launched as a community token; also the optional settlement path for **earned** WB after eligibility. |
+| **BI9 (BLACKINCCOIN)** | HyperEVM ERC-20 (canonical) | On-chain finance asset. **No automatic WB conversion.** See [`tokenomics.md`](tokenomics.md). |
+| **BKSPC** | Solana (legacy scaffolding) | Earlier Phase A name / devnet path. Not the home of BI9. |
 
 ---
 
@@ -46,13 +52,12 @@ Fees are burned (reduce WB in circulation). Recipients receive **net** after fee
 
 ## Treasury / mint
 
-- **Phase A issuance (locked):** earned WB → BKSPC only. Policy: [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md). Tickets: [`bkspc-phase0-phase1-tickets.md`](bkspc-phase0-phase1-tickets.md).
-- **Mainnet launch:** not a bonding-curve dump of supply. Pump.fun notes in `docs/bkspc-pumpfun-launch.md` are **not** the primary mint path.
-- **WB settlement mint path:** PDA / treasury + timelock, only after WB debit + eligibility (`solana-security.md`)
-- No insider presale mint
-- Mint logs: SQLite + Nostr audit trail
-- Ratio: **1,000 WB → 1 BKSPC** (fixed until counsel approves change)
-- BKSPC and WB are separate products; BKSPC has no guaranteed utility, value, or conversion back to WB
+- **Canonical on-chain mint (2026-08-26):** **BI9 on HyperEVM**, governance-capped, timelocked. **No automatic WeixBucks → BI9.** See [`tokenomics.md`](tokenomics.md). Skeleton: `Code-Companion/artifacts/hyperevm/`.
+- **WeixBucks** stay off-chain. They are not bridged and not a mint input.
+- **Legacy Solana Phase A (not canonical):** earned WB → BKSPC notes in [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md) remain historical scaffolding / optional wallet reach. Do not treat the 1,000 WB → 1 BKSPC ratio as the BI9 issuance path.
+- **Mainnet launch:** not a bonding-curve dump of supply. Pump.fun notes in `docs/bkspc-pumpfun-launch.md` are **not** the BI9 mint path.
+- No insider presale mint implied by this policy
+- WB ledgers: SQLite + Nostr audit trail (unchanged, live)
 
 ---
 
@@ -61,10 +66,10 @@ Fees are burned (reduce WB in circulation). Recipients receive **net** after fee
 1. WB is earn-only — not sold for USD without a new reviewed product  
 2. Creators sell in the marketplace for WB; fees are published  
 3. Karma is reputation only — never spendable or convertible  
-4. BKSPC mints only from earned WB after eligibility; on-chain listings require legal review  
+4. BI9 minting is governance-controlled on HyperEVM; WeixBucks do not auto-convert; on-chain listings require legal review  
 5. Fees, caps, and throttle rules are never hidden from the wallet UI  
 
-Counsel may approve **additional** products (e.g. compliant BKSPC secondary trading). That is a **new** gate, not a silent pivot.
+Counsel may approve **additional** products (e.g. a reviewed WB→BI9 distribution, or Solana wallet-reach). That is a **new** gate, not a silent pivot.
 
 ---
 

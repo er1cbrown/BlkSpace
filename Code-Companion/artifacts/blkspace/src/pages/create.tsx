@@ -149,7 +149,7 @@ export default function CreatePage() {
         onUploadSuccess={(earn) => showEarnFromResult(earn, "Media upload")}
         placeholder={
           mode === "reel"
-            ? "Caption your reel — shows on Watch + your grid"
+            ? "Caption — video also works from Home → Video (like X)"
             : mode === "story"
               ? "24h story — appears in the Home ring, then expires"
               : "What's happening on the yard?"

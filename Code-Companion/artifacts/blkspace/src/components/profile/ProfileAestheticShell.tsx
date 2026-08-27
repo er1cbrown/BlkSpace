@@ -3,6 +3,7 @@ import {
   getBannerCss,
   patternStyle,
   sanitizeCustomCss,
+  scopeCustomCss,
   type MyYardAesthetic,
   type FontStyleId,
   type CardRadiusId,
@@ -42,7 +43,7 @@ export function ProfileAestheticShell({
 }: Props) {
   const cssId = "myyard-user-css";
   const safeCss = useMemo(
-    () => sanitizeCustomCss(aesthetic.customCss || ""),
+    () => scopeCustomCss(sanitizeCustomCss(aesthetic.customCss || "")),
     [aesthetic.customCss],
   );
 
@@ -58,7 +59,7 @@ export function ProfileAestheticShell({
       document.head.appendChild(el);
     }
     // Scope all rules under .myyard-root when possible (user may write bare selectors)
-    el.textContent = `.myyard-root[data-myyard] {\n${safeCss}\n}`;
+    el.textContent = safeCss;
     return () => {
       /* keep until next profile unmounts / css clears */
     };

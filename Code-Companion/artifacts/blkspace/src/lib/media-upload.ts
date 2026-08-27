@@ -22,6 +22,12 @@ export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 export const MEDIA_ACCEPT =
   "image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.md,.csv,.json,.zip";
 
+/** X/Twitter-style: one video clip on a wall post (library picker, not Reels). */
+export const MEDIA_ACCEPT_VIDEO =
+  "video/mp4,video/webm,video/quicktime,video/x-m4v,.mp4,.m4v,.webm,.mov";
+
+export const MAX_VIDEOS_PER_POST = 1;
+
 const EXT_KIND: Record<string, MediaKind> = {
   jpg: "image",
   jpeg: "image",

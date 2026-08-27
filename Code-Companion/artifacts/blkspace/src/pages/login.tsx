@@ -52,8 +52,8 @@ export default function LoginPage() {
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-3xl font-serif">Welcome Back</CardTitle>
             <CardDescription className="text-base">
-              Sign in with your 24-word recovery phrase (or nsec / hex from
-              Settings)
+              Same device: you’re already in. New device: Recover account
+              (password file or 24 words).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -103,7 +103,7 @@ export default function LoginPage() {
                 href="/recover"
                 className="text-primary font-medium hover:underline"
               >
-                Recover with backup code
+                Recover account
               </Link>
             </p>
           </CardContent>

@@ -18,7 +18,10 @@ Your public profile is a **MyYard** — not the campus yard skin:
 | Photo gallery | Up to 8 featured images |
 | Profile song | Audio from uploads |
 | Top 8 | Toggle |
+| Page templates | Campus wall · MyYard night · Clean notes · Portal neon · **Tribute gold** (memorial look) |
+| Profile song | Audio blob / web track — visitors hear it (mobile too) |
 | Custom CSS | Advanced tab, sanitized, scoped to `.myyard-root` |
+| LazyVim / file | Save/load `.css`; desktop **Open in LazyVim** (`nvim`, not classic vim) |
 
 Base skins still apply: Classic · Pro · Vibrant · MyYard Classic.
 
@@ -38,7 +41,11 @@ Base skins still apply: Classic · Pro · Vibrant · MyYard Classic.
 
 ## Safety (CSS)
 
-`sanitizeCustomCss` strips `@import`, `expression(`, `javascript:`, bindings. Max ~4k chars. Injected under `.myyard-root[data-myyard]` only.
+`sanitizeCustomCss` strips `@import`, `expression(`, `javascript:`, bindings. Max ~12k chars. `scopeCustomCss` prefixes rules under `.myyard-root[data-myyard]`.
+
+**LazyVim lesson (in-app):** Customize → CSS shows a 5-step teach card (`i` / `Esc` / `:w` / `:q` / Space). Starter CSS explains: song = Music tab, look = this file.
+
+**Open in LazyVim:** writes `temp/blkspace-myyard/{handle}.css` (starter comments if empty) and launches `nvim` (`NVIM_APPNAME=lazyvim`, then default nvim). Classic `vim` is not used. Then Load CSS file + Save MyYard. Web: Paste starter + Save/Load CSS file.
 
 ## Code map
 

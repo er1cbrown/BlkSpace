@@ -3839,7 +3839,10 @@ fn upload_blob(
 
 #[tauri::command]
 fn get_blob_bytes(state: State<AppState>, session_token: String, hash: String) -> Result<Option<String>, String> {
-  check_session_rate_limit(&state, &session_token)?;
+  // Profile songs / public media: guests may fetch content-addressed blobs.
+  if !session_token.is_empty() {
+    check_session_rate_limit(&state, &session_token)?;
+  }
   // Accept either local content hash (sha256) or CID (iroh/blake3 when feature enabled).
   // Validation is lenient (both are 64 lowercase hex) so CIDs from posts/Nostr can be fetched directly.
   validate_blob_hash(&hash).ok(); // best-effort; continue even if odd format for future CID cases
@@ -3905,9 +3908,68 @@ fn delete_blob(
 
 #[tauri::command]
 fn get_blob_metadata(state: State<AppState>, session_token: String, hash: String) -> Result<Option<BlobRecord>, String> {
-  check_session_rate_limit(&state, &session_token)?;
+  if !session_token.is_empty() {
+    check_session_rate_limit(&state, &session_token)?;
+  }
   validate_blob_hash(&hash)?;
   state.db.get_blob_record(&hash).map_err(|e| AppError::from(e).to_string())
+}
+
+/// Write MyYard CSS to a local file and open **LazyVim** (`nvim`) or the OS editor.
+/// Classic `vim` is not used.
+#[tauri::command]
+fn open_myyard_css(handle: String, css: String, prefer_lazyvim: bool) -> Result<String, String> {
+  let safe: String = handle
+    .chars()
+    .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+    .take(40)
+    .collect();
+  if safe.is_empty() {
+    return Err("handle required".into());
+  }
+  let dir = std::env::temp_dir().join("blkspace-myyard");
+  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  let path = dir.join(format!("{safe}.css"));
+  std::fs::write(&path, css).map_err(|e| e.to_string())?;
+  let path_str = path.to_string_lossy().to_string();
+  if prefer_lazyvim && spawn_lazyvim(&path) {
+    return Ok(path_str);
+  }
+  #[cfg(target_os = "windows")]
+  {
+    std::process::Command::new("cmd")
+      .args(["/C", "start", "", &path_str])
+      .spawn()
+      .map_err(|e| e.to_string())?;
+  }
+  #[cfg(target_os = "macos")]
+  {
+    std::process::Command::new("open")
+      .args(["-t", &path_str])
+      .spawn()
+      .map_err(|e| e.to_string())?;
+  }
+  #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+  {
+    std::process::Command::new("xdg-open")
+      .arg(&path_str)
+      .spawn()
+      .map_err(|e| e.to_string())?;
+  }
+  Ok(path_str)
+}
+
+/// LazyVim is Neovim + the LazyVim distro. Binary is `nvim` (optional `NVIM_APPNAME=lazyvim`).
+fn spawn_lazyvim(path: &std::path::Path) -> bool {
+  let try_nvim = |appname: Option<&str>| -> bool {
+    let mut cmd = std::process::Command::new("nvim");
+    if let Some(name) = appname {
+      cmd.env("NVIM_APPNAME", name);
+    }
+    cmd.arg(path).spawn().is_ok()
+  };
+  // Dedicated LazyVim config folder, then default nvim (usually LazyVim if that's what they installed).
+  try_nvim(Some("lazyvim")) || try_nvim(None)
 }
 
 // ─── Sendme-inspired share tickets (content-addressed drop) ───
@@ -5295,6 +5357,7 @@ pub fn run() {
       count_hbcus,
       upload_blob,
       get_blob_bytes,
+      open_myyard_css,
       list_user_blobs,
       delete_blob,
       get_blob_metadata,

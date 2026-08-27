@@ -131,7 +131,7 @@ export const DEFAULT_MYYARD_LAYOUT: MyYardLayout = {
   aesthetic: { ...DEFAULT_AESTHETIC },
 };
 
-const MAX_CSS_LEN = 4000;
+const MAX_CSS_LEN = 12000;
 const MAX_GALLERY = 8;
 
 /** Strip dangerous constructs from custom CSS (MySpace energy, safer surface). */
@@ -145,6 +145,29 @@ export function sanitizeCustomCss(raw: string): string {
   s = s.replace(/url\s*\(\s*['"]?\s*javascript:/gi, "url(blocked:");
   s = s.replace(/<\/?script/gi, "/*script*/");
   return s;
+}
+
+/** Prefix selectors so custom CSS only paints this profile (MySpace energy, scoped). */
+export function scopeCustomCss(
+  raw: string,
+  scope = ".myyard-root[data-myyard]",
+): string {
+  const s = sanitizeCustomCss(raw).trim();
+  if (!s) return "";
+  if (!s.includes("{")) {
+    return `${scope} {\n${s}\n}`;
+  }
+  return s.replace(/([^{}@]+)\{/g, (full, sel: string) => {
+    const trimmed = sel.trim();
+    if (!trimmed) return full;
+    if (trimmed.startsWith("@")) return full;
+    if (trimmed.includes(scope)) return `${trimmed} {`;
+    const parts = trimmed
+      .split(",")
+      .map((p) => `${scope} ${p.trim()}`)
+      .join(", ");
+    return `${parts} {`;
+  });
 }
 
 export function getBannerCss(a: MyYardAesthetic): string {

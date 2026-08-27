@@ -50,6 +50,7 @@ import { useRequiresWallet } from "@/hooks/use-requires-wallet";
 import {
   isTauri,
   tauriGetBlobBytes,
+  tauriGetBlobMetadata,
   tauriListUserBlobs,
   type TauriBlobInfo,
 } from "@/lib/tauri-api";
@@ -281,31 +282,53 @@ export default function ProfilePage() {
     setIsFollowing(merged.has(target));
   }, [handle, currentUser, remoteFollowing]);
 
-  // Profile song: Tauri blob bytes, or web data-URL store
+  // Profile song: Tauri blob (correct mime + blob URL) or web data-URL.
+  // Guests can still hear a public profile track (empty session token).
   useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
     if (!profileSong) {
       setAudioSrc(null);
       return;
     }
     if (!isTauri()) {
       void import("@/lib/profile-music-web").then(({ loadWebProfileMusic }) => {
+        if (cancelled) return;
         const rec = loadWebProfileMusic(profileHandle);
         setAudioSrc(rec?.dataUrl ?? null);
         if (rec && profileSong !== rec.id) {
           setProfileSong(rec.id);
         }
       });
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
-    const token = getSessionToken();
-    if (!token) return;
-    tauriGetBlobBytes(token, profileSong)
-      .then((b64) => {
-        if (b64) {
-          setAudioSrc(`data:audio/mpeg;base64,${b64}`);
+    const token = getSessionToken() || "";
+    Promise.all([
+      tauriGetBlobMetadata(token, profileSong).catch(() => null),
+      tauriGetBlobBytes(token, profileSong),
+    ])
+      .then(([meta, b64]) => {
+        if (cancelled) return;
+        if (!b64) {
+          setAudioSrc(null);
+          return;
         }
+        const mime = meta?.mimeType || "audio/mpeg";
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        objectUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+        setAudioSrc(objectUrl);
       })
-      .catch(() => setAudioSrc(null));
+      .catch(() => {
+        if (!cancelled) setAudioSrc(null);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [profileSong, profileHandle]);
 
   // Banner image from blob hash
@@ -371,7 +394,7 @@ export default function ProfilePage() {
                 </AvatarFallback>
               </Avatar>
               {profileSong && aesthetic.showMusic && (
-                <div className="mb-3 hidden md:block">
+                <div className="mb-2 w-[min(18rem,calc(100vw-7rem))]">
                   <ProfileMusicPlayer
                     hash={profileSong}
                     src={audioSrc}
@@ -564,6 +587,28 @@ export default function ProfilePage() {
               </p>
             ) : (
               <div className="mb-4" />
+            )}
+
+            {!isOwnProfile && (
+              <div className="mb-6 rounded-xl border border-primary/25 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <p className="text-sm flex-1">
+                  Want a page like this? Yours can have a banner, photos, and a
+                  song — it won’t copy theirs.
+                </p>
+                {isGuest || !currentUser ? (
+                  <Link href="/welcome">
+                    <Button className="rounded-full shrink-0">
+                      Make your own page
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href={`/profile/${currentUser}`}>
+                    <Button className="rounded-full shrink-0">
+                      Customize your page
+                    </Button>
+                  </Link>
+                )}
+              </div>
             )}
 
             {/* Stats like FB + WeixBucks */}
@@ -933,7 +978,9 @@ export default function ProfilePage() {
                             }
                             subtitle={
                               profileSong
-                                ? "Your profile song"
+                                ? isOwnProfile
+                                  ? "Your profile song"
+                                  : "Profile song"
                                 : "No song set yet"
                             }
                           />

@@ -1,0 +1,15 @@
+{
+  "network": "hyperevm-mainnet",
+  "chainId": 999,
+  "rpc": "https://rpc.hyperliquid.xyz/evm",
+  "explorer": "https://hyperevmscan.io",
+  "timelock": "",
+  "bi9": "",
+  "stakeVault": "",
+  "admin": "",
+  "minDelay": 172800,
+  "cap": 0,
+  "mintDisabled": true,
+  "weixBucksConvertible": false,
+  "notes": "Empty until DeployMainnet is broadcast with TIMELOCK_ADMIN and HYPE for gas. Cap stays 0. Copy last-run.json here after a real 999 deploy."
+}

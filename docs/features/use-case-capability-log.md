@@ -109,6 +109,7 @@ BlkSpace product use (yards, Connect, studio, escrow)
 
 | Date | Note |
 |------|------|
+| 2026-08-26 | Amalgamation guest-room e2e + sparse-rank \(O(n \log n)\) contracts — [`../amalgamation-use-case-testing.md`](../amalgamation-use-case-testing.md) |
 | 2026-08-10 | Yard Day Brawl original (row 19) — not Newgrounds Rumble clone |
 | 2026-08-10 | Reticulum optional bridge (row 18) — markqvist/RNS, no replace Nostr |
 | 2026-08-09 | Multi-round bracket + WB prize ladder + free clothing market claim (row 17) |

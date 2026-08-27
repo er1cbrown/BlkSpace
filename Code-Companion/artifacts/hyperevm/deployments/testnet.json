@@ -1,0 +1,14 @@
+{
+  "network": "hyperevm-testnet",
+  "chainId": 998,
+  "rpc": "https://rpc.hyperliquid-testnet.xyz/evm",
+  "explorer": "https://testnet.hyperevmscan.io",
+  "timelock": "",
+  "bi9": "",
+  "stakeVault": "",
+  "admin": "",
+  "minDelay": 172800,
+  "cap": 0,
+  "mintDisabled": true,
+  "weixBucksConvertible": false
+}

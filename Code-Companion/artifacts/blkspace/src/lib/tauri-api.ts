@@ -977,6 +977,15 @@ export function tauriGetBlobBytes(
   return invoke("get_blob_bytes", { sessionToken, hash });
 }
 
+/** Open MyYard CSS in LazyVim (`nvim`) or the OS editor (desktop). */
+export function tauriOpenMyYardCss(
+  handle: string,
+  css: string,
+  preferLazyvim = true,
+): Promise<string> {
+  return invoke("open_myyard_css", { handle, css, preferLazyvim });
+}
+
 export function tauriListUserBlobs(
   sessionToken: string,
 ): Promise<TauriBlobInfo[]> {

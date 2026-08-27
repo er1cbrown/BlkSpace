@@ -2,7 +2,7 @@
 
 **Status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ~90% · Phase 3 ~75% · Phase 4 in progress · Phase 5 not started  
 **Date:** 2026-08-02  
-**Product mark:** **BlkSpace** · **Coin ticker:** **BKSPC** (BlkSpace Coin)
+**Product mark:** **BlkSpace** · **In-app:** WeixBucks · **Canonical on-chain:** **BI9** (HyperEVM) · **Legacy Solana ticker:** BKSPC
 
 > **New here?** Read [`../README.md`](../README.md) first, then [`README.md`](README.md) (doc map) or [`ROADMAP.md`](ROADMAP.md) (what's next).
 
@@ -39,7 +39,11 @@
 | [federated-college-towns.md](./federated-college-towns.md) | Town relay mesh spec |
 | [reward-formulas.md](./reward-formulas.md) | Draft earn/spend math |
 | [nostr-event-kinds.md](./nostr-event-kinds.md) | Custom kind registry |
-| [tokenomics-policy.md](./tokenomics-policy.md) | Creator-marketplace policy |
+| [finance-l1-strategy.md](./finance-l1-strategy.md) | **Product decision:** BI9 on HyperEVM, BlkBridge + BLKSHI |
+| [tokenomics.md](./tokenomics.md) | **Canonical tokenomics** — HyperEVM / BI9, no auto WB conversion |
+| [blkbridge.md](./blkbridge.md) | Yard-class deposit surface (existing rails, named destinations) |
+| [blkshi.md](./blkshi.md) | Advanced event-contract / portfolio desk (not a public US launch) |
+| [tokenomics-policy.md](./tokenomics-policy.md) | Live WeixBucks creator-marketplace policy |
 | [economy-student-terms.md](./economy-student-terms.md) | Student-facing economy terms |
 | [economy-uniform-model.md](./economy-uniform-model.md) | Uniform creator-marketplace model |
 
@@ -62,6 +66,9 @@
 | [beta-launch-research.md](./beta-launch-research.md) | Research-backed optimal beta launch plan |
 | [beta-tokenomics-and-launch-strategy.md](./beta-tokenomics-and-launch-strategy.md) | Domain, hosting, tokenomics, landing page |
 | [onboarding-and-competitive-review.md](./onboarding-and-competitive-review.md) | Onboarding ladder + competitive positioning |
+| [amalgamation-honest-competitive-review.md](./amalgamation-honest-competitive-review.md) | Honest amalgamation review vs existing media (2026-08-26) |
+| [amalgamation-use-case-testing.md](./amalgamation-use-case-testing.md) | Guest-room scenarios, \(O(n \log n)\) rank, strengthen-each-piece |
+| [campus-account-recovery.md](./campus-account-recovery.md) | Recovery password default; 24 words optional |
 | [optimal-ui-exploration.md](./optimal-ui-exploration.md) | User-optimal UI audit + fixes |
 
 ## Design & Planning
@@ -105,5 +112,6 @@
 1. `phase-0-status.md` — what's done vs blocked
 2. `architecture-blueprint.md` + `federated-college-towns.md` — scaling model
 3. `security-considerations.md` — before any Nostr code
-4. `hub-theory.md` + `reward-formulas.md` — economy
-5. Feature specs as needed per phase
+4. `hub-theory.md` + `reward-formulas.md` — live WeixBucks economy
+5. `finance-l1-strategy.md` + `tokenomics.md` — HyperEVM / BI9 (do not skip BlkCore)
+6. Feature specs as needed per phase

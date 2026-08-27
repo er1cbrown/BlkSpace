@@ -30,7 +30,22 @@ interface MediaItem {
   tapped: boolean;
 }
 
-const INLINE_LOAD_LIMIT = 8 * 1024 * 1024; // 8 MB auto-inline
+const INLINE_LOAD_LIMIT = 8 * 1024 * 1024; // 8 MB auto-inline (photos)
+const VIDEO_INLINE_LIMIT = 32 * 1024 * 1024; // wall video — tap Play if larger
+
+function b64ToObjectUrl(b64: string, mime: string): string {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: mime || "video/mp4" }));
+}
+
+function mediaSrcFromB64(b64: string, mime: string, kind: MediaKind): string {
+  if (kind === "video" || kind === "audio") {
+    return b64ToObjectUrl(b64, mime);
+  }
+  return `data:${mime || "application/octet-stream"};base64,${b64}`;
+}
 
 function KindIcon({
   kind,
@@ -48,6 +63,17 @@ function KindIcon({
 
 export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
   const [items, setItems] = useState<MediaItem[]>([]);
+
+  useEffect(() => {
+    return () => {
+      setItems((prev) => {
+        prev.forEach((it) => {
+          if (it.src?.startsWith("blob:")) URL.revokeObjectURL(it.src);
+        });
+        return prev;
+      });
+    };
+  }, []);
 
   useEffect(() => {
     if (hashes.length === 0) {
@@ -139,8 +165,9 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
       const info = await tauriGetBlobMetadata(token, hash);
       const size = info?.fileSize ?? 0;
       const kind = mediaKindFromMime(info?.mimeType || "", info?.filename);
+      const inlineLimit = kind === "video" ? VIDEO_INLINE_LIMIT : INLINE_LOAD_LIMIT;
       const large =
-        size > INLINE_LOAD_LIMIT || kind === "pdf" || kind === "doc";
+        size > inlineLimit || kind === "pdf" || kind === "doc";
 
       setItems((prev) => {
         const next = [...prev];
@@ -157,13 +184,12 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
       if (large) return;
 
       const b64 = await tauriGetBlobBytes(token, hash);
+      const mime = info?.mimeType ?? "application/octet-stream";
       setItems((prev) => {
         const next = [...prev];
         next[i] = {
           hash,
-          src: b64
-            ? `data:${info?.mimeType ?? "application/octet-stream"};base64,${b64}`
-            : null,
+          src: b64 ? mediaSrcFromB64(b64, mime, kind) : null,
           info,
           loading: false,
           tapped: false,
@@ -184,13 +210,14 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
     const hash = items[i]?.hash;
     if (!hash) return;
     const b64 = await tauriGetBlobBytes(token, hash);
+    const mime = items[i]?.info?.mimeType ?? "application/octet-stream";
+    const kind = mediaKindFromMime(mime, items[i]?.info?.filename);
     setItems((prev) => {
       const next = [...prev];
+      if (next[i]?.src?.startsWith("blob:")) URL.revokeObjectURL(next[i].src);
       next[i] = {
         ...next[i],
-        src: b64
-          ? `data:${next[i].info?.mimeType ?? "application/octet-stream"};base64,${b64}`
-          : null,
+        src: b64 ? mediaSrcFromB64(b64, mime, kind) : null,
         loading: false,
         tapped: true,
       };
@@ -266,7 +293,9 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
                     ? "Open PDF"
                     : kind === "doc"
                       ? "Open file"
-                      : "Load media"}
+                      : kind === "video"
+                        ? "Play video"
+                        : "Load media"}
                 </Button>
                 <Button
                   type="button"
@@ -302,8 +331,9 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
               key={item.hash}
               src={item.src}
               controls
-              className="w-full rounded-md max-h-96 bg-black"
+              playsInline
               preload="metadata"
+              className="w-full rounded-xl max-h-[min(28rem,70vh)] bg-black"
             >
               <source src={item.src} type={mimeType} />
             </video>

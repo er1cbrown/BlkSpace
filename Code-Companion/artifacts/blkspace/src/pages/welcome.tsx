@@ -22,11 +22,10 @@ import {
   storeIdentity,
   authenticateWithNostr,
   enterGuestMode,
-  nsecToMnemonic,
   markFirstRunComplete,
 } from "@/lib/auth";
+import { RecoverySetup } from "@/components/auth/RecoverySetup";
 import { isTauri, tauriCreateUser, tauriUpdateUser } from "@/lib/tauri-api";
-import { Textarea } from "@/components/ui/textarea";
 import { BRAND } from "@/lib/brand";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { applyMedSchoolOnboarding } from "@/lib/focus-mode";
@@ -62,14 +61,13 @@ export default function WelcomePage() {
     const prefs = loadUiPrefs();
     saveUiPrefs({ ...prefs, chromeSkin: skin });
   };
-  const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
-  const [phraseAck, setPhraseAck] = useState(false);
+  const [createdNsec, setCreatedNsec] = useState<string | null>(null);
+  const [joinedHandle, setJoinedHandle] = useState("");
   const [postJoinPath, setPostJoinPath] = useState("/feed");
 
   const totalSteps = 3;
 
-  const finishWithPhraseAck = () => {
-    if (!phraseAck || !recoveryPhrase) return;
+  const finishRecoverySetup = () => {
     markFirstRunComplete();
     markJustJoined(yardId || "tsu");
     navigate(postJoinPath);
@@ -155,8 +153,8 @@ export default function WelcomePage() {
             ? "/faculty"
             : "/feed";
       setPostJoinPath(next);
-      setRecoveryPhrase(nsecToMnemonic(identity.nsecHex));
-      setPhraseAck(false);
+      setJoinedHandle(cleanHandle);
+      setCreatedNsec(identity.nsecHex);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not create account");
     } finally {
@@ -174,24 +172,24 @@ export default function WelcomePage() {
       </h2>
       <p className="text-lg text-muted-foreground">{BRAND.tagline}</p>
       <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-        Think Instagram for your HBCU — pick a campus, scroll Home, post, earn
-        soft credits. Nothing crypto until you want cash-out later.
+        Customizable campus social — Facebook wall + IG grid + Threads talk,
+        Myspace page, Newgrounds uploads. Your HBCU. Scroll first.
       </p>
       <div className="grid grid-cols-3 gap-3 text-sm pt-2">
         <div className="bg-card p-3 rounded-xl border">
           <Users className="w-5 h-5 text-primary mx-auto mb-1.5" />
-          <p className="font-medium text-xs">Pick a campus</p>
-          <p className="text-muted-foreground text-[11px]">e.g. TSU</p>
+          <p className="font-medium text-xs">Campus</p>
+          <p className="text-muted-foreground text-[11px]">Your yard</p>
         </div>
         <div className="bg-card p-3 rounded-xl border">
           <Sparkles className="w-5 h-5 text-primary mx-auto mb-1.5" />
-          <p className="font-medium text-xs">Scroll & post</p>
-          <p className="text-muted-foreground text-[11px]">Home feed</p>
+          <p className="font-medium text-xs">Wall + grid</p>
+          <p className="text-muted-foreground text-[11px]">Text, pics, talk</p>
         </div>
         <div className="bg-card p-3 rounded-xl border">
           <Coins className="w-5 h-5 text-primary mx-auto mb-1.5" />
-          <p className="font-medium text-xs">Earn points</p>
-          <p className="text-muted-foreground text-[11px]">WeixBucks</p>
+          <p className="font-medium text-xs">Your page</p>
+          <p className="text-muted-foreground text-[11px]">Customize it</p>
         </div>
       </div>
       {isTauri() && (
@@ -361,8 +359,8 @@ export default function WelcomePage() {
           </p>
         </div>
         <p className="text-xs text-muted-foreground text-center">
-          After join you must save a 24-word recovery phrase before entering the
-          yard.
+          Next: a recovery password (not 24 words). Same idea as Instagram —
+          something you already remember.
         </p>
         {error && (
           <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">
@@ -373,7 +371,7 @@ export default function WelcomePage() {
     </div>,
   ];
 
-  if (recoveryPhrase) {
+  if (createdNsec) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Navbar />
@@ -381,37 +379,19 @@ export default function WelcomePage() {
           <Card className="w-full max-w-lg shadow-lg border-primary/10">
             <CardHeader className="text-center pb-4">
               <CardTitle className="text-2xl font-serif">
-                Save Recovery Phrase
+                Get back in
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Write down these 24 words offline. Anyone with them can take
-                over your account.
+                Average path: a password you remember. 24 words are optional
+                for people who want paper backup.
               </p>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <Textarea
-                readOnly
-                value={recoveryPhrase}
-                className="font-mono min-h-[120px] text-sm"
+            <CardContent>
+              <RecoverySetup
+                nsecHex={createdNsec}
+                handle={joinedHandle}
+                onDone={finishRecoverySetup}
               />
-              <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={phraseAck}
-                  onChange={(e) => setPhraseAck(e.target.checked)}
-                />
-                <span>
-                  I wrote down my 24-word recovery phrase in a safe place
-                </span>
-              </label>
-              <Button
-                onClick={finishWithPhraseAck}
-                disabled={!phraseAck}
-                className="w-full rounded-full h-12 font-bold bg-green-600 hover:bg-green-700"
-              >
-                Continue
-              </Button>
             </CardContent>
           </Card>
         </main>
@@ -483,6 +463,20 @@ export default function WelcomePage() {
 
             {step === 0 && (
               <div className="space-y-3">
+                <Button
+                  type="button"
+                  className="w-full rounded-full h-12 font-bold"
+                  onClick={() => {
+                    enterGuestMode();
+                    navigate("/feed");
+                  }}
+                >
+                  Just browse the yard as a guest
+                </Button>
+                <p className="text-center text-xs text-muted-foreground">
+                  Opens Home — campus wall. No password. Make a page when you
+                  want to post or customize.
+                </p>
                 <p className="text-center text-sm text-muted-foreground">
                   Already have an account?{" "}
                   <Link href="/login" className="text-primary hover:underline">
@@ -496,18 +490,6 @@ export default function WelcomePage() {
                     Recover
                   </Link>
                 </p>
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      enterGuestMode();
-                      navigate("/feed");
-                    }}
-                    className="text-xs text-muted-foreground/70 hover:text-muted-foreground underline underline-offset-4"
-                  >
-                    Just browse the yard as a guest
-                  </button>
-                </div>
               </div>
             )}
           </CardContent>

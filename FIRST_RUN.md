@@ -11,9 +11,10 @@ This takes 5 minutes. It will save you from losing your account forever.
 **BKSPC is NOT like Instagram or Twitter.**
 
 - **No company owns your account** — you do
-- **No "Forgot Password" button** — there's no password
-- **No customer support** to recover your account
-- **Your recovery phrase is everything** — lose it, lose your account
+- **No company “reset my account”** — BlkSpace cannot invent a new key for you
+- **Campus default:** a **recovery password** + an encrypted backup file (something you already know how to keep)
+- **Advanced:** a 24-word phrase on paper, if you want a backup that does not use a password
+- Skip both and this laptop dies → that handle is gone
 
 This is **freedom with responsibility.**
 
@@ -28,47 +29,30 @@ When you open BKSPC for the first time, you'll see a **Welcome Wizard**. Here's 
 - **Display Name**: Your real name or whatever you want people to see
 - **Town**: Your HBCU (TSU, Howard, FAMU, etc.)
 
-### Step 2: Your Recovery Phrase
+### Step 2: Get back in (campus default)
 
-This is the **most important step.**
+You will be asked for a **recovery password** (at least 8 characters). Pick something you already remember. Confirm it.
 
-BKSPC will show you **12 words** like this:
+BlkSpace downloads an encrypted file: `blkspace-backup-yourhandle.json`.
 
-```
-abandon ability able about above absent absorb abstract absurd abuse
-```
+**Put that file** in email-to-self, Google Drive, or iCloud. It is useless without the password.
 
-**These 12 words = your entire account.**
+That is the average-student path. You do **not** have to write 24 words.
 
-### Step 3: Write It Down
+### Step 3: 24 words (optional / advanced)
 
-**DO THIS NOW:**
+If you want a paper backup that works even if you forget the password, open **24 words (advanced)** and write them offline.
 
-1. **Get a pen and paper** (not your phone, not a screenshot)
-2. **Write down all 12 words** in order
-3. **Write down the numbers** (1-12) next to each word
-4. **Store the paper somewhere safe**:
-   - In a locked drawer
-   - In your wallet
-   - In your Bible
-   - Somewhere only YOU can find it
+Anyone with those words owns the account. Do not screenshot them.
 
-**NEVER DO THIS:**
-- Screenshot it
-- Text it to yourself
-- Save it in your notes app
-- Email it to yourself
-- Take a photo of it
+### Step 4: Later, on a new phone
 
-If someone gets your 12 words, they **own your account forever.**
+Open **Recover account**:
 
-### Step 4: Verify Your Phrase
+1. **Recovery password** + the backup file, or
+2. The 24-word phrase if you saved it
 
-BlkSpace will ask you to **type 2 random words** from your phrase.
-
-This proves you wrote it down.
-
-**If you can't type them, you didn't write it down properly.** Go back and write it again.
+There is still no “email me a reset link” that bypasses both. That would mean BlkSpace holding your key.
 
 ---
 
@@ -93,7 +77,7 @@ If you get a new laptop or want to use BlkSpace on another device:
 
 1. Install BlkSpace on the new computer
 2. Click **"Recover Account"** (not "Create Account")
-3. Type your **12-word recovery phrase**
+3. Use your **recovery password + backup file**, or the **24-word phrase** if you saved it
 4. Your account appears exactly as you left it
 
 **Your WeixBucks, posts, followers — everything transfers.**
@@ -122,11 +106,10 @@ If you get a new laptop or want to use BlkSpace on another device:
 4. Write it down again
 5. Store it in a second safe place
 
-**After you lose it and can't log in:**
-- Your account is gone forever
-- There's no reset
-- There's no support ticket
-- **Prevention is your only protection**
+**After you lose the password *and* the file *and* the phrase:**
+- That handle is gone
+- There's no support ticket that can mint a new key
+- **Prevention is your only protection** — set the password backup while you can still open Settings
 
 ---
 

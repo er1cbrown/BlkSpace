@@ -62,13 +62,12 @@ test.describe("Device B student smoke", () => {
     await expect(page.getByText(/yard\s+tsu/i)).toBeVisible();
     await page.getByRole("button", { name: /join the yard/i }).click();
 
-    await expect(page.getByText(/save recovery phrase/i)).toBeVisible({
+    await expect(page.getByText(/get back in/i)).toBeVisible({
       timeout: 20_000,
     });
-    await page
-      .getByRole("checkbox", { name: /i wrote down my 24-word recovery phrase/i })
-      .check();
-    await page.getByRole("button", { name: /^continue$/i }).click();
+    await page.getByLabel(/^recovery password$/i).fill("deviceb-smoke-ok");
+    await page.getByLabel(/confirm password/i).fill("deviceb-smoke-ok");
+    await page.getByRole("button", { name: /save recovery password/i }).click();
 
     await expect(page).toHaveURL(/\/feed/, { timeout: 20_000 });
     const yardTab = page.getByRole("tab", { name: /^yard$/i });

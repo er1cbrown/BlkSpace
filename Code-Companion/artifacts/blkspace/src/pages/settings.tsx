@@ -49,6 +49,12 @@ import {
   getStoredPubkey,
 } from "@/lib/auth";
 import {
+  createPasswordBackup,
+  downloadBackupFile,
+  persistBackupLocally,
+  MIN_BACKUP_PASSWORD,
+} from "@/lib/account-backup";
+import {
   getWebProfilePatch,
   saveWebProfilePatch,
 } from "@/lib/web-userspace";
@@ -160,6 +166,9 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [revealedPhrase, setRevealedPhrase] = useState<string | null>(null);
   const [loadingPhrase, setLoadingPhrase] = useState(false);
+  const [backupPassword, setBackupPassword] = useState("");
+  const [backupConfirm, setBackupConfirm] = useState("");
+  const [backupBusy, setBackupBusy] = useState(false);
   const [showPhrase, setShowPhrase] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
   const [privacy, setPrivacy] = useState<PrivacySettings>(() =>
@@ -170,6 +179,40 @@ export default function SettingsPage() {
   const [uiSaved, setUiSaved] = useState(false);
   const { theme, setTheme } = useTheme();
   const { data: me } = useAppGetUser(handle);
+
+  const handleSavePasswordBackup = async () => {
+    if (backupPassword !== backupConfirm) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    const sessionToken = getSessionToken();
+    if (!sessionToken) {
+      toast.error("Sign in again to save a backup");
+      return;
+    }
+    setBackupBusy(true);
+    try {
+      const nsec = await getStoredNsec(sessionToken, handle);
+      if (!nsec) {
+        toast.error("Could not export your key from this device");
+        return;
+      }
+      const backup = await createPasswordBackup({
+        nsecHex: nsec,
+        handle,
+        password: backupPassword,
+      });
+      persistBackupLocally(backup);
+      downloadBackupFile(backup);
+      setBackupPassword("");
+      setBackupConfirm("");
+      toast.success("Backup file saved — keep the password");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Backup failed");
+    } finally {
+      setBackupBusy(false);
+    }
+  };
 
   const handleRevealPhrase = async () => {
     setLoadingPhrase(true);
@@ -710,17 +753,55 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Key className="w-5 h-5" />
-                Recovery Phrase
+                Get back in
               </CardTitle>
               <CardDescription>
-                Your 24-word recovery phrase is the only way to recover your
-                account
+                Campus default: recovery password + encrypted file. 24 words
+                are optional for people who want paper.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <Label htmlFor="settings-backup-password">
+                  Recovery password
+                </Label>
+                <Input
+                  id="settings-backup-password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={backupPassword}
+                  onChange={(e) => setBackupPassword(e.target.value)}
+                  minLength={MIN_BACKUP_PASSWORD}
+                />
+                <Label htmlFor="settings-backup-confirm">Confirm</Label>
+                <Input
+                  id="settings-backup-confirm"
+                  type="password"
+                  autoComplete="new-password"
+                  value={backupConfirm}
+                  onChange={(e) => setBackupConfirm(e.target.value)}
+                />
+                <Button
+                  type="button"
+                  className="w-full rounded-full h-11"
+                  disabled={
+                    backupBusy ||
+                    backupPassword.length < MIN_BACKUP_PASSWORD
+                  }
+                  onClick={handleSavePasswordBackup}
+                >
+                  {backupBusy ? "Saving…" : "Save password backup file"}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  BlkSpace cannot reset this password. Keep the file in Drive /
+                  iCloud / email-to-self.
+                </p>
+              </div>
+
               <div className="bg-amber-950/20 border border-amber-600/30 text-amber-200 text-sm p-4 rounded-lg">
-                <strong>⚠ Critical:</strong> Lose this phrase, and your account
-                is gone forever. There is no reset, no support, no recovery.
+                <strong>24-word phrase (advanced):</strong> still works. If you
+                skip password <em>and</em> skip paper, nobody can recover the
+                account — including us.
               </div>
 
               <AlertDialog>
@@ -852,7 +933,7 @@ export default function SettingsPage() {
                     <AlertDialogTitle>Sign Out?</AlertDialogTitle>
                     <AlertDialogDescription>
                       You will be logged out of this device. Make sure you have
-                      your recovery phrase written down before signing out.
+                      a recovery password file or 24-word phrase first.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

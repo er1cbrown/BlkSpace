@@ -34,6 +34,7 @@
     "tauri:build:full": "bun run build:full && tauri build -- --features iroh",
     "e2e": "bunx playwright test --project=browser",
     "e2e:browser": "bunx playwright test --project=browser",
+    "e2e:amalgamation": "bunx playwright test --project=browser e2e/amalgamation.browser.spec.ts e2e/device-b.browser.spec.ts",
     "e2e:tauri": "bun e2e/run-tauri-e2e.mjs",
     "e2e:install": "bunx playwright install chromium"
   },

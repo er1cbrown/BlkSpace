@@ -49,6 +49,11 @@ export function ProfileMusicPlayer({
 
   useEffect(() => {
     const el = audioRef.current;
+    if (el && src) el.load();
+  }, [src]);
+
+  useEffect(() => {
+    const el = audioRef.current;
     if (!el) return;
     const onTime = () => {
       setCurrent(el.currentTime);
@@ -120,7 +125,12 @@ export function ProfileMusicPlayer({
         className,
       )}
     >
-      <audio ref={audioRef} src={src || undefined} preload="metadata" />
+      <audio
+        ref={audioRef}
+        src={src || undefined}
+        preload="metadata"
+        playsInline
+      />
 
       <div className="flex items-center gap-3 p-3">
         <Button
@@ -189,7 +199,12 @@ export function ProfileMusicPlayer({
       {!src && (
         <div className="px-3 pb-2 text-[10px] text-muted-foreground flex items-center gap-1">
           <SkipForward className="w-3 h-3" />
-          {compact ? "Loading…" : "Loading track from Iroh…"}
+          {compact ? "Loading…" : "Loading track…"}
+        </div>
+      )}
+      {!compact && src && (
+        <div className="px-3 pb-3">
+          <audio src={src} controls playsInline className="w-full h-8" />
         </div>
       )}
     </div>

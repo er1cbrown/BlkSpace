@@ -28,8 +28,8 @@ const PILLARS = [
   {
     id: "settlement",
     label: "Settlement",
-    sub: "BKSPC gated",
-    href: "#settlement",
+    sub: "HyperEVM · BI9",
+    href: "#hyperevm",
     icon: Landmark,
   },
 ] as const;

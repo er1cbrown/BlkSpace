@@ -1,7 +1,7 @@
 # BlkSpace Roadmap (plain English)
 
 **Last updated:** August 2026 · **Repo:** [`er1cbrown/BlkSpace`](https://github.com/er1cbrown/BlkSpace)  
-**Product mark:** **BlkSpace** · **Coin ticker:** **BKSPC** (BlkSpace Coin) · Soft: **WeixBucks**
+**Product mark:** **BlkSpace** · Soft: **WeixBucks** · Canonical on-chain: **BI9** on HyperEVM ([`tokenomics.md`](tokenomics.md)) · Legacy Solana ticker: **BKSPC**
 
 This doc answers: *what works today, multi-OS status, what “BlkSpace-Full” means, and what Tier C / Phase 5 are.*
 
@@ -113,12 +113,22 @@ Spec: [`features/project-connect-credibility-layer.md`](features/project-connect
 - ~~Bundle size budget in CI~~ ✅ — job `bundle-budget-tier0` → `check:bundle:tier0`
 - ~~`tauri:dev:tier0` without Iroh~~ ✅ — script in `artifacts/blkspace/package.json`
 
-### 4. Phase 4 marketplace / BKSPC settlement (devnet → mainnet only after Cred gates)
+### 4. Phase 4 marketplace / on-chain settlement (HyperEVM mainnet path — active)
 
-- Mint → list → BKSPC burn → seller paid → **buyer owns NFT**
-- Withdraw eligibility includes **credibility_score** + completions (see Connect doc)
-- Walkthrough: [`phase-4-devnet-demo.md`](phase-4-devnet-demo.md)
-- Token name: **BKSPC = BlkSpace Coin** — [`tokenomics-policy.md`](tokenomics-policy.md)
+**User jump (2026-08-27):** mainnet deploy path + advanced `/wallet` panel. Mint stays **off** until a timelocked `setCap`. WeixBucks still do not convert.
+
+**Canonical chain (2026-08-26):** HyperEVM. Token: **BI9**. Specs: [`finance-l1-strategy.md`](finance-l1-strategy.md) · [`tokenomics.md`](tokenomics.md) · [`blkbridge.md`](blkbridge.md) · [`blkshi.md`](blkshi.md)
+
+- Keep WeixBucks as the live campus loop. **No automatic WB → BI9.**
+- Solidity skeleton: `Code-Companion/artifacts/hyperevm/` (ERC-20 + HYPE stake + timelock)
+- BlkBridge v1 is a kiosk over existing rails (not a custom L1 bridge)
+- BLKSHI is gated advanced mode only — not a public US event-contract launch
+- Solana BKSPC / Anchor remains optional wallet-reach scaffolding, not the mint home
+
+### 4b. Legacy Solana BKSPC scaffolding (not canonical)
+
+- Devnet mint / burn walkthrough: [`phase-4-devnet-demo.md`](phase-4-devnet-demo.md)
+- Historical policy: [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md)
 
 ### DevOps milestones (CI reality)
 

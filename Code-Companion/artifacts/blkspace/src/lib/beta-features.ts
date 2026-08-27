@@ -26,4 +26,6 @@ export const BETA_FEATURES = {
   showSidebarTrending: () => !tier0Lite,
   /** Web preview uses seed/sample data */
   isWebPreview: () => !isTauri(),
+  /** BlkFinance / HyperEVM advanced panel — hidden on Yard lite (4 GB path) */
+  showBlkFinance: () => !tier0Lite,
 } as const;

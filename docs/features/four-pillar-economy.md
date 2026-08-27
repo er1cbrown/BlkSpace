@@ -2,7 +2,9 @@
 
 **Status:** Product architecture — implemented in UX + progression v2 (2026-08)  
 **Audience:** Faculty, counsel, students, IEEE-style reviewers  
-**Related:** [`wb-progression-v2.md`](wb-progression-v2.md) · [`project-connect-credibility-layer.md`](project-connect-credibility-layer.md) · [`../tokenomics-policy.md`](../tokenomics-policy.md) · [`../economy-student-terms.md`](../economy-student-terms.md)
+**Related:** [`wb-progression-v2.md`](wb-progression-v2.md) · [`project-connect-credibility-layer.md`](project-connect-credibility-layer.md) · [`../tokenomics.md`](../tokenomics.md) (canonical: BI9 on HyperEVM) · [`../tokenomics-policy.md`](../tokenomics-policy.md) · [`../economy-student-terms.md`](../economy-student-terms.md)
+
+> **Settlement chain (2026-08-26):** optional on-chain asset is **BI9 on HyperEVM**, not Solana BKSPC. Pillar 4 in this campus doc remains “settlement is later and gated.” See [`../finance-l1-strategy.md`](../finance-l1-strategy.md).
 
 ---
 
@@ -17,9 +19,9 @@ It teaches value, trust, fees, and settlement—**not** day trading, brokerage a
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│  4 · SETTLEMENT (BKSPC)                                      │
-│  Optional one-way receipt of *earned* surplus after gates    │
-│  Devnet / counsel · not student investment advice            │
+│  4 · SETTLEMENT (BI9 on HyperEVM)                            │
+│  Optional advanced on-chain asset. No WB → BI9.              │
+│  Cap 0 until timelocked governance · not student advice      │
 └────────────────────────────▲────────────────────────────────┘
                              │ only after 2 + 3
 ┌────────────────────────────┴────────────────────────────────┐

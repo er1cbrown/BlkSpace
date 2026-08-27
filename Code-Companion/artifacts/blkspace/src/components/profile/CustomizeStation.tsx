@@ -23,8 +23,9 @@ import {
   type CardRadiusId,
 } from "@/lib/myyard-layout";
 import { MYARD_PROFILE_THEMES } from "@/lib/myyard-catalog";
+import { MYYARD_PAGE_TEMPLATES } from "@/lib/myyard-page-templates";
 import type { TauriBlobInfo } from "@/lib/tauri-api";
-import { isTauri } from "@/lib/tauri-api";
+import { isTauri, tauriOpenMyYardCss } from "@/lib/tauri-api";
 import {
   ImagePlus,
   Music,
@@ -44,6 +45,11 @@ import {
   saveWebProfileMusic,
 } from "@/lib/profile-music-web";
 import { toast } from "sonner";
+import { MyYardLazyVimGuide } from "@/components/profile/MyYardLazyVimGuide";
+import {
+  cssForLazyVimOpen,
+  MYYARD_LAZYVIM_STARTER_CSS,
+} from "@/lib/myyard-lazyvim-lesson";
 
 type ThemeKey = "classic" | "pro" | "vibrant" | "myspace";
 
@@ -205,6 +211,30 @@ export function CustomizeStation({
         </TabsList>
 
         <TabsContent value="look" className="space-y-4 mt-4">
+          <div>
+            <Label className="text-sm font-medium">Page template</Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              React templates — Myspace diversity without writing CSS first.
+              Visual / audio nuance can stack on later.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {MYYARD_PAGE_TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  className="rounded-xl border p-3 text-left hover:border-primary/50"
+                  onClick={() => {
+                    setTheme(tpl.theme);
+                    patchA(tpl.aesthetic);
+                    toast.success(`${tpl.label} applied — Save MyYard`);
+                  }}
+                >
+                  <p className="text-sm font-medium">{tpl.label}</p>
+                  <p className="text-[11px] text-muted-foreground">{tpl.blurb}</p>
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <Label className="text-sm font-medium">Base theme</Label>
             <p className="text-xs text-muted-foreground mb-2">
@@ -499,7 +529,8 @@ export function CustomizeStation({
             <div>
               <p className="font-medium text-sm">Profile song on page</p>
               <p className="text-xs text-muted-foreground">
-                Classic MySpace energy — visitors hear your track
+                Classic MySpace energy — visitors hear your track. Pick the
+                file here; LazyVim is only for page CSS (Look / CSS tabs).
               </p>
             </div>
             <Switch
@@ -621,8 +652,30 @@ export function CustomizeStation({
         </TabsContent>
 
         <TabsContent value="css" className="space-y-3 mt-4">
+          <MyYardLazyVimGuide
+            onPasteStarter={() => {
+              patchA({ customCss: MYYARD_LAZYVIM_STARTER_CSS });
+              toast.success("Starter CSS pasted — edit or Open in LazyVim");
+            }}
+            canOpenLazyVim={isTauri()}
+            onOpenLazyVim={() => {
+              tauriOpenMyYardCss(
+                getCurrentHandle() || "me",
+                cssForLazyVimOpen(a.customCss),
+                true,
+              )
+                .then((p) =>
+                  toast.success(
+                    `LazyVim: ${p} — i to type, Esc, :wq then Load CSS file`,
+                  ),
+                )
+                .catch((err) =>
+                  toast.error(String(err) || "Could not open LazyVim"),
+                );
+            }}
+          />
           <p className="text-sm text-muted-foreground">
-            Advanced — styles apply only to your profile card (
+            CSS paints only your profile card (
             <code className="text-xs">.myyard-root</code>). Scripts and{" "}
             <code className="text-xs">@import</code> are stripped.
           </p>
@@ -633,9 +686,69 @@ export function CustomizeStation({
             className="font-mono text-xs min-h-[160px]"
           />
           <p className="text-[11px] text-muted-foreground">
-            Max ~4k characters. Prefer Look controls when you can — CSS is for
-            power users.
+            Max ~12k characters. Prefer Look templates when you can — CSS is
+            for power users (edit in LazyVim locally, then load the file).
           </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const blob = new Blob([a.customCss || ""], {
+                  type: "text/css",
+                });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "myyard.css";
+                link.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Save CSS file
+            </Button>
+            <label className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-xs font-medium cursor-pointer hover:bg-accent">
+              Load CSS file
+              <input
+                type="file"
+                accept=".css,text/css"
+                className="sr-only"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  const text = await f.text();
+                  patchA({ customCss: text });
+                  toast.success("CSS loaded — Save MyYard");
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {isTauri() && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  tauriOpenMyYardCss(
+                    getCurrentHandle() || "me",
+                    cssForLazyVimOpen(a.customCss),
+                    true,
+                  )
+                    .then((p) =>
+                      toast.success(
+                        `LazyVim: ${p} — i, Esc, :wq then Load CSS file`,
+                      ),
+                    )
+                    .catch((err) =>
+                      toast.error(String(err) || "Could not open LazyVim"),
+                    );
+                }}
+              >
+                Open in LazyVim
+              </Button>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="modules" className="space-y-3 mt-4">

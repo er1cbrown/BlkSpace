@@ -1,9 +1,15 @@
 # BKSPC Tokenomics Policy
 
-**Status:** Proposed – Phase A (Devnet)  
+**Status:** Proposed – Phase A (Devnet) — **superseded as the canonical coin home**  
 **Date:** 2026-08-25  
-**Token:** BKSPC (BlkSpace Coin)  
-**Chain:** Solana (Devnet first, Mainnet only after gates)  
+**Token:** BKSPC (BlkSpace Coin) — Solana scaffolding name  
+**Chain:** Solana (Devnet first) — **not** the home of BI9
+
+> **2026-08-26 product decision:** canonical on-chain asset is **BLACKINCCOIN (BI9)** on **HyperEVM**.  
+> Read [`tokenomics.md`](tokenomics.md) and [`finance-l1-strategy.md`](finance-l1-strategy.md) first.  
+> This file keeps the earlier Solana earned-settlement lock (Design 1) as a **historical / optional wallet-reach** note. It does **not** define BI9 minting. WeixBucks still do not auto-convert.
+
+**Related (canonical):** [`tokenomics.md`](tokenomics.md) · [`blkbridge.md`](blkbridge.md) · [`blkshi.md`](blkshi.md)  
 **Related:** Design 1 – Earned Settlement + Fee-Burn Model  
 **Repo path:** this file. Implementation tickets: [`bkspc-phase0-phase1-tickets.md`](bkspc-phase0-phase1-tickets.md). Published constants still live in [`tokenomics-policy.md`](tokenomics-policy.md) + `TokenomicsPolicy::published()`.
 
