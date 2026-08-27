@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  normalizeTape,
   parseMyYardLayout,
   sanitizeCustomCss,
   scopeCustomCss,
+  tapeIsPlaylist,
 } from "@/lib/myyard-layout";
 import { MYYARD_PAGE_TEMPLATES } from "@/lib/myyard-page-templates";
 import {
@@ -93,5 +95,13 @@ describe("MyYard CSS + templates", () => {
     expect(cssForLazyVimOpen("")).toContain("i     type");
     expect(cssForLazyVimOpen("")).toBe(MYYARD_LAZYVIM_STARTER_CSS);
     expect(cssForLazyVimOpen("color: red;")).toBe("color: red;");
+  });
+
+  it("only treats 2+ hashes as a playlist", () => {
+    expect(normalizeTape(undefined, "lead")).toEqual(["lead"]);
+    expect(tapeIsPlaylist(normalizeTape(undefined, "lead"))).toBe(false);
+    expect(tapeIsPlaylist(normalizeTape(["a"]))).toBe(false);
+    expect(tapeIsPlaylist(normalizeTape(["a", "b"]))).toBe(true);
+    expect(normalizeTape(["a", "a", "b"], "z")).toEqual(["a", "b"]);
   });
 });

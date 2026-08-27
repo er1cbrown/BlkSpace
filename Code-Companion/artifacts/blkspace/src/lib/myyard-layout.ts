@@ -100,6 +100,11 @@ export interface MyYardAesthetic {
   showMusic: boolean;
   showGallery: boolean;
   /**
+   * Ordered tape hashes. Empty or one track = single song (no skip/playlist).
+   * Two or more = playlist. Lead track is [0] (also stored as users.music_hash).
+   */
+  playlistHashes: string[];
+  /**
    * Optional custom CSS applied to `.myyard-root` only.
    * Sanitized before save/apply — no scripts, no external imports.
    */
@@ -141,6 +146,7 @@ export const DEFAULT_AESTHETIC: MyYardAesthetic = {
   showTopFriends: true,
   showMusic: true,
   showGallery: true,
+  playlistHashes: [],
   customCss: "",
   fx: "none",
   cursorPack: "default",
@@ -159,6 +165,32 @@ export const DEFAULT_MYYARD_LAYOUT: MyYardLayout = {
 
 export const MAX_CSS_LEN = 24000;
 const MAX_GALLERY = 8;
+export const MAX_PLAYLIST = 12;
+
+export function normalizeTape(
+  playlistHashes: string[] | undefined | null,
+  leadHash?: string | null,
+): string[] {
+  const fromList = (playlistHashes ?? [])
+    .map((h) => String(h).trim())
+    .filter(Boolean);
+  const lead = (leadHash ?? "").trim();
+  const merged = fromList.length > 0 ? fromList : lead ? [lead] : [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const h of merged) {
+    if (seen.has(h)) continue;
+    seen.add(h);
+    out.push(h);
+    if (out.length >= MAX_PLAYLIST) break;
+  }
+  return out;
+}
+
+/** Playlist chrome + auto-advance only when there are 2+ tracks. */
+export function tapeIsPlaylist(hashes: string[]): boolean {
+  return hashes.length > 1;
+}
 
 /** Strip dangerous constructs from custom CSS (MySpace energy, safer surface). */
 export function sanitizeCustomCss(raw: string): string {
@@ -303,6 +335,7 @@ export function parseMyYardLayout(
             ? (a as MyYardAesthetic).galleryDataUrls
             : {},
         customCss: sanitizeCustomCss((a as MyYardAesthetic).customCss || ""),
+        playlistHashes: normalizeTape((a as MyYardAesthetic).playlistHashes),
         fx: clampFx((a as MyYardAesthetic).fx),
         cursorPack: clampCursor((a as MyYardAesthetic).cursorPack),
         textFx: clampTextFx((a as MyYardAesthetic).textFx),
@@ -338,6 +371,10 @@ export function mergeMyYardLayout(
             current.aesthetic?.galleryHashes ??
             []
           ).slice(0, MAX_GALLERY),
+          playlistHashes: normalizeTape(
+            patch.aesthetic.playlistHashes ??
+              current.aesthetic?.playlistHashes,
+          ),
         }
       : current.aesthetic
         ? { ...DEFAULT_AESTHETIC, ...current.aesthetic }
@@ -353,6 +390,7 @@ export function serializeMyYardLayout(layout: MyYardLayout): string {
           ...layout.aesthetic,
           customCss: sanitizeCustomCss(layout.aesthetic.customCss),
           galleryHashes: layout.aesthetic.galleryHashes.slice(0, MAX_GALLERY),
+          playlistHashes: normalizeTape(layout.aesthetic.playlistHashes),
         }
       : undefined,
   };

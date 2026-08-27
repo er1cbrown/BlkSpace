@@ -19,7 +19,7 @@ Your public profile is a **MyYard** — not the campus yard skin:
 | Profile song | Audio from uploads |
 | Top 8 | Toggle |
 | Page templates | Campus wall · MyYard night · Clean notes · Portal neon · Tribute gold · **Y2K glitter** · **Cyber yard** |
-| Profile song | One track — play / pause / mute / seek (not a playlist). Music tab only. |
+| Profile song / tape | One track = song (play / pause / mute / **volume knob**). **Two or more** = tape (skip + playlist). Music tab only. |
 | Pimp packs | Y2K glitter · Cyber yard · Vapor wave · Underground zine · Gold front — FX + cursor + name treatment + starter CSS |
 | Page FX | Sparkle · glitter · scanlines · grain · VHS (built-in overlays, no remote GIFs) |
 | Custom CSS | **Pimp / CSS** tab, sanitized, scoped to `.myyard-root`. `@keyframes` allowed. Remote `url(https)` + `@import` stripped. 24k cap. |

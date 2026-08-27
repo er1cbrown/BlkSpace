@@ -8,7 +8,7 @@ import {
   CardFooter,
   CardDescription,
 } from "@/components/ui/card";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -76,6 +76,7 @@ import {
   mergeMyYardLayout,
   serializeMyYardLayout,
   DEFAULT_AESTHETIC,
+  normalizeTape,
   type MyYardLayout,
 } from "@/lib/myyard-layout";
 import { loadLocalMyYard, saveLocalMyYard } from "@/lib/myyard-storage";
@@ -137,7 +138,9 @@ export default function ProfilePage() {
     useState<MyYardLayout | null>(null);
   const [profileTab, setProfileTab] = useState("grid");
   const profileTabsRef = useRef<HTMLDivElement>(null);
-  const [audioSrc, setAudioSrc] = useState<string | null>(null); // for real Iroh play
+  const [srcById, setSrcById] = useState<Record<string, string>>({});
+  const srcByIdRef = useRef<Record<string, string>>({});
+  const inflightTracks = useRef<Set<string>>(new Set());
   const [wallText, setWallText] = useState(""); // for visitor wall posts
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
   const [selectedTown, setSelectedTown] = useState<string>("tsu"); // fallback for wall posts etc.
@@ -189,7 +192,65 @@ export default function ProfilePage() {
     ? getYardTheme(myyardLayout.yardPackId)
     : null;
 
+  const tapeIds = useMemo(
+    () => normalizeTape(aesthetic.playlistHashes, profileSong),
+    [aesthetic.playlistHashes, profileSong],
+  );
   const currentSongBlob = audioBlobs.find((b) => b.hash === profileSong);
+
+  const requestTrack = useCallback(
+    (id: string) => {
+      if (!id || srcByIdRef.current[id] || inflightTracks.current.has(id)) {
+        return;
+      }
+      inflightTracks.current.add(id);
+      if (!isTauri()) {
+        void import("@/lib/profile-music-web").then(({ loadWebProfileTape }) => {
+          const rec = loadWebProfileTape(profileHandle).find((t) => t.id === id);
+          inflightTracks.current.delete(id);
+          if (!rec?.dataUrl) return;
+          srcByIdRef.current[id] = rec.dataUrl;
+          setSrcById((p) => ({ ...p, [id]: rec.dataUrl }));
+        });
+        return;
+      }
+      const token = getSessionToken() || "";
+      Promise.all([
+        tauriGetBlobMetadata(token, id).catch(() => null),
+        tauriGetBlobBytes(token, id),
+      ])
+        .then(([meta, b64]) => {
+          inflightTracks.current.delete(id);
+          if (!b64) return;
+          const mime = meta?.mimeType || "audio/mpeg";
+          const bin = atob(b64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+          srcByIdRef.current[id] = url;
+          setSrcById((p) => ({ ...p, [id]: url }));
+        })
+        .catch(() => {
+          inflightTracks.current.delete(id);
+        });
+    },
+    [profileHandle],
+  );
+
+  useEffect(() => {
+    return () => {
+      for (const url of Object.values(srcByIdRef.current)) {
+        if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+      }
+    };
+  }, []);
+
+  const tapeTracks = tapeIds.map((id) => ({
+    id,
+    src: srcById[id] ?? null,
+    name: audioBlobs.find((b) => b.hash === id)?.filename,
+  }));
+  const audioSrc = (profileSong && srcById[profileSong]) || tapeTracks[0]?.src || null;
 
   const profilePubkey = useMemo(() => {
     const fromUser = user?.pubkey?.trim() ?? "";
@@ -211,9 +272,9 @@ export default function ProfilePage() {
     }
     // Web: restore browser-local profile song when account field empty
     if (!isTauri()) {
-      void import("@/lib/profile-music-web").then(({ loadWebProfileMusic }) => {
-        const rec = loadWebProfileMusic(profileHandle);
-        if (rec) setProfileSong(rec.id);
+      void import("@/lib/profile-music-web").then(({ loadWebProfileTape }) => {
+        const tape = loadWebProfileTape(profileHandle);
+        if (tape[0]) setProfileSong(tape[0].id);
         else setProfileSong(null);
       });
       return;
@@ -282,54 +343,11 @@ export default function ProfilePage() {
     setIsFollowing(merged.has(target));
   }, [handle, currentUser, remoteFollowing]);
 
-  // Profile song: Tauri blob (correct mime + blob URL) or web data-URL.
-  // Guests can still hear a public profile track (empty session token).
+  // Load lead track. Extra tape tracks load lazily via onNeedTrack (only if 2+).
   useEffect(() => {
-    let objectUrl: string | null = null;
-    let cancelled = false;
-    if (!profileSong) {
-      setAudioSrc(null);
-      return;
-    }
-    if (!isTauri()) {
-      void import("@/lib/profile-music-web").then(({ loadWebProfileMusic }) => {
-        if (cancelled) return;
-        const rec = loadWebProfileMusic(profileHandle);
-        setAudioSrc(rec?.dataUrl ?? null);
-        if (rec && profileSong !== rec.id) {
-          setProfileSong(rec.id);
-        }
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
-    const token = getSessionToken() || "";
-    Promise.all([
-      tauriGetBlobMetadata(token, profileSong).catch(() => null),
-      tauriGetBlobBytes(token, profileSong),
-    ])
-      .then(([meta, b64]) => {
-        if (cancelled) return;
-        if (!b64) {
-          setAudioSrc(null);
-          return;
-        }
-        const mime = meta?.mimeType || "audio/mpeg";
-        const bin = atob(b64);
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        objectUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
-        setAudioSrc(objectUrl);
-      })
-      .catch(() => {
-        if (!cancelled) setAudioSrc(null);
-      });
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [profileSong, profileHandle]);
+    const lead = tapeIds[0] || profileSong;
+    if (lead) requestTrack(lead);
+  }, [tapeIds, profileSong, requestTrack]);
 
   // Banner image from blob hash
   useEffect(() => {
@@ -393,10 +411,10 @@ export default function ProfilePage() {
                   {user.displayName?.charAt(0) ?? "?"}
                 </AvatarFallback>
               </Avatar>
-              {profileSong && aesthetic.showMusic && (
+              {tapeIds.length > 0 && aesthetic.showMusic && (
                 <div className="mb-2 w-[min(18rem,calc(100vw-7rem))]">
                   <ProfileMusicPlayer
-                    hash={profileSong}
+                    hash={tapeIds[0] || profileSong}
                     src={audioSrc}
                     trackName={
                       currentSongBlob?.filename ||
@@ -406,6 +424,8 @@ export default function ProfilePage() {
                     }
                     subtitle="Now playing"
                     compact
+                    tracks={tapeTracks}
+                    onNeedTrack={requestTrack}
                   />
                 </div>
               )}
@@ -943,10 +963,12 @@ export default function ProfilePage() {
                       <Music className="w-8 h-8 text-primary" />
                       <div>
                         <div className="font-semibold text-xl">
-                          Profile Song
+                          {tapeIds.length > 1 ? "Profile tape" : "Profile Song"}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          MyYard classic — visitors hear your vibe
+                          {tapeIds.length > 1
+                            ? "Visitors hear your tape — skip only when 2+ tracks"
+                            : "MyYard classic — visitors hear your vibe"}
                         </div>
                       </div>
                     </div>
@@ -969,7 +991,7 @@ export default function ProfilePage() {
 
                         <div className="bg-muted/40 p-3 rounded-lg">
                           <ProfileMusicPlayer
-                            hash={profileSong}
+                            hash={tapeIds[0] || profileSong}
                             src={audioSrc}
                             trackName={
                               currentSongBlob?.filename ||
@@ -977,12 +999,16 @@ export default function ProfilePage() {
                               undefined
                             }
                             subtitle={
-                              profileSong
-                                ? isOwnProfile
-                                  ? "Your profile song"
-                                  : "Profile song"
-                                : "No song set yet"
+                              tapeIds.length > 1
+                                ? "Your tape"
+                                : profileSong
+                                  ? isOwnProfile
+                                    ? "Your profile song"
+                                    : "Profile song"
+                                  : "No song set yet"
                             }
+                            tracks={tapeTracks}
+                            onNeedTrack={requestTrack}
                           />
                           <p className="text-[10px] text-center mt-2 text-muted-foreground">
                             {isTauri()
@@ -1013,9 +1039,17 @@ export default function ProfilePage() {
                                       ? "default"
                                       : "outline"
                                   }
-                                  onClick={() =>
-                                    saveCustomization(profileTheme, blob.hash)
-                                  }
+                                  onClick={() => {
+                                    persistMyYardLayout(
+                                      mergeMyYardLayout(myyardLayout, {
+                                        aesthetic: {
+                                          ...aesthetic,
+                                          playlistHashes: [blob.hash],
+                                        },
+                                      }),
+                                    );
+                                    saveCustomization(profileTheme, blob.hash);
+                                  }}
                                   disabled={updateCustomization.isPending}
                                 >
                                   {profileSong === blob.hash ? "✓ " : ""}
@@ -1027,9 +1061,17 @@ export default function ProfilePage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() =>
-                                  saveCustomization(profileTheme, null)
-                                }
+                                onClick={() => {
+                                  persistMyYardLayout(
+                                    mergeMyYardLayout(myyardLayout, {
+                                      aesthetic: {
+                                        ...aesthetic,
+                                        playlistHashes: [],
+                                      },
+                                    }),
+                                  );
+                                  saveCustomization(profileTheme, null);
+                                }}
                                 disabled={updateCustomization.isPending}
                               >
                                 Clear profile song

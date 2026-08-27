@@ -16,9 +16,12 @@ import {
   BANNER_GRADIENTS,
   DEFAULT_AESTHETIC,
   MAX_CSS_LEN,
+  MAX_PLAYLIST,
+  mergeMyYardLayout,
+  normalizeTape,
+  tapeIsPlaylist,
   type MyYardAesthetic,
   type MyYardLayout,
-  mergeMyYardLayout,
   type BgPatternId,
   type FontStyleId,
   type CardRadiusId,
@@ -42,8 +45,9 @@ import {
 import { cn } from "@/lib/utils";
 import { getCurrentHandle } from "@/lib/auth";
 import {
+  MAX_WEB_TAPE,
+  appendWebProfileTrack,
   clearWebProfileMusic,
-  saveWebProfileMusic,
 } from "@/lib/profile-music-web";
 import { toast } from "sonner";
 import { MyYardLazyVimGuide } from "@/components/profile/MyYardLazyVimGuide";
@@ -104,9 +108,15 @@ export function CustomizeStation({
   onSave,
 }: Props) {
   const [theme, setTheme] = useState<ThemeKey>(profileTheme);
-  const [music, setMusic] = useState<string | null>(profileSong);
-  const [a, setA] = useState<MyYardAesthetic>(
-    () => layout.aesthetic || { ...DEFAULT_AESTHETIC },
+  const [a, setA] = useState<MyYardAesthetic>(() => {
+    const base = { ...DEFAULT_AESTHETIC, ...(layout.aesthetic || {}) };
+    return {
+      ...base,
+      playlistHashes: normalizeTape(base.playlistHashes, profileSong),
+    };
+  });
+  const [music, setMusic] = useState<string | null>(
+    () => normalizeTape(layout.aesthetic?.playlistHashes, profileSong)[0] ?? profileSong,
   );
   const [modules, setModules] = useState(
     () => layout.modules || { logosDeck: false, bibleNlp: false },
@@ -124,6 +134,15 @@ export function CustomizeStation({
 
   const patchA = (p: Partial<MyYardAesthetic>) =>
     setA((prev) => ({ ...prev, ...p }));
+
+  const setTape = (next: string[]) => {
+    const n = normalizeTape(next);
+    patchA({ playlistHashes: n });
+    setMusic(n[0] || null);
+  };
+
+  const tape = normalizeTape(a.playlistHashes, music);
+  const hasPlaylist = tapeIsPlaylist(tape);
 
   const readFileAsDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
@@ -156,10 +175,13 @@ export function CustomizeStation({
   };
 
   const save = () => {
+    const hashes = normalizeTape(a.playlistHashes, music);
     onSave({
-      layout: draftLayout,
+      layout: mergeMyYardLayout(draftLayout, {
+        aesthetic: { ...a, playlistHashes: hashes },
+      }),
       theme,
-      musicHash: music,
+      musicHash: hashes[0] || null,
     });
   };
 
@@ -529,10 +551,12 @@ export function CustomizeStation({
         <TabsContent value="music" className="space-y-4 mt-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-sm">Profile song on page</p>
+              <p className="font-medium text-sm">
+                {hasPlaylist ? "Profile tape" : "Profile song on page"}
+              </p>
               <p className="text-xs text-muted-foreground">
-                Classic MySpace energy — visitors hear your track. Pick the
-                file here; LazyVim is only for page CSS (Look / CSS tabs).
+                One track = a single song (play, pause, volume). Add a second
+                track to run skip / playlist. LazyVim does not play audio.
               </p>
             </div>
             <Switch
@@ -553,71 +577,137 @@ export function CustomizeStation({
                     toast.error("Keep audio under 8 MB for browser storage");
                     return;
                   }
+                  const handle = getCurrentHandle();
+                  if (tape.length >= MAX_WEB_TAPE) {
+                    toast.error(`Web tape max ${MAX_WEB_TAPE} tracks`);
+                    return;
+                  }
                   void (async () => {
                     const dataUrl = await readFileAsDataUrl(f);
-                    const handle = getCurrentHandle();
-                    const rec = saveWebProfileMusic(handle, {
+                    const next = appendWebProfileTrack(handle, {
                       trackName: f.name,
                       dataUrl,
                     });
-                    setMusic(rec.id);
-                    toast.success("Profile song ready — Save MyYard");
+                    setTape(next.map((t) => t.id));
+                    toast.success(
+                      next.length > 1
+                        ? `Tape: ${next.length} tracks — Save MyYard`
+                        : "Profile song ready — Save MyYard",
+                    );
                   })();
                 }}
               />
               <p className="text-[11px] text-muted-foreground">
-                Stored in this browser only (Tier 0 web path). Desktop uses
-                account blobs.
+                Browser storage only. Max {MAX_WEB_TAPE} tracks on web.
+                Desktop hashes can hold {MAX_PLAYLIST}.
               </p>
             </div>
           )}
           {audioBlobs.length === 0 && isTauri() ? (
             <p className="text-sm text-muted-foreground">
-              Upload audio from Media or Create (desktop) to pick a profile song.
+              Upload audio from Media or Create (desktop), then tap tracks to
+              build a tape.
             </p>
           ) : audioBlobs.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {audioBlobs.map((b) => (
-                <Button
-                  key={b.hash}
-                  size="sm"
-                  variant={music === b.hash ? "default" : "outline"}
-                  onClick={() => setMusic(b.hash)}
-                >
-                  {music === b.hash ? "✓ " : ""}
-                  {b.filename}
-                </Button>
-              ))}
-              {music && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setMusic(null);
-                    if (!isTauri()) clearWebProfileMusic(getCurrentHandle());
-                  }}
-                >
-                  Clear song
-                </Button>
-              )}
+              {audioBlobs.map((b) => {
+                const on = tape.includes(b.hash);
+                return (
+                  <Button
+                    key={b.hash}
+                    size="sm"
+                    variant={on ? "default" : "outline"}
+                    onClick={() => {
+                      if (on) setTape(tape.filter((h) => h !== b.hash));
+                      else if (tape.length >= MAX_PLAYLIST) {
+                        toast.error(`Tape max ${MAX_PLAYLIST} tracks`);
+                      } else setTape([...tape, b.hash]);
+                    }}
+                  >
+                    {on ? "✓ " : "+ "}
+                    {b.filename}
+                  </Button>
+                );
+              })}
             </div>
-          ) : music && !isTauri() ? (
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="default">
-                ✓ Web track set
-              </Button>
+          ) : null}
+
+          {tape.length > 0 && (
+            <div className="rounded-xl border p-3 space-y-2">
+              <p className="text-xs font-medium">
+                {hasPlaylist
+                  ? `Tape order (${tape.length}) — skip is on`
+                  : "Single song — add another track to enable skip"}
+              </p>
+              <ol className="space-y-1">
+                {tape.map((id, i) => (
+                  <li
+                    key={id}
+                    className="flex items-center gap-2 text-xs"
+                  >
+                    <span className="tabular-nums text-muted-foreground w-4">
+                      {i + 1}
+                    </span>
+                    <span className="flex-1 truncate">
+                      {audioBlobs.find((b) => b.hash === id)?.filename ||
+                        `${id.slice(0, 12)}…`}
+                    </span>
+                    {hasPlaylist && (
+                      <>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2"
+                          disabled={i === 0}
+                          onClick={() => {
+                            const n = [...tape];
+                            [n[i - 1], n[i]] = [n[i], n[i - 1]];
+                            setTape(n);
+                          }}
+                        >
+                          ↑
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2"
+                          disabled={i === tape.length - 1}
+                          onClick={() => {
+                            const n = [...tape];
+                            [n[i + 1], n[i]] = [n[i], n[i + 1]];
+                            setTape(n);
+                          }}
+                        >
+                          ↓
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2"
+                      onClick={() => setTape(tape.filter((h) => h !== id))}
+                    >
+                      ×
+                    </Button>
+                  </li>
+                ))}
+              </ol>
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => {
-                  setMusic(null);
-                  clearWebProfileMusic(getCurrentHandle());
+                  setTape([]);
+                  if (!isTauri()) clearWebProfileMusic(getCurrentHandle());
                 }}
               >
-                Clear song
+                Clear {hasPlaylist ? "tape" : "song"}
               </Button>
             </div>
-          ) : null}
+          )}
         </TabsContent>
 
         <TabsContent value="type" className="space-y-4 mt-4">
