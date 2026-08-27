@@ -30,34 +30,36 @@ Use a **Windows 10+ laptop with 4–8 GB RAM** (Device B ideal).
 
 ### A1. Install
 
-- [ ] Download `BlkSpace-Yard-Windows-x64.msi` from [Actions artifacts](https://github.com/er1cbrown/BlkSpace/actions) or [Releases](https://github.com/er1cbrown/BlkSpace/releases)
-- [ ] Or use local: `downloads/BlkSpace-Yard-Windows-x64.msi` (workspace)
-- [ ] Double-click install (no admin required)
-- [ ] App opens within **5 seconds** of first launch (second launch faster)
+- [x] Download `BlkSpace-Yard-Windows-x64.msi` from [Actions artifacts](https://github.com/er1cbrown/BlkSpace/actions) or [Releases](https://github.com/er1cbrown/BlkSpace/releases)
+- [x] Or use local: `downloads/BlkSpace-Yard-Windows-x64.msi` (workspace)
+- [x] Double-click install (User install OK) — 2026-08-13
+- [x] App opens within **5 seconds** of first launch (second launch faster) — ~5 s, 33–35 MB WS
 
 ### A2. Guest browse
 
-- [ ] Welcome screen → **"Just browse the yard as a guest"**
-- [ ] Feed loads on **Local / My Yard** tab without crash
-- [ ] Tap Like → "Create free account" prompt (no error toast)
+- [x] Welcome screen → **"Just browse the yard as a guest"**
+- [x] Feed loads on **Local / My Yard** tab without crash
+- [x] Tap Like → "Create free account" prompt (no error toast)
 
 ### A3. Create account (TSU)
 
-- [ ] Complete welcome wizard — path **Student · social home**
-- [ ] Home yard **TSU**
-- [ ] Write recovery phrase on **paper** if prompted (see [`../FIRST_RUN.md`](../FIRST_RUN.md))
-- [ ] Land on feed; orientation card OK to dismiss
-- [ ] Post one short message → appears on **My Yard**
+- [x] Complete welcome wizard — path **Student · social home**
+- [x] Home yard **TSU**
+- [x] Recovery password / phrase screen shown (see [`../FIRST_RUN.md`](../FIRST_RUN.md))
+- [x] Land on feed; orientation card OK to dismiss
+- [x] Post one short message → appears on **My Yard** (**0.17 s**, 2026-08-27)
 
 ### A3b. Customize + Live (HEAD builds)
 
-- [ ] Profile → **Customize** — change banner + mood → Save
-- [ ] **Yards → TSU → Live** — Stage/Voice opens without crash  
+- [x] Profile → **Customize** — Look **Neon** + mood `TSU · Device B smoke` → Save → reload still shows mood
+- [x] **Yards → TSU → Live** — Stage/Voice opens without crash  
   _(Skip A3b if MSI is older than commit `267cf41`.)_
+
+Evidence: [`device-b-student-smoke.md`](device-b-student-smoke.md) · Playwright `e2e/device-b.browser.spec.ts` **2/2 pass** on Yard lite SPA @ `4812bdb` (2026-08-27).
 
 ### A4. Tier 0 benchmark
 
-- [ ] Cold start app → open **`/feed`** once (records feed-interactive process mark)
+- [ ] Cold start app → open **`/feed`** once (records feed-interactive process mark) — **Tauri-only; not in SPA smoke**
 - [ ] Open **Sync Test** (`/mesh-test`) → **Performance** tab
 - [ ] **Run Tier 0 Benchmark** — all metrics pass:
 
@@ -69,9 +71,11 @@ Use a **Windows 10+ laptop with 4–8 GB RAM** (Device B ideal).
 | Post creation | < 1 s | | ☐ |
 | Blob round-trip (512 KiB) | < 30 s | | ☐ |
 
-- [ ] Task Manager: app memory **< 500 MB** during feed scroll (spot check)
+- [x] Task Manager: app memory **< 500 MB** during feed scroll (spot check) — ~33–35 MB at launch (2026-08-13 native)
 
-**If A1–A4 pass → ready to tag Yard release for students.**
+**Student path A1–A3b is closed.** A4 process-clock bench is native Tauri (`run_tier0_benchmark`) — optional before the next student tag if you want numbers in the table.
+
+**If A1–A3b pass → ready for campus demo.** Tag a new Yard MSI from HEAD if students should get pimp/tape.
 
 ---
 

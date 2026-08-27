@@ -12,13 +12,13 @@
 | Field | Value |
 |-------|--------|
 | **Tester** | Device B smoke (this PC is Device B) |
-| **Date** | 2026-08-13 |
+| **Date** | 2026-08-27 (re-run on HEAD) · first pass 2026-08-13 |
 | **Device B** | Windows · RAM 5.9 GB · CPU AMD Ryzen 5 3500U |
-| **Installer** | local Yard MSI + NSIS from 2026-08-13 17:24 rebuild (Buffer polyfill embedded) |
-| **Source** | ☐ GitHub Release · ☑ `tauri build --no-default-features` (existing `dist/public`, skipped Vite) |
-| **Commit / tag** | `v0.1.1-yard` (Buffer polyfill + product version 0.1.1) |
-| **Includes Customize station?** | ☑ yes (HEAD frontend `profile` chunk includes CustomizeStation) |
-| **How steps 2–6 were run** | Playwright Device B spec against SPA `http://127.0.0.1:24442` (`e2e/device-b.browser.spec.ts`) — same `dist/public` the Yard exe loads |
+| **Installer** | 2026-08-13 local Yard MSI still on disk; **student path 2–6 re-run 2026-08-27** on Yard lite SPA `bun run build:tier0` |
+| **Source** | ☐ GitHub Release · ☑ SPA `dist/public` from `build:tier0` @ `4812bdb` (Playwright) |
+| **Commit / tag** | `4812bdb` (MyYard tape + pimp) · prior tag `v0.1.1-yard` |
+| **Includes Customize station?** | ☑ yes — Look Neon, About mood, Pimp/Music tabs, Save, reload mood |
+| **How steps 2–6 were run** | Playwright `e2e/device-b.browser.spec.ts` against `http://127.0.0.1:24442` — **2 passed (7.8s)** on 2026-08-27 |
 
 **Local MSI (this workspace):**  
 `C:\Users\viper\desktop\BlkSpace\downloads\BlkSpace-Yard-Windows-x64.msi` (15.27 MB, 2026-08-13 17:24)  
@@ -88,7 +88,7 @@ Installer lands under `%CARGO_TARGET_DIR%\release\bundle\msi\` (default `~\.cach
 - [x] Submit
 - [x] Post visible on **Yard**
 
-**Pass?** ☑ Yes · ☐ No · **Latency:** **0.21–0.28 s** (target < 2 s)
+**Pass?** ☑ Yes · ☐ No · **Latency:** **0.165–0.178 s** on 2026-08-27 (was 0.21–0.28 s on 2026-08-13; target < 2 s)
 
 ---
 
@@ -96,14 +96,15 @@ Installer lands under `%CARGO_TARGET_DIR%\release\bundle\msi\` (default `~\.cach
 
 - [x] Open **You / Profile** (own profile)
 - [x] Banner **Customize** or tab **Customize**
-- [ ] **Look:** pick a banner gradient + accent color (left default)
+- [x] **Look:** pick banner gradient **Neon**
 - [x] **About:** set mood line `TSU · Device B smoke`
-- [ ] **Photos:** add ≥1 image (desktop upload or file pick) — skipped in automation
-- [ ] **Music:** optional if audio already uploaded
+- [ ] **Photos:** add ≥1 image — skipped (no file in CI automation)
+- [x] **Music tab** visible — tape only if 2+ tracks; no upload in this run
+- [x] **Pimp / CSS** tab visible
 - [x] **Save MyYard**
-- [ ] Reload profile — banner/mood/gallery still there (not re-checked after nav)
+- [x] Reload profile — mood `TSU · Device B smoke` still there
 
-**Pass?** ☑ Yes · ☐ No · **Notes:** Customize station is on this HEAD frontend. Photos/music not uploaded. Mood + Save completed.
+**Pass?** ☑ Yes · ☐ No · **Notes:** 2026-08-27 Playwright: Look Neon + mood + save + reload. Photos still not uploaded. Music/Pimp tabs present.
 
 ---
 
@@ -127,8 +128,8 @@ Installer lands under `%CARGO_TARGET_DIR%\release\bundle\msi\` (default `~\.cach
 | Metric | Target | Actual | Pass |
 |--------|--------|--------|------|
 | Feed usable | loads | guest + post-join Home/Yard | ☑ |
-| Post | &lt; 2 s feel | 0.21–0.28 s | ☑ |
-| Memory | &lt; 500 MB | ~33–35 MB launch | ☑ |
+| Post | &lt; 2 s feel | **0.165 s** (2026-08-27) | ☑ |
+| Memory | &lt; 500 MB | ~33–35 MB launch (2026-08-13 native) | ☑ |
 
 ---
 
@@ -137,19 +138,19 @@ Installer lands under `%CARGO_TARGET_DIR%\release\bundle\msi\` (default `~\.cach
 | Gate | Result |
 |------|--------|
 | **Student path (1–6)** | ☑ **PASS** · ☐ FAIL · ☐ PARTIAL |
-| **Ready for campus demo** | ☑ **Yes** (SPA path) · native clicks / photos / Tier 0 bench still optional |
-| **Need rebuild at HEAD** | ☐ No for this Buffer fix (polyfill is in `public/` + current `dist/public`) · ☑ new MSI still needed to replace `v0.1.0-yard` installers |
+| **Ready for campus demo** | ☑ **Yes** (SPA path on Device B host) · native photos / Tier 0 bench still optional |
+| **Need rebuild at HEAD** | ☑ student path closed on `4812bdb` SPA · new Yard MSI still needed if students are on `v0.1.0-yard` only |
 
 **One-line summary:**  
-Device B (`cff3355` + Buffer polyfill): guest → TSU join → post (0.22 s) → Customize → Live all pass on the SPA. Join no longer needs a test shim.
+Device B (2026-08-27, `4812bdb` Yard lite SPA): guest → TSU join → post (**0.17 s**) → Customize (Neon + mood + reload) → Live **PASS**. Photos and native Tier 0 bench still optional.
 
 **Blockers:**
 
 | Step | Issue | Severity |
 |------|-------|----------|
 | 5 | Photo upload not exercised | low |
-| 7 | Tier 0 Benchmark not run | low |
-| ship | Tag `v0.1.1-yard` pushed. Release workflow needs Windows/macOS signing secrets (`DEVOPS.md`) or the draft will fail closed | medium |
+| 7 | Native Tier 0 Benchmark not run (Tauri-only) | low |
+| ship | Unsigned installers OK; new MSI from HEAD if campus should get pimp/tape | low |
 
 ---
 

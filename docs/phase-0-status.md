@@ -12,7 +12,7 @@
 ```
 Phase 0 ✅ | Phase 1 ✅ | Phase 2 auto ✅ | Guest mode ✅ | Turso DB ✅ | Multi-OS CI ✅
 Connect+Cred ✅ | Escrow marketplace ✅ | Events/tickets ✅ | Clubs/reading/tournaments ✅ | Studio delivery ✅
-v0.1.0-yard 🏷️ | BKSPC mainnet ⬜ | Live stream ⬜ | M0 Device B smoke ⏳
+v0.1.0-yard 🏷️ | Device B student path ✅ (2026-08-27 SPA) | BKSPC mainnet ⬜ | Live stream ⬜ | M0 mesh ⏳
 ```
 
 ---
@@ -40,13 +40,14 @@ v0.1.0-yard 🏷️ | BKSPC mainnet ⬜ | Live stream ⬜ | M0 Device B smoke �
 
 | Step | Task | Status |
 |------|------|--------|
-| 1 | Install build on Device B | ⏳ |
-| 2 | Bot accounts + join yard | ⏳ |
+| 0 | **Student smoke (TSU · post · Customize · Live)** | ✅ 2026-08-27 SPA Playwright 2/2 |
+| 1 | Install build on Device B | ✅ 2026-08-13 native MSI |
+| 2 | Bot accounts + join yard | ⏳ full M0 |
 | 3 | Assign Yard Mod — confirm badge (§2.6) | ⏳ |
 | 4 | Recover `@test_user` + sync <60s (§1.4–1.5) | ⏳ |
 | 5 | Offline queue flush (§3.1) | ⏳ |
-| 6 | Sync Test → Performance / Tier 0 (§4.1) | ⏳ |
-| 7 | Results file + this dashboard updated | ⏳ |
+| 6 | Sync Test → Performance / Tier 0 (§4.1) | ⏳ native bench |
+| 7 | Results file + this dashboard updated | ✅ student path; mesh M0 still open |
 
 When step 7 passes, set **M0 manual ✅** and **Tier 0 Device B ✅** in the status line above.
 

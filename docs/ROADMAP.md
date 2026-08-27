@@ -94,7 +94,9 @@ Mobile (~10%)           ██░░░░░░░░  Planned (Tauri); not shi
 **Tag `v0.1.0-yard`:** ✅ pushed; Release workflow attached Yard + Full installers  
 ([GitHub release](https://github.com/er1cbrown/BlkSpace/releases/tag/v0.1.0-yard)).
 
-**Still open:** Part A student path on Device B (guest browse, TSU account/post, Customize/Live, Tier 0 benchmark) and Part C announce / `TIER0_USER` link check.
+**Student path (Part A A1–A3b):** ✅ 2026-08-27 — Playwright Device B spec 2/2 on Yard lite SPA (`4812bdb`): guest → TSU join → post **0.17 s** → Customize (Neon + mood + reload) → Live. Evidence: [`device-b-student-smoke.md`](device-b-student-smoke.md).
+
+**Still open:** A4 native Tier 0 process-clock bench (Tauri-only); Part C announce / `TIER0_USER` link check; full M0 mesh matrix.
 
 Checklist: [`YARD_RELEASE_CHECKLIST.md`](YARD_RELEASE_CHECKLIST.md) · IEEE operator pack: [`IEEE_CONFERENCE_PACK.md`](IEEE_CONFERENCE_PACK.md)
 

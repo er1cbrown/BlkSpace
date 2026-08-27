@@ -90,12 +90,21 @@ test.describe("Device B student smoke", () => {
     await expect(page.getByText(/customize station/i)).toBeVisible({
       timeout: 15_000,
     });
-    await page.getByRole("tab", { name: /about/i }).click();
+    const station = page
+      .locator("div.space-y-4")
+      .filter({ hasText: "Customize station" });
+    await station.getByRole("tab", { name: /^look$/i }).click();
+    await station.getByRole("button", { name: /^neon$/i }).click();
+    await expect(station.getByRole("tab", { name: /pimp/i })).toBeVisible();
+    await expect(station.getByRole("tab", { name: /^music$/i })).toBeVisible();
+    await station.getByRole("tab", { name: /about/i }).click();
     await page.locator("#mood").fill(MOOD);
-    await page.getByRole("button", { name: /save myyard/i }).click();
-    await expect(page.getByText(/saving/i).or(page.getByText(MOOD))).toBeVisible(
-      { timeout: 10_000 },
-    );
+    await station.getByRole("button", { name: /save myyard/i }).click();
+    await expect(
+      page.getByText(/saved/i).or(page.getByText(MOOD)).first(),
+    ).toBeVisible({ timeout: 10_000 });
+    await page.reload();
+    await expect(page.getByText(MOOD).first()).toBeVisible({ timeout: 15_000 });
 
     await page.goto("/communities/tsu");
     await page.getByRole("tab", { name: /^live$/i }).click();
