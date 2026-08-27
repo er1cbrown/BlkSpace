@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BANNER_GRADIENTS,
   DEFAULT_AESTHETIC,
+  MAX_CSS_LEN,
   type MyYardAesthetic,
   type MyYardLayout,
   mergeMyYardLayout,
@@ -46,6 +47,7 @@ import {
 } from "@/lib/profile-music-web";
 import { toast } from "sonner";
 import { MyYardLazyVimGuide } from "@/components/profile/MyYardLazyVimGuide";
+import { MyYardPimpStudio } from "@/components/profile/MyYardPimpStudio";
 import {
   cssForLazyVimOpen,
   MYYARD_LAZYVIM_STARTER_CSS,
@@ -170,9 +172,9 @@ export function CustomizeStation({
             Customize station
           </CardTitle>
           <CardDescription>
-            Make your page yours — banner, photos, music, fonts, and safe custom
-            CSS. Visitors see this on your public profile (MyYard), not the
-            whole campus yard.
+            Make your page yours — banner, photos, music, fonts, and a real
+            pimp-out (FX + CSS). Visitors see this on your public MyYard, not
+            the whole campus yard. Song stays on the Music tab.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
@@ -203,7 +205,7 @@ export function CustomizeStation({
             <Type className="h-3.5 w-3.5" /> About
           </TabsTrigger>
           <TabsTrigger value="css" className="gap-1">
-            <Code2 className="h-3.5 w-3.5" /> CSS
+            <Code2 className="h-3.5 w-3.5" /> Pimp / CSS
           </TabsTrigger>
           <TabsTrigger value="modules" className="gap-1">
             <Layout className="h-3.5 w-3.5" /> Extra
@@ -652,6 +654,7 @@ export function CustomizeStation({
         </TabsContent>
 
         <TabsContent value="css" className="space-y-3 mt-4">
+          <MyYardPimpStudio aesthetic={a} onPatch={patchA} />
           <MyYardLazyVimGuide
             onPasteStarter={() => {
               patchA({ customCss: MYYARD_LAZYVIM_STARTER_CSS });
@@ -675,19 +678,21 @@ export function CustomizeStation({
             }}
           />
           <p className="text-sm text-muted-foreground">
-            CSS paints only your profile card (
-            <code className="text-xs">.myyard-root</code>). Scripts and{" "}
+            Raw CSS paints only your profile card (
+            <code className="text-xs">.myyard-root</code>). Keyframes are
+            allowed. Scripts, remote <code className="text-xs">url()</code>, and{" "}
             <code className="text-xs">@import</code> are stripped.
           </p>
           <Textarea
             value={a.customCss}
             onChange={(e) => patchA({ customCss: e.target.value })}
-            placeholder={`/* example */\ncolor: #fafafa;\n/* nested rules get wrapped under .myyard-root */`}
-            className="font-mono text-xs min-h-[160px]"
+            placeholder={`/* example */\n.myyard-name { letter-spacing: -0.04em; }\n@keyframes pulse { 50% { opacity: 0.8; } }`}
+            className="font-mono text-xs min-h-[220px]"
           />
           <p className="text-[11px] text-muted-foreground">
-            Max ~12k characters. Prefer Look templates when you can — CSS is
-            for power users (edit in LazyVim locally, then load the file).
+            {a.customCss.length.toLocaleString()} / {MAX_CSS_LEN.toLocaleString()}{" "}
+            chars. LazyVim is optional (needs nvim on this machine) — packs and
+            snippets do not.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button

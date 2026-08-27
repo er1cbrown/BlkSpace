@@ -120,7 +120,7 @@ export function ProfileMusicPlayer({
   return (
     <div
       className={cn(
-        "rounded-lg border border-primary/30 bg-gradient-to-br from-primary/10 to-accent/5 overflow-hidden",
+        "myyard-player rounded-lg border border-primary/30 bg-gradient-to-br from-primary/10 to-accent/5 overflow-hidden",
         compact ? "w-56" : "w-full",
         className,
       )}

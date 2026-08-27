@@ -8,6 +8,7 @@ import {
   type FontStyleId,
   type CardRadiusId,
 } from "@/lib/myyard-layout";
+import { MYYARD_FX_ENGINE_CSS } from "@/lib/myyard-pimp";
 import { cn } from "@/lib/utils";
 
 const FONT_MAP: Record<FontStyleId, string> = {
@@ -95,6 +96,11 @@ export function ProfileAestheticShell({
   return (
     <div
       data-myyard
+      data-myyard-fx={aesthetic.fx || "none"}
+      data-myyard-cursor={aesthetic.cursorPack || "default"}
+      data-myyard-text={aesthetic.textFx || "none"}
+      data-myyard-banner={aesthetic.bannerMotion || "still"}
+      data-myyard-marquee={aesthetic.marqueeMood ? "on" : "off"}
       className={cn(
         "myyard-root overflow-hidden shadow-xl border mb-8 transition-all relative",
         themeClassName,
@@ -102,6 +108,7 @@ export function ProfileAestheticShell({
       )}
       style={rootStyle}
     >
+      <style>{MYYARD_FX_ENGINE_CSS}</style>
       {/* Pattern overlay on body area only via children padding context */}
       {aesthetic.bgPattern !== "none" && (
         <div
@@ -109,6 +116,9 @@ export function ProfileAestheticShell({
           style={pattern}
           aria-hidden
         />
+      )}
+      {aesthetic.fx && aesthetic.fx !== "none" && (
+        <div className="myyard-fx" aria-hidden />
       )}
       <div className="relative z-10">{children}</div>
       {/* Expose banner style via CSS var for header children */}

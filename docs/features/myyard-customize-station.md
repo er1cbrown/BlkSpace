@@ -18,10 +18,13 @@ Your public profile is a **MyYard** — not the campus yard skin:
 | Photo gallery | Up to 8 featured images |
 | Profile song | Audio from uploads |
 | Top 8 | Toggle |
-| Page templates | Campus wall · MyYard night · Clean notes · Portal neon · **Tribute gold** (memorial look) |
-| Profile song | Audio blob / web track — visitors hear it (mobile too) |
-| Custom CSS | Advanced tab, sanitized, scoped to `.myyard-root` |
-| LazyVim / file | Save/load `.css`; desktop **Open in LazyVim** (`nvim`, not classic vim) |
+| Page templates | Campus wall · MyYard night · Clean notes · Portal neon · Tribute gold · **Y2K glitter** · **Cyber yard** |
+| Profile song | One track — play / pause / mute / seek (not a playlist). Music tab only. |
+| Pimp packs | Y2K glitter · Cyber yard · Vapor wave · Underground zine · Gold front — FX + cursor + name treatment + starter CSS |
+| Page FX | Sparkle · glitter · scanlines · grain · VHS (built-in overlays, no remote GIFs) |
+| Custom CSS | **Pimp / CSS** tab, sanitized, scoped to `.myyard-root`. `@keyframes` allowed. Remote `url(https)` + `@import` stripped. 24k cap. |
+| CSS snippets | Neon name · sticky-note about · chrome player · banner stripe · mood ticker · hot links |
+| LazyVim / file | Optional. Needs `nvim` on the machine. Save/load `.css`. Look only — not audio. |
 
 Base skins still apply: Classic · Pro · Vibrant · MyYard Classic.
 
@@ -29,8 +32,10 @@ Base skins still apply: Classic · Pro · Vibrant · MyYard Classic.
 
 1. Open **You / Profile**  
 2. **Customize** tab (or banner **Customize** button)  
-3. **Look · Photos · Music · About · CSS · Extra**  
+3. **Look · Photos · Music · About · Pimp / CSS · Extra**  
 4. **Save MyYard**
+
+Students: Look templates. Power users: **Pimp / CSS** packs + FX, then raw CSS / LazyVim. Song is never in CSS.
 
 ## Storage
 
@@ -51,10 +56,12 @@ Base skins still apply: Classic · Pro · Vibrant · MyYard Classic.
 
 | File | Role |
 |------|------|
-| `lib/myyard-layout.ts` | Aesthetic schema + sanitize |
+| `lib/myyard-layout.ts` | Aesthetic schema + sanitize + keyframe-aware scope |
+| `lib/myyard-pimp.ts` | Packs, FX engine, snippets |
 | `lib/myyard-storage.ts` | Web local persist |
 | `components/profile/CustomizeStation.tsx` | Hub UI |
-| `components/profile/ProfileAestheticShell.tsx` | Apply look to visitors |
+| `components/profile/MyYardPimpStudio.tsx` | Advanced look studio |
+| `components/profile/ProfileAestheticShell.tsx` | Apply look + FX to visitors |
 | `components/profile/ProfileGallery.tsx` | Featured photos |
 | `pages/profile.tsx` | Wire-up |
 

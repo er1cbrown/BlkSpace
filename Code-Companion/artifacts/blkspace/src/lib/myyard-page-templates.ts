@@ -13,7 +13,9 @@ export type PageTemplateId =
   | "myspace-night"
   | "threads-clean"
   | "portal-neon"
-  | "tribute-gold";
+  | "tribute-gold"
+  | "y2k-glitter"
+  | "cyber-yard";
 
 export const MYYARD_PAGE_TEMPLATES: {
   id: PageTemplateId;
@@ -97,6 +99,47 @@ export const MYYARD_PAGE_TEMPLATES: {
       showMusic: true,
       showGallery: true,
       mood: "In loving memory",
+    },
+  },
+  {
+    id: "y2k-glitter",
+    label: "Y2K glitter",
+    blurb: "Pimp pack: sparkle, glow name, ticker mood",
+    theme: "myspace",
+    aesthetic: {
+      ...DEFAULT_AESTHETIC,
+      bannerGradientId: "neon",
+      accent: "#f472b6",
+      fontStyle: "display",
+      bgPattern: "stars",
+      cardRadius: "round",
+      showMusic: true,
+      fx: "glitter",
+      cursorPack: "sparkle",
+      textFx: "glow",
+      bannerMotion: "pulse",
+      marqueeMood: true,
+      pimpPackId: "y2k-glitter",
+    },
+  },
+  {
+    id: "cyber-yard",
+    label: "Cyber yard",
+    blurb: "Pimp pack: scanlines, mono, neon outline",
+    theme: "vibrant",
+    aesthetic: {
+      ...DEFAULT_AESTHETIC,
+      bannerGradientId: "night",
+      accent: "#22d3ee",
+      fontStyle: "mono",
+      bgPattern: "grid",
+      cardRadius: "sharp",
+      glassHeader: false,
+      fx: "scanlines",
+      cursorPack: "neon",
+      textFx: "outline",
+      bannerMotion: "pan",
+      pimpPackId: "cyber-yard",
     },
   },
 ];

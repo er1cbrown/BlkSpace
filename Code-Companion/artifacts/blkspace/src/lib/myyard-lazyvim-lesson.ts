@@ -8,7 +8,7 @@ export const LAZYVIM_KEYS = [
   { keys: "Space", does: "Leader — LazyVim menus (optional)" },
 ] as const;
 
-export const MYYARD_LAZYVIM_STARTER_CSS = `/* BKSPC MyYard — your page look
+export const MYYARD_LAZYVIM_STARTER_CSS = `/* BKSPC MyYard — advanced look (scoped to .myyard-root)
  *
  * LazyVim (this file):
  *   i     type
@@ -17,19 +17,26 @@ export const MYYARD_LAZYVIM_STARTER_CSS = `/* BKSPC MyYard — your page look
  *   :q    quit
  *   :wq   save and quit
  *
- * After you quit: Customize → CSS → Load CSS file → Save MyYard.
+ * After you quit: Customize → Pimp / CSS → Load CSS file → Save MyYard.
  *
- * Song / memes are NOT in this file.
- *   Music tab  = profile song
+ * NOT in this file:
+ *   Music tab  = profile song (play / pause / mute / seek)
  *   Photos tab = pics
- *   Look tab   = templates (easier than CSS)
+ *   Pimp packs = FX overlays, cursor, name treatment (no nvim required)
+ *
+ * Hooks visitors actually have:
+ *   .myyard-name .myyard-mood .myyard-about .myyard-banner .myyard-player
+ *   var(--myyard-accent)
+ *
+ * Remote url(https://…) and @import are stripped. @keyframes are allowed.
  */
 
-/* Mood-colored name vibe */
-color: #fafafa;
-
-h1 {
+.myyard-name {
   letter-spacing: -0.04em;
+}
+
+.myyard-player {
+  border-color: var(--myyard-accent);
 }
 `;
 

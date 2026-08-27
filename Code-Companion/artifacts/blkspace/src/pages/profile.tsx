@@ -483,15 +483,15 @@ export default function ProfilePage() {
           <div className="pt-16 px-6 sm:px-8 pb-8">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h1 className="text-4xl font-bold tracking-tighter">
+                <h1 className="myyard-name text-4xl font-bold tracking-tighter">
                   {user.displayName ?? "Unknown"}
                 </h1>
                 <p className="text-xl text-muted-foreground">
                   @{user.handle ?? "unknown"}
                 </p>
                 {aesthetic.mood ? (
-                  <p className="text-sm mt-1 myyard-accent-text font-medium">
-                    {aesthetic.mood}
+                  <p className="myyard-mood text-sm mt-1 myyard-accent-text font-medium">
+                    <span>{aesthetic.mood}</span>
                   </p>
                 ) : null}
                 {getFacultyBadge(user.handle ?? currentUser) && (
@@ -582,7 +582,7 @@ export default function ProfilePage() {
               );
             })()}
             {aesthetic.about ? (
-              <p className="text-sm text-muted-foreground mb-4 max-w-2xl whitespace-pre-wrap">
+              <p className="myyard-about text-sm text-muted-foreground mb-4 max-w-2xl whitespace-pre-wrap">
                 {aesthetic.about}
               </p>
             ) : (

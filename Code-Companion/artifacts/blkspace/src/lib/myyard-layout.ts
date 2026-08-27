@@ -63,6 +63,17 @@ export type BgPatternId = "none" | "dots" | "grid" | "stars" | "waves";
 export type FontStyleId = "system" | "serif" | "mono" | "display";
 export type CardRadiusId = "sharp" | "soft" | "round";
 
+export type MyYardFxId =
+  | "none"
+  | "sparkle"
+  | "glitter"
+  | "scanlines"
+  | "grain"
+  | "vhs";
+export type MyYardCursorId = "default" | "sparkle" | "cross" | "neon";
+export type MyYardTextFxId = "none" | "glow" | "chrome" | "outline";
+export type MyYardBannerMotionId = "still" | "pan" | "pulse";
+
 /** Visual personalization visitors actually see. */
 export interface MyYardAesthetic {
   /** Short status under the name (MySpace “mood”). */
@@ -93,6 +104,15 @@ export interface MyYardAesthetic {
    * Sanitized before save/apply — no scripts, no external imports.
    */
   customCss: string;
+  /** Structured FX overlays (safer than raw glitter GIFs). */
+  fx: MyYardFxId;
+  cursorPack: MyYardCursorId;
+  textFx: MyYardTextFxId;
+  bannerMotion: MyYardBannerMotionId;
+  /** CSS ticker on the mood line — look only, not audio. */
+  marqueeMood: boolean;
+  /** Last one-click pimp pack id, if any. */
+  pimpPackId: string | null;
 }
 
 export interface MyYardLayout {
@@ -122,6 +142,12 @@ export const DEFAULT_AESTHETIC: MyYardAesthetic = {
   showMusic: true,
   showGallery: true,
   customCss: "",
+  fx: "none",
+  cursorPack: "default",
+  textFx: "none",
+  bannerMotion: "still",
+  marqueeMood: false,
+  pimpPackId: null,
 };
 
 export const DEFAULT_MYYARD_LAYOUT: MyYardLayout = {
@@ -131,23 +157,64 @@ export const DEFAULT_MYYARD_LAYOUT: MyYardLayout = {
   aesthetic: { ...DEFAULT_AESTHETIC },
 };
 
-const MAX_CSS_LEN = 12000;
+export const MAX_CSS_LEN = 24000;
 const MAX_GALLERY = 8;
 
 /** Strip dangerous constructs from custom CSS (MySpace energy, safer surface). */
 export function sanitizeCustomCss(raw: string): string {
   let s = (raw || "").slice(0, MAX_CSS_LEN);
   s = s.replace(/@import[\s\S]*?;/gi, "");
+  s = s.replace(/@font-face[\s\S]*?\{[\s\S]*?\}/gi, "/*font-face blocked*/");
   s = s.replace(/expression\s*\(/gi, "/*blocked*/(");
   s = s.replace(/javascript\s*:/gi, "blocked:");
+  s = s.replace(/vbscript\s*:/gi, "blocked:");
   s = s.replace(/-moz-binding\s*:/gi, "blocked:");
   s = s.replace(/behavior\s*:/gi, "blocked:");
   s = s.replace(/url\s*\(\s*['"]?\s*javascript:/gi, "url(blocked:");
+  s = s.replace(/url\s*\(\s*(['"]?)\s*https?:/gi, "url($1blocked:");
+  s = s.replace(/url\s*\(\s*(['"]?)\s*\/\//gi, "url($1blocked:");
+  s = s.replace(/url\s*\(\s*(['"]?)\s*data:\s*text/gi, "url($1blocked:");
+  s = s.replace(/url\s*\(\s*(['"]?)\s*data:\s*image\/svg/gi, "url($1blocked:");
   s = s.replace(/<\/?script/gi, "/*script*/");
   return s;
 }
 
-/** Prefix selectors so custom CSS only paints this profile (MySpace energy, scoped). */
+function extractKeyframes(css: string): { rest: string; blocks: string[] } {
+  const blocks: string[] = [];
+  let rest = "";
+  let i = 0;
+  while (i < css.length) {
+    const rel = css.slice(i).search(/@(-webkit-)?keyframes\b/i);
+    if (rel < 0) {
+      rest += css.slice(i);
+      break;
+    }
+    const abs = i + rel;
+    rest += css.slice(i, abs);
+    const brace = css.indexOf("{", abs);
+    if (brace < 0) {
+      rest += css.slice(abs);
+      break;
+    }
+    let depth = 0;
+    let j = brace;
+    for (; j < css.length; j++) {
+      if (css[j] === "{") depth++;
+      else if (css[j] === "}") {
+        depth--;
+        if (depth === 0) {
+          j++;
+          break;
+        }
+      }
+    }
+    blocks.push(css.slice(abs, j));
+    i = j;
+  }
+  return { rest, blocks };
+}
+
+/** Prefix selectors so custom CSS only paints this profile. Keyframes stay unscoped. */
 export function scopeCustomCss(
   raw: string,
   scope = ".myyard-root[data-myyard]",
@@ -157,7 +224,8 @@ export function scopeCustomCss(
   if (!s.includes("{")) {
     return `${scope} {\n${s}\n}`;
   }
-  return s.replace(/([^{}@]+)\{/g, (full, sel: string) => {
+  const { rest, blocks } = extractKeyframes(s);
+  const scoped = rest.replace(/([^{}@]+)\{/g, (full, sel: string) => {
     const trimmed = sel.trim();
     if (!trimmed) return full;
     if (trimmed.startsWith("@")) return full;
@@ -168,6 +236,26 @@ export function scopeCustomCss(
       .join(", ");
     return `${parts} {`;
   });
+  return `${scoped}\n${blocks.join("\n")}`.trim();
+}
+
+function clampFx(v: MyYardAesthetic["fx"] | undefined): MyYardFxId {
+  const ok = ["none", "sparkle", "glitter", "scanlines", "grain", "vhs"];
+  return ok.includes(v as string) ? (v as MyYardFxId) : "none";
+}
+function clampCursor(v: MyYardAesthetic["cursorPack"] | undefined): MyYardCursorId {
+  const ok = ["default", "sparkle", "cross", "neon"];
+  return ok.includes(v as string) ? (v as MyYardCursorId) : "default";
+}
+function clampTextFx(v: MyYardAesthetic["textFx"] | undefined): MyYardTextFxId {
+  const ok = ["none", "glow", "chrome", "outline"];
+  return ok.includes(v as string) ? (v as MyYardTextFxId) : "none";
+}
+function clampMotion(
+  v: MyYardAesthetic["bannerMotion"] | undefined,
+): MyYardBannerMotionId {
+  const ok = ["still", "pan", "pulse"];
+  return ok.includes(v as string) ? (v as MyYardBannerMotionId) : "still";
 }
 
 export function getBannerCss(a: MyYardAesthetic): string {
@@ -215,6 +303,12 @@ export function parseMyYardLayout(
             ? (a as MyYardAesthetic).galleryDataUrls
             : {},
         customCss: sanitizeCustomCss((a as MyYardAesthetic).customCss || ""),
+        fx: clampFx((a as MyYardAesthetic).fx),
+        cursorPack: clampCursor((a as MyYardAesthetic).cursorPack),
+        textFx: clampTextFx((a as MyYardAesthetic).textFx),
+        bannerMotion: clampMotion((a as MyYardAesthetic).bannerMotion),
+        marqueeMood: Boolean((a as MyYardAesthetic).marqueeMood),
+        pimpPackId: (a as MyYardAesthetic).pimpPackId || null,
       },
     };
   } catch {
