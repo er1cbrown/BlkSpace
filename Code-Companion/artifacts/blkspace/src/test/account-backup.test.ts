@@ -56,4 +56,29 @@ describe("account-backup", () => {
     const again = parseBackupJson(JSON.stringify(backup));
     expect(again.handle).toBe("tsu_student");
   });
+
+  it("encrypts when Web Crypto subtle is missing", async () => {
+    const cryptoObj = globalThis.crypto as Crypto & { subtle?: SubtleCrypto };
+    const orig = cryptoObj.subtle;
+    Object.defineProperty(cryptoObj, "subtle", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      const id = createNostrIdentity();
+      const backup = await createPasswordBackup({
+        nsecHex: id.nsecHex,
+        handle: "lan_preview",
+        password: "yard-pass-ok",
+      });
+      const restored = await restorePasswordBackup(backup, "yard-pass-ok");
+      expect(restored.nsecHex).toBe(id.nsecHex.toLowerCase());
+      expect(restored.handle).toBe("lan_preview");
+    } finally {
+      Object.defineProperty(cryptoObj, "subtle", {
+        configurable: true,
+        value: orig,
+      });
+    }
+  });
 });

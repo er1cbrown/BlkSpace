@@ -756,8 +756,7 @@ export default function SettingsPage() {
                 Get back in
               </CardTitle>
               <CardDescription>
-                Campus default: recovery password + encrypted file. 24 words
-                are optional for people who want paper.
+                Password + encrypted file. 24 words stay optional.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -793,15 +792,9 @@ export default function SettingsPage() {
                   {backupBusy ? "Saving…" : "Save password backup file"}
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  BlkSpace cannot reset this password. Keep the file in Drive /
-                  iCloud / email-to-self.
+                  Keep the downloaded file. BlkSpace cannot reset this
+                  password.
                 </p>
-              </div>
-
-              <div className="bg-amber-950/20 border border-amber-600/30 text-amber-200 text-sm p-4 rounded-lg">
-                <strong>24-word phrase (advanced):</strong> still works. If you
-                skip password <em>and</em> skip paper, nobody can recover the
-                account — including us.
               </div>
 
               <AlertDialog>

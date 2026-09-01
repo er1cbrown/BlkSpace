@@ -359,8 +359,7 @@ export default function WelcomePage() {
           </p>
         </div>
         <p className="text-xs text-muted-foreground text-center">
-          Next: a recovery password (not 24 words). Same idea as Instagram —
-          something you already remember.
+          Next: pick a password you remember.
         </p>
         {error && (
           <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">
@@ -382,8 +381,7 @@ export default function WelcomePage() {
                 Get back in
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Average path: a password you remember. 24 words are optional
-                for people who want paper backup.
+                Pick a password you already remember.
               </p>
             </CardHeader>
             <CardContent>

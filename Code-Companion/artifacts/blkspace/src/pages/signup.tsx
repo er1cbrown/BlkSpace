@@ -66,7 +66,7 @@ export default function SignupPage() {
             </CardTitle>
             <CardDescription className="text-base">
               {createdNsec
-                ? "Set a recovery password — 24 words are optional"
+                ? "Pick a password you already remember"
                 : "Create your free account in seconds"}
             </CardDescription>
           </CardHeader>
@@ -106,8 +106,7 @@ export default function SignupPage() {
               />
             </div>
             <p className="text-xs text-muted-foreground text-center">
-              No wallet needed. Next you set a recovery password (24 words
-              optional).
+              No wallet needed. Next you pick a password.
             </p>
             <Button
               onClick={joinYard}

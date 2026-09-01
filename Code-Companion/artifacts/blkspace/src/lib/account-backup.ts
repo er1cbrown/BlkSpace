@@ -1,7 +1,13 @@
 /**
  * Password-wrapped nsec backup for campus users who will not save 24 words.
  * Ciphertext only — BlkSpace cannot reset a forgotten password.
+ *
+ * Prefers Web Crypto (fast). Falls back to noble AES-GCM so HTTP / LAN
+ * previews still work when `crypto.subtle` is missing.
  */
+import { gcm } from "@noble/ciphers/aes.js";
+import { pbkdf2Async } from "@noble/hashes/pbkdf2.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { derivePubkey } from "@/lib/auth";
 
 export const BACKUP_STORAGE_KEY = "blkspace_account_backup_v1";
@@ -34,20 +40,28 @@ function b64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
-function requireSubtle(): SubtleCrypto {
-  const subtle = globalThis.crypto?.subtle;
-  if (!subtle) {
-    throw new Error("This browser cannot encrypt a backup (no Web Crypto)");
-  }
-  return subtle;
+function copyBytes(bytes: Uint8Array): Uint8Array {
+  return new Uint8Array(bytes);
 }
 
-async function keyFromPassword(
+function hasSubtle(): boolean {
+  return typeof globalThis.crypto?.subtle?.encrypt === "function";
+}
+
+async function nobleKeyBytes(
+  password: string,
+  salt: Uint8Array,
+  iter: number,
+): Promise<Uint8Array> {
+  return pbkdf2Async(sha256, password, salt, { c: iter, dkLen: 32 });
+}
+
+async function webKeyFromPassword(
   password: string,
   salt: Uint8Array,
   iter: number,
 ): Promise<CryptoKey> {
-  const subtle = requireSubtle();
+  const subtle = globalThis.crypto.subtle;
   const base = await subtle.importKey(
     "raw",
     new TextEncoder().encode(password),
@@ -58,7 +72,7 @@ async function keyFromPassword(
   return subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt: salt as BufferSource,
+      salt: copyBytes(salt) as BufferSource,
       iterations: iter,
       hash: "SHA-256",
     },
@@ -67,6 +81,50 @@ async function keyFromPassword(
     false,
     ["encrypt", "decrypt"],
   );
+}
+
+async function encryptSecret(
+  plain: Uint8Array,
+  password: string,
+  salt: Uint8Array,
+  iv: Uint8Array,
+  iter: number,
+): Promise<Uint8Array> {
+  if (hasSubtle()) {
+    const key = await webKeyFromPassword(password, salt, iter);
+    const ct = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv: copyBytes(iv) as BufferSource },
+      key,
+      copyBytes(plain) as BufferSource,
+    );
+    return new Uint8Array(ct);
+  }
+  const key = await nobleKeyBytes(password, salt, iter);
+  return gcm(key, copyBytes(iv)).encrypt(plain);
+}
+
+async function decryptSecret(
+  ct: Uint8Array,
+  password: string,
+  salt: Uint8Array,
+  iv: Uint8Array,
+  iter: number,
+): Promise<Uint8Array> {
+  try {
+    if (hasSubtle()) {
+      const key = await webKeyFromPassword(password, salt, iter);
+      const plain = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: copyBytes(iv) as BufferSource },
+        key,
+        copyBytes(ct) as BufferSource,
+      );
+      return new Uint8Array(plain);
+    }
+    const key = await nobleKeyBytes(password, salt, iter);
+    return gcm(key, copyBytes(iv)).decrypt(ct);
+  } catch {
+    throw new Error("Wrong password or damaged backup");
+  }
 }
 
 export function assertBackupPassword(password: string): void {
@@ -87,11 +145,12 @@ export async function createPasswordBackup(opts: {
   const pubkey = derivePubkey(nsecHex);
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await keyFromPassword(opts.password, salt, BACKUP_ITERATIONS);
-  const ct = await requireSubtle().encrypt(
-    { name: "AES-GCM", iv: iv as BufferSource },
-    key,
+  const ct = await encryptSecret(
     new TextEncoder().encode(nsecHex),
+    opts.password,
+    salt,
+    iv,
+    BACKUP_ITERATIONS,
   );
   return {
     v: 1,
@@ -102,7 +161,7 @@ export async function createPasswordBackup(opts: {
     iter: BACKUP_ITERATIONS,
     salt: bytesToB64(salt),
     iv: bytesToB64(iv),
-    ct: bytesToB64(new Uint8Array(ct)),
+    ct: bytesToB64(ct),
   };
 }
 
@@ -135,21 +194,13 @@ export async function restorePasswordBackup(
   password: string,
 ): Promise<{ nsecHex: string; handle: string; pubkey: string }> {
   const b = typeof backup === "string" ? parseBackupJson(backup) : backup;
-  const key = await keyFromPassword(
+  const plain = await decryptSecret(
+    b64ToBytes(b.ct),
     password,
     b64ToBytes(b.salt),
+    b64ToBytes(b.iv),
     b.iter || BACKUP_ITERATIONS,
   );
-  let plain: ArrayBuffer;
-  try {
-    plain = await requireSubtle().decrypt(
-      { name: "AES-GCM", iv: b64ToBytes(b.iv) as BufferSource },
-      key,
-      b64ToBytes(b.ct) as BufferSource,
-    );
-  } catch {
-    throw new Error("Wrong password or damaged backup");
-  }
   const nsecHex = new TextDecoder().decode(plain).trim().toLowerCase();
   const pubkey = derivePubkey(nsecHex);
   if (pubkey !== b.pubkey) {

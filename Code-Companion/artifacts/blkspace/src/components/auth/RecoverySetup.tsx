@@ -58,33 +58,7 @@ export function RecoverySetup({
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex gap-2 text-xs">
-        <button
-          type="button"
-          className={
-            mode === "password"
-              ? "font-medium text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }
-          onClick={() => setMode("password")}
-        >
-          Recovery password
-        </button>
-        <span className="text-muted-foreground">·</span>
-        <button
-          type="button"
-          className={
-            mode === "phrase"
-              ? "font-medium text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }
-          onClick={() => setMode("phrase")}
-        >
-          24 words (advanced)
-        </button>
-      </div>
-
+    <div className="space-y-4">
       {error && (
         <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">
           {error}
@@ -92,18 +66,20 @@ export function RecoverySetup({
       )}
 
       {mode === "password" && (
-        <>
-          <p className="text-sm text-muted-foreground">
-            Use a password you already remember (campus email password is fine
-            if it is only yours). We save an encrypted file — not your 24
-            words. Nobody at BlkSpace can reset this.
-          </p>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void savePassword();
+          }}
+        >
           <div className="space-y-2">
             <Label htmlFor="recovery-password">Recovery password</Label>
             <Input
               id="recovery-password"
               type="password"
               autoComplete="new-password"
+              autoFocus
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               minLength={MIN_BACKUP_PASSWORD}
@@ -120,7 +96,7 @@ export function RecoverySetup({
             />
           </div>
           <Button
-            onClick={savePassword}
+            type="submit"
             disabled={
               saving ||
               password.length < MIN_BACKUP_PASSWORD ||
@@ -131,24 +107,32 @@ export function RecoverySetup({
             {saving ? "Saving…" : "Save recovery password"}
           </Button>
           <p className="text-xs text-muted-foreground text-center">
-            Put the downloaded file in email-to-self, Drive, or iCloud. Keep
-            the password in your head or a password manager.
+            At least 8 characters. A backup file downloads — keep this
+            password.
           </p>
-          <button
-            type="button"
-            className="w-full text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => setMode("skip")}
-          >
-            Skip — this device only (easy to lose)
-          </button>
-        </>
+          <div className="flex justify-center gap-4 text-xs text-muted-foreground">
+            <button
+              type="button"
+              className="hover:text-foreground"
+              onClick={() => setMode("skip")}
+            >
+              Skip for now
+            </button>
+            <button
+              type="button"
+              className="hover:text-foreground"
+              onClick={() => setMode("phrase")}
+            >
+              24 words (advanced)
+            </button>
+          </div>
+        </form>
       )}
 
       {mode === "phrase" && (
         <>
           <p className="text-sm text-muted-foreground">
-            24 words recreate this account on any computer. Write them on
-            paper. Do not screenshot.
+            Write these on paper. Anyone with them owns the account.
           </p>
           <Textarea
             readOnly
@@ -173,21 +157,28 @@ export function RecoverySetup({
           >
             Continue
           </Button>
+          <button
+            type="button"
+            className="w-full text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setMode("password")}
+          >
+            Back to password
+          </button>
         </>
       )}
 
       {mode === "skip" && (
         <>
           <p className="text-sm text-amber-200 bg-amber-950/30 border border-amber-600/30 rounded-lg p-3">
-            If this laptop dies and you skipped backup, this handle is gone.
-            Settings can add a password later.
+            If this device dies with no backup, this handle is gone. You can
+            add a password later in Settings.
           </p>
           <Button
             variant="outline"
             onClick={onDone}
             className="w-full rounded-full h-12"
           >
-            Enter the yard without a backup
+            Continue without a backup
           </Button>
           <Button variant="ghost" onClick={() => setMode("password")}>
             Back — set a password
