@@ -1,13 +1,10 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Live Power of 2 copy: Solana = student micro-settlement, HyperEVM = governance.
- * Neither chain is presented as the single primary settlement layer.
+ * Live copy: BI9 ERC-20 on HyperEVM is the canonical on-chain token.
  */
-test.describe("Power of 2 live copy", () => {
-  test("landing: BKSPC is micro-settlement, not governance", async ({
-    page,
-  }) => {
+test.describe("Canonical ERC-20 live copy", () => {
+  test("landing: BI9 ERC-20 is the on-chain token", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem("blkspace_first_run_complete", "true");
     });
@@ -15,18 +12,13 @@ test.describe("Power of 2 live copy", () => {
     await expect(
       page.getByRole("heading", { name: /how the economy works/i }),
     ).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(/optional student micro-settlement/i)).toBeVisible();
-    await expect(page.getByText(/1,000:1/)).toBeVisible();
-    await expect(
-      page.getByText(/BI9 on HyperEVM is a separate institutional token/i),
-    ).toBeVisible();
-    await expect(page.getByText(/never touches WeixBucks/i)).toBeVisible();
-    await expect(
-      page.getByText(/Use for events,\s*NFTs, governance/i),
-    ).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: /BI9 \(ERC-20\)/i })).toBeVisible();
+    await expect(page.getByText(/Canonical on-chain token on HyperEVM/i)).toBeVisible();
+    await expect(page.getByText(/WeixBucks do not auto-convert/i).first()).toBeVisible();
+    await expect(page.getByText(/optional student micro-settlement/i)).toHaveCount(0);
   });
 
-  test("wallet: settlement pillar is Solana BKSPC", async ({ page }) => {
+  test("wallet: on-chain pillar is HyperEVM BI9", async ({ page }) => {
     const handle = `p2_${Date.now().toString(36)}`;
     await page.goto("/welcome");
     await expect
@@ -45,24 +37,11 @@ test.describe("Power of 2 live copy", () => {
     await expect(page).toHaveURL(/\/feed/, { timeout: 20_000 });
 
     await page.goto("/wallet");
-    await expect(page.getByText("Solana · BKSPC")).toBeVisible({
+    await expect(page.getByText("HyperEVM · BI9")).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText("HyperEVM · BI9")).toHaveCount(0);
-    await expect(
-      page.getByText(/optional Solana micro-settlement of earned value/i),
-    ).toBeVisible();
-    await expect(
-      page.getByText(/BI9 on HyperEVM is a different rail/i),
-    ).toBeVisible();
-
-    const gov = page.getByText("Governance (HyperEVM)");
-    if (await gov.count()) {
-      await gov.click();
-      await expect(
-        page.getByText(/not student settlement/i).first(),
-      ).toBeVisible();
-      await expect(page.getByText(/no conversion button/i)).toBeVisible();
-    }
+    await expect(page.getByText("Solana · BKSPC")).toHaveCount(0);
+    await expect(page.getByText(/not the canonical mint/i).first()).toBeVisible();
+    await expect(page.getByText(/Canonical on-chain token is BI9/i).first()).toBeVisible();
   });
 });

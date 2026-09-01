@@ -80,7 +80,7 @@ Hardware-constrained students at HBCUs still depend on centralized social platfo
 - Yard install is not full P2P mesh  
 - Stories (this pack) are not yet multi-device protocol  
 - No guaranteed token returns  
-- Solana and HyperEVM are **not** two primary settlement layers (optional Track E)  
+- Canonical on-chain token is **BI9 ERC-20 on HyperEVM**; Solana BKSPC is a prototype (optional Track E)  
 
 ### Persona result shells (fill after run)
 
@@ -107,12 +107,12 @@ Base URL: `https://api.x.ai/v1` — never ship keys in the Tauri/Vite bundle.
 
 | Rule | Line |
 |------|------|
-| Power of 2 | Two chains, **two jobs** — not two primary settlement layers |
-| Tier 1 | Solana Devnet = **social micro-settlement** (1,000 WB → 1 BKSPC, Token-2022) |
-| Tier 2 | HyperEVM = **governance / sovereign backplane** (BI9; **no** WeixBucks) |
+| Canonical mint | **BI9 ERC-20 on HyperEVM** — we are doing ERC-20 |
+| Optional prototype | Solana Devnet BKSPC (Token-2022) — not the mint home |
+| WeixBucks | Off-chain; **no** auto-convert to BI9 |
 | Paper | [`features/comparative-multi-chain-prototyping-study.md`](features/comparative-multi-chain-prototyping-study.md) |
 
-**Podium sentence:** student receipts on Solana; institutional BI9 on HyperEVM; neither is the protocol’s primary settlement layer. Convert is **not** live (supply 0). BI9 mint is **off** (cap 0).
+**Podium sentence:** canonical on-chain token is BI9 (ERC-20) on HyperEVM. Solana BKSPC is an optional prototype. WeixBucks do not auto-convert. BI9 mint is **off** (cap 0).
 
 ---
 
@@ -125,7 +125,7 @@ Base URL: `https://api.x.ai/v1` — never ship keys in the Tauri/Vite bundle.
 5. Evaluation — Device B + three personas + Tier 0 metrics  
 6. Threats to validity — single-campus demos, local stories, synthetic MIDF  
 7. Conclusion  
-8. *(optional)* Comparative multi-chain prototyping — Power of 2 roles only; no dual-settlement claim  
+8. *(optional)* Comparative multi-chain notes — ERC-20 canonical; Solana prototype only  
 
 ---
 

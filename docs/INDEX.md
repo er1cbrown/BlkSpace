@@ -2,7 +2,7 @@
 
 **Status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ~90% · Phase 3 ~75% · Phase 4 in progress · Phase 5 not started  
 **Date:** 2026-08-02  
-**Product mark:** **BlkSpace** · **In-app:** WeixBucks · **Student micro-settlement:** **BKSPC** (Solana) · **Governance:** **BI9** (HyperEVM)
+**Product mark:** **BlkSpace** · **In-app:** WeixBucks · **Canonical on-chain:** **BI9 ERC-20** (HyperEVM) · **Optional Solana ticker:** BKSPC
 
 > **New here?** Read [`../README.md`](../README.md) first, then [`README.md`](README.md) (doc map) or [`ROADMAP.md`](ROADMAP.md) (what's next).
 
@@ -39,9 +39,9 @@
 | [federated-college-towns.md](./federated-college-towns.md) | Town relay mesh spec |
 | [reward-formulas.md](./reward-formulas.md) | Draft earn/spend math |
 | [nostr-event-kinds.md](./nostr-event-kinds.md) | Custom kind registry |
-| [finance-l1-strategy.md](./finance-l1-strategy.md) | BI9 on HyperEVM as **governance**; BlkBridge + BLKSHI |
-| [tokenomics.md](./tokenomics.md) | **Canonical tokenomics** — WB; BKSPC Solana micro-settlement; BI9 no WB |
-| [features/comparative-multi-chain-prototyping-study.md](./features/comparative-multi-chain-prototyping-study.md) | Optional IEEE dual-chain **Power of 2** roles |
+| [finance-l1-strategy.md](./finance-l1-strategy.md) | **Product decision:** BI9 **ERC-20** on HyperEVM, BlkBridge + BLKSHI |
+| [tokenomics.md](./tokenomics.md) | **Canonical tokenomics** — HyperEVM / BI9 ERC-20, no auto WB conversion |
+| [features/comparative-multi-chain-prototyping-study.md](./features/comparative-multi-chain-prototyping-study.md) | Optional notes — **BI9 ERC-20 canonical**; Solana prototype |
 | [blkbridge.md](./blkbridge.md) | Yard-class deposit surface (existing rails, named destinations) |
 | [blkshi.md](./blkshi.md) | Advanced event-contract / portfolio desk (not a public US launch) |
 | [tokenomics-policy.md](./tokenomics-policy.md) | Live WeixBucks creator-marketplace policy |
@@ -86,7 +86,7 @@
 | [features/use-case-capability-log.md](./features/use-case-capability-log.md) | **Living log** — what campus use cases are Done / Partial / Out of scope |
 | [features/brand-trademark-and-bkspc-rights.md](./features/brand-trademark-and-bkspc-rights.md) | **BlkSpace** trademark intent · **BKSPC** coin ticker · naming lock |
 | [features/bkspc-rights-path.md](./features/bkspc-rights-path.md) | Cred → WB → gated BlkSpace Coin (BKSPC) |
-| [features/comparative-multi-chain-prototyping-study.md](./features/comparative-multi-chain-prototyping-study.md) | Optional IEEE **Power of 2** dual-chain roles |
+| [features/comparative-multi-chain-prototyping-study.md](./features/comparative-multi-chain-prototyping-study.md) | Optional — **BI9 ERC-20 canonical**; Solana prototype |
 | [features/sendme-iroh-transfer.md](./features/sendme-iroh-transfer.md) | **sendme-inspired** content tickets + optional n0 CLI P2P |
 | [features/myyard-customize-station.md](./features/myyard-customize-station.md) | **MyYard** profile personalization hub (MySpace-class, safe) |
 | [ieee-features-review.md](./ieee-features-review.md) | **IEEE** streamlined features matrix + evaluation criteria |

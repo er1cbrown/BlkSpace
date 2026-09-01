@@ -2,7 +2,7 @@
 
 ## Project Overview
 BlkSpace (weixblack.net) — amalgamation social platform.
-Tauri 2 + React + TypeScript. BlkCore is off-chain (Nostr + Iroh + WeixBucks). Power of 2: Solana Devnet is student micro-settlement (WB → BKSPC Token-2022). HyperEVM BI9 is institutional governance (no WeixBucks). Neither chain is the single primary settlement layer.
+Tauri 2 + React + TypeScript. BlkCore is off-chain (Nostr + Iroh + WeixBucks). Canonical on-chain token is **BI9 ERC-20 on HyperEVM**. Solana/Anchor BKSPC is an optional high-throughput prototype — not the mint home. Never auto-convert WeixBucks to BI9.
 Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 
 ## Dev Environment
@@ -25,7 +25,7 @@ Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 - `docs/security-considerations.md` — Nostr attack mitigations
 - `docs/architecture-blueprint.md` — Federated College-Town Relay Mesh
 - `docs/finance-l1-strategy.md` — BI9 on HyperEVM; BlkBridge + BLKSHI (do not skip BlkCore)
-- `docs/tokenomics.md` — canonical tokenomics (WB off-chain; BKSPC Solana micro-settlement; BI9 HyperEVM governance)
+- `docs/tokenomics.md` — canonical tokenomics (WeixBucks off-chain, **BI9 ERC-20 on HyperEVM**)
 - `docs/features/comparative-multi-chain-prototyping-study.md` — optional IEEE dual-chain role split (Power of 2)
 - `.github/workflows/ci.yml` — lint → typecheck → test → gated Yard/Full multi-OS builds
 - `.github/workflows/release.yml` — tag-triggered releases (macOS + Linux + Windows)
@@ -57,8 +57,8 @@ BlkSpace/ (cloned root)
 │   │   ├── blkspace/       ← React frontend (src/) + Rust backend (src-tauri/)
 │   │   ├── api-server/     ← Express API server (alternative deployment)
 │   │   ├── mockup-sandbox/ ← UI component showcase
-│   │   ├── solana/         ← Anchor: BKSPC student micro-settlement (Token-2022)
-│   │   └── hyperevm/       ← Solidity: BI9 governance + stake + timelock
+│   │   ├── solana/         ← Anchor: optional BKSPC Token-2022 prototype
+│   │   └── hyperevm/       ← Solidity: BI9 ERC-20 + stake + timelock (canonical)
 │   ├── lib/                ← workspace packages (api-client-react, api-spec, api-zod, db)
 │   ├── scripts/            ← utility scripts
 │   └── package.json        ← Bun workspace root
@@ -73,7 +73,7 @@ BlkSpace/ (cloned root)
 3. Push to GitHub to trigger CI — don't build Tauri locally unless necessary
 4. Write tests for new features (Vitest for frontend, Rust tests for Tauri)
 5. Keep dependencies minimal — every byte counts on low-end machines
-6. Blockchain: BlkCore stays off-chain. **Power of 2:** student micro-settlement is Solana BKSPC (`artifacts/solana/`, Token-2022, 1,000 WB → 1 BKSPC). Governance / staking / treasury is **Solidity on HyperEVM** (`artifacts/hyperevm/`, BI9). Do not put BI9 on Solana. Do not put WeixBucks conversion on HyperEVM. Never auto-convert WeixBucks to BI9. Do not describe both chains as the primary settlement layer.
+6. Blockchain: BlkCore stays off-chain. Canonical mint is **BI9 ERC-20 on HyperEVM** (`Code-Companion/artifacts/hyperevm/`). Do not put BI9 on Solana. Existing Anchor programs under `artifacts/solana/` are optional Token-2022 scaffolding — do not extend them as the canonical mint. Never auto-convert WeixBucks to BI9.
 7. Use **Bun** only (`bun install`, `bun run …`). Do not use pnpm/npm/yarn.
 
 ## Agent Safety & Destructive Operation Guardrails

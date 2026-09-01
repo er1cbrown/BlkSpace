@@ -1,42 +1,42 @@
 import { describe, it, expect } from "vitest";
 import {
   POWER_OF_2,
-  bothRailsClaimPrimarySettlement,
+  canonicalStandard,
   governanceRailTouchesWeixBucks,
   settlementPillar,
+  solanaIsCanonicalMint,
 } from "@/lib/power-of-2";
 import { WB_TO_BKSPC_RATIO } from "@/lib/tokenomics";
 import { BRIDGE_EXCLUDED_ASSETS, HYPEREVM_ASSETS, HYPEREVM_GATES_COPY } from "@/lib/hyperevm";
 import { BKSPC_GATES_COPY } from "@/lib/bkspc-config";
 
-describe("Power of 2 functional separation", () => {
-  it("gives each chain a distinct non-overlapping job", () => {
-    expect(POWER_OF_2.socialMicroSettlement.role).toMatch(/micro-settlement/i);
-    expect(POWER_OF_2.protocolGovernance.role).toMatch(/governance/i);
-    expect(POWER_OF_2.socialMicroSettlement.token).toBe("BKSPC");
-    expect(POWER_OF_2.protocolGovernance.token).toBe("BI9");
-    expect(POWER_OF_2.socialMicroSettlement.chain).not.toBe(
-      POWER_OF_2.protocolGovernance.chain,
-    );
+describe("Power of 2 — ERC-20 is canonical", () => {
+  it("names BI9 ERC-20 on HyperEVM as the canonical mint", () => {
+    expect(POWER_OF_2.canonicalErc20.canonical).toBe(true);
+    expect(POWER_OF_2.canonicalErc20.token).toBe("BI9");
+    expect(canonicalStandard()).toBe("ERC-20");
+    expect(POWER_OF_2.canonicalErc20.chain).toBe("hyperevm");
+    expect(solanaIsCanonicalMint()).toBe(false);
+    expect(POWER_OF_2.optionalSolanaPrototype.canonical).toBe(false);
   });
 
-  it("does not let both rails claim primary settlement", () => {
-    expect(bothRailsClaimPrimarySettlement()).toBe(false);
-  });
-
-  it("lets only Solana BKSPC touch WeixBucks", () => {
-    expect(POWER_OF_2.socialMicroSettlement.interactsWithWeixBucks).toBe(true);
-    expect(POWER_OF_2.socialMicroSettlement.wbRatio).toBe(1000);
-    expect(WB_TO_BKSPC_RATIO).toBe(1000);
+  it("does not auto-convert WeixBucks to BI9", () => {
     expect(governanceRailTouchesWeixBucks()).toBe(false);
-    expect(POWER_OF_2.protocolGovernance.wbRatio).toBeNull();
+    expect(POWER_OF_2.canonicalErc20.wbRatio).toBeNull();
   });
 
-  it("points the student settlement pillar at Solana, not HyperEVM", () => {
+  it("keeps Solana as an optional 1000:1 prototype only", () => {
+    expect(POWER_OF_2.optionalSolanaPrototype.token).toBe("BKSPC");
+    expect(POWER_OF_2.optionalSolanaPrototype.wbRatio).toBe(1000);
+    expect(WB_TO_BKSPC_RATIO).toBe(1000);
+    expect(POWER_OF_2.optionalSolanaPrototype.interactsWithWeixBucks).toBe(true);
+  });
+
+  it("points the wallet on-chain pillar at HyperEVM BI9", () => {
     const pillar = settlementPillar();
-    expect(pillar.href).toBe("#settlement");
-    expect(pillar.sub).toBe("Solana · BKSPC");
-    expect(pillar.sub).not.toMatch(/HyperEVM|BI9/);
+    expect(pillar.href).toBe("#hyperevm");
+    expect(pillar.sub).toBe("HyperEVM · BI9");
+    expect(pillar.sub).not.toMatch(/Solana|BKSPC/);
   });
 
   it("keeps WeixBucks and BKSPC off the HyperEVM asset list", () => {
@@ -46,10 +46,11 @@ describe("Power of 2 functional separation", () => {
     expect(BRIDGE_EXCLUDED_ASSETS).toContain("WeixBucks");
   });
 
-  it("states the isolation in wallet gate copy", () => {
-    expect(HYPEREVM_GATES_COPY.join(" ")).toMatch(/not student settlement/i);
+  it("states ERC-20 canonical in wallet gate copy", () => {
+    expect(HYPEREVM_GATES_COPY.join(" ")).toMatch(/Canonical on-chain token is BI9 \(ERC-20\)/);
     expect(HYPEREVM_GATES_COPY.join(" ")).toMatch(/do not convert to BI9/i);
-    expect(BKSPC_GATES_COPY.join(" ")).toMatch(/1,000 WB/);
-    expect(BKSPC_GATES_COPY.join(" ")).toMatch(/not minted from WeixBucks/i);
+    expect(HYPEREVM_GATES_COPY.join(" ")).not.toMatch(/not student settlement/i);
+    expect(BKSPC_GATES_COPY.join(" ")).toMatch(/not the canonical mint/i);
+    expect(BKSPC_GATES_COPY.join(" ")).toMatch(/BI9 ERC-20/);
   });
 });

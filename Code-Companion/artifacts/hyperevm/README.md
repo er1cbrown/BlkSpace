@@ -8,7 +8,7 @@ Solidity for the canonical on-chain asset. Decision: [`docs/finance-l1-strategy.
 | `StakeVault.sol` | Native HYPE + BI9 sleeves. Fee-tier view. **No rewards.** 7-day unstake cooldown. |
 | `TimelockAdmin.sol` | Delayed admin. Owner of BI9 + vault. Delay floor **2 days**; `setMinDelay` / `transferAdmin` only via the timelock itself. |
 
-This is **not** an Anchor program. Solana is the **student micro-settlement** rail (BKSPC / WeixBucks). HyperEVM is the **governance backplane**. They do not share a settlement job.
+This is **not** an Anchor program. **BI9 is the canonical ERC-20.** Solana Token-2022 is optional scaffolding, not the mint home.
 
 ## Chain
 

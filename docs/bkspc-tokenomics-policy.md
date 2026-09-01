@@ -1,13 +1,13 @@
 # BKSPC Tokenomics Policy
 
-**Status:** Phase A (Devnet) — **Tier 1 social micro-settlement** (Power of 2)  
-**Date:** 2026-08-25 · role lock 2026-08-27  
-**Token:** BKSPC (BlkSpace Coin) — student receipt ticker  
+**Status:** Proposed – Phase A (Devnet) — **not** the canonical coin home  
+**Date:** 2026-08-25  
+**Token:** BKSPC (BlkSpace Coin) — Solana prototype name  
 **Chain:** Solana (Devnet first) — **not** the home of BI9
 
-> **Power of 2:** BKSPC on Solana is **student micro-settlement** (1,000 WB → 1 BKSPC).  
-> **BI9** on HyperEVM is **institutional governance** and has **no** WeixBucks path.  
-> Read [`tokenomics.md`](tokenomics.md) and [`features/comparative-multi-chain-prototyping-study.md`](features/comparative-multi-chain-prototyping-study.md). This file is Design 1 (earned settlement + fee-burn). It does **not** define BI9 minting.
+> **Canonical on-chain asset is BLACKINCCOIN (BI9), ERC-20, on HyperEVM.**  
+> Read [`tokenomics.md`](tokenomics.md) and [`finance-l1-strategy.md`](finance-l1-strategy.md) first.  
+> This file keeps the earlier Solana earned-settlement lock (Design 1) as a **historical / optional** note. It does **not** define BI9 minting. WeixBucks still do not auto-convert.
 
 **Related (canonical):** [`tokenomics.md`](tokenomics.md) · [`blkbridge.md`](blkbridge.md) · [`blkshi.md`](blkshi.md)  
 **Related:** Design 1 – Earned Settlement + Fee-Burn Model  

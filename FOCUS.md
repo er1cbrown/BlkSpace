@@ -2,8 +2,8 @@
 
 | Tree | Status |
 |------|--------|
-| **HyperEVM / BI9 mainnet path** | **Work focus** — governance backplane, not student settlement. Contracts in `Code-Companion/artifacts/hyperevm/`. App panel: `/wallet` → HyperEVM (advanced). |
-| **Power of 2 roles** | Solana BKSPC = student micro-settlement; HyperEVM BI9 = governance. See `docs/features/comparative-multi-chain-prototyping-study.md`. |
+| **HyperEVM / BI9 ERC-20** | **Canonical on-chain token.** Contracts in `Code-Companion/artifacts/hyperevm/`. App panel: `/wallet` → On-chain (HyperEVM). |
+| **Solana BKSPC** | Optional Token-2022 prototype. Not the canonical mint. |
 | **`rustytempleOS/`** | Paused (Phase 1 VFS still next on that tree) |
 | **BlkSpace campus app** | Keep shipping WeixBucks / Yard. Do not delete assets, keys, or CI. |
 

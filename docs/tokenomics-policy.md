@@ -2,11 +2,10 @@
 
 **Status:** Implemented in `db.rs` + wallet UI  
 **Uniform model:** `creator-marketplace` — see `docs/economy-uniform-model.md`  
-**Student micro-settlement:** **BKSPC** on Solana (1,000 WB → 1 BKSPC) — see [`tokenomics.md`](tokenomics.md)  
-**Governance token:** **BLACKINCCOIN / BI9** on **HyperEVM** — no WB path  
-**Decision:** [`finance-l1-strategy.md`](finance-l1-strategy.md) · [`features/comparative-multi-chain-prototyping-study.md`](features/comparative-multi-chain-prototyping-study.md)
+**On-chain token (canonical):** **BLACKINCCOIN / BI9** — **ERC-20** on **HyperEVM** — see [`tokenomics.md`](tokenomics.md)  
+**Decision:** [`finance-l1-strategy.md`](finance-l1-strategy.md)
 
-> This file remains the **live WeixBucks** policy (fees, caps, marketplace). Power of 2: Solana settles student receipts; HyperEVM does not.
+> This file remains the **live WeixBucks** policy (fees, caps, marketplace). Solana **BKSPC** rows below are optional prototype scaffolding, not the canonical mint.
 
 ---
 
@@ -19,8 +18,8 @@ BlkSpace runs a **creator marketplace economy** — the same class as Roblox (Ro
 | **WeixBucks (WB)** | Soft currency | Earn from posts, yards, node work. Spend on tips and **creator marketplace**. **Not purchasable with USD.** |
 | **Creator marketplace** | UGC shop | List media, mixes, themes, services, tickets. Buyers pay WB; sellers get net after 5% fee. |
 | **Karma** | Reputation | Leaderboard / visibility only. **Never spendable, never convertible to WB.** |
-| **BKSPC** | Solana Token-2022 | Student micro-settlement of earned WB (1,000:1). Not the home of BI9. |
-| **BI9 (BLACKINCCOIN)** | HyperEVM ERC-20 | Institutional governance. **No WB conversion.** See [`tokenomics.md`](tokenomics.md). |
+| **BI9 (BLACKINCCOIN)** | HyperEVM **ERC-20** (canonical) | On-chain finance asset. **No automatic WB conversion.** See [`tokenomics.md`](tokenomics.md). |
+| **BKSPC** | Solana (optional prototype) | Earlier Phase A name / Devnet path. Not the home of BI9. |
 
 ---
 

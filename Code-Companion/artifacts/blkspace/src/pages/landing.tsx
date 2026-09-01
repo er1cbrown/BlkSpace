@@ -283,8 +283,8 @@ export default function LandingPage() {
               How the economy works
             </h2>
             <p className="text-center text-muted-foreground mb-12">
-              Practice credits, reputation, then optional Solana receipts.
-              Governance lives on a different chain.
+              Three layers. Simple for users. Canonical on-chain token is BI9
+              (ERC-20) on HyperEVM.
             </p>
             <div className="grid md:grid-cols-3 gap-6">
               <div className="text-center p-6 rounded-2xl border border-primary/20 bg-primary/5">
@@ -311,22 +311,21 @@ export default function LandingPage() {
               </div>
               <div className="text-center p-6 rounded-2xl border border-secondary/20 bg-secondary/5">
                 <TrendingUp className="w-10 h-10 text-secondary-foreground mx-auto mb-4" />
-                <h3 className="font-bold mb-2">{BRAND.symbol} (Solana)</h3>
+                <h3 className="font-bold mb-2">BI9 (ERC-20)</h3>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Optional student micro-settlement on Solana. Mint from earned
-                  WB at 1,000:1 after Yard Cred gates. Not governance.
+                  Canonical on-chain token on HyperEVM. ERC-20. Staking,
+                  governance, later BlkFinance. WeixBucks do not auto-convert.
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Devnet prototype. No guaranteed price. BI9 on HyperEVM is a
-                  separate institutional token and is not minted from WB.
+                  Mint off until a timelocked cap. No guaranteed price. Solana
+                  BKSPC is an optional prototype, not the mint home.
                 </p>
               </div>
             </div>
             <div className="mt-8 p-4 rounded-xl bg-muted/50 text-center text-sm text-muted-foreground">
               <strong className="text-foreground">The flow:</strong> Post → earn
-              WB → spend in the Yard marketplace, or (if eligible) convert
-              one-way to BKSPC on Solana. Institutional governance uses BI9 on
-              HyperEVM and never touches WeixBucks.
+              WB → spend in the marketplace. Canonical on-chain token is BI9
+              (ERC-20) on HyperEVM. WeixBucks do not auto-convert.
             </div>
           </div>
         </section>
@@ -355,9 +354,9 @@ export default function LandingPage() {
                 <Vote className="w-8 h-8 text-primary mb-4" />
                 <h3 className="font-bold mb-2">Utility drives value</h3>
                 <p className="text-sm text-muted-foreground">
-                  BKSPC is a student receipt of earned WeixBucks (marketplace
-                  burns, gated withdraw). Protocol governance for universities
-                  and student government is BI9 on HyperEVM — a different job.
+                  BI9 is the canonical ERC-20 on HyperEVM — staking, protocol
+                  roles, later BlkFinance. WeixBucks stay in-app. Real demand,
+                  not a second Solana mint story.
                 </p>
               </div>
               <div className="bg-card p-6 rounded-2xl border shadow-sm">

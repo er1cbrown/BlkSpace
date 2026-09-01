@@ -39,8 +39,8 @@ function injectedEthereum(): EthereumProvider | undefined {
 }
 
 /**
- * Advanced HyperEVM / BI9 governance backplane. Collapsed by default.
- * Never converts WeixBucks. Student settlement is Solana BKSPC.
+ * Canonical HyperEVM / BI9 ERC-20 panel. Collapsed by default.
+ * Never converts WeixBucks.
  */
 export function HyperEvmPanel({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
@@ -113,7 +113,7 @@ export function HyperEvmPanel({ className }: { className?: string }) {
               className="flex w-full items-center gap-2 text-left"
             >
               <CardTitle className="text-base flex items-center gap-2 flex-wrap flex-1">
-                Governance (HyperEVM)
+                On-chain (HyperEVM)
                 <Badge variant={cfg.isMainnet ? "default" : "secondary"}>
                   {cfg.isMainnet ? "mainnet 999" : "testnet 998"}
                 </Badge>
@@ -142,11 +142,10 @@ export function HyperEvmPanel({ className }: { className?: string }) {
         <CollapsibleContent>
           <CardContent className="space-y-4 text-sm">
             <p className="text-muted-foreground text-xs leading-relaxed">
-              Institutional backplane.{" "}
-              <strong className="text-foreground">BI9</strong> is an EVM
-              governance token for node runners — not student settlement.
-              Practice credits stay WeixBucks. BKSPC receipts live on Solana.
-              There is no conversion button.
+              Canonical on-chain token is{" "}
+              <strong className="text-foreground">BI9</strong> (ERC-20) on
+              HyperEVM. Practice credits stay WeixBucks. There is no conversion
+              button.
             </p>
 
             <ul className="space-y-1.5 text-xs text-muted-foreground">
