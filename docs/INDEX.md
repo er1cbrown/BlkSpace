@@ -53,6 +53,7 @@
 | Document | Purpose |
 |----------|---------|
 | [implementation/IROH_INTEGRATION.md](./implementation/IROH_INTEGRATION.md) | Iroh blob storage integration |
+| [implementation/RETICULUM_INTEGRATION.md](./implementation/RETICULUM_INTEGRATION.md) | Route B: bundled native rns/rnsd (no Python sidecar) |
 | [implementation/REAL_NOSTR_RELAYS.md](./implementation/REAL_NOSTR_RELAYS.md) | Live Nostr relay spec |
 | [implementation/MESH_ARCHITECTURE.md](./implementation/MESH_ARCHITECTURE.md) | Cross-device mesh sync |
 | [implementation/DEVICE_MESH_TESTING.md](./implementation/DEVICE_MESH_TESTING.md) | Device B M0 test matrix |

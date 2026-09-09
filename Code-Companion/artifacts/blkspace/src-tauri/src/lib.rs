@@ -4259,25 +4259,30 @@ fn receive_blob_share_ticket(
   ))
 }
 
-// ─── Reticulum optional mesh lane (https://github.com/markqvist/reticulum) ───
+// ─── Reticulum optional mesh lane — bundled native rns/rnsd (no Python sidecar) ───
 
 #[tauri::command]
-fn reticulum_status() -> reticulum_bridge::ReticulumStatus {
-  reticulum_bridge::reticulum_status()
+fn reticulum_status(state: State<AppState>) -> reticulum_bridge::ReticulumStatus {
+  reticulum_bridge::reticulum_status(&state.app_dir)
 }
 
 #[tauri::command]
-fn reticulum_announce_yard(yard: String, handle: String) -> Result<serde_json::Value, String> {
-  reticulum_bridge::reticulum_announce_yard(&yard, &handle)
+fn reticulum_announce_yard(
+  state: State<AppState>,
+  yard: String,
+  handle: String,
+) -> Result<serde_json::Value, String> {
+  reticulum_bridge::reticulum_announce_yard(&state.app_dir, &yard, &handle)
 }
 
 #[tauri::command]
 fn reticulum_send_yard_note(
+  state: State<AppState>,
   yard: String,
   handle: String,
   text: String,
 ) -> Result<serde_json::Value, String> {
-  reticulum_bridge::reticulum_send_yard_note(&yard, &handle, &text)
+  reticulum_bridge::reticulum_send_yard_note(&state.app_dir, &yard, &handle, &text)
 }
 
 #[tauri::command]

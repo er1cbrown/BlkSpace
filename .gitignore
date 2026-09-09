@@ -28,6 +28,11 @@ Cargo.lock
 !Code-Companion/artifacts/blkspace/src-tauri/Cargo.lock
 !Code-Companion/artifacts/solana/Cargo.lock
 *.rs.bk
+# Native rns/rnsd drop-ins (Full). README in that folder is tracked.
+Code-Companion/artifacts/blkspace/src-tauri/rns/rns
+Code-Companion/artifacts/blkspace/src-tauri/rns/rns.exe
+Code-Companion/artifacts/blkspace/src-tauri/rns/rnsd
+Code-Companion/artifacts/blkspace/src-tauri/rns/rnsd.exe
 
 # ============================================================================
 # IDE

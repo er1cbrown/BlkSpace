@@ -75,6 +75,7 @@ BlkSpace/ (cloned root)
 5. Keep dependencies minimal — every byte counts on low-end machines
 6. Blockchain: BlkCore stays off-chain. Canonical mint is **BI9 ERC-20 on HyperEVM** (`Code-Companion/artifacts/hyperevm/`). Do not put BI9 on Solana. Existing Anchor programs under `artifacts/solana/` are optional Token-2022 scaffolding — do not extend them as the canonical mint. Never auto-convert WeixBucks to BI9.
 7. Use **Bun** only (`bun install`, `bun run …`). Do not use pnpm/npm/yarn.
+8. Reticulum Route B: bundled native `rns`/`rnsd` only. No Python sidecar, no LXMF identity store, no RNode serial/BLE, no destination hashes next to Nostr keys. [`docs/implementation/RETICULUM_INTEGRATION.md`](docs/implementation/RETICULUM_INTEGRATION.md)
 
 ## Agent Safety & Destructive Operation Guardrails
 > Bleeding-edge projects often contain untracked state the user may not think to name explicitly. Agents must protect that state.

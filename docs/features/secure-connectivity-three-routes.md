@@ -9,7 +9,7 @@ Route A ∥ Route B ∥ Route C → secure WeixNet connectivity
 | Id | Name | Transport | Local memory | Status |
 |----|------|-----------|--------------|--------|
 | **A** | Social mesh | Nostr relays + town/intranet tags | **Turso** (per device) | Live / partial |
-| **B** | Resilient mesh | Optional Reticulum (RNS) | Separate RNS id | Optional |
+| **B** | Resilient mesh | Optional Reticulum (native rns/rnsd) | Separate `{app_data}/rns` spool — never next to Nostr keys | Optional |
 | **C** | Play mesh | P2P + rollback (TLA class) | RAM sim only | Design locked |
 
 **Turso is not in the mesh.** It stores what Route A (and match results from C) already accepted on *this* device.
@@ -24,7 +24,7 @@ Route A ∥ Route B ∥ Route C → secure WeixNet connectivity
 ## Related
 
 - [`sbf-rollback-netplay.md`](sbf-rollback-netplay.md) — Route C  
-- [`../implementation/RETICULUM_INTEGRATION.md`](../implementation/RETICULUM_INTEGRATION.md) — Route B  
+- [`../implementation/RETICULUM_INTEGRATION.md`](../implementation/RETICULUM_INTEGRATION.md) — Route B (bundled native rns/rnsd; no Python sidecar, no LXMF store, no RNode)  
 - [`../architecture-blueprint.md`](../architecture-blueprint.md) — Route A  
 
 ## Product AI

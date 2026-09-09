@@ -18,7 +18,11 @@ import {
   getIntranetStatus,
   type IntranetStatus,
 } from "@/lib/hbcu-intranet";
-import { getReticulumStatus, type ReticulumStatus } from "@/lib/reticulum";
+import {
+  getReticulumStatus,
+  RNS_INSTALL_HINT,
+  type ReticulumStatus,
+} from "@/lib/reticulum";
 import {
   PROJECT_B_EQUATION,
   SBF_NETPLAY_TARGET,
@@ -62,9 +66,10 @@ export const CONNECTIVITY_ROUTES: readonly ConnectivityRouteDef[] = [
     codename: "resilient",
     title: "Resilient mesh",
     endGoalSlice: "Hard-path notes · yard announce when easy net fails",
-    transport: "Optional Reticulum (RNS) via Python bridge",
-    localStore: "RNS identity separate; BlkSpace still Nostr keys for social",
-    neverUseFor: "Default feed · rollback · requiring rns on Tier 0",
+    transport: "Optional Reticulum (RNS) via bundled native rns/rnsd",
+    localStore: "Separate rns spool under app data — never next to Nostr keys",
+    neverUseFor:
+      "Default feed · rollback · Python sidecar · LXMF identity store · RNode serial/BLE · dest hashes beside keys",
     docsPath: "docs/implementation/RETICULUM_INTEGRATION.md",
   },
   {
@@ -175,7 +180,7 @@ export async function probeThreeRoutes(): Promise<ThreeRouteSnapshot> {
     };
   })();
 
-  const routeB: RouteStatusSnapshot = (() => {
+  const routeB = ((): RouteStatusSnapshot => {
     const def = routeDef("B");
     if (!resilient) {
       return {
@@ -199,7 +204,11 @@ export async function probeThreeRoutes(): Promise<ThreeRouteSnapshot> {
         metrics: {
           available: true,
           reason: resilient.reason,
-          python: resilient.python || "",
+          bundled: resilient.bundled === true,
+          rnsd: resilient.rnsd || "",
+          lxmf: false,
+          rnode: false,
+          pythonSidecar: false,
         },
       };
     }
@@ -209,7 +218,9 @@ export async function probeThreeRoutes(): Promise<ThreeRouteSnapshot> {
         def,
         status: "web_only" as const,
         label: "Desktop only",
-        detail: resilient.detail || "Install desktop app + pip install rns for lab.",
+        detail:
+          resilient.detail ||
+          "Desktop Full may bundle native rnsd. Web preview has no Route B.",
         metrics: { reason: resilient.reason },
       };
     }
@@ -221,11 +232,14 @@ export async function probeThreeRoutes(): Promise<ThreeRouteSnapshot> {
       detail:
         resilient.detail ||
         resilient.reason ||
-        "pip install rns for lab mesh. Tier 0 OK without it.",
+        "Native rnsd not bundled. Tier 0 Yard is OK without it.",
       metrics: {
         available: false,
         reason: resilient.reason,
-        install: resilient.install || "pip install rns",
+        install: resilient.install || RNS_INSTALL_HINT,
+        lxmf: false,
+        rnode: false,
+        pythonSidecar: false,
       },
     };
   })();
