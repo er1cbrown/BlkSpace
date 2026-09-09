@@ -156,7 +156,7 @@ impl BlobSharePayload {
         .map_err(|_| "Invalid blkspace1 ticket encoding".to_string())?;
       let payload: BlobSharePayload =
         serde_json::from_slice(&bytes).map_err(|e| format!("Invalid ticket JSON: {e}"))?;
-      if payload.v != 1 {
+      if payload.v != 1 && payload.v != 2 {
         return Err(format!("Unsupported ticket version {}", payload.v));
       }
       if payload.hash.is_empty() && payload.cid.as_ref().map(|c| c.is_empty()).unwrap_or(true) {

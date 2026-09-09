@@ -67,7 +67,7 @@ mod iroh_phase2 {
 
     let node_a = IrohNode::new(shared_dir.path().to_path_buf()).await.unwrap();
     let cid = node_a.add_blob(payload).await.unwrap();
-    drop(node_a);
+    node_a.shutdown().await.expect("release fs-store lock");
 
     let node_b = IrohNode::new(shared_dir.path().to_path_buf()).await.unwrap();
     let fetched = node_b.get_blob(&cid).await.unwrap().expect("Device B fetch");
@@ -116,15 +116,30 @@ mod iroh_phase2 {
     let node_b = IrohNode::new(device_b.path().to_path_buf()).await.unwrap();
     let cid = node_b.add_blob(payload).await.unwrap();
     let sha = sha256_hex(payload);
+    let cid_for_db = cid.clone();
 
-    let db = Database::new_for_test(device_b.path().join("db")).unwrap();
-    db.create_user("fan", "Fan", "").unwrap();
-    db.insert_blob(&sha, Some(&cid), "proof.jpg", "image/jpeg", payload.len() as i64, "fan")
+    let db_path = device_b.path().join("db");
+    let rec_cid = tokio::task::spawn_blocking(move || {
+      let db = Database::new_for_test(db_path).unwrap();
+      db.create_user("fan", "Fan", "").unwrap();
+      db.insert_blob(
+        &sha,
+        Some(&cid_for_db),
+        "proof.jpg",
+        "image/jpeg",
+        payload.len() as i64,
+        "fan",
+      )
       .unwrap();
-
-    let rec = db.get_blob_record(&sha).unwrap().unwrap();
-    let iroh_key = rec.cid.as_deref().expect("cid column");
-    let fetched = node_b.get_blob(iroh_key).await.unwrap().unwrap();
+      db.get_blob_record(&sha)
+        .unwrap()
+        .unwrap()
+        .cid
+        .expect("cid column")
+    })
+    .await
+    .unwrap();
+    let fetched = node_b.get_blob(&rec_cid).await.unwrap().unwrap();
     assert_eq!(fetched, payload);
   }
 
@@ -175,6 +190,28 @@ mod iroh_phase2 {
     db.record_pin_serve(&hash, "pinner", "viewer").unwrap();
     assert_eq!(db.count_serves_today("pinner").unwrap(), 1);
     assert_eq!(db.count_serves_for_blob(&hash).unwrap(), 1);
+  }
+
+  /// Two Full nodes: A serves a BlobTicket, B hole-punches/relays and fetches.
+  #[tokio::test]
+  async fn test_iroh_p2p_ticket_two_nodes() {
+    let device_a = tempfile::tempdir().unwrap();
+    let device_b = tempfile::tempdir().unwrap();
+    let payload = b"in-app sendme-class drop";
+
+    let node_a = IrohNode::new(device_a.path().to_path_buf()).await.unwrap();
+    let cid = node_a.add_blob(payload).await.unwrap();
+    let ticket = node_a.ticket_for_hash(&cid).await.unwrap();
+
+    let node_b = IrohNode::new(device_b.path().to_path_buf()).await.unwrap();
+    let fetched = tokio::time::timeout(
+      std::time::Duration::from_secs(45),
+      node_b.download_ticket(&ticket),
+    )
+    .await
+    .expect("P2P download timed out (n0 relay / hole-punch)")
+    .expect("P2P download");
+    assert_eq!(fetched, payload);
   }
 
   /// Lightweight perf smoke — not Tier 0 hardware, but guards regressions in CI.

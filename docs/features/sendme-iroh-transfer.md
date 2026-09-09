@@ -1,7 +1,7 @@
 # Sendme-style P2P file drop (BlkSpace)
 
 **Upstream:** [n0-computer/sendme](https://github.com/n0-computer/sendme) · crates.io `sendme` 0.36  
-**Status:** Integrated as product UX + CLI bridge (2026-08). Not a vendored copy of the sendme binary.
+**Status:** Full build uses **iroh 1.x + iroh-blobs 0.103** (same generation as sendme). In-app `BlobTicket` hole-punch is on `feature = "iroh-net"` (default with Full). Yard still `--no-default-features`. Not a vendored sendme binary.
 
 ## What sendme is
 
@@ -16,14 +16,14 @@ Tickets are **location-transparent** (256-bit node id). NAT traversal via iroh; 
 
 ## Why BlkSpace does not embed the sendme crate
 
-| | sendme 0.36 | BlkSpace Yard / Full today |
-|--|-------------|----------------------------|
-| iroh-blobs | **0.103** | optional **0.35** `fs-store` only |
-| iroh endpoint | **1.0** full magicsock | store-only `IrohNode` (no provider loop) |
-| Default ship | CLI | **Yard** = `--no-default-features` (no iroh) for students / Windows link health |
-| Windows | N/A as app dep | Full iroh link can hit “export ordinal too large” |
+| | sendme 0.36 CLI | BlkSpace Full (`iroh` + `iroh-net`) | Yard |
+|--|-----------------|--------------------------------------|------|
+| iroh-blobs | **0.103** | **0.103** FsStore + Router | omitted |
+| iroh endpoint | **1.0** magicsock | **1.0** `Endpoint` + `BlobsProtocol` | omitted |
+| Ticket | `BlobTicket` string | same + `blkspace1.` wrapper (`p2p_ticket`) | `blkspace1.` metadata only |
+| Windows | CLI | **gate** — Full link must stay green; revert Yard-only if ordinal/link fails |
 
-Pulling `sendme` or upgrading to iroh 1.x would break Yard CI size and Full Windows builds. We implement the **same product pattern** on our stack instead.
+We still **do not** `cargo add sendme` (CLI binary). Full uses the same **crates** sendme uses.
 
 ## What we ship
 
@@ -92,10 +92,10 @@ Upload (composer) ──► blob_store + SQLite (+ Iroh CID if feature iroh)
 
 ## Roadmap (not done)
 
-- Live **iroh provider** in-process (iroh 1.x) behind `feature = "iroh-net"` when Windows link budget allows  
 - QR of tickets; auto-paste into DMs  
 - Directory collections (sendme `HashSeq` collections)  
-- Pin rewards for serving ticket peers (ties to existing pin serve WB)
+- Pin rewards for serving ticket peers (ties to existing pin serve WB)  
+- Windows Full link proof after iroh 1.x (Device B)
 
 ## Code map
 

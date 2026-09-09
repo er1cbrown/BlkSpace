@@ -4070,10 +4070,44 @@ fn receive_blob_share_ticket(
   let handle = check_session_rate_limit(&state, &session_token)?;
   let raw = ticket.trim();
   if sendme_share::looks_like_external_blob_ticket(raw) {
+    #[cfg(feature = "iroh-net")]
+    {
+      if let Some(iroh) = state.iroh.lock().unwrap().as_ref() {
+        let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {e}"))?;
+        match rt.block_on(iroh.download_ticket(raw)) {
+          Ok(bytes) => {
+            let local_hash = state.blob_store.store_blob(&bytes)?;
+            let (record, _) = state
+              .db
+              .insert_blob(
+                &local_hash,
+                None,
+                "iroh-drop.bin",
+                "application/octet-stream",
+                bytes.len() as i64,
+                &handle,
+              )
+              .map_err(|e| AppError::from(e).to_string())?;
+            return Ok(sendme_share::ReceiveShareResult {
+              hash: record.hash,
+              cid: record.cid,
+              filename: record.filename,
+              mime_type: record.mime_type,
+              file_size: record.file_size,
+              source: "iroh-p2p".to_string(),
+              message: "Materialized from sendme/iroh BlobTicket (in-app hole-punch)".to_string(),
+            });
+          }
+          Err(e) => {
+            log::warn!("in-app BlobTicket download failed: {e}");
+          }
+        }
+      }
+    }
     let info = sendme_share::detect_sendme_cli();
     let cmd = sendme_share::sendme_receive_command(raw);
     return Err(format!(
-      "External sendme/iroh ticket. Run on this machine:\n  {}\n{}",
+      "External sendme/iroh ticket. In-app P2P missed; run on this machine:\n  {}\n{}",
       cmd,
       if info.installed {
         format!("(sendme found{})", info.version.map(|v| format!(": {v}")).unwrap_or_default())

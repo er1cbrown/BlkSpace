@@ -36,13 +36,11 @@ tokio = { version = "1", features = ["full"] }
 nostr-sdk = { version = "0.38", features = [] }
 url = "2"
 async-trait = "0.1"
-iroh-blobs = { version = "0.35", features = ["fs-store"], optional = true }
-# Pin socket2 to a version compatible with netwatch v0.5.0 (pulled by iroh-blobs 0.35) on macOS.
-# This resolves the "Type::RAW" and UnixStream From<Socket> errors on BSD.
-socket2 = { version = "0.5.7", features = ["all"] }
-# Transitive re-exports from iroh-blobs for direct use in our IrohNode wrapper (no extra bloat).
+# Full build: iroh 1.x Endpoint + iroh-blobs 0.103 (sendme-compatible BlobTicket / hole-punch).
+# Yard: cargo build --no-default-features (no iroh). Do not depend on the sendme crate.
+iroh = { version = "1", optional = true }
+iroh-blobs = { version = "0.103", features = ["fs-store"], optional = true }
 bytes = "1"
-iroh-io = "0.6"
 keyring = "3"
 chacha20poly1305 = "0.10"
 rand = "0.8"
@@ -56,8 +54,10 @@ bincode = { version = "1.3", optional = true }
 bs58 = { version = "0.5", optional = true }
 
 [features]
-default = ["iroh"]
-iroh = ["dep:iroh-blobs"]
+default = ["iroh", "iroh-net"]
+iroh = ["dep:iroh-blobs", "dep:iroh"]
+# Share-ticket P2P (`ticket_for_hash` / `download_ticket`). Yard omits both via --no-default-features.
+iroh-net = ["iroh"]
 bkspc-devnet = [
   "dep:solana-client",
   "dep:solana-sdk",
@@ -69,15 +69,8 @@ bkspc-devnet = [
 ]
 e2e-testing = ["dep:tauri-plugin-playwright"]
 
-# Iroh is enabled by default for dev and release builds (`bun run tauri:dev` / `bun run tauri:build`).
-# CI also runs a dedicated Linux smoke job with explicit `--features iroh`.
-# Disable with `cargo build --no-default-features` if you need a slim binary without blob networking.
-# The build is feature-gated by default because iroh-blobs 0.35 transitives (netwatch) can have
-# platform issues on macOS even with the socket2=0.5.7 pin. When enabled:
-# - upload_blob stores to Iroh fs store and returns real CID (blake3) in BlobInfo.cid
-# - blobs table stores both local sha hash (for fs fallback) + cid
-# - get_blob_bytes prefers cid for Iroh fetch when present (unblocks media CIDs, future p2p/pinning rewards)
-# Default (no feature) still provides cid=hash fallback so UI/media never breaks.
+# Full: Iroh 1.x Endpoint + iroh-blobs 0.103 (sendme-compatible BlobTicket).
+# Yard: `--no-default-features` (no magicsock). Do not `cargo add sendme`.
 
 [dev-dependencies]
 tempfile = "3"
