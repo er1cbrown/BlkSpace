@@ -1,0 +1,48 @@
+# Hostinger VPS only. Do not run on the Tier 0 Windows laptop.
+# Copy .env.example → .env before `docker compose up -d`.
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:10.10.7
+    container_name: blkspace-jellyfin
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    volumes:
+      - jellyfin-config:/config
+      - jellyfin-cache:/cache
+      - ${MEDIA_DIR:-/data/media}:/media:ro
+    environment:
+      - TZ=${TZ:-America/Chicago}
+    # Loopback only. Caddy is the public HTTPS front.
+    expose:
+      - "8096"
+    networks:
+      - edge
+
+  caddy:
+    image: caddy:2.9-alpine
+    container_name: blkspace-jellyfin-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      - JELLYFIN_DOMAIN=${JELLYFIN_DOMAIN:?set JELLYFIN_DOMAIN in .env}
+    networks:
+      - edge
+    depends_on:
+      - jellyfin
+
+volumes:
+  jellyfin-config:
+  jellyfin-cache:
+  caddy-data:
+  caddy-config:
+
+networks:
+  edge:
+    driver: bridge

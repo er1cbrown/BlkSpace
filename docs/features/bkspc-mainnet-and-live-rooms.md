@@ -39,6 +39,7 @@ Default cluster remains **devnet** until you switch. Empty mint = not launched (
 | **Stage** | In-app iframe → [Jitsi Meet](https://meet.jit.si) (video + screen) |
 | **Voice** | Same Jitsi (audio-first room name) |
 | **External** | Paste Discord / Zoom / YouTube / Twitch / Meet / .edu HTTPS link |
+| **Watch** (spec) | Jellyfin HTTPS item, Iroh media ticket, or Syncplay — [`yard-room-watch.md`](yard-room-watch.md). Not HiAnime / Megaplay. |
 
 ### Storage
 
@@ -49,6 +50,7 @@ Rooms + soft presence in `localStorage` (`blkspace_yard_live_rooms_v1`) per yard
 - Native RTMP / TikTok-style broadcast ingest  
 - Server-side SFU (uses public Jitsi)  
 - Persistent multi-device presence mesh  
+- Scrape-site HLS as a room source (ani-cli stays on the laptop)  
 
 ---
 

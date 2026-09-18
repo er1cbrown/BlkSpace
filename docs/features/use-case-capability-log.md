@@ -3,7 +3,7 @@
 **Product:** **BlkSpace** (trademark-intent UI / app brand)  
 **Coin ticker:** **BKSPC** = **BlkSpace Coin** (settlement rights path — gated)  
 **Soft credits:** WeixBucks (WB)  
-**Last updated:** 2026-08-09  
+**Last updated:** 2026-09-18  
 **Repo:** [er1cbrown/BlkSpace](https://github.com/er1cbrown/BlkSpace)
 
 This log is the living answer to: *“Can this campus story run on BlkSpace?”*  
@@ -35,7 +35,7 @@ Trademark intent: protect **BlkSpace** as product. **BKSPC** is the short ticker
 | 3 | Billy post-internship · open to work / research · find labs | **Done** | Pro Profile flags, Connect talent board, express interest | Fortune-500 cold outreach, LinkedIn Recruiter |
 | 3b | Meharry med · busy · study refresh + Connect + time/money | **Done** | `/focus` Path; **Meharry Yard** seed; welcome **Med school · Focus Path**; feed Focus banner; home yard prefs | Official LMS, Anki, SIS, native schedule import |
 | 4 | Club XYZ exclusive service day · RSVP · headcount | **Done** | Yard Events, capacity/waitlist, club-only RSVP, guest list, check-in, free/paid pass | Full Eventbrite tiers, Stripe, public city discovery |
-| 5 | Anime club · book group · publish manga pages | **Done** | Club kit, reading circles, publish/notes/recs | Licensed streaming, page-flip comic reader, series CMS |
+| 5 | Anime club · book group · publish manga pages | **Done** | Club kit, reading circles, publish/notes/recs | Licensed catalog; page-flip comic reader. Club **watch party of user-owned files** is row 22 |
 | 6 | Gaming / chess tournament · 1v1 · rewards · merch | **Partial** | Register, R1 bracket, scores, prize WB, **play URL** (Lichess) + **live link-out**, Chess club kit | Native board, multi-round auto-bracket, prize escrow pot, stream ingest |
 | 6b | Content Hub · topic media (chess, fashion, live, pro…) | **Done** | `/hub` topic shelf, publish, earn-angle copy, live/stream kinds | Full CDN, feed auto-mirror, native player |
 | 6c | Financial literacy · how you make money | **Done** | Earnings → How to Earn: paths (create/community/live/compete/sell/portfolio/coin) | Interactive lessons, quizzes |
@@ -62,6 +62,7 @@ Trademark intent: protect **BlkSpace** as product. **BKSPC** is the short ticker
 | 19d | **Rollback netplay** (Tough Love Arena–class connectivity for SBF) | **Partial** | **N1** local trainer `/rollback` · deterministic sim + predict/rollback/resim + input log verify — [`sbf-rollback-netplay.md`](sbf-rollback-netplay.md) · `sbf-rollback-core.ts` | N2 loopback 2-instance; N3 friend-code WAN; TURN; club result events |
 | 20 | **3-route secure connectivity** (A social ∥ B RNS ∥ C play) | **Partial** | Model + probe UI on Mesh Test → **3 Routes**; Turso = A cache only — [`secure-connectivity-three-routes.md`](secure-connectivity-three-routes.md) | Full Device B on A; native rnsd on B (no LXMF); shipped rollback on C |
 | 21 | **Your yard path** · not just finance (partner/campus life track) | **Partial** | Discipline track `social` + feed `YourYardPathCard` + creative track copy — [`use-case-her-yard-path.md`](use-case-her-yard-path.md) | Deeper onboarding analytics; couple shared club night pack |
+| 22 | **Yard room watch** · club night plays a file in chat | **Partial** | Spec + allowlist: Jellyfin HTTPS, Iroh media tickets, Syncplay. Scrape CDNs refused. Hostinger compose scaffold. — [`yard-room-watch.md`](yard-room-watch.md) · [`../implementation/jellyfin-hostinger/README.md`](../implementation/jellyfin-hostinger/README.md) | Live UI `kind: "watch"`; Nostr ticket gossip; Device B vs a real origin |
 
 ---
 
@@ -86,6 +87,7 @@ Trademark intent: protect **BlkSpace** as product. **BKSPC** is the short ticker
 | Studio portfolio + delivery | `studio.rs`, `studio.ts`, `StudioPanel` |
 | Connect + Cred | `connect.rs`, `project-connect.ts`, connect page |
 | Brand | `src/lib/brand.ts` → **BlkSpace** + **BKSPC** |
+| Yard room watch | `yard-room-watch.ts` (allowlist); UI not wired |
 
 Schema versions (desktop Turso): through **v8** (`SCHEMA_VERSION = 8` in `db.rs`; escrow / events / clubs / studio / HBCU via `ensure_schema`).
 
@@ -109,6 +111,7 @@ BlkSpace product use (yards, Connect, studio, escrow)
 
 | Date | Note |
 |------|------|
+| 2026-09-18 | Yard room watch spec (Jellyfin/Iroh/Syncplay only; no scrape) + Hostinger Jellyfin scaffold — row 22 |
 | 2026-08-26 | Amalgamation guest-room e2e + sparse-rank \(O(n \log n)\) contracts — [`../amalgamation-use-case-testing.md`](../amalgamation-use-case-testing.md) |
 | 2026-08-10 | Yard Day Brawl original (row 19) — not Newgrounds Rumble clone |
 | 2026-08-10 | Reticulum optional bridge (row 18) — markqvist/RNS, no replace Nostr |

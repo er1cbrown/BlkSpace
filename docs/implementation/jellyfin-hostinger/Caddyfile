@@ -1,0 +1,10 @@
+{$JELLYFIN_DOMAIN} {
+	encode gzip
+	reverse_proxy jellyfin:8096
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+}
