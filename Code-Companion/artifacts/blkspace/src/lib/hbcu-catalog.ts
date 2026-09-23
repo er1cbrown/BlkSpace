@@ -1,6 +1,7 @@
 /**
- * Full HBCU yard catalog — public & private (DOE/NCES-aligned current list).
- * Yards are HBCU campuses only. SEC / NCAA / PWI schools are not in the picker.
+ * Yard catalog. HBCU_CATALOG is the DOE/NCES HBCU list.
+ * PARTNER_YARDS adds campuses that were removed in the HBCU-only cut,
+ * including Vanderbilt, which asked to join.
  */
 
 export type HbcuControl = "public" | "private";
@@ -1073,11 +1074,58 @@ export const HBCU_CATALOG: HbcuInstitution[] = [
   },
 ];
 
-/** Pickable yards — HBCU catalog only. */
-export const ALL_YARD_CATALOG: HbcuInstitution[] = HBCU_CATALOG;
+/** Campuses removed by the HBCU-only cut and restored to the picker. */
+export const PARTNER_YARDS: HbcuInstitution[] = [
+  {
+    id: "belmont",
+    school: "Belmont University",
+    shortName: "Belmont",
+    city: "Nashville",
+    state: "TN",
+    founded: 1890,
+    control: "private",
+    yardLabel: "Belmont Yard",
+  },
+  {
+    id: "tennessee",
+    school: "University of Tennessee",
+    shortName: "Tennessee",
+    city: "Knoxville",
+    state: "TN",
+    founded: 1794,
+    control: "public",
+    yardLabel: "Tennessee Yard",
+  },
+  {
+    id: "ut-austin",
+    school: "University of Texas at Austin",
+    shortName: "UT Austin",
+    city: "Austin",
+    state: "TX",
+    founded: 1883,
+    control: "public",
+    yardLabel: "UT Austin Yard",
+  },
+  {
+    id: "vanderbilt",
+    school: "Vanderbilt University",
+    shortName: "Vandy",
+    city: "Nashville",
+    state: "TN",
+    founded: 1873,
+    control: "private",
+    yardLabel: "Vanderbilt Yard",
+  },
+];
+
+/** Pickable yards — HBCUs plus restored partner campuses. */
+export const ALL_YARD_CATALOG: HbcuInstitution[] = [
+  ...HBCU_CATALOG,
+  ...PARTNER_YARDS,
+];
 
 export const HBCU_BY_ID: Record<string, HbcuInstitution> = Object.fromEntries(
-  HBCU_CATALOG.map((h) => [h.id, h]),
+  ALL_YARD_CATALOG.map((h) => [h.id, h]),
 );
 
 export const HBCU_STATES = Array.from(
@@ -1095,7 +1143,7 @@ export function searchHbcus(
   const q = query.trim().toLowerCase();
   const state = opts?.state && opts.state !== "all" ? opts.state : null;
   const control = opts?.control && opts.control !== "all" ? opts.control : null;
-  return HBCU_CATALOG.filter((h) => {
+  return ALL_YARD_CATALOG.filter((h) => {
     if (state && h.state !== state) return false;
     if (control && h.control !== control) return false;
     if (!q) return true;

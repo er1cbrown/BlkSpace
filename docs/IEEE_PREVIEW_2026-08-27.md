@@ -52,7 +52,7 @@ Research framing: socio-technical systems + constrained hardware + federated ide
 | **Soft credits** | WeixBucks (**WB**) | Tips, Yard Sale, escrow |
 | **GitHub / history folder** | `er1cbrown/BlkSpace` | Repo path only — not UI chrome |
 
-**Yards:** historically Black colleges and universities **only**. SEC / NCAA / PWI rows were added then **redacted** (`67ab264`) as a values decision. Do not demo Vanderbilt, Tennessee, UT Austin, etc. Home yard default: **Tennessee State (TSU)**.
+**Yards:** HBCU campuses, plus partner campuses restored after the HBCU-only cut. Vanderbilt, Belmont, Tennessee, and UT Austin are in the picker again. Home yard default: **Tennessee State (TSU)**.
 
 ---
 
@@ -265,7 +265,7 @@ Do **not** say any of the following:
 | 1–2 | Welcome / guest | Works without an account |
 | 2–4 | Join **TSU** (or stay on existing `@demo_user`) | HBCU yard; recovery phrase is the account |
 | 4–5 | Post on Yard | Local DB first; “practice economy” |
-| 5–6 | Yards list | HBCU-only; search will **not** find Vanderbilt |
+| 5–6 | Yards list | HBCUs plus Vanderbilt, Belmont, Tennessee, UT Austin |
 | 6–7 | Connect / Yard Cred | Credibility **before** any chain story |
 | 7–8 | Wallet: fees, history, escrow states | 2% / 5% / 1%; burned; Fast+Transparent UX |
 | 8–9 | Explorer: Token-2022 mint | Decimals 6; supply 0; authority still deployer |
