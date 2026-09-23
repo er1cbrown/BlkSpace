@@ -1,5 +1,7 @@
 import { Link } from "wouter";
-import { Heart, MessageSquare, Repeat2 } from "lucide-react";
+import { Flag, Heart, MessageSquare, Repeat2 } from "lucide-react";
+import { toast } from "sonner";
+import { reportPost } from "@/lib/yard-mod";
 import {
   Card,
   CardContent,
@@ -114,6 +116,22 @@ export function ReadFeed({
               >
                 <Repeat2 className="h-4 w-4" />
                 {post.repostsCount}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => {
+                  reportPost({
+                    postId: post.id,
+                    authorHandle: post.authorHandle,
+                    reason: "spam",
+                  });
+                  toast.success("Reported to the yard mod");
+                }}
+              >
+                <Flag className="h-4 w-4" />
+                Report
               </Button>
             </CardFooter>
           </Card>

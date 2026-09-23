@@ -87,6 +87,7 @@ import {
 } from "@/lib/tauri-api";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { postVisible } from "@/lib/yard-mod";
 import { BETA_FEATURES } from "@/lib/beta-features";
 import { getHomeYardId, loadFocusPrefs } from "@/lib/focus-mode";
 import { HeartPulse, Briefcase } from "lucide-react";
@@ -384,6 +385,13 @@ export default function FeedPage() {
     );
   };
 
+  const [modRev, setModRev] = useState(0);
+  useEffect(() => {
+    const refresh = () => setModRev((n) => n + 1);
+    window.addEventListener("blkspace-mod", refresh);
+    return () => window.removeEventListener("blkspace-mod", refresh);
+  }, []);
+
   const filterFlagged = (list: any[]) =>
     showFlagged ? list : list.filter((p: any) => !isHighRisk(p));
 
@@ -412,6 +420,10 @@ export default function FeedPage() {
   } else {
     posts = filterFlagged(trendingFeed || []);
     isLoading = trendingLoading;
+  }
+
+  if (modRev >= 0) {
+    posts = posts.filter((p) => postVisible(p));
   }
 
   const composerPlaceholder =

@@ -4,6 +4,7 @@ import { useTheme } from "next-themes";
 import { Moon, Sun, Bell, Search, Users, Wallet, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { getCurrentHandle } from "@/lib/auth";
+import { isYardMod } from "@/lib/yard-mod";
 import { BrandMark } from "@/components/brand/BrandMark";
 
 export function Navbar() {
@@ -21,6 +22,9 @@ export function Navbar() {
     { href: "/connect", label: "Connect" },
     { href: "/media", label: "Media" },
     { href: "/communities", label: "Communities" },
+    ...(isYardMod(getCurrentHandle())
+      ? [{ href: "/mod", label: "Mod" }]
+      : []),
     { href: "/relays", label: "Network" },
     { href: "/mesh-test", label: "Sync Test" },
     { href: "/architecture", label: "Stack" },

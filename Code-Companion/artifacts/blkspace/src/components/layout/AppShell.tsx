@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { ReactNode, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { isYardMod } from "@/lib/yard-mod";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTheme } from "next-themes";
@@ -23,6 +24,7 @@ import {
   Building2,
   MoreHorizontal,
   Settings,
+  Shield,
   Trophy,
   Joystick,
   TerminalSquare,
@@ -179,6 +181,12 @@ export function AppShell({
       show: !isGuest && uiPrefs.showFacultyNav,
     },
     { href: "/wallet", label: "Earnings", icon: Wallet, show: !isGuest },
+    {
+      href: "/mod",
+      label: "Mod",
+      icon: Shield,
+      show: !isGuest && isYardMod(getCurrentHandle()),
+    },
     { href: "/leaderboard", label: "Leaderboard", icon: Trophy, show: true },
     { href: "/settings", label: "Settings", icon: Settings, show: !isGuest },
   ].filter((i) => i.show);

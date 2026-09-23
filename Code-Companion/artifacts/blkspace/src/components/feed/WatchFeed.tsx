@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
-import { Heart, MessageSquare, Share2, Volume2, VolumeX } from "lucide-react";
+import { Flag, Heart, MessageSquare, Share2, Volume2, VolumeX } from "lucide-react";
+import { toast } from "sonner";
+import { reportPost } from "@/lib/yard-mod";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SafeContent } from "@/components/ui/safe-content";
@@ -113,6 +115,22 @@ export function WatchFeed({ posts, authorKarma = {}, onLike }: WatchFeedProps) {
               </div>
 
               <div className="absolute right-3 bottom-28 flex flex-col gap-3 z-20">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full bg-background/60"
+                  aria-label="Report"
+                  onClick={() => {
+                    reportPost({
+                      postId: post.id,
+                      authorHandle: post.authorHandle,
+                      reason: "spam",
+                    });
+                    toast.success("Reported to the yard mod");
+                  }}
+                >
+                  <Flag className="h-5 w-5" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"

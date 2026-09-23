@@ -18,6 +18,7 @@ import React, { useEffect } from "react";
 // Lazy load non-initial pages so a bad import/module in one of them
 // doesn't break the initial landing/welcome render (common cause of blank "no display").
 const FeedPage = React.lazy(() => import("@/pages/feed"));
+const ModPage = React.lazy(() => import("@/pages/mod"));
 const PostPage = React.lazy(() => import("@/pages/post"));
 const ProfilePage = React.lazy(() => import("@/pages/profile"));
 const RelaysPage = React.lazy(() => import("@/pages/relays"));
@@ -162,6 +163,7 @@ function Router() {
         <Route path="/" component={firstRun ? WelcomePage : LandingPage} />
         <Route path="/welcome" component={WelcomePage} />
         <Route path="/feed" component={FeedPage} />
+        <Route path="/mod" component={ModPage} />
         <Route path="/posts/:id" component={PostPage} />
         <Route path="/profile/:handle" component={ProfilePage} />
         <Route path="/relays" component={RelaysPage} />

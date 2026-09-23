@@ -41,6 +41,7 @@ import {
   tauriGetBkspcSettlementStatus,
 } from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
+import { getEarnCap } from "@/lib/yard-mod";
 import { EarnRatesPanel } from "@/components/economy/EarnRatesPanel";
 import { EarnDashboard } from "@/components/economy/EarnDashboard";
 import { FinancialLiteracyPanel } from "@/components/economy/FinancialLiteracyPanel";
@@ -492,7 +493,7 @@ function WalletPageContent() {
           .filter((tx) => tx.txType === "earn")
           .reduce((s: number, tx) => s + tx.amount, 0)
       : 50);
-  const dailyCap = earnSummary?.dailyCapWb ?? 250;
+  const dailyCap = earnSummary?.dailyCapWb ?? getEarnCap();
 
   const handleClaimRewards = async () => {
     const token = getSessionToken();
