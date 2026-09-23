@@ -20,9 +20,9 @@ docker compose -p blkspace ps
 
 The build uses Bun inside Docker **on the VPS**. It does not require Bun on the host. Existing repository-wide TypeScript/test failures are separate release blockers; this image performs the same frontend build that succeeded in the Pages job plus the server bundle. Run focused server/frontend tests before deployment.
 
-Initial URL: `https://blkspace.srv1946189.hstgr.cloud` (verified to resolve to the VPS). Traefik also has routes prepared for `bkspc.app` and `www.bkspc.app`; those become reachable when their DNS records point to the VPS. Traefik requests TLS and forwards to the application through host loopback. No new public port is published.
+Production URLs: `https://bkspc.app` and `https://www.bkspc.app` (both verified with valid TLS). The temporary URL `https://blkspace.srv1946189.hstgr.cloud` remains available as a fallback. Traefik requests TLS and forwards to the application through host loopback. No new public port is published.
 
-To move to `bkspc.app`, first change that domain's website A records to the VPS's IPv4 address, remove conflicting website A/AAAA records, and retain email/TXT records. The Compose service already includes production-domain routers and allowed origins; once DNS resolves to the VPS, sign in/restore backup on the new origin because browser storage is origin-specific. Do not overwrite the existing Traefik deployment.
+DNS is currently pointed to the VPS and the production-domain routes are active. Keep the existing Traefik deployment intact.
 
 In R2 bucket CORS, include the exact application origins for `PUT`/`GET` and allow the `Content-Type` header. Stream needs Account → Stream → Edit scoped to the account, and Stream must be enabled. Changing a token requires `docker compose -p blkspace up -d --force-recreate blkspace` to reload the environment.
 

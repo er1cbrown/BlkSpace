@@ -6,13 +6,13 @@ Goal: three laptops on Wi-Fi, a shared cloud-backed app at `bkspc.app`, and a cr
 
 ## Verdict
 
-The standalone cloud deployment is live at `https://blkspace.srv1946189.hstgr.cloud` behind the VPS's existing Traefik proxy. The domain cutover to `bkspc.app` is not done because its DNS still points at Hostinger's website service. Three physical laptops have not yet been run through the complete post/media flow.
+The standalone cloud deployment is live at `https://bkspc.app` behind the VPS's existing Traefik proxy. DNS and TLS now point to the VPS. Three physical laptops have not yet been run through the complete post/media flow.
 
 ## Evidence
 
 | Area | Verified state | Consequence |
 | --- | --- | --- |
-| Domain | `bkspc.app` still resolves to Hostinger website IPs; the VPS is `2.25.137.34` | Change the DNS A/AAAA records before using the production domain |
+| Domain | `bkspc.app` and `www.bkspc.app` resolve to `2.25.137.34`; both return valid HTTPS | Production cutover is complete |
 | Cloud web build | The VPS Docker build and focused server/frontend checks passed | A standalone server serves the built SPA and API; Vite is not the production runtime |
 | Pages deployment | `actions/configure-pages` failed with site not found | Pages is not enabled/configured; it is not the current deployment path |
 | CI | 147 unit tests passed; 2 failed; frontend/API TypeScript errors | Existing native build jobs remain blocked by prerequisites |
@@ -35,7 +35,7 @@ CI evidence:
 
 The running deployment uses the Hostinger KVM 2 VPS. Bun builds inside Docker, the final container serves the standalone app and APIs, and the existing host-network Traefik terminates HTTPS. The application binds to `127.0.0.1:3000`; it does not publish a new public port. Cloudflare supplies R2 and Stream, while Turso supplies shared post records.
 
-The remaining hosting action is DNS: point `bkspc.app` and `www.bkspc.app` at `2.25.137.34`, remove conflicting AAAA records, then set `APP_DOMAIN=bkspc.app` and recreate the service. Do not remove the existing Traefik or Hermes containers.
+The remaining hosting work is Cloudflare Stream authorization and the physical three-device test. Do not remove the existing Traefik or Hermes containers.
 
 ## Recommended use of the existing stack
 
