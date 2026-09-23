@@ -223,12 +223,12 @@ export function buildWebUser(handle: string) {
   };
 }
 
-export function createInteractivePost(input: {
+export async function createInteractivePost(input: {
   content: string;
   townTag: string;
   mediaHashes?: string[];
-}): WebUserPost {
-  const post = createWebUserPost(input);
+}): Promise<WebUserPost> {
+  const post = await createWebUserPost(input);
   grantWebWb(5, "Posted to the yard");
   notify();
   return post;

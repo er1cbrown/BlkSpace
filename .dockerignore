@@ -1,0 +1,16 @@
+.git
+**/node_modules
+**/dist
+**/target
+**/.env
+**/.env.*
+**/*.key
+**/*.pdf
+**/*.log
+**/.local
+**/.cache
+**/test-ledger
+**/test-results
+**/playwright-report
+Code-Companion/artifacts/blkspace/src-tauri
+Code-Companion/artifacts/solana/devnet

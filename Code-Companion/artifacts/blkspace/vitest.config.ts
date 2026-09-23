@@ -14,7 +14,7 @@ export default defineConfig({
     "process.env.NODE_ENV": JSON.stringify("development"),
   },
   test: {
-    exclude: ["**/node_modules/**", "**/e2e/**"],
+    exclude: ["**/node_modules/**", "**/e2e/**", "**/server/tests/**"],
     environment: "happy-dom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],

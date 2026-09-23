@@ -2,6 +2,7 @@
  * Phone-ready media. Photos and files go to Cloudflare R2.
  * Video goes to Cloudflare Stream. The browser only receives an upload URL.
  */
+import { hostedPost } from "@/lib/hosted-api";
 
 export function isRemoteMediaUrl(value: string): boolean {
   return value.startsWith("https://") || value.startsWith("http://");
@@ -26,37 +27,46 @@ export interface UploadTarget {
 export async function uploadHostedMedia(file: File): Promise<string | null> {
   let res: Response;
   try {
-    res = await fetch("/api/media/upload-target", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        filename: file.name,
-        mime: file.type,
-        size: file.size,
-      }),
+    res = await hostedPost("/api/media/upload-target", {
+      filename: file.name,
+      mime: file.type,
+      size: file.size,
     });
-  } catch {
-    throw new Error("Could not reach the media upload service. Check your connection and try again.");
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("Sign in")) throw err;
+    throw new Error(
+      "Could not reach the media upload service. Check your connection and try again.",
+    );
   }
 
   // Static previews and explicitly unconfigured hosts keep browser-local storage.
   // A configured provider's failure must never look like a successful local save.
-  if (res.status === 404) return null;
-  const body = await res.json().catch(() => null) as
-    | (Partial<UploadTarget> & { ok?: boolean; error?: string })
-    | null;
+  if (import.meta.env.DEV && res.status === 404) return null;
+  const body = (await res.json().catch(() => null)) as
+    (Partial<UploadTarget> & { ok?: boolean; error?: string }) | null;
   if (
+    import.meta.env.DEV &&
     res.status === 503 &&
-    (body?.error === "stream not configured" || body?.error === "r2 not configured")
-  ) return null;
-  if (res.ok && !body && res.headers.get("content-type")?.includes("text/html")) {
+    (body?.error === "stream not configured" ||
+      body?.error === "r2 not configured")
+  )
+    return null;
+  if (
+    import.meta.env.DEV &&
+    res.ok &&
+    !body &&
+    res.headers.get("content-type")?.includes("text/html")
+  ) {
     return null;
   }
   if (!res.ok || body?.ok === false) {
-    throw new Error(body?.error || `Media upload service failed (${res.status})`);
+    throw new Error(
+      body?.error || `Media upload service failed (${res.status})`,
+    );
   }
   if (
-    !body?.uploadUrl || !body.publicUrl ||
+    !body?.uploadUrl ||
+    !body.publicUrl ||
     (body.method !== "PUT" && body.method !== "POST") ||
     (body.provider !== "r2" && body.provider !== "stream")
   ) {

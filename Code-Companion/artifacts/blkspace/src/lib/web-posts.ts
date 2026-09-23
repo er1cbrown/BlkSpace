@@ -5,6 +5,7 @@
 
 import type { SeedPost } from "@/lib/seed-content";
 import { getCurrentDisplayName, getCurrentHandle } from "@/lib/auth";
+import { hostedPost } from "@/lib/hosted-api";
 
 const LS_KEY = "blkspace_web_user_posts_v1";
 
@@ -25,12 +26,24 @@ function save(posts: WebUserPost[]) {
   localStorage.setItem(LS_KEY, JSON.stringify(posts.slice(0, 100)));
 }
 
-function mirrorPost(post: WebUserPost) {
-  void fetch("/api/portfolio/post", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(post),
-  }).catch(() => {});
+async function mirrorPost(post: WebUserPost) {
+  const res = await hostedPost("/api/portfolio/post", post);
+  // Static-only previews retain their explicitly local userspace.
+  if (
+    import.meta.env.DEV &&
+    (res.status === 404 ||
+      (res.ok && res.headers.get("content-type")?.includes("text/html")))
+  )
+    return;
+  const body = (await res.json().catch(() => null)) as {
+    ok?: boolean;
+    error?: string;
+  } | null;
+  if (!res.ok || body?.ok !== true) {
+    throw new Error(
+      body?.error || "Post was not saved to the cloud. Please retry.",
+    );
+  }
 }
 
 /** Pull posts saved on Turso into this browser. No-op until the database is configured. */
@@ -97,11 +110,11 @@ export function listWebUserPosts(town?: string): WebUserPost[] {
   );
 }
 
-export function createWebUserPost(input: {
+export async function createWebUserPost(input: {
   content: string;
   townTag: string;
   mediaHashes?: string[];
-}): WebUserPost {
+}): Promise<WebUserPost> {
   const handle = getCurrentHandle();
   const display = getCurrentDisplayName();
   const body =
@@ -126,9 +139,10 @@ export function createWebUserPost(input: {
     maliciousScore: 0,
     riskLevel: "low",
   };
+  // Await acknowledgement before showing success or granting local demo rewards.
+  await mirrorPost(post);
   const next = [post, ...load()];
   save(next);
-  mirrorPost(post);
   return post;
 }
 

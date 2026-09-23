@@ -16,6 +16,7 @@ import {
   nip19,
 } from "nostr-tools";
 import { entropyToMnemonic, mnemonicToEntropy, validateMnemonic } from "bip39";
+import { sha256 } from "@noble/hashes/sha2.js";
 
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes)
@@ -55,6 +56,30 @@ function notifyIdentityChange() {
 /** Web preview only — sessionStorage clears when the tab closes. Tauri uses Rust key store. */
 function webSecretStorage(): Storage {
   return sessionStorage;
+}
+
+/** Sign a NIP-98 HTTP proof. The private key stays in the current browser. */
+export function createHttpAuthHeader(
+  url: string,
+  method: string,
+  body: string,
+): string {
+  const secret = webSecretStorage().getItem(SECRET_KEY);
+  if (!secret) throw new Error("Sign in again to save posts or upload media.");
+  const event = finalizeEvent(
+    {
+      kind: 27235,
+      created_at: Math.floor(Date.now() / 1000),
+      content: "",
+      tags: [
+        ["u", new URL(url, window.location.origin).href],
+        ["method", method],
+        ["payload", bytesToHex(sha256(new TextEncoder().encode(body)))],
+      ],
+    },
+    hexToBytes(secret),
+  );
+  return `Nostr ${btoa(JSON.stringify(event))}`;
 }
 
 // ─── First Run Check ─────────────────────────────────────

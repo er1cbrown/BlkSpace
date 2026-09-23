@@ -38,7 +38,7 @@ On the dashboard home, copy **Account ID** into `CLOUDFLARE_ACCOUNT_ID`.
 2. Permission: **Account → Stream → Edit** for this account.
 3. Put the token in `CLOUDFLARE_API_TOKEN`.
 
-## After the file is saved
+## Local development
 
 From this folder:
 
@@ -46,12 +46,22 @@ From this folder:
 bun run dev
 ```
 
-A photo or PDF uploads to R2. A video uploads to Cloudflare Stream. The post stores the public `https://` link.
+The Vite development and preview plugins use the same API handlers as the cloud server. A photo or PDF uploads to R2. A video uploads to Cloudflare Stream. The post stores the public `https://` link.
+
+## Hostinger deployment
+
+The VPS deployment reads `deploy/hostinger/.env` and runs the standalone server. After changing any token there, recreate the service so it reloads the environment:
+
+```bash
+docker compose --project-directory deploy/hostinger -p blkspace -f deploy/hostinger/compose.yml up -d --force-recreate
+```
+
+The production URL is the domain configured in `APP_DOMAIN`; until DNS is changed, use `https://blkspace.srv1946189.hstgr.cloud`.
 
 ## If video does not save
 
 - **Stream authorization failed (401/403):** create or edit the API token with **Account → Stream → Edit** and include the account matching `CLOUDFLARE_ACCOUNT_ID` under **Account Resources**. A token being active does not mean it has access to Stream. R2 keys do not grant Stream access. Ensure Stream is enabled on that account.
-- Replace `CLOUDFLARE_API_TOKEN` in this folder's `.env`, then restart the running server (Bun can retain environment values from startup).
+- Replace `CLOUDFLARE_API_TOKEN` in the local or deployment `.env`, then restart/recreate the server. Bun can retain environment values from startup.
 - **Saved on this browser** means local browser storage, not a Cloudflare upload. Videos saved this way are not shared with other devices; the Turso fallback only stores metadata for large files. Reattach the original video after fixing Stream access.
-- The media upload route runs in `bun run dev` and Vite preview (`bun run serve`). Preview currently does not run the Turso post-saving plugin; use development mode to test the full upload-and-save flow.
-- Static hosting of `dist/public`, `scripts/spa-server.mjs`, and packaged desktop builds do not run these Vite API plugins. A deployed site needs a server-side `/api/media/upload-target` route and the portfolio API, with credentials configured on that server. A build-time `.env` alone cannot provide those APIs. Desktop attachments use the native blob store instead of Stream.
+- A browser upload and the cloud post acknowledgement are both required. A successful file upload does not make a post durable if the post write fails.
+- Desktop attachments use the native blob store instead of Stream. The browser path uses the cloud API and requires the signed-in Nostr key used during account creation.

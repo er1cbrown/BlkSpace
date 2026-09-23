@@ -1,9 +1,8 @@
 import { createHash, createHmac, randomUUID } from "node:crypto";
-import { loadEnv } from "vite";
+import { HttpError } from "./http.mjs";
 
-function envOf(server) {
-  const file = loadEnv(server.config.mode, server.config.root, "");
-  const get = (key) => file[key] || process.env[key] || "";
+function envOf(env) {
+  const get = (key) => env[key] || "";
   return {
     accountId: get("CLOUDFLARE_ACCOUNT_ID").trim(),
     apiToken: get("CLOUDFLARE_API_TOKEN").trim(),
@@ -31,8 +30,7 @@ function presignR2Put(cfg, key) {
   const service = "s3";
   const host = `${cfg.accountId}.r2.cloudflarestorage.com`;
   const canonicalUri =
-    "/" +
-    [cfg.bucket, ...key.split("/")].map(encodeURIComponent).join("/");
+    "/" + [cfg.bucket, ...key.split("/")].map(encodeURIComponent).join("/");
   const scope = `${dateStamp}/${region}/${service}/aws4_request`;
   const signedHeaders = "host";
   const params = [
@@ -79,22 +77,13 @@ function safeKey(filename) {
   return `portfolio/${day}/${randomUUID()}-${base}`;
 }
 
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on("data", (chunk) => chunks.push(chunk));
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    req.on("error", reject);
-  });
-}
-
 function r2Ready(cfg) {
   return Boolean(
     cfg.accountId &&
-      cfg.accessKeyId &&
-      cfg.secretAccessKey &&
-      cfg.bucket &&
-      cfg.publicBase,
+    cfg.accessKeyId &&
+    cfg.secretAccessKey &&
+    cfg.bucket &&
+    cfg.publicBase,
   );
 }
 
@@ -115,16 +104,21 @@ async function streamUpload(cfg, filename) {
         maxDurationSeconds: 600,
         meta: { name: filename },
       }),
+      signal: AbortSignal.timeout(20_000),
     },
   );
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body.success) {
     if (res.status === 401 || res.status === 403) {
-      throw new Error(
+      throw new HttpError(
+        502,
         `Cloudflare Stream authorization failed (${res.status}). Check CLOUDFLARE_API_TOKEN has Account > Stream > Edit for CLOUDFLARE_ACCOUNT_ID.`,
       );
     }
-    throw new Error(body?.errors?.[0]?.message || `stream ${res.status}`);
+    throw new HttpError(
+      502,
+      "Cloudflare Stream could not create an upload. Check Stream is enabled and has available storage.",
+    );
   }
   const uid = body.result.uid;
   return {
@@ -135,65 +129,32 @@ async function streamUpload(cfg, filename) {
   };
 }
 
-/** Browser upload targets for R2 (photos, audio, docs) and Stream (video). */
-export function mediaHostPlugin() {
-  function installUploadRoute(server) {
-    const handleUploadTarget = async (req, res) => {
-      if (req.method !== "POST") {
-        res.statusCode = 404;
-        res.end();
-        return;
-      }
-      const cfg = envOf(server);
-      try {
-        const body = JSON.parse((await readBody(req)) || "{}");
-        const filename = String(body.filename || "file");
-        const mime = String(body.mime || "");
-        const video = mime.startsWith("video/") || /\.(mp4|mov|webm|m4v)$/i.test(filename);
-        if (video) {
-          if (!streamReady(cfg)) {
-            res.statusCode = 503;
-            res.setHeader("content-type", "application/json");
-            res.end(JSON.stringify({ ok: false, error: "stream not configured" }));
-            return;
-          }
-          const target = await streamUpload(cfg, filename);
-          res.setHeader("content-type", "application/json");
-          res.end(JSON.stringify({ ok: true, ...target }));
-          return;
-        }
-        if (!r2Ready(cfg)) {
-          res.statusCode = 503;
-          res.setHeader("content-type", "application/json");
-          res.end(JSON.stringify({ ok: false, error: "r2 not configured" }));
-          return;
-        }
-        const key = safeKey(filename);
-        const uploadUrl = presignR2Put(cfg, key);
-        const publicUrl = `${cfg.publicBase}/${key.split("/").map(encodeURIComponent).join("/")}`;
-        res.setHeader("content-type", "application/json");
-        res.end(
-          JSON.stringify({
-            ok: true,
-            provider: "r2",
-            method: "PUT",
-            uploadUrl,
-            publicUrl,
-          }),
-        );
-      } catch (err) {
-        res.statusCode = 502;
-        res.setHeader("content-type", "application/json");
-        res.end(JSON.stringify({ ok: false, error: String(err?.message || err) }));
-      }
-    };
-
-    server.middlewares.use("/api/media/upload-target", handleUploadTarget);
+/** Called only after the API has authenticated the request. */
+export async function uploadTarget(env, body) {
+  const cfg = envOf(env);
+  const filename = String(body.filename || "file").slice(0, 200);
+  const mime = String(body.mime || "");
+  const video =
+    mime.startsWith("video/") || /\.(mp4|mov|webm|m4v)$/i.test(filename);
+  const limit = video ? 200 * 1024 * 1024 : 25 * 1024 * 1024;
+  if (!Number.isSafeInteger(body.size) || body.size < 1 || body.size > limit) {
+    throw new HttpError(
+      400,
+      `File must be between 1 byte and ${limit / 1024 / 1024} MB.`,
+    );
   }
-
+  if (video) {
+    if (!streamReady(cfg))
+      throw new HttpError(503, "Cloud video uploads are not configured.");
+    return streamUpload(cfg, filename);
+  }
+  if (!r2Ready(cfg))
+    throw new HttpError(503, "Cloud file uploads are not configured.");
+  const key = safeKey(filename);
   return {
-    name: "blkspace-media-host",
-    configureServer: installUploadRoute,
-    configurePreviewServer: installUploadRoute,
+    provider: "r2",
+    method: "PUT",
+    uploadUrl: presignR2Put(cfg, key),
+    publicUrl: `${cfg.publicBase}/${key.split("/").map(encodeURIComponent).join("/")}`,
   };
 }

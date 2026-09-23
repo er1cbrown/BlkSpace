@@ -1,0 +1,35 @@
+services:
+  blkspace:
+    build:
+      context: ../..
+      dockerfile: deploy/hostinger/Dockerfile
+    image: blkspace-cloud:local
+    restart: unless-stopped
+    init: true
+    network_mode: host
+    env_file: .env
+    environment:
+      PUBLIC_ORIGINS: https://${APP_DOMAIN:?Set APP_DOMAIN in .env},https://bkspc.app,https://www.bkspc.app
+      BLKSPACE_REVISION: ${BLKSPACE_REVISION:-local}
+      HOST: 127.0.0.1
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.blkspace.rule: Host(`${APP_DOMAIN}`)
+      traefik.http.routers.blkspace.entrypoints: websecure
+      traefik.http.routers.blkspace.tls.certresolver: letsencrypt
+      traefik.http.routers.blkspace.service: blkspace
+      traefik.http.routers.blkspace-bkspc.rule: Host(`bkspc.app`)
+      traefik.http.routers.blkspace-bkspc.entrypoints: websecure
+      traefik.http.routers.blkspace-bkspc.tls.certresolver: letsencrypt
+      traefik.http.routers.blkspace-bkspc.service: blkspace
+      traefik.http.routers.blkspace-www.rule: Host(`www.bkspc.app`)
+      traefik.http.routers.blkspace-www.entrypoints: websecure
+      traefik.http.routers.blkspace-www.tls.certresolver: letsencrypt
+      traefik.http.routers.blkspace-www.service: blkspace
+      traefik.http.services.blkspace.loadbalancer.server.url: http://127.0.0.1:3000
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

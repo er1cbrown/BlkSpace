@@ -17,7 +17,6 @@ import {
   getGetUserQueryKey,
   useGetUserPosts,
   getGetUserPostsQueryKey,
-  useCreatePost,
   useCreateReply,
   useListRelays,
   getListRelaysQueryKey,
@@ -108,6 +107,7 @@ export function useAppListPosts(
     enabled: !IS_TAURI && enabled,
     staleTime: 0,
     refetchOnMount: true,
+    refetchInterval: 5_000,
   });
 
   if (IS_TAURI) {
@@ -325,7 +325,18 @@ function isOffline(): boolean {
 
 export function useAppCreatePost() {
   const qc = useQueryClient();
-  const web = useCreatePost();
+  const web = useMutation({
+    mutationFn: (input: {
+      content: string;
+      town_tag: string;
+      media_hashes?: string[];
+    }) =>
+      createInteractivePost({
+        content: input.content,
+        townTag: input.town_tag,
+        mediaHashes: input.media_hashes,
+      }),
+  });
   const tauriMut = useMutation({
     mutationFn: (input: {
       session_token: string;
@@ -407,29 +418,24 @@ export function useAppCreatePost() {
           },
           opts?: any,
         ) => {
-          // Browser userspace: posts + WB stick in localStorage
-          try {
-            const post = createInteractivePost({
-              content: input.content,
-              townTag: input.town_tag,
-              mediaHashes: input.media_hashes,
-            });
-            qc.invalidateQueries({ queryKey: ["web", "posts"] });
-            qc.invalidateQueries({ queryKey: ["web", "userPosts"] });
-            qc.invalidateQueries({ queryKey: ["web", "user"] });
-            opts?.onSuccess?.({
-              post,
-              earn: {
-                wb: 5,
-                wbNominal: 5,
-                karmaPost: 3,
-                karmaComment: 0,
-                throttled: false,
-              },
-            });
-          } catch (e) {
-            opts?.onError?.(e);
-          }
+          web.mutate(input, {
+            onSuccess: (post) => {
+              qc.invalidateQueries({ queryKey: ["web", "posts"] });
+              qc.invalidateQueries({ queryKey: ["web", "userPosts"] });
+              qc.invalidateQueries({ queryKey: ["web", "user"] });
+              opts?.onSuccess?.({
+                post,
+                earn: {
+                  wb: 5,
+                  wbNominal: 5,
+                  karmaPost: 3,
+                  karmaComment: 0,
+                  throttled: false,
+                },
+              });
+            },
+            onError: (e) => opts?.onError?.(e),
+          });
         },
     isPending: IS_TAURI
       ? tauriMut.isPending || queueMut.isPending
