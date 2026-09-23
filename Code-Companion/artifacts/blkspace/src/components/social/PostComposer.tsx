@@ -46,6 +46,7 @@ import {
   webDeleteBlob,
   webStoreFile,
 } from "@/lib/media-web-store";
+import { uploadHostedMedia } from "@/lib/remote-media";
 import { cn } from "@/lib/utils";
 
 interface PostComposerProps {
@@ -118,9 +119,9 @@ export function PostComposer({
     const prev = prevHashCount.current;
     prevHashCount.current = mediaHashes.length;
     if (prev > 0 && mediaHashes.length === 0 && pending.length > 0) {
+      // Clear the composer only. The post still points at these files.
       pending.forEach((p) => {
         if (p.previewUrl.startsWith("blob:")) URL.revokeObjectURL(p.previewUrl);
-        if (p.hash && isWebBlobId(p.hash)) webDeleteBlob(p.hash);
       });
       setPending([]);
     }
@@ -242,22 +243,33 @@ export function PostComposer({
             toast.success(`${file.name} attached`);
           }
         } else {
-          // Browser: local session store (no Tauri IPC)
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const r = new FileReader();
-            r.onload = () => resolve(r.result as string);
-            r.onerror = () => reject(r.error);
-            r.readAsDataURL(file);
-          });
-          const id = webStoreFile(file, dataUrl);
-          setPending((prev) =>
-            prev.map((p) =>
-              p.previewUrl === previewUrl
-                ? { ...p, hash: id, status: "ready" as const }
-                : p,
-            ),
-          );
-          toast.success(`${file.name} attached (browser session)`);
+          const hosted = await uploadHostedMedia(file);
+          if (hosted) {
+            setPending((prev) =>
+              prev.map((p) =>
+                p.previewUrl === previewUrl
+                  ? { ...p, hash: hosted, status: "ready" as const }
+                  : p,
+              ),
+            );
+            toast.success(`${file.name} saved for phones`);
+          } else {
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const r = new FileReader();
+              r.onload = () => resolve(r.result as string);
+              r.onerror = () => reject(r.error);
+              r.readAsDataURL(file);
+            });
+            const id = await webStoreFile(file, dataUrl);
+            setPending((prev) =>
+              prev.map((p) =>
+                p.previewUrl === previewUrl
+                  ? { ...p, hash: id, status: "ready" as const }
+                  : p,
+              ),
+            );
+            toast.success(`${file.name} saved on this browser`);
+          }
         }
       } catch (e) {
         setPending((prev) =>

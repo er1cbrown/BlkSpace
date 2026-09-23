@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { portfolioTursoPlugin } from "./scripts/portfolio-turso-plugin.mjs";
+import { mediaHostPlugin } from "./scripts/media-host.mjs";
 
 // Defaults for Windows / `tauri dev` (Unix scripts still override via env).
 const rawPort = process.env.PORT ?? "24442";
@@ -17,6 +19,8 @@ const basePath = process.env.BASE_PATH ?? "/";
 export default defineConfig({
   base: basePath,
   plugins: [
+    portfolioTursoPlugin(),
+    mediaHostPlugin(),
     react(),
     tailwindcss(),
     ...(process.env.NODE_ENV !== "production" &&

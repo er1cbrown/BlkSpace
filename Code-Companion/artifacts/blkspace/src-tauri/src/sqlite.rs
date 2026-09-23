@@ -526,26 +526,125 @@ impl<T> Iterator for MappedRows<T> {
 
 pub struct Connection {
   inner: turso::Connection,
+  /// Kept alive so local writes can push to Turso Cloud.
+  sync_db: Option<turso::sync::Database>,
   last_insert_rowid: AtomicI64,
+}
+
+fn load_turso_dotenv() {
+  static ONCE: OnceLock<()> = OnceLock::new();
+  ONCE.get_or_init(|| {
+    let mut paths = vec![
+      std::path::PathBuf::from(".env"),
+      std::path::PathBuf::from("Code-Companion/artifacts/blkspace/.env"),
+    ];
+    if let Ok(cwd) = std::env::current_dir() {
+      paths.push(cwd.join(".env"));
+      paths.push(cwd.join("artifacts/blkspace/.env"));
+    }
+    for path in paths {
+      let Ok(text) = std::fs::read_to_string(&path) else {
+        continue;
+      };
+      for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+          continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+          continue;
+        };
+        let key = key.trim();
+        if key.is_empty() || std::env::var(key).is_ok() {
+          continue;
+        }
+        let value = value.trim().trim_matches('"').trim_matches('\'');
+        std::env::set_var(key, value);
+      }
+    }
+  });
+}
+
+fn turso_cloud_creds() -> Option<(String, String)> {
+  load_turso_dotenv();
+  let url = std::env::var("TURSO_DATABASE_URL").ok()?;
+  let token = std::env::var("TURSO_AUTH_TOKEN").ok()?;
+  let url = url.trim().to_string();
+  let token = token.trim().to_string();
+  if url.is_empty() || token.is_empty() {
+    return None;
+  }
+  Some((url, token))
+}
+
+fn sql_should_push(sql: &str) -> bool {
+  let head = sql.trim_start();
+  let head = head.get(..16).unwrap_or(head).to_ascii_uppercase();
+  head.starts_with("INSERT")
+    || head.starts_with("UPDATE")
+    || head.starts_with("DELETE")
+    || head.starts_with("REPLACE")
+    || head.starts_with("CREATE")
+    || head.starts_with("ALTER")
+    || head.starts_with("DROP")
+    || head.starts_with("COMMIT")
 }
 
 impl Connection {
   pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
     let path_str = path.as_ref().to_string_lossy().into_owned();
+    if let Some((url, token)) = turso_cloud_creds() {
+      match block_on(async {
+        let db = turso::sync::Builder::new_remote(&path_str)
+          .with_remote_url(url)
+          .with_auth_token(token)
+          .build()
+          .await?;
+        let _ = db.pull().await;
+        let conn = db.connect().await?;
+        Ok::<_, turso::Error>((conn, db))
+      }) {
+        Ok((conn, db)) => {
+          log::info!("Turso cloud replica open");
+          return Ok(Self {
+            inner: conn,
+            sync_db: Some(db),
+            last_insert_rowid: AtomicI64::new(0),
+          });
+        }
+        Err(e) => {
+          log::warn!("Turso cloud open failed, using the local file: {e}");
+        }
+      }
+    }
     let conn = block_on(async {
       let db = Builder::new_local(&path_str).build().await?;
       db.connect().map_err(Error::from)
     })?;
     Ok(Self {
       inner: conn,
+      sync_db: None,
       last_insert_rowid: AtomicI64::new(0),
     })
+  }
+
+  fn push_remote(&self) {
+    let Some(db) = &self.sync_db else {
+      return;
+    };
+    if let Err(e) = block_on(db.push()) {
+      log::warn!("Turso push failed: {e}");
+    }
   }
 
   pub fn execute_batch(&self, sql: &str) -> Result<()> {
     block_on(async {
       self.inner.execute_batch(sql).await.map_err(Error::from)
-    })
+    })?;
+    if sql_should_push(sql) {
+      self.push_remote();
+    }
+    Ok(())
   }
 
   pub fn execute<P: Into<Params>>(&self, sql: &str, params: P) -> Result<usize> {
@@ -575,6 +674,9 @@ impl Connection {
     })?;
     if let Some(id) = rowid {
       self.last_insert_rowid.store(id, Ordering::SeqCst);
+    }
+    if sql_should_push(sql) {
+      self.push_remote();
     }
     Ok(n as usize)
   }

@@ -14,7 +14,11 @@ import {
   mediaKindFromMime,
   type MediaKind,
 } from "@/lib/media-upload";
-import { isWebBlobId, webGetBlob } from "@/lib/media-web-store";
+import {
+  isWebBlobId,
+  webGetBlobAsync,
+} from "@/lib/media-web-store";
+import { isRemoteMediaUrl, isStreamUrl } from "@/lib/remote-media";
 import { cn } from "@/lib/utils";
 
 interface MediaDisplayProps {
@@ -81,38 +85,80 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
       return;
     }
 
-    // Web-session blobs (browser attach without Tauri)
-    const webOnly = hashes.every((h) => isWebBlobId(h));
-    if (webOnly || (!isTauri() && hashes.some((h) => isWebBlobId(h)))) {
+    const browserMedia = (hash: string) =>
+      isWebBlobId(hash) || isRemoteMediaUrl(hash);
+    if (
+      hashes.every(browserMedia) ||
+      (!isTauri() && hashes.some(browserMedia))
+    ) {
+      let cancelled = false;
       setItems(
-        hashes.map((hash) => {
-          const rec = webGetBlob(hash);
-          if (!rec) {
+        hashes.map((hash) => ({
+          hash,
+          src: null,
+          info: null,
+          loading: true,
+          tapped: false,
+        })),
+      );
+      void (async () => {
+        const loaded = await Promise.all(
+          hashes.map(async (hash) => {
+            if (isRemoteMediaUrl(hash)) {
+              const stream = isStreamUrl(hash);
+              const name = hash.split("/").pop()?.split("?")[0] || "file";
+              return {
+                hash,
+                src: hash,
+                info: {
+                  hash,
+                  filename: stream ? "Video" : decodeURIComponent(name),
+                  mimeType: stream
+                    ? "video/mp4"
+                    : name.match(/\.pdf$/i)
+                      ? "application/pdf"
+                      : name.match(/\.(mp3|m4a|wav|ogg)$/i)
+                        ? "audio/mpeg"
+                        : "image/jpeg",
+                  fileSize: 0,
+                  uploaderHandle: "",
+                  createdAt: "",
+                } as TauriBlobInfo,
+                loading: false,
+                tapped: true,
+              };
+            }
+            const rec = isWebBlobId(hash) ? await webGetBlobAsync(hash) : null;
+            if (!rec) {
+              return {
+                hash,
+                src: null,
+                info: null,
+                loading: false,
+                tapped: false,
+              };
+            }
             return {
               hash,
-              src: null,
-              info: null,
+              src: rec.dataUrl,
+              info: {
+                hash,
+                filename: rec.filename,
+                mimeType: rec.mime,
+                fileSize: rec.size,
+                uploaderHandle: "",
+                createdAt: "",
+              } as TauriBlobInfo,
               loading: false,
-              tapped: false,
+              tapped: true,
             };
-          }
-          return {
-            hash,
-            src: rec.dataUrl,
-            info: {
-              hash,
-              filename: rec.filename,
-              mimeType: rec.mime,
-              fileSize: rec.size,
-              uploaderHandle: "",
-              createdAt: "",
-            } as TauriBlobInfo,
-            loading: false,
-            tapped: true,
-          };
-        }),
-      );
-      return;
+          }),
+        );
+        if (!cancelled) setItems(loaded);
+      })();
+      return () => {
+        cancelled = true;
+      };
     }
 
     if (!isTauri()) return;
@@ -132,7 +178,7 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
 
     hashes.forEach(async (hash, i) => {
       if (isWebBlobId(hash)) {
-        const rec = webGetBlob(hash);
+        const rec = await webGetBlobAsync(hash);
         setItems((prev) => {
           const next = [...prev];
           next[i] = rec
@@ -242,7 +288,11 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
 
   if (hashes.length === 0) return null;
   // Allow web blob ids without Tauri; pure tauri hashes need desktop
-  if (!isTauri() && !hashes.some((h) => isWebBlobId(h))) return null;
+  if (
+    !isTauri() &&
+    !hashes.some((h) => isWebBlobId(h) || isRemoteMediaUrl(h))
+  )
+    return null;
 
   return (
     <div
@@ -326,6 +376,18 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
           );
         }
         if (kind === "video" || mimeType.startsWith("video/")) {
+          if (isStreamUrl(item.src)) {
+            return (
+              <iframe
+                key={item.hash}
+                title={filename}
+                src={item.src}
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+                className="w-full aspect-video rounded-xl bg-black"
+              />
+            );
+          }
           return (
             <video
               key={item.hash}

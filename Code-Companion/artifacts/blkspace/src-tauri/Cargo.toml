@@ -21,10 +21,9 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.2", features = [] }
 tauri-plugin-log = "2"
-# Embedded Turso — Tier 0 local DB (SQLite-compatible).
-# default-features = false: no mimalloc global allocator, no FTS, no cloud sync.
-# Sync/Cloud stay opt-in later; Yard ships local file only.
-turso = { version = "0.8.0-pre.2", default-features = false }
+# Embedded Turso. `sync` turns on the cloud replica when TURSO_DATABASE_URL
+# and TURSO_AUTH_TOKEN are set. Without those, the app stays on the local file.
+turso = { version = "0.8.0-pre.2", default-features = false, features = ["sync"] }
 chrono = "0.4"
 dirs = "6.0"
 hex = "0.4"

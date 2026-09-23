@@ -29,7 +29,7 @@ import {
 import * as tauri from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { getSeedPosts } from "@/lib/seed-content";
-import { listWebUserPosts } from "@/lib/web-posts";
+import { listWebUserPosts, refreshPortfolioFromTurso } from "@/lib/web-posts";
 import {
   applyLikesToPosts,
   buildWebUser,
@@ -101,7 +101,10 @@ export function useAppListPosts(
   });
   const webResult = useQuery({
     queryKey: ["web", "posts", town],
-    queryFn: () => Promise.resolve(getMockPosts(town)),
+    queryFn: async () => {
+      await refreshPortfolioFromTurso();
+      return getMockPosts(town);
+    },
     enabled: !IS_TAURI && enabled,
     staleTime: 0,
     refetchOnMount: true,
