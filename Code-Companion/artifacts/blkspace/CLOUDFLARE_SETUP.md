@@ -47,3 +47,11 @@ bun run dev
 ```
 
 A photo or PDF uploads to R2. A video uploads to Cloudflare Stream. The post stores the public `https://` link.
+
+## If video does not save
+
+- **Stream authorization failed (401/403):** create or edit the API token with **Account → Stream → Edit** and include the account matching `CLOUDFLARE_ACCOUNT_ID` under **Account Resources**. A token being active does not mean it has access to Stream. R2 keys do not grant Stream access. Ensure Stream is enabled on that account.
+- Replace `CLOUDFLARE_API_TOKEN` in this folder's `.env`, then restart the running server (Bun can retain environment values from startup).
+- **Saved on this browser** means local browser storage, not a Cloudflare upload. Videos saved this way are not shared with other devices; the Turso fallback only stores metadata for large files. Reattach the original video after fixing Stream access.
+- The media upload route runs in `bun run dev` and Vite preview (`bun run serve`). Preview currently does not run the Turso post-saving plugin; use development mode to test the full upload-and-save flow.
+- Static hosting of `dist/public`, `scripts/spa-server.mjs`, and packaged desktop builds do not run these Vite API plugins. A deployed site needs a server-side `/api/media/upload-target` route and the portfolio API, with credentials configured on that server. A build-time `.env` alone cannot provide those APIs. Desktop attachments use the native blob store instead of Stream.

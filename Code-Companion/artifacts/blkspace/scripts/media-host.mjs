@@ -119,6 +119,11 @@ async function streamUpload(cfg, filename) {
   );
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body.success) {
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        `Cloudflare Stream authorization failed (${res.status}). Check CLOUDFLARE_API_TOKEN has Account > Stream > Edit for CLOUDFLARE_ACCOUNT_ID.`,
+      );
+    }
     throw new Error(body?.errors?.[0]?.message || `stream ${res.status}`);
   }
   const uid = body.result.uid;
@@ -132,58 +137,63 @@ async function streamUpload(cfg, filename) {
 
 /** Browser upload targets for R2 (photos, audio, docs) and Stream (video). */
 export function mediaHostPlugin() {
-  return {
-    name: "blkspace-media-host",
-    configureServer(server) {
-      server.middlewares.use("/api/media/upload-target", async (req, res) => {
-        if (req.method !== "POST") {
-          res.statusCode = 404;
-          res.end();
-          return;
-        }
-        const cfg = envOf(server);
-        try {
-          const body = JSON.parse((await readBody(req)) || "{}");
-          const filename = String(body.filename || "file");
-          const mime = String(body.mime || "");
-          const video = mime.startsWith("video/") || /\.(mp4|mov|webm|m4v)$/i.test(filename);
-          if (video) {
-            if (!streamReady(cfg)) {
-              res.statusCode = 503;
-              res.setHeader("content-type", "application/json");
-              res.end(JSON.stringify({ ok: false, error: "stream not configured" }));
-              return;
-            }
-            const target = await streamUpload(cfg, filename);
-            res.setHeader("content-type", "application/json");
-            res.end(JSON.stringify({ ok: true, ...target }));
-            return;
-          }
-          if (!r2Ready(cfg)) {
+  function installUploadRoute(server) {
+    const handleUploadTarget = async (req, res) => {
+      if (req.method !== "POST") {
+        res.statusCode = 404;
+        res.end();
+        return;
+      }
+      const cfg = envOf(server);
+      try {
+        const body = JSON.parse((await readBody(req)) || "{}");
+        const filename = String(body.filename || "file");
+        const mime = String(body.mime || "");
+        const video = mime.startsWith("video/") || /\.(mp4|mov|webm|m4v)$/i.test(filename);
+        if (video) {
+          if (!streamReady(cfg)) {
             res.statusCode = 503;
             res.setHeader("content-type", "application/json");
-            res.end(JSON.stringify({ ok: false, error: "r2 not configured" }));
+            res.end(JSON.stringify({ ok: false, error: "stream not configured" }));
             return;
           }
-          const key = safeKey(filename);
-          const uploadUrl = presignR2Put(cfg, key);
-          const publicUrl = `${cfg.publicBase}/${key.split("/").map(encodeURIComponent).join("/")}`;
+          const target = await streamUpload(cfg, filename);
           res.setHeader("content-type", "application/json");
-          res.end(
-            JSON.stringify({
-              ok: true,
-              provider: "r2",
-              method: "PUT",
-              uploadUrl,
-              publicUrl,
-            }),
-          );
-        } catch (err) {
-          res.statusCode = 502;
-          res.setHeader("content-type", "application/json");
-          res.end(JSON.stringify({ ok: false, error: String(err?.message || err) }));
+          res.end(JSON.stringify({ ok: true, ...target }));
+          return;
         }
-      });
-    },
+        if (!r2Ready(cfg)) {
+          res.statusCode = 503;
+          res.setHeader("content-type", "application/json");
+          res.end(JSON.stringify({ ok: false, error: "r2 not configured" }));
+          return;
+        }
+        const key = safeKey(filename);
+        const uploadUrl = presignR2Put(cfg, key);
+        const publicUrl = `${cfg.publicBase}/${key.split("/").map(encodeURIComponent).join("/")}`;
+        res.setHeader("content-type", "application/json");
+        res.end(
+          JSON.stringify({
+            ok: true,
+            provider: "r2",
+            method: "PUT",
+            uploadUrl,
+            publicUrl,
+          }),
+        );
+      } catch (err) {
+        res.statusCode = 502;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ ok: false, error: String(err?.message || err) }));
+      }
+    };
+
+    server.middlewares.use("/api/media/upload-target", handleUploadTarget);
+  }
+
+  return {
+    name: "blkspace-media-host",
+    configureServer: installUploadRoute,
+    configurePreviewServer: installUploadRoute,
   };
 }

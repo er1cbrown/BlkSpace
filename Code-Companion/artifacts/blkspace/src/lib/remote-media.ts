@@ -24,9 +24,9 @@ export interface UploadTarget {
 
 /** Upload one file. Returns the public URL, or null when R2/Stream is not configured. */
 export async function uploadHostedMedia(file: File): Promise<string | null> {
-  let target: UploadTarget;
+  let res: Response;
   try {
-    const res = await fetch("/api/media/upload-target", {
+    res = await fetch("/api/media/upload-target", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -35,13 +35,39 @@ export async function uploadHostedMedia(file: File): Promise<string | null> {
         size: file.size,
       }),
     });
-    if (!res.ok) return null;
-    const body = (await res.json()) as UploadTarget & { ok?: boolean };
-    if (!body.uploadUrl || !body.publicUrl) return null;
-    target = body;
   } catch {
+    throw new Error("Could not reach the media upload service. Check your connection and try again.");
+  }
+
+  // Static previews and explicitly unconfigured hosts keep browser-local storage.
+  // A configured provider's failure must never look like a successful local save.
+  if (res.status === 404) return null;
+  const body = await res.json().catch(() => null) as
+    | (Partial<UploadTarget> & { ok?: boolean; error?: string })
+    | null;
+  if (
+    res.status === 503 &&
+    (body?.error === "stream not configured" || body?.error === "r2 not configured")
+  ) return null;
+  if (res.ok && !body && res.headers.get("content-type")?.includes("text/html")) {
     return null;
   }
+  if (!res.ok || body?.ok === false) {
+    throw new Error(body?.error || `Media upload service failed (${res.status})`);
+  }
+  if (
+    !body?.uploadUrl || !body.publicUrl ||
+    (body.method !== "PUT" && body.method !== "POST") ||
+    (body.provider !== "r2" && body.provider !== "stream")
+  ) {
+    throw new Error("Media upload service returned an invalid upload target.");
+  }
+  const target: UploadTarget = {
+    provider: body.provider,
+    method: body.method,
+    uploadUrl: body.uploadUrl,
+    publicUrl: body.publicUrl,
+  };
 
   if (target.method === "PUT") {
     const put = await fetch(target.uploadUrl, {
