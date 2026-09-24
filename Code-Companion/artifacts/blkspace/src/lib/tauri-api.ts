@@ -213,7 +213,9 @@ export interface TauriNostrEventVerification {
 
 export interface TauriPost {
   id: number;
+  postUid?: string;
   authorHandle: string;
+  authorPubkey?: string;
   authorDisplayName: string;
   authorAvatarUrl: string;
   content: string;
@@ -223,6 +225,7 @@ export interface TauriPost {
   repostsCount: number;
   likesCount: number;
   liked: boolean;
+  reposted?: boolean;
   mediaBlobs: string[];
   nostrEventId: string;
   relayUrl: string;
@@ -234,7 +237,8 @@ export interface TauriPost {
 }
 
 export interface TauriReply {
-  id: number;
+  id: number | string;
+  replyUid?: string;
   postId: number;
   authorHandle: string;
   authorDisplayName: string;
@@ -243,8 +247,30 @@ export interface TauriReply {
   createdAt: string;
 }
 
+export interface TauriHostedReply {
+  replyUid: string;
+  postUid: string;
+  authorHandle: string;
+  authorPubkey: string;
+  content: string;
+  createdAt: string;
+  pending: boolean;
+}
+
+export interface TauriHostedNotification {
+  notificationUid: string;
+  actorPubkey: string;
+  actorHandle: string;
+  kind: string;
+  postUid?: string | null;
+  replyUid?: string | null;
+  message: string;
+  createdAt: string;
+  unread: boolean;
+}
+
 export interface TauriNotification {
-  id: number;
+  id: number | string;
   userHandle: string;
   notificationType: string;
   fromHandle: string;
@@ -715,6 +741,25 @@ export function tauriSyncPortfolioOnce(
   return invoke("sync_portfolio_once", { sessionToken, town: town || null });
 }
 
+export interface TauriSocialSyncResult {
+  pushed: number;
+  failed: number;
+  pending: number;
+  pulled: number;
+  cached: number;
+  notifications: number;
+  replies: number;
+  following: number;
+  disabled: boolean;
+}
+
+export function tauriSyncSocialOnce(
+  sessionToken: string,
+  town?: string,
+): Promise<TauriSocialSyncResult> {
+  return invoke("sync_social_once", { sessionToken, town: town || null });
+}
+
 export function tauriListHostedPosts(
   town?: string,
   limit?: number,
@@ -810,6 +855,12 @@ export function tauriListReplies(postId: number): Promise<TauriReply[]> {
   return invoke("list_replies", { postId });
 }
 
+export function tauriListHostedReplies(
+  postId: number,
+): Promise<TauriHostedReply[]> {
+  return invoke("list_hosted_replies", { postId });
+}
+
 export function tauriCreateReply(
   sessionToken: string,
   postId: number,
@@ -831,6 +882,36 @@ export function tauriToggleLike(
   return invoke("toggle_like", { sessionToken, postId });
 }
 
+export interface TauriSocialActionResult {
+  ok: boolean;
+  pending: boolean;
+  actionUid: string;
+  postUid?: string;
+  targetHandle?: string;
+  desiredState?: boolean;
+  reply?: TauriReply;
+}
+
+export function tauriQueueSocialAction(
+  sessionToken: string,
+  actionType: "like" | "repost" | "follow" | "reply",
+  input: {
+    postId?: number;
+    targetHandle?: string;
+    desiredState?: boolean;
+    content?: string;
+  },
+): Promise<TauriSocialActionResult> {
+  return invoke("queue_social_action", {
+    sessionToken,
+    actionType,
+    postId: input.postId ?? null,
+    targetHandle: input.targetHandle ?? null,
+    desiredState: input.desiredState ?? null,
+    content: input.content ?? null,
+  });
+}
+
 export function tauriToggleFollow(
   sessionToken: string,
   followedHandle: string,
@@ -848,6 +929,22 @@ export function tauriGetNotifications(
   sessionToken: string,
 ): Promise<TauriNotification[]> {
   return invoke("get_notifications", { sessionToken });
+}
+
+export function tauriGetSocialNotifications(
+  sessionToken: string,
+): Promise<TauriHostedNotification[]> {
+  return invoke("get_social_notifications", { sessionToken });
+}
+
+export function tauriMarkSocialNotificationsRead(
+  sessionToken: string,
+  notificationIds: string[],
+): Promise<void> {
+  return invoke("mark_social_notifications_read", {
+    sessionToken,
+    notificationIds,
+  });
 }
 
 export function tauriGetWalletTx(

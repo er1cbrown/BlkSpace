@@ -5,7 +5,9 @@
 
 export type SeedPost = {
   id: number;
+  postUid?: string;
   authorHandle: string;
+  authorPubkey?: string;
   authorDisplayName: string;
   authorAvatarUrl: string;
   content: string;
@@ -14,6 +16,7 @@ export type SeedPost = {
   repostsCount: number;
   likesCount: number;
   liked: boolean;
+  reposted?: boolean;
   mediaBlobs: string[];
   nostrEventId: string;
   relayUrl: string;

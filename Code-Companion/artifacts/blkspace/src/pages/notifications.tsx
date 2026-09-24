@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/layout/AppShell";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -15,6 +16,10 @@ import { isTauri, type TauriNotification } from "@/lib/tauri-api";
 import { BETA_FEATURES } from "@/lib/beta-features";
 import { listWebNotifications } from "@/lib/project-connect";
 import { Link } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
+import { getSessionToken } from "@/lib/auth";
+import { toast } from "sonner";
+import { tauriMarkSocialNotificationsRead } from "@/lib/tauri-api";
 
 const mockNotifications = [
   {
@@ -108,7 +113,19 @@ const typeToIcon: Record<string, string> = {
 };
 
 export default function NotificationsPage() {
+  const queryClient = useQueryClient();
   const { data: tauriData } = useTauriGetNotifications();
+  const markAllRead = async () => {
+    if (!isTauri()) return;
+    try {
+      await tauriMarkSocialNotificationsRead(getSessionToken() || "", []);
+      await queryClient.invalidateQueries({
+        queryKey: ["tauri", "notifications"],
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  };
 
   const isWebPreview = BETA_FEATURES.isWebPreview();
   const webConnect = listWebNotifications().map((n) => ({
@@ -132,6 +149,16 @@ export default function NotificationsPage() {
       <div className="flex items-center gap-3 mb-8 flex-wrap">
         <Bell className="w-7 h-7 text-primary" />
         <h1 className="text-3xl font-bold">Notifications</h1>
+        {isTauri() && items.some((item) => item.unread) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
+            onClick={markAllRead}
+          >
+            Mark all read
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue="all">

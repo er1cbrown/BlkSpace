@@ -14,6 +14,7 @@ import {
 import { getSeedPosts, type SeedPost } from "@/lib/seed-content";
 
 const LIKES_KEY = "blkspace_web_likes_v1";
+const REPOSTS_KEY = "blkspace_web_reposts_v1";
 const YARDS_KEY = "blkspace_web_yards_v1";
 const FOLLOWING_KEY = "blkspace_web_following_v1";
 const WB_KEY = "blkspace_web_wb_delta_v1";
@@ -64,6 +65,19 @@ export function toggleWebLike(postId: number): {
   writeJson(LIKES_KEY, map);
   if (!was) grantWebWb(1, "Like on the yard");
   return { liked: !was, likesDelta: was ? -1 : 1 };
+}
+
+export function toggleWebRepost(postId: number): {
+  reposted: boolean;
+  repostsDelta: number;
+} {
+  const map = readJson<Record<string, boolean>>(REPOSTS_KEY, {});
+  const key = String(postId);
+  const was = !!map[key];
+  if (was) delete map[key];
+  else map[key] = true;
+  writeJson(REPOSTS_KEY, map);
+  return { reposted: !was, repostsDelta: was ? -1 : 1 };
 }
 
 export function getJoinedYards(): string[] {
@@ -157,17 +171,35 @@ export function applyLikesToPosts<
   });
 }
 
+export function applyRepostsToPosts<
+  T extends { id: number; repostsCount: number; reposted?: boolean },
+>(posts: T[]): T[] {
+  const map = readJson<Record<string, boolean>>(REPOSTS_KEY, {});
+  return posts.map((post) => {
+    const key = String(post.id);
+    if (!Object.prototype.hasOwnProperty.call(map, key)) return post;
+    const reposted = !!map[key];
+    return {
+      ...post,
+      reposted,
+      repostsCount: Math.max(0, post.repostsCount + (reposted ? 1 : -1)),
+    };
+  });
+}
+
 export function listInteractiveFeed(town?: string): SeedPost[] {
   const seed = getSeedPosts(town) as SeedPost[];
   const mine = listWebUserPosts(town) as SeedPost[];
-  return applyLikesToPosts([...mine, ...seed]);
+  return applyRepostsToPosts(applyLikesToPosts([...mine, ...seed]));
 }
 
 export function listInteractiveUserPosts(handle: string): SeedPost[] {
   const h = handle.replace(/^@/, "");
   const mine = listWebUserPosts().filter((p) => p.authorHandle === h);
   const seed = getSeedPosts().filter((p) => p.authorHandle === h);
-  return applyLikesToPosts([...mine, ...seed] as SeedPost[]);
+  return applyRepostsToPosts(
+    applyLikesToPosts([...mine, ...seed] as SeedPost[]),
+  );
 }
 
 export function buildWebUser(handle: string) {

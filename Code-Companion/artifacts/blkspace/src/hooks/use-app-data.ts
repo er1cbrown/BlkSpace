@@ -41,6 +41,7 @@ import {
   listInteractiveUserPosts,
   toggleWebFollow,
   toggleWebLike,
+  toggleWebRepost,
 } from "@/lib/web-userspace";
 
 export const IS_TAURI =
@@ -315,7 +316,22 @@ export function useAppGetUserPosts(handle: string, currentUser: string) {
 export function useAppListReplies(postId: number) {
   const tauriResult = useQuery({
     queryKey: ["tauri", "replies", postId],
-    queryFn: () => tauri.tauriListReplies(postId),
+    queryFn: async () => {
+      if (postId < 0) {
+        const hosted = await tauri.tauriListHostedReplies(postId);
+        return hosted.map((reply) => ({
+          id: reply.replyUid,
+          replyUid: reply.replyUid,
+          postId,
+          authorHandle: reply.authorHandle,
+          authorDisplayName: reply.authorHandle,
+          authorAvatarUrl: "",
+          content: reply.content,
+          createdAt: reply.createdAt,
+        }));
+      }
+      return tauri.tauriListReplies(postId);
+    },
     enabled: IS_TAURI && !!postId,
   });
   const webResult = useQuery({
@@ -517,32 +533,27 @@ export function useAppCreatePost() {
 export function useAppToggleLike() {
   const qc = useQueryClient();
   const tauriMut = useMutation({
-    mutationFn: ({ postId }: { postId: number }) =>
-      tauri.tauriToggleLike(getSessionToken() || "", postId),
+    mutationFn: ({
+      postId,
+      desiredState,
+    }: {
+      postId: number;
+      desiredState?: boolean;
+    }) =>
+      tauri.tauriQueueSocialAction(getSessionToken() || "", "like", {
+        postId,
+        desiredState,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
-    },
-  });
-  const queueMut = useMutation({
-    mutationFn: (postId: number) =>
-      tauri.tauriQueueOfflineAction(
-        getSessionToken() || "",
-        "like_post",
-        JSON.stringify({ post_id: postId }),
-      ),
-    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tauri", "hosted-posts"] });
       qc.invalidateQueries({ queryKey: ["tauri", "offlineQueue"] });
     },
   });
   return {
     mutate: IS_TAURI
-      ? (args: { postId: number }, opts?: any) => {
-          if (isOffline()) {
-            queueMut.mutate(args.postId, opts);
-            return;
-          }
-          tauriMut.mutate(args, opts);
-        }
+      ? (args: { postId: number; desiredState?: boolean }, opts?: any) =>
+          tauriMut.mutate(args, opts)
       : (args: { postId: number; liked?: boolean }, opts?: any) => {
           try {
             const { liked, likesDelta } = toggleWebLike(args.postId);
@@ -566,23 +577,35 @@ export function useAppToggleLike() {
             opts?.onError?.(e);
           }
         },
-    isPending: IS_TAURI ? tauriMut.isPending || queueMut.isPending : false,
+    isPending: IS_TAURI ? tauriMut.isPending : false,
   };
 }
 
 export function useTauriToggleFollow() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ followedHandle }: { followedHandle: string }) => {
+    mutationFn: ({
+      followedHandle,
+      desiredState,
+    }: {
+      followedHandle: string;
+      desiredState?: boolean;
+    }) => {
       if (!IS_TAURI) {
         const now = toggleWebFollow(followedHandle);
         return Promise.resolve(now);
       }
-      return tauri.tauriToggleFollow(getSessionToken() || "", followedHandle);
+      return tauri
+        .tauriQueueSocialAction(getSessionToken() || "", "follow", {
+          targetHandle: followedHandle,
+          desiredState,
+        })
+        .then((result) => result.desiredState ?? true);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "following"] });
       qc.invalidateQueries({ queryKey: ["tauri", "users"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "offlineQueue"] });
       qc.invalidateQueries({ queryKey: ["web", "following"] });
       qc.invalidateQueries({ queryKey: ["web", "user"] });
     },
@@ -611,9 +634,14 @@ export function useAppCreateReply() {
   const web = useCreateReply();
   const tauriMut = useMutation({
     mutationFn: ({ postId, content }: { postId: number; content: string }) =>
-      tauri.tauriCreateReply(getSessionToken() || "", postId, content),
+      tauri.tauriQueueSocialAction(getSessionToken() || "", "reply", {
+        postId,
+        content,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "replies"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "hosted-posts"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "offlineQueue"] });
     },
   });
   return {
@@ -719,8 +747,27 @@ export function useMyEscrows() {
 
 export function useTauriGetNotifications() {
   return useQuery({
-    queryKey: ["tauri", "notifications"],
-    queryFn: () => tauri.tauriGetNotifications(getSessionToken() || ""),
+    queryKey: ["tauri", "notifications", getCurrentHandle()],
+    queryFn: async () => {
+      const token = getSessionToken() || "";
+      const [local, hosted] = await Promise.all([
+        tauri.tauriGetNotifications(token),
+        tauri.tauriGetSocialNotifications(token).catch(() => []),
+      ]);
+      return [
+        ...local,
+        ...hosted.map((notification) => ({
+          id: notification.notificationUid,
+          userHandle: "",
+          notificationType: notification.kind,
+          fromHandle: notification.actorHandle,
+          fromDisplayName: notification.actorHandle,
+          message: notification.message,
+          unread: notification.unread,
+          createdAt: notification.createdAt,
+        })),
+      ];
+    },
     enabled: IS_TAURI,
   });
 }
@@ -1784,13 +1831,29 @@ export function useTauriRepostPost() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (postId: number) => {
+      if (!IS_TAURI) {
+        const result = toggleWebRepost(postId);
+        return Promise.resolve({
+          reposted: result.reposted,
+          repostsDelta: result.repostsDelta,
+        });
+      }
       const token = getSessionToken();
       if (!token) throw new Error("Not signed in");
-      return tauri.tauriRepostPost(token, postId);
+      return tauri
+        .tauriQueueSocialAction(token, "repost", { postId })
+        .then((result) => ({
+          reposted: result.desiredState ?? true,
+          repostsDelta: 0,
+        }));
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "hosted-posts"] });
       qc.invalidateQueries({ queryKey: ["tauri", "followingReposts"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "offlineQueue"] });
+      qc.invalidateQueries({ queryKey: ["web", "posts"] });
+      qc.invalidateQueries({ queryKey: ["web", "userPosts"] });
     },
   });
 }

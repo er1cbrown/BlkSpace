@@ -4,12 +4,18 @@ import { createHash } from "node:crypto";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { finalizeEvent, generateSecretKey } from "nostr-tools/pure";
+import {
+  finalizeEvent,
+  generateSecretKey,
+  getPublicKey,
+} from "nostr-tools/pure";
 import { createApp } from "../server.mjs";
 
 const origin = "https://demo.example.test";
 const alice = generateSecretKey();
 const bob = generateSecretKey();
+const alicePubkey = getPublicKey(alice);
+const bobPubkey = getPublicKey(bob);
 const actualFetch = globalThis.fetch;
 const db = new Database(":memory:");
 let server, base, dir;
@@ -43,6 +49,28 @@ function post(route, body, key = alice, overrides = {}) {
       authorization: authorization(route, raw, key, overrides),
     },
     body: raw,
+  });
+}
+
+function authorizedGet(route, key = alice) {
+  const event = finalizeEvent(
+    {
+      kind: 27235,
+      content: "",
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [
+        ["u", origin + route],
+        ["method", "GET"],
+        ["payload", createHash("sha256").update("").digest("hex")],
+      ],
+    },
+    key,
+  );
+  return fetch(base + route, {
+    method: "GET",
+    headers: {
+      authorization: `Nostr ${Buffer.from(JSON.stringify(event)).toString("base64")}`,
+    },
   });
 }
 
@@ -416,5 +444,354 @@ describe("standalone cloud server", () => {
     } finally {
       globalThis.fetch = previousFetch;
     }
+  });
+
+  test("social mutations require NIP-98 and ignore actor spoofing", async () => {
+    const unsigned = await fetch(base + "/api/portfolio/interactions/like", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        postUid: "social-parent-alice-0001",
+        desiredState: true,
+        actionUid: "unsigned-like-0001",
+      }),
+    });
+    expect(unsigned.status).toBe(401);
+
+    const parent = await post(
+      "/api/portfolio/post",
+      {
+        postUid: "social-parent-alice-0001",
+        authorHandle: "alice",
+        content: "social parent",
+        townTag: "social-town",
+        channelId: "announcements",
+        mediaBlobs: [],
+      },
+      alice,
+    );
+    expect(parent.status).toBe(200);
+    const parentBody = await parent.json();
+
+    const spoofed = await post(
+      "/api/portfolio/interactions/like",
+      {
+        postUid: parentBody.postUid,
+        desiredState: true,
+        actionUid: "spoof-like-0001",
+        actorPubkey: bobPubkey,
+      },
+      alice,
+    );
+    expect(spoofed.status).toBe(403);
+
+    const orphan = await post(
+      "/api/portfolio/interactions/like",
+      {
+        postUid: "missing-parent-0001",
+        desiredState: true,
+        actionUid: "orphan-like-0001",
+      },
+      alice,
+    );
+    expect(orphan.status).toBe(404);
+  });
+
+  test("likes, reposts, and replies are durable and idempotent", async () => {
+    const parent = await post(
+      "/api/portfolio/post",
+      {
+        postUid: "social-parent-bob-0001",
+        authorHandle: "bob",
+        content: "reply target",
+        townTag: "social-town",
+        channelId: "general",
+        mediaBlobs: [],
+      },
+      bob,
+    );
+    expect(parent.status).toBe(200);
+    const parentBody = await parent.json();
+
+    const likeBody = {
+      postUid: parentBody.postUid,
+      desiredState: true,
+      actionUid: "like-bob-0001",
+    };
+    const firstLike = await post(
+      "/api/portfolio/interactions/like",
+      likeBody,
+      alice,
+    );
+    expect(firstLike.status).toBe(200);
+    const firstLikeBody = await firstLike.json();
+    expect(firstLikeBody.liked).toBe(true);
+    expect(firstLikeBody.counts.likes).toBe(1);
+
+    const replayLike = await post(
+      "/api/portfolio/interactions/like",
+      likeBody,
+      alice,
+    );
+    expect(replayLike.status).toBe(200);
+    expect(await replayLike.json()).toEqual(firstLikeBody);
+    expect(
+      (
+        await post(
+          "/api/portfolio/interactions/like",
+          { ...likeBody, desiredState: false },
+          alice,
+        )
+      ).status,
+    ).toBe(409);
+    const unlike = await post(
+      "/api/portfolio/interactions/like",
+      { ...likeBody, desiredState: false, actionUid: "like-bob-0002" },
+      alice,
+    );
+    expect(unlike.status).toBe(200);
+    expect((await unlike.json()).liked).toBe(false);
+    const replayAfterUnlike = await post(
+      "/api/portfolio/interactions/like",
+      likeBody,
+      alice,
+    );
+    expect(replayAfterUnlike.status).toBe(200);
+    expect(await replayAfterUnlike.json()).toEqual(firstLikeBody);
+
+    const repostBody = {
+      postUid: parentBody.postUid,
+      desiredState: true,
+      actionUid: "repost-alice-0001",
+    };
+    const repost = await post(
+      "/api/portfolio/interactions/repost",
+      repostBody,
+      alice,
+    );
+    expect(repost.status).toBe(200);
+    expect((await repost.json()).reposted).toBe(true);
+    expect(
+      (await post("/api/portfolio/interactions/repost", repostBody, alice))
+        .status,
+    ).toBe(200);
+
+    const replyBody = {
+      postUid: parentBody.postUid,
+      replyUid: "reply-alice-0001",
+      content: "A durable reply",
+      actionUid: "reply-alice-0001",
+      townTag: "spoof-town",
+      channelId: "spoof-channel",
+      parentAuthorPubkey: alicePubkey,
+    };
+    const reply = await post(
+      "/api/portfolio/interactions/reply",
+      replyBody,
+      alice,
+    );
+    expect(reply.status).toBe(200);
+    const replyResult = await reply.json();
+    expect(replyResult.reply.townTag).toBe("social-town");
+    expect(replyResult.reply.channelId).toBe("general");
+    expect(replyResult.reply.parentAuthorPubkey).toBe(bobPubkey);
+    expect(
+      (await post("/api/portfolio/interactions/reply", replyBody, alice))
+        .status,
+    ).toBe(200);
+    expect(
+      (
+        await post(
+          "/api/portfolio/interactions/reply",
+          {
+            ...replyBody,
+            replyUid: "orphan-reply-0001",
+            actionUid: "reply-alice-0002",
+          },
+          alice,
+        )
+      ).status,
+    ).toBe(200);
+
+    const posts = await (
+      await fetch(base + "/api/portfolio/posts?town=social-town")
+    ).json();
+    const listed = posts.rows.find((row) => row.postUid === parentBody.postUid);
+    expect(listed.repliesCount).toBe(2);
+    expect(listed.likesCount).toBe(0);
+    expect(listed.repostsCount).toBe(1);
+    const listedReplies = await (
+      await fetch(
+        `${base}/api/portfolio/interactions/replies?postUid=${encodeURIComponent(parentBody.postUid)}`,
+      )
+    ).json();
+    expect(listedReplies.rows.length).toBe(2);
+    expect(listedReplies.rows[0].replyUid).toBe("reply-alice-0001");
+    const firstReplyPage = await (
+      await fetch(
+        `${base}/api/portfolio/interactions/replies?postUid=${encodeURIComponent(parentBody.postUid)}&limit=1`,
+      )
+    ).json();
+    expect(firstReplyPage.rows.length).toBe(1);
+    expect(firstReplyPage.nextCursor).toBeTruthy();
+    const secondReplyPage = await (
+      await fetch(
+        `${base}/api/portfolio/interactions/replies?postUid=${encodeURIComponent(parentBody.postUid)}&limit=1&cursor=${encodeURIComponent(firstReplyPage.nextCursor)}`,
+      )
+    ).json();
+    expect(secondReplyPage.rows.length).toBe(1);
+    expect(secondReplyPage.rows[0].replyUid).not.toBe(
+      firstReplyPage.rows[0].replyUid,
+    );
+    const viewerPosts = await (
+      await authorizedGet("/api/portfolio/posts?town=social-town", alice)
+    ).json();
+    const viewerListed = viewerPosts.rows.find(
+      (row) => row.postUid === parentBody.postUid,
+    );
+    expect(viewerListed.viewerState).toEqual({
+      liked: false,
+      reposted: true,
+    });
+  });
+
+  test("follows and notifications are recipient-scoped and read-idempotent", async () => {
+    const alicePost = await post(
+      "/api/portfolio/post",
+      {
+        postUid: "social-parent-alice-0002",
+        authorHandle: "alice",
+        content: "notification target",
+        townTag: "social-town",
+        channelId: "general",
+        mediaBlobs: [],
+      },
+      alice,
+    );
+    expect(alicePost.status).toBe(200);
+    const alicePostBody = await alicePost.json();
+
+    const registered = await post(
+      "/api/portfolio/identity",
+      { handle: "alice" },
+      alice,
+    );
+    expect(registered.status).toBe(200);
+    expect(
+      (await post("/api/portfolio/identity", { handle: "alice" }, bob)).status,
+    ).toBe(409);
+
+    const follow = await post(
+      "/api/portfolio/interactions/follow",
+      {
+        targetHandle: "bob",
+        desiredState: true,
+        actionUid: "follow-alice-bob-0001",
+      },
+      alice,
+    );
+    expect(follow.status).toBe(200);
+    expect((await follow.json()).following).toBe(true);
+    const followingList = await (
+      await authorizedGet("/api/portfolio/interactions/following", alice)
+    ).json();
+    expect(followingList.rows.some((row) => row.handle === "bob")).toBe(true);
+    expect(
+      (
+        await post(
+          "/api/portfolio/interactions/follow",
+          {
+            targetPubkey: alicePubkey,
+            desiredState: true,
+            actionUid: "self-follow-0001",
+          },
+          alice,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await post(
+          "/api/portfolio/interactions/follow",
+          {
+            targetHandle: "nobody-here",
+            desiredState: true,
+            actionUid: "missing-follow-0001",
+          },
+          alice,
+        )
+      ).status,
+    ).toBe(404);
+
+    await post(
+      "/api/portfolio/interactions/like",
+      {
+        postUid: alicePostBody.postUid,
+        desiredState: true,
+        actionUid: "notification-like-0001",
+      },
+      bob,
+    );
+    const notifications = await (
+      await authorizedGet(
+        "/api/portfolio/interactions/notifications?limit=50",
+        alice,
+      )
+    ).json();
+    expect(notifications.ok).toBe(true);
+    expect(notifications.rows.length).toBeGreaterThanOrEqual(1);
+    const postedNotifications = await (
+      await post("/api/portfolio/notifications", {}, alice)
+    ).json();
+    expect(postedNotifications.rows.length).toBeGreaterThanOrEqual(1);
+    expect(new Set(notifications.rows.map((row) => row.id)).size).toBe(
+      notifications.rows.length,
+    );
+    expect(
+      notifications.rows.some(
+        (row) => row.type === "like" && row.actorPubkey === bobPubkey,
+      ),
+    ).toBe(true);
+    expect(
+      notifications.rows.every((row) => row.recipientPubkey === alicePubkey),
+    ).toBe(true);
+
+    const bobNotifications = await (
+      await authorizedGet(
+        "/api/portfolio/interactions/notifications?limit=50",
+        bob,
+      )
+    ).json();
+    expect(
+      bobNotifications.rows.some(
+        (row) => row.type === "follow" && row.actorPubkey === alicePubkey,
+      ),
+    ).toBe(true);
+
+    const notificationId = notifications.rows[0].id;
+    const firstRead = await post(
+      "/api/portfolio/interactions/notifications/read",
+      { notificationId },
+      alice,
+    );
+    expect(firstRead.status).toBe(200);
+    const firstReadBody = await firstRead.json();
+    expect(firstReadBody.updatedCount).toBe(1);
+    const secondRead = await post(
+      "/api/portfolio/interactions/notifications/read",
+      { notificationId },
+      alice,
+    );
+    expect(secondRead.status).toBe(200);
+    expect((await secondRead.json()).updatedCount).toBe(0);
+    const afterRead = await (
+      await authorizedGet(
+        "/api/portfolio/interactions/notifications?limit=50",
+        alice,
+      )
+    ).json();
+    expect(afterRead.rows.find((row) => row.id === notificationId).read).toBe(
+      true,
+    );
   });
 });

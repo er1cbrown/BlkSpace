@@ -6,7 +6,9 @@ import {
   isTauri,
   tauriFlushOfflineQueue,
   tauriSyncPortfolioOnce,
+  tauriSyncSocialOnce,
   type TauriPortfolioSyncResult,
+  type TauriSocialSyncResult,
 } from "@/lib/tauri-api";
 
 interface FlushResult {
@@ -27,12 +29,14 @@ export function OfflineSyncProvider({
     mutationFn: async (): Promise<{
       offline: FlushResult;
       hosted: TauriPortfolioSyncResult | null;
+      social: TauriSocialSyncResult | null;
     }> => {
       const token = getSessionToken();
       if (!token)
         return {
           offline: { synced: 0, failed: 0, remaining: 0 },
           hosted: null,
+          social: null,
         };
       const offline = await tauriFlushOfflineQueue(token);
       let hosted: TauriPortfolioSyncResult | null = null;
@@ -42,9 +46,15 @@ export function OfflineSyncProvider({
         // Hosted sync is optional/best-effort; local offline actions remain safe.
         console.warn("BlkSpace hosted sync deferred", error);
       }
-      return { offline, hosted };
+      let social: TauriSocialSyncResult | null = null;
+      try {
+        social = await tauriSyncSocialOnce(token);
+      } catch (error) {
+        console.warn("BlkSpace social sync deferred", error);
+      }
+      return { offline, hosted, social };
     },
-    onSuccess: ({ offline, hosted }) => {
+    onSuccess: ({ offline, hosted, social }) => {
       if (offline.synced > 0) {
         qc.invalidateQueries({ queryKey: ["tauri"] });
         toast.success(
@@ -60,6 +70,25 @@ export function OfflineSyncProvider({
         toast.message(
           `${hosted.failed} hosted post${hosted.failed === 1 ? "" : "s"} will retry when the service is available.`,
         );
+      }
+      if (social && social.failed > 0) {
+        toast.message(
+          `${social.failed} social action${social.failed === 1 ? "" : "s"} will retry when the service is available.`,
+        );
+      }
+      if (
+        social &&
+        (social.cached > 0 ||
+          social.pushed > 0 ||
+          social.notifications > 0 ||
+          social.replies > 0 ||
+          social.following > 0)
+      ) {
+        qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
+        qc.invalidateQueries({ queryKey: ["tauri", "hosted-posts"] });
+        qc.invalidateQueries({ queryKey: ["tauri", "notifications"] });
+        qc.invalidateQueries({ queryKey: ["tauri", "replies"] });
+        qc.invalidateQueries({ queryKey: ["tauri", "following"] });
       }
       if (hosted && (hosted.cached > 0 || hosted.pushed > 0)) {
         qc.invalidateQueries({ queryKey: ["tauri", "posts"] });

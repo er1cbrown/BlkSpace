@@ -2,7 +2,7 @@ use crate::sqlite::{
   Connection, Error as SqlError, OptionalExtension, Result, Row, ToSql,
 };
 use crate::params;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -359,6 +359,7 @@ pub struct Post {
   pub reposts_count: i64,
   pub likes_count: i64,
   pub liked: bool,
+  pub reposted: bool,
   pub media_blobs: Vec<String>,
   pub nostr_event_id: String,
   pub relay_url: String,
@@ -384,6 +385,12 @@ pub struct CloudPostRecord {
   pub town_tag: String,
   pub channel_id: String,
   pub media_blobs: Vec<String>,
+  pub likes_count: i64,
+  pub replies_count: i64,
+  pub reposts_count: i64,
+  pub liked: bool,
+  pub reposted: bool,
+  pub viewer_state: bool,
   pub created_at: String,
   pub updated_at: String,
   pub revision: i64,
@@ -397,6 +404,69 @@ pub struct HostedOutboxItem {
   pub author_handle: String,
   pub author_pubkey: String,
   pub payload: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct HostedSocialOutboxItem {
+  pub id: i64,
+  pub action_uid: String,
+  pub actor_pubkey: String,
+  pub action_type: String,
+  pub post_uid: Option<String>,
+  pub target_handle: Option<String>,
+  pub target_pubkey: Option<String>,
+  pub desired_state: Option<bool>,
+  pub reply_uid: Option<String>,
+  pub content: Option<String>,
+  pub base_revision: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostedFollowing {
+  pub target_pubkey: String,
+  pub target_handle: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostedSocialState {
+  pub post_uid: String,
+  pub liked: bool,
+  pub reposted: bool,
+  pub likes_count: i64,
+  pub replies_count: i64,
+  pub reposts_count: i64,
+  pub revision: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostedReply {
+  pub reply_uid: String,
+  pub post_uid: String,
+  pub author_handle: String,
+  pub author_pubkey: String,
+  pub content: String,
+  pub created_at: String,
+  #[serde(default)]
+  pub pending: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostedNotification {
+  #[serde(alias = "notificationId", alias = "notification_id", alias = "id")]
+  pub notification_uid: String,
+  pub actor_pubkey: String,
+  pub actor_handle: String,
+  #[serde(alias = "type", alias = "notificationType", alias = "notification_type")]
+  pub kind: String,
+  pub post_uid: Option<String>,
+  pub reply_uid: Option<String>,
+  pub message: String,
+  pub created_at: String,
+  pub unread: bool,
 }
 
 /// Default page size for feed queries (Tier 0 pagination).
@@ -726,7 +796,7 @@ pub struct Database {
 }
 
 /// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
-const SCHEMA_VERSION: i32 = 10;
+const SCHEMA_VERSION: i32 = 11;
 
 /// Tier 0 page cache in KiB (negative PRAGMA cache_size = KiB).
 /// Default 8 MiB — was 64 MiB which is too heavy for 4 GB laptops.
@@ -1055,6 +1125,18 @@ impl Database {
     let _ = conn.execute("ALTER TABLE users ADD COLUMN theme_id INTEGER DEFAULT 0", ());
     let _ = conn.execute("ALTER TABLE users ADD COLUMN music_hash TEXT DEFAULT ''", ());
     let _ = conn.execute("ALTER TABLE posts ADD COLUMN channel_id TEXT DEFAULT ''", ());
+    let _ = conn.execute("ALTER TABLE posts ADD COLUMN post_uid TEXT", ());
+    let _ = conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_post_uid ON posts(post_uid) WHERE post_uid IS NOT NULL AND post_uid != ''", ());
+    let _ = conn.execute("UPDATE posts SET post_uid = 'legacy:' || id WHERE post_uid IS NULL OR post_uid = ''", ());
+    let _ = conn.execute("ALTER TABLE replies ADD COLUMN reply_uid TEXT", ());
+    let _ = conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_replies_reply_uid ON replies(reply_uid) WHERE reply_uid IS NOT NULL AND reply_uid != ''", ());
+    let _ = conn.execute("UPDATE replies SET reply_uid = 'legacy:' || id WHERE reply_uid IS NULL OR reply_uid = ''", ());
+    let _ = conn.execute("ALTER TABLE hosted_posts ADD COLUMN likes_count INTEGER NOT NULL DEFAULT 0", ());
+    let _ = conn.execute("ALTER TABLE hosted_posts ADD COLUMN replies_count INTEGER NOT NULL DEFAULT 0", ());
+    let _ = conn.execute("ALTER TABLE hosted_posts ADD COLUMN reposts_count INTEGER NOT NULL DEFAULT 0", ());
+    let _ = conn.execute("ALTER TABLE hosted_posts ADD COLUMN liked INTEGER NOT NULL DEFAULT 0", ());
+    let _ = conn.execute("ALTER TABLE hosted_posts ADD COLUMN reposted INTEGER NOT NULL DEFAULT 0", ());
+    let _ = conn.execute("ALTER TABLE hosted_social_outbox ADD COLUMN target_pubkey TEXT", ());
     let _ = conn.execute("ALTER TABLE users ADD COLUMN post_karma INTEGER DEFAULT 0", ());
     let _ = conn.execute("ALTER TABLE users ADD COLUMN comment_karma INTEGER DEFAULT 0", ());
     let _ = conn.execute(
@@ -1154,6 +1236,7 @@ impl Database {
 
       CREATE TABLE IF NOT EXISTS posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_uid TEXT,
         author_handle TEXT NOT NULL,
         content TEXT NOT NULL,
         town_tag TEXT DEFAULT 'tsu',
@@ -1196,6 +1279,7 @@ impl Database {
 
       CREATE TABLE IF NOT EXISTS replies (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reply_uid TEXT,
         post_id INTEGER NOT NULL,
         author_handle TEXT NOT NULL,
         content TEXT NOT NULL,
@@ -1364,6 +1448,11 @@ impl Database {
         town_tag TEXT NOT NULL,
         channel_id TEXT NOT NULL DEFAULT '',
         media_blobs TEXT NOT NULL DEFAULT '[]',
+        likes_count INTEGER NOT NULL DEFAULT 0,
+        replies_count INTEGER NOT NULL DEFAULT 0,
+        reposts_count INTEGER NOT NULL DEFAULT 0,
+        liked INTEGER NOT NULL DEFAULT 0,
+        reposted INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         revision INTEGER NOT NULL DEFAULT 1,
@@ -1378,6 +1467,80 @@ impl Database {
         local_post_id INTEGER NOT NULL UNIQUE,
         remote_id TEXT NOT NULL UNIQUE
       );
+
+      CREATE TABLE IF NOT EXISTS hosted_social_outbox (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        action_uid TEXT NOT NULL UNIQUE,
+        actor_pubkey TEXT NOT NULL,
+        action_type TEXT NOT NULL,
+        post_uid TEXT,
+        target_handle TEXT,
+        target_pubkey TEXT,
+        desired_state INTEGER,
+        reply_uid TEXT,
+        content TEXT,
+        base_revision INTEGER NOT NULL DEFAULT 0,
+        state TEXT NOT NULL DEFAULT 'pending',
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        next_attempt_at TEXT NOT NULL DEFAULT (datetime('now')),
+        last_error TEXT DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_hosted_social_outbox_due
+        ON hosted_social_outbox(actor_pubkey, state, next_attempt_at);
+
+      CREATE TABLE IF NOT EXISTS hosted_following (
+        follower_pubkey TEXT NOT NULL,
+        target_pubkey TEXT NOT NULL,
+        target_handle TEXT NOT NULL DEFAULT '',
+        desired_state INTEGER NOT NULL DEFAULT 1,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (follower_pubkey, target_pubkey)
+      );
+
+      CREATE TABLE IF NOT EXISTS hosted_social_state (
+        post_uid TEXT NOT NULL,
+        actor_pubkey TEXT NOT NULL,
+        liked INTEGER NOT NULL DEFAULT 0,
+        reposted INTEGER NOT NULL DEFAULT 0,
+        likes_count INTEGER NOT NULL DEFAULT 0,
+        replies_count INTEGER NOT NULL DEFAULT 0,
+        reposts_count INTEGER NOT NULL DEFAULT 0,
+        revision INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (post_uid, actor_pubkey)
+      );
+
+      CREATE TABLE IF NOT EXISTS hosted_notifications (
+        notification_uid TEXT PRIMARY KEY,
+        recipient_pubkey TEXT NOT NULL,
+        actor_pubkey TEXT NOT NULL,
+        actor_handle TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        post_uid TEXT,
+        reply_uid TEXT,
+        message TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        read_at TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_hosted_notifications_recipient
+        ON hosted_notifications(recipient_pubkey, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS hosted_replies (
+        reply_uid TEXT PRIMARY KEY,
+        post_uid TEXT NOT NULL,
+        author_handle TEXT NOT NULL,
+        author_pubkey TEXT NOT NULL DEFAULT '',
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        pending INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_hosted_replies_post
+        ON hosted_replies(post_uid, created_at ASC);
 
       CREATE TABLE IF NOT EXISTS device_sync_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1835,6 +1998,7 @@ impl Database {
           reposts_count: row.get(8)?,
           likes_count: row.get(9)?,
           liked: row.get::<_, i64>(10)? != 0,
+          reposted: false,
           media_blobs: parse_media_blobs(&row.get::<_, String>(11).unwrap_or_default()),
           nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
           relay_url: row.get::<_, String>(13).unwrap_or_default(),
@@ -2089,6 +2253,7 @@ impl Database {
         reposts_count: row.get(8)?,
         likes_count: row.get(9)?,
         liked: row.get::<_, i64>(10)? != 0,
+        reposted: false,
         media_blobs: parse_media_blobs(&row.get::<_, String>(11).unwrap_or_default()),
         nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
         relay_url: row.get::<_, String>(13).unwrap_or_default(),
@@ -2186,6 +2351,7 @@ impl Database {
           reposts_count: row.get(8)?,
           likes_count: row.get(9)?,
           liked: row.get::<_, i64>(10)? != 0,
+          reposted: false,
           media_blobs: serde_json::from_str(&row.get::<_, String>(11).unwrap_or_default()).unwrap_or_default(),
           nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
           relay_url: row.get::<_, String>(13).unwrap_or_default(),
@@ -2515,11 +2681,26 @@ impl Database {
         continue;
       }
 
-      let existing: Option<(i64, i64)> = conn
+      let existing: Option<(i64, i64, String, String, i64, i64, i64, i64, i64, String)> = conn
         .query_row(
-          "SELECT local_id, revision FROM hosted_posts WHERE post_uid = ?1",
+          "SELECT local_id, revision, content, media_blobs, likes_count, replies_count,
+                  reposts_count, liked, reposted, updated_at
+             FROM hosted_posts WHERE post_uid = ?1",
           params![row.post_uid],
-          |r| Ok((r.get(0)?, r.get(1)?)),
+          |r| {
+            Ok((
+              r.get(0)?,
+              r.get(1)?,
+              r.get(2)?,
+              r.get(3)?,
+              r.get(4)?,
+              r.get(5)?,
+              r.get(6)?,
+              r.get(7)?,
+              r.get(8)?,
+              r.get(9)?,
+            ))
+          },
         )
         .optional()
         .map_err(|e| e.to_string())?;
@@ -2535,17 +2716,37 @@ impl Database {
         row.updated_at.clone()
       };
       match existing {
-        Some((local_id, old_revision)) => {
-          if row.revision <= old_revision {
+        Some((
+          local_id,
+          old_revision,
+          old_content,
+          old_media,
+          old_likes_count,
+          old_replies_count,
+          old_reposts_count,
+          old_liked,
+          old_reposted,
+          _old_updated_at,
+        )) => {
+          let unchanged = row.revision == old_revision
+            && row.content == old_content
+            && media_json == old_media
+            && row.likes_count == old_likes_count
+            && row.replies_count == old_replies_count
+            && row.reposts_count == old_reposts_count
+            && (!row.viewer_state
+              || (row.liked == (old_liked != 0) && row.reposted == (old_reposted != 0)));
+          if row.revision < old_revision || unchanged {
             continue;
           }
           conn.execute(
             r#"UPDATE hosted_posts
                 SET remote_id = ?1, author_handle = ?2, author_pubkey = ?3,
                     content = ?4, town_tag = ?5, channel_id = ?6,
-                    media_blobs = ?7, created_at = ?8, updated_at = ?9,
-                    revision = ?10, last_pulled_at = datetime('now')
-              WHERE local_id = ?11"#,
+                    media_blobs = ?7, likes_count = ?8, replies_count = ?9,
+                    reposts_count = ?10, created_at = ?11, updated_at = ?12,
+                    revision = ?13, last_pulled_at = datetime('now')
+              WHERE local_id = ?14"#,
             params![
               row.remote_id,
               row.author_handle,
@@ -2554,6 +2755,9 @@ impl Database {
               row.town_tag,
               row.channel_id,
               media_json,
+              row.likes_count,
+              row.replies_count,
+              row.reposts_count,
               created_at,
               updated_at,
               row.revision,
@@ -2561,6 +2765,13 @@ impl Database {
             ],
           )
           .map_err(|e| e.to_string())?;
+          if row.viewer_state {
+            conn.execute(
+              "UPDATE hosted_posts SET liked = ?1, reposted = ?2 WHERE local_id = ?3",
+              params![row.liked as i64, row.reposted as i64, local_id],
+            )
+            .map_err(|e| e.to_string())?;
+          }
           changed += 1;
         }
         None => {
@@ -2585,9 +2796,10 @@ impl Database {
           conn.execute(
             r#"INSERT INTO hosted_posts
              (local_id, post_uid, remote_id, author_handle, author_pubkey,
-              content, town_tag, channel_id, media_blobs, created_at,
+              content, town_tag, channel_id, media_blobs, likes_count,
+              replies_count, reposts_count, liked, reposted, created_at,
               updated_at, revision)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)"#,
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)"#,
             params![
               local_id,
               row.post_uid,
@@ -2598,6 +2810,11 @@ impl Database {
               row.town_tag,
               row.channel_id,
               media_json,
+              row.likes_count,
+              row.replies_count,
+              row.reposts_count,
+              row.liked as i64,
+              row.reposted as i64,
               created_at,
               updated_at,
               row.revision,
@@ -2617,7 +2834,8 @@ impl Database {
     let (sql, args) = if let Some(town) = town.filter(|value| !value.is_empty()) {
       (
         r#"SELECT local_id, post_uid, remote_id, author_handle, author_pubkey,
-                content, town_tag, channel_id, media_blobs, created_at
+                content, town_tag, channel_id, media_blobs, likes_count,
+                 replies_count, reposts_count, liked, reposted, created_at
            FROM hosted_posts
           WHERE town_tag = ?1
             AND NOT EXISTS (
@@ -2631,7 +2849,8 @@ impl Database {
     } else {
       (
         r#"SELECT local_id, post_uid, remote_id, author_handle, author_pubkey,
-                content, town_tag, channel_id, media_blobs, created_at
+                content, town_tag, channel_id, media_blobs, likes_count,
+                 replies_count, reposts_count, liked, reposted, created_at
            FROM hosted_posts
           WHERE NOT EXISTS (
               SELECT 1 FROM hosted_post_bindings b
@@ -2655,14 +2874,15 @@ impl Database {
           content: row.get(5)?,
           town_tag: row.get(6)?,
           channel_id: row.get(7)?,
-          replies_count: 0,
-          reposts_count: 0,
-          likes_count: 0,
-          liked: false,
+          replies_count: row.get(10)?,
+          reposts_count: row.get(11)?,
+          likes_count: row.get(9)?,
+          liked: row.get::<_, i64>(12)? != 0,
+          reposted: row.get::<_, i64>(13)? != 0,
           media_blobs,
           nostr_event_id: String::new(),
           relay_url: String::new(),
-          created_at: row.get(9)?,
+          created_at: row.get(14)?,
           engagement_quality: 1.0,
           malicious_score: 0.0,
           risk_level: "low".into(),
@@ -2673,6 +2893,166 @@ impl Database {
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
   }
 
+  pub fn upsert_social_state(&self, state: &HostedSocialState, actor_pubkey: &str) -> Result<(), String> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      r#"INSERT INTO hosted_social_state
+        (post_uid, actor_pubkey, liked, reposted, likes_count, replies_count,
+         reposts_count, revision, updated_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, datetime('now'))
+       ON CONFLICT(post_uid, actor_pubkey) DO UPDATE SET
+         liked = excluded.liked,
+         reposted = excluded.reposted,
+         likes_count = excluded.likes_count,
+         replies_count = excluded.replies_count,
+         reposts_count = excluded.reposts_count,
+         revision = excluded.revision,
+         updated_at = datetime('now')"#,
+      params![
+        state.post_uid,
+        actor_pubkey,
+        state.liked as i64,
+        state.reposted as i64,
+        state.likes_count,
+        state.replies_count,
+        state.reposts_count,
+        state.revision
+      ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+  }
+
+  pub fn apply_social_snapshot(
+    &self,
+    post_uid: &str,
+    actor_pubkey: &str,
+    liked: bool,
+    reposted: bool,
+    likes_count: i64,
+    replies_count: i64,
+    reposts_count: i64,
+    revision: i64,
+  ) -> Result<(), String> {
+    let conn = self.conn.lock().unwrap();
+    let state = HostedSocialState {
+      post_uid: post_uid.to_string(),
+      liked,
+      reposted,
+      likes_count: likes_count.max(0),
+      replies_count: replies_count.max(0),
+      reposts_count: reposts_count.max(0),
+      revision: revision.max(0),
+    };
+    conn.execute(
+      r#"INSERT INTO hosted_social_state
+        (post_uid, actor_pubkey, liked, reposted, likes_count, replies_count,
+         reposts_count, revision, updated_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, datetime('now'))
+       ON CONFLICT(post_uid, actor_pubkey) DO UPDATE SET
+         liked = excluded.liked,
+         reposted = excluded.reposted,
+         likes_count = excluded.likes_count,
+         replies_count = excluded.replies_count,
+         reposts_count = excluded.reposts_count,
+         revision = excluded.revision,
+         updated_at = datetime('now')"#,
+      params![
+        state.post_uid,
+        actor_pubkey,
+        state.liked as i64,
+        state.reposted as i64,
+        state.likes_count,
+        state.replies_count,
+        state.reposts_count,
+        state.revision
+      ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let post_exists: bool = conn
+      .query_row(
+        "SELECT EXISTS(SELECT 1 FROM posts WHERE post_uid = ?1)",
+        params![post_uid],
+        |row| row.get::<_, i64>(0).map(|value| value != 0),
+      )
+      .map_err(|error| error.to_string())?;
+    if post_exists {
+      conn.execute(
+        "UPDATE posts SET likes_count = ?1, replies_count = ?2, reposts_count = ?3 WHERE post_uid = ?4",
+        params![state.likes_count, state.replies_count, state.reposts_count, post_uid],
+      )
+      .map_err(|e| e.to_string())?;
+      let viewer_handle: Option<String> = conn
+        .query_row(
+          "SELECT handle FROM users WHERE pubkey = ?1 LIMIT 1",
+          params![actor_pubkey],
+          |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+      if let Some(viewer_handle) = viewer_handle {
+        if liked {
+          conn.execute(
+            "INSERT OR IGNORE INTO likes (post_id, user_handle) SELECT id, ?1 FROM posts WHERE post_uid = ?2",
+            params![viewer_handle, post_uid],
+          )
+          .map_err(|e| e.to_string())?;
+        } else {
+          conn.execute(
+            "DELETE FROM likes WHERE post_id IN (SELECT id FROM posts WHERE post_uid = ?1) AND user_handle = ?2",
+            params![post_uid, viewer_handle],
+          )
+          .map_err(|e| e.to_string())?;
+        }
+      }
+    }
+    Ok(())
+  }
+  pub fn social_state(&self, post_uid: &str, actor_pubkey: &str) -> Result<Option<HostedSocialState>, String> {
+    let conn = self.conn.lock().unwrap();
+    let state = conn
+      .query_row(
+        "SELECT post_uid, liked, reposted, likes_count, replies_count, reposts_count, revision
+         FROM hosted_social_state WHERE post_uid = ?1 AND actor_pubkey = ?2",
+        params![post_uid, actor_pubkey],
+        |row| {
+          Ok(HostedSocialState {
+            post_uid: row.get(0)?,
+            liked: row.get::<_, i64>(1)? != 0,
+            reposted: row.get::<_, i64>(2)? != 0,
+            likes_count: row.get(3)?,
+            replies_count: row.get(4)?,
+            reposts_count: row.get(5)?,
+            revision: row.get(6)?,
+          })
+        },
+      )
+      .optional()
+      .map_err(|e| e.to_string())?;
+    if state.is_some() {
+      return Ok(state);
+    }
+    conn.query_row(
+      "SELECT post_uid, liked, reposted, likes_count, replies_count, reposts_count, revision
+       FROM hosted_posts WHERE post_uid = ?1 LIMIT 1",
+      params![post_uid],
+      |row| {
+        Ok(HostedSocialState {
+          post_uid: row.get(0)?,
+          liked: row.get::<_, i64>(1)? != 0,
+          reposted: row.get::<_, i64>(2)? != 0,
+          likes_count: row.get(3)?,
+          replies_count: row.get(4)?,
+          reposts_count: row.get(5)?,
+          revision: row.get(6)?,
+        })
+      },
+    )
+    .optional()
+    .map_err(|e| e.to_string())
+  }
+
   pub fn get_hosted_post(&self, local_id: i64) -> Result<Option<Post>, String> {
     if local_id >= 0 {
       return Ok(None);
@@ -2681,6 +3061,150 @@ impl Database {
       .list_hosted_posts(None, 100)?
       .into_iter()
       .find(|post| post.id == local_id))
+  }
+
+  pub fn post_uid_for_local_post(&self, post_id: i64) -> Result<String, String> {
+    let conn = self.conn.lock().unwrap();
+    conn.query_row(
+      "SELECT COALESCE(NULLIF(post_uid, ''), 'legacy:' || id) FROM posts WHERE id = ?1",
+      params![post_id],
+      |row| row.get(0),
+    )
+    .map_err(|e| e.to_string())
+  }
+
+  pub fn reply_uid_for_local_reply(&self, reply_id: i64) -> Result<String, String> {
+    let conn = self.conn.lock().unwrap();
+    conn.query_row(
+      "SELECT COALESCE(NULLIF(reply_uid, ''), 'legacy:' || id) FROM replies WHERE id = ?1",
+      params![reply_id],
+      |row| row.get(0),
+    )
+    .map_err(|e| e.to_string())
+  }
+
+  pub fn hosted_reply_local_id(&self, reply_uid: &str) -> i64 {
+    Self::hosted_local_id(reply_uid)
+  }
+
+  pub fn post_uid_for_display_id(&self, post_id: i64) -> Result<String, String> {
+    if post_id < 0 {
+      let conn = self.conn.lock().unwrap();
+      return conn
+        .query_row(
+          "SELECT post_uid FROM hosted_posts WHERE local_id = ?1",
+          params![post_id],
+          |row| row.get(0),
+        )
+        .map_err(|e| e.to_string());
+    }
+    self.post_uid_for_local_post(post_id)
+  }
+
+  pub fn enqueue_social_action(
+    &self,
+    action_uid: &str,
+    actor_pubkey: &str,
+    action_type: &str,
+    post_uid: Option<&str>,
+    target_handle: Option<&str>,
+    target_pubkey: Option<&str>,
+    desired_state: Option<bool>,
+    reply_uid: Option<&str>,
+    content: Option<&str>,
+    base_revision: i64,
+  ) -> Result<i64, String> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      r#"INSERT OR IGNORE INTO hosted_social_outbox
+        (action_uid, actor_pubkey, action_type, post_uid, target_handle,
+         target_pubkey, desired_state, reply_uid, content, base_revision)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"#,
+      params![
+        action_uid,
+        actor_pubkey,
+        action_type,
+        post_uid,
+        target_handle,
+        target_pubkey,
+        desired_state.map(|value| value as i64),
+        reply_uid,
+        content,
+        base_revision
+      ],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.query_row(
+      "SELECT id FROM hosted_social_outbox WHERE action_uid = ?1",
+      params![action_uid],
+      |row| row.get(0),
+    )
+    .map_err(|e| e.to_string())
+  }
+
+  pub fn due_social_actions(&self, actor_pubkey: &str, limit: i64) -> Result<Vec<HostedSocialOutboxItem>, String> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn
+      .prepare(
+        r#"SELECT id, action_uid, actor_pubkey, action_type, post_uid,
+                  target_handle, target_pubkey, desired_state, reply_uid, content, base_revision
+             FROM hosted_social_outbox
+            WHERE actor_pubkey = ?1 AND state = 'pending'
+              AND next_attempt_at <= datetime('now')
+            ORDER BY id ASC LIMIT ?2"#,
+      )
+      .map_err(|e| e.to_string())?;
+    let rows = stmt
+      .query_map(params![actor_pubkey, limit.clamp(1, 50)], |row| {
+        Ok(HostedSocialOutboxItem {
+          id: row.get(0)?,
+          action_uid: row.get(1)?,
+          actor_pubkey: row.get(2)?,
+          action_type: row.get(3)?,
+          post_uid: row.get(4)?,
+          target_handle: row.get(5)?,
+          target_pubkey: row.get(6)?,
+          desired_state: row.get::<_, Option<i64>>(7)?.map(|value| value != 0),
+          reply_uid: row.get(8)?,
+          content: row.get(9)?,
+          base_revision: row.get(10)?,
+        })
+      })
+      .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+  }
+
+  pub fn mark_social_action_synced(&self, id: i64) -> Result<(), String> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "UPDATE hosted_social_outbox SET state = 'synced', attempt_count = attempt_count + 1, last_error = '', updated_at = datetime('now') WHERE id = ?1",
+      params![id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+  }
+
+  pub fn mark_social_action_retry(&self, id: i64, error: &str) -> Result<(), String> {
+    let conn = self.conn.lock().unwrap();
+    let error = error.chars().take(500).collect::<String>();
+    conn.execute(
+      "UPDATE hosted_social_outbox SET state = 'pending', attempt_count = attempt_count + 1, next_attempt_at = datetime('now', '+60 seconds'), last_error = ?1, updated_at = datetime('now') WHERE id = ?2",
+      params![error, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+  }
+
+  pub fn count_social_actions(&self, actor_pubkey: &str) -> Result<usize, String> {
+    let conn = self.conn.lock().unwrap();
+    let count: i64 = conn
+      .query_row(
+        "SELECT COUNT(*) FROM hosted_social_outbox WHERE actor_pubkey = ?1 AND state = 'pending'",
+        params![actor_pubkey],
+        |row| row.get(0),
+      )
+      .map_err(|e| e.to_string())?;
+    Ok(count.max(0) as usize)
   }
 
   pub fn queue_hosted_post(
@@ -2827,12 +3351,13 @@ impl Database {
       0
     };
 
+    let post_uid = uuid::Uuid::new_v4().to_string();
     let (id, display, avatar) = {
       let conn = self.conn.lock().unwrap();
       let media_json = serde_json::to_string(media_hashes).unwrap_or("[]".to_string());
       conn.execute(
-        "INSERT INTO posts (author_handle, content, town_tag, channel_id, media_blobs) VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![author_handle, content, town_tag, channel_id, media_json],
+        "INSERT INTO posts (post_uid, author_handle, content, town_tag, channel_id, media_blobs) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![post_uid, author_handle, content, town_tag, channel_id, media_json],
       )?;
       let id = conn.last_insert_rowid();
 
@@ -2891,6 +3416,7 @@ impl Database {
       reposts_count: 0,
       likes_count: 0,
       liked: false,
+           reposted: false,
       media_blobs: media_hashes.to_vec(),
       nostr_event_id: String::new(),
       relay_url: String::new(),
@@ -2936,6 +3462,33 @@ impl Database {
     for row in rows {
       replies.push(row?);
     }
+    drop(conn);
+
+    if let Ok(post_uid) = self.post_uid_for_display_id(post_id) {
+      if let Ok(hosted_replies) = self.list_hosted_replies(&post_uid) {
+        for hosted in hosted_replies {
+        // A locally-created reply can already exist before its server copy is
+        // cached. Avoid showing that optimistic pair twice.
+        if post_id >= 0
+          && replies.iter().any(|reply| {
+            reply.author_handle == hosted.author_handle && reply.content == hosted.content
+          })
+        {
+          continue;
+        }
+        replies.push(Reply {
+          id: self.hosted_reply_local_id(&hosted.reply_uid),
+          post_id,
+          author_handle: hosted.author_handle.clone(),
+          author_display_name: hosted.author_handle,
+          author_avatar_url: String::new(),
+          content: hosted.content,
+          created_at: hosted.created_at,
+        });
+        }
+      }
+      replies.sort_by(|left, right| left.created_at.cmp(&right.created_at));
+    }
     Ok(replies)
   }
 
@@ -2944,6 +3497,7 @@ impl Database {
     let reward = self.throttle_rewards(author_handle, 2.0, quality);
     let throttled = self.rewards_throttled(author_handle);
 
+    let reply_uid = uuid::Uuid::new_v4().to_string();
     let (id, town_tag, channel_id, post_author) = {
       let conn = self.conn.lock().unwrap();
       let (town, channel, author): (String, String, String) = conn.query_row(
@@ -2952,8 +3506,8 @@ impl Database {
         |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
       )?;
       conn.execute(
-        "INSERT INTO replies (post_id, author_handle, content) VALUES (?1, ?2, ?3)",
-        params![post_id, author_handle, content],
+        "INSERT INTO replies (reply_uid, post_id, author_handle, content) VALUES (?1, ?2, ?3, ?4)",
+        params![reply_uid, post_id, author_handle, content],
       )?;
       let id = conn.last_insert_rowid();
       conn.execute(
@@ -3097,6 +3651,118 @@ impl Database {
     }
   }
 
+  pub fn is_liked(&self, post_id: i64, user_handle: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let value: i64 = conn
+      .query_row(
+        "SELECT EXISTS(SELECT 1 FROM likes WHERE post_id = ?1 AND user_handle = ?2)",
+        params![post_id, user_handle],
+        |r| r.get(0),
+      )
+      .map_err(crate::sqlite::Error::from)?;
+    Ok(value != 0)
+  }
+
+  pub fn is_reposted(&self, post_id: i64, user_handle: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let value: i64 = conn
+      .query_row(
+        "SELECT EXISTS(SELECT 1 FROM reposts WHERE post_id = ?1 AND user_handle = ?2)",
+        params![post_id, user_handle],
+        |r| r.get(0),
+      )
+      .map_err(crate::sqlite::Error::from)?;
+    Ok(value != 0)
+  }
+
+  pub fn set_like_state(&self, post_id: i64, user_handle: &str, desired: bool) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let exists: bool = conn
+      .query_row(
+        "SELECT EXISTS(SELECT 1 FROM posts WHERE id = ?1)",
+        params![post_id],
+        |r| r.get::<_, i64>(0).map(|value| value != 0),
+      )
+      .map_err(crate::sqlite::Error::from)?;
+    if !exists {
+      return Err(crate::sqlite::Error::QueryReturnedNoRows);
+    }
+    let current: bool = conn
+      .query_row(
+        "SELECT EXISTS(SELECT 1 FROM likes WHERE post_id = ?1 AND user_handle = ?2)",
+        params![post_id, user_handle],
+        |r| r.get::<_, i64>(0).map(|value| value != 0),
+      )
+      .map_err(crate::sqlite::Error::from)?;
+    if current == desired {
+      return Ok(current);
+    }
+    if desired {
+      conn.execute(
+        "INSERT INTO likes (post_id, user_handle) VALUES (?1, ?2)",
+        params![post_id, user_handle],
+      )?;
+      conn.execute(
+        "UPDATE posts SET likes_count = likes_count + 1 WHERE id = ?1",
+        params![post_id],
+      )?;
+    } else {
+      conn.execute(
+        "DELETE FROM likes WHERE post_id = ?1 AND user_handle = ?2",
+        params![post_id, user_handle],
+      )?;
+      conn.execute(
+        "UPDATE posts SET likes_count = MAX(0, likes_count - 1) WHERE id = ?1",
+        params![post_id],
+      )?;
+    }
+    Ok(desired)
+  }
+
+  pub fn set_repost_state(&self, post_id: i64, user_handle: &str, desired: bool) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let exists: bool = conn
+      .query_row(
+        "SELECT EXISTS(SELECT 1 FROM posts WHERE id = ?1)",
+        params![post_id],
+        |r| r.get::<_, i64>(0).map(|value| value != 0),
+      )
+      .map_err(crate::sqlite::Error::from)?;
+    if !exists {
+      return Err(crate::sqlite::Error::QueryReturnedNoRows);
+    }
+    let current: bool = conn
+      .query_row(
+        "SELECT EXISTS(SELECT 1 FROM reposts WHERE post_id = ?1 AND user_handle = ?2)",
+        params![post_id, user_handle],
+        |r| r.get::<_, i64>(0).map(|value| value != 0),
+      )
+      .map_err(crate::sqlite::Error::from)?;
+    if current == desired {
+      return Ok(current);
+    }
+    if desired {
+      conn.execute(
+        "INSERT INTO reposts (user_handle, post_id) VALUES (?1, ?2)",
+        params![user_handle, post_id],
+      )?;
+      conn.execute(
+        "UPDATE posts SET reposts_count = reposts_count + 1 WHERE id = ?1",
+        params![post_id],
+      )?;
+    } else {
+      conn.execute(
+        "DELETE FROM reposts WHERE post_id = ?1 AND user_handle = ?2",
+        params![post_id, user_handle],
+      )?;
+      conn.execute(
+        "UPDATE posts SET reposts_count = MAX(0, reposts_count - 1) WHERE id = ?1",
+        params![post_id],
+      )?;
+    }
+    Ok(desired)
+  }
+
   pub fn get_notifications(&self, user_handle: &str) -> Result<Vec<Notification>> {
     let conn = self.conn.lock().unwrap();
     let mut stmt = conn.prepare(
@@ -3125,6 +3791,150 @@ impl Database {
       notifications.push(row?);
     }
     Ok(notifications)
+  }
+
+  pub fn upsert_hosted_reply(&self, reply: &HostedReply) -> Result<(), String> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      r#"INSERT INTO hosted_replies
+        (reply_uid, post_uid, author_handle, author_pubkey, content, created_at, pending)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+       ON CONFLICT(reply_uid) DO UPDATE SET
+         content = excluded.content,
+         pending = excluded.pending"#,
+      params![
+        reply.reply_uid,
+        reply.post_uid,
+        reply.author_handle,
+        reply.author_pubkey,
+        reply.content,
+        reply.created_at,
+        reply.pending as i64
+      ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+  }
+
+  pub fn list_hosted_replies(&self, post_uid: &str) -> Result<Vec<HostedReply>, String> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn
+      .prepare(
+        "SELECT reply_uid, post_uid, author_handle, author_pubkey, content, created_at, pending
+         FROM hosted_replies WHERE post_uid = ?1 ORDER BY created_at ASC",
+      )
+      .map_err(|e| e.to_string())?;
+    let rows = stmt
+      .query_map(params![post_uid], |row| {
+        Ok(HostedReply {
+          reply_uid: row.get(0)?,
+          post_uid: row.get(1)?,
+          author_handle: row.get(2)?,
+          author_pubkey: row.get(3)?,
+          content: row.get(4)?,
+          created_at: row.get(5)?,
+          pending: row.get::<_, i64>(6)? != 0,
+        })
+      })
+      .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+  }
+
+  pub fn upsert_hosted_notifications(
+    &self,
+    recipient_pubkey: &str,
+    rows: &[HostedNotification],
+  ) -> Result<usize, String> {
+    if rows.is_empty() {
+      return Ok(0);
+    }
+    let conn = self.conn.lock().unwrap();
+    let mut changed = 0usize;
+    for row in rows {
+      let affected = conn.execute(
+        r#"INSERT INTO hosted_notifications
+          (notification_uid, recipient_pubkey, actor_pubkey, actor_handle,
+           kind, post_uid, reply_uid, message, created_at, read_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+         ON CONFLICT(notification_uid) DO UPDATE SET
+           actor_pubkey = excluded.actor_pubkey,
+           actor_handle = excluded.actor_handle,
+           kind = excluded.kind,
+           post_uid = excluded.post_uid,
+           reply_uid = excluded.reply_uid,
+           message = excluded.message,
+           read_at = COALESCE(excluded.read_at, hosted_notifications.read_at)"#,
+        params![
+          row.notification_uid,
+          recipient_pubkey,
+          row.actor_pubkey,
+          row.actor_handle,
+          row.kind,
+          row.post_uid,
+          row.reply_uid,
+          row.message,
+          row.created_at,
+          if row.unread { None } else { Some(row.created_at.as_str()) }
+        ],
+      )
+      .map_err(|e| e.to_string())?;
+      if affected > 0 {
+        changed += 1;
+      }
+    }
+    Ok(changed)
+  }
+
+  pub fn list_hosted_notifications(&self, recipient_pubkey: &str) -> Result<Vec<HostedNotification>, String> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn
+      .prepare(
+        "SELECT notification_uid, actor_pubkey, actor_handle, kind, post_uid, reply_uid, message, created_at, read_at
+         FROM hosted_notifications WHERE recipient_pubkey = ?1 ORDER BY created_at DESC LIMIT 100",
+      )
+      .map_err(|e| e.to_string())?;
+    let rows = stmt
+      .query_map(params![recipient_pubkey], |row| {
+        Ok(HostedNotification {
+          notification_uid: row.get(0)?,
+          actor_pubkey: row.get(1)?,
+          actor_handle: row.get(2)?,
+          kind: row.get(3)?,
+          post_uid: row.get(4)?,
+          reply_uid: row.get(5)?,
+          message: row.get(6)?,
+          created_at: row.get(7)?,
+          unread: row.get::<_, Option<String>>(8)?.is_none(),
+        })
+      })
+      .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+  }
+
+  pub fn mark_hosted_notifications_read_ids(
+    &self,
+    recipient_pubkey: &str,
+    notification_ids: &[String],
+  ) -> Result<usize, String> {
+    let conn = self.conn.lock().unwrap();
+    let mut changed = 0usize;
+    for notification_id in notification_ids {
+      changed += conn.execute(
+        "UPDATE hosted_notifications SET read_at = datetime('now') WHERE recipient_pubkey = ?1 AND notification_uid = ?2 AND read_at IS NULL",
+        params![recipient_pubkey, notification_id],
+      )
+      .map_err(|e| e.to_string())?;
+    }
+    Ok(changed)
+  }
+
+  pub fn mark_hosted_notifications_read(&self, recipient_pubkey: &str) -> Result<usize, String> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "UPDATE hosted_notifications SET read_at = datetime('now') WHERE recipient_pubkey = ?1 AND read_at IS NULL",
+      params![recipient_pubkey],
+    )
+    .map_err(|e| e.to_string())
   }
 
   pub fn update_engagement_quality(&self, handle: &str) -> Result<f64> {
@@ -4200,6 +5010,7 @@ impl Database {
         reposts_count: row.get(8)?,
         likes_count: row.get(9)?,
         liked: row.get::<_, i64>(10)? != 0,
+        reposted: false,
         media_blobs: serde_json::from_str(&row.get::<_, String>(11).unwrap_or_default()).unwrap_or_default(),
         nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
         relay_url: row.get::<_, String>(13).unwrap_or_default(),
@@ -4257,6 +5068,7 @@ impl Database {
           reposts_count: row.get(8)?,
           likes_count: row.get(9)?,
           liked: row.get::<_, i64>(10)? != 0,
+          reposted: false,
           media_blobs: parse_media_blobs(&row.get::<_, String>(11).unwrap_or_default()),
           nostr_event_id: row.get::<_, String>(12).unwrap_or_default(),
           relay_url: row.get::<_, String>(13).unwrap_or_default(),
@@ -4528,15 +5340,149 @@ impl Database {
     }
   }
 
+  pub fn pubkey_for_handle(&self, handle: &str) -> Result<Option<String>> {
+    let conn = self.conn.lock().unwrap();
+    conn.query_row(
+      "SELECT NULLIF(pubkey, '') FROM users WHERE lower(handle) = lower(?1)",
+      params![handle],
+      |row| row.get(0),
+    )
+    .optional()
+  }
+
+  pub fn is_following(&self, follower: &str, followed: &str) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    let value: i64 = conn
+      .query_row(
+        "SELECT EXISTS(SELECT 1 FROM follows WHERE lower(follower_handle) = lower(?1) AND lower(followed_handle) = lower(?2))",
+        params![follower, followed],
+        |r| r.get(0),
+      )
+      .map_err(crate::sqlite::Error::from)?;
+    Ok(value != 0)
+  }
+
+  pub fn set_follow_state(&self, follower: &str, followed: &str, desired: bool) -> Result<bool> {
+    if follower.eq_ignore_ascii_case(followed) {
+      return Err(crate::sqlite::Error::InvalidParameterName(
+        "You cannot follow yourself.".into(),
+      ));
+    }
+    let conn = self.conn.lock().unwrap();
+    let target_exists: bool = conn
+      .query_row(
+        "SELECT EXISTS(SELECT 1 FROM users WHERE lower(handle) = lower(?1))",
+        params![followed],
+        |r| r.get::<_, i64>(0).map(|value| value != 0),
+      )
+      .map_err(crate::sqlite::Error::from)?;
+    if !target_exists {
+      return Err(crate::sqlite::Error::QueryReturnedNoRows);
+    }
+    let canonical_followed: String = conn
+      .query_row(
+        "SELECT handle FROM users WHERE lower(handle) = lower(?1)",
+        params![followed],
+        |r| r.get(0),
+      )?;
+    let current: bool = conn
+      .query_row(
+        "SELECT EXISTS(SELECT 1 FROM follows WHERE lower(follower_handle) = lower(?1) AND lower(followed_handle) = lower(?2))",
+        params![follower, canonical_followed],
+        |r| r.get::<_, i64>(0).map(|value| value != 0),
+      )
+      .map_err(crate::sqlite::Error::from)?;
+    if current == desired {
+      return Ok(current);
+    }
+    if desired {
+      conn.execute(
+        "INSERT INTO follows (follower_handle, followed_handle) VALUES (?1, ?2)",
+        params![follower, canonical_followed],
+      )?;
+      conn.execute(
+        "UPDATE users SET following_count = following_count + 1 WHERE lower(handle) = lower(?1)",
+        params![follower],
+      )?;
+      conn.execute(
+        "UPDATE users SET followers_count = followers_count + 1 WHERE lower(handle) = lower(?1)",
+        params![canonical_followed],
+      )?;
+    } else {
+      conn.execute(
+        "DELETE FROM follows WHERE lower(follower_handle) = lower(?1) AND lower(followed_handle) = lower(?2)",
+        params![follower, canonical_followed],
+      )?;
+      conn.execute(
+        "UPDATE users SET following_count = MAX(0, following_count - 1) WHERE lower(handle) = lower(?1)",
+        params![follower],
+      )?;
+      conn.execute(
+        "UPDATE users SET followers_count = MAX(0, followers_count - 1) WHERE lower(handle) = lower(?1)",
+        params![canonical_followed],
+      )?;
+    }
+    Ok(desired)
+  }
+
+  pub fn replace_hosted_follows(
+    &self,
+    follower_pubkey: &str,
+    rows: &[HostedFollowing],
+  ) -> Result<usize, String> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "DELETE FROM hosted_following WHERE follower_pubkey = ?1",
+      params![follower_pubkey],
+    )
+    .map_err(|e| e.to_string())?;
+    let mut changed = 0usize;
+    for row in rows {
+      if row.target_pubkey.is_empty() || row.target_handle.is_empty() {
+        continue;
+      }
+      conn.execute(
+        "INSERT INTO hosted_following (follower_pubkey, target_pubkey, target_handle, desired_state, updated_at)
+         VALUES (?1, ?2, ?3, 1, datetime('now'))
+         ON CONFLICT(follower_pubkey, target_pubkey) DO UPDATE SET target_handle = excluded.target_handle, desired_state = 1, updated_at = datetime('now')",
+        params![follower_pubkey, row.target_pubkey, row.target_handle],
+      )
+      .map_err(|e| e.to_string())?;
+      changed += 1;
+    }
+    Ok(changed)
+  }
+
   pub fn get_following_for(&self, follower: &str) -> Result<Vec<String>> {
     let conn = self.conn.lock().unwrap();
     let mut stmt = conn.prepare(
       "SELECT followed_handle FROM follows WHERE follower_handle = ?1 ORDER BY created_at DESC"
     )?;
     let rows = stmt.query_map(params![follower], |r| r.get(0))?;
-    let mut v = vec![];
-    for r in rows { v.push(r?); }
-    Ok(v)
+    let mut values: Vec<String> = vec![];
+    for row in rows {
+      values.push(row?);
+    }
+    let follower_pubkey: Option<String> = conn
+      .query_row(
+        "SELECT NULLIF(pubkey, '') FROM users WHERE lower(handle) = lower(?1)",
+        params![follower],
+        |row| row.get(0),
+      )
+      .optional()?;
+    if let Some(pubkey) = follower_pubkey {
+      let mut hosted_stmt = conn.prepare(
+        "SELECT target_handle FROM hosted_following WHERE follower_pubkey = ?1 AND desired_state = 1 AND target_handle != '' ORDER BY target_handle",
+      )?;
+      let hosted_rows = hosted_stmt.query_map(params![pubkey], |row| row.get::<_, String>(0))?;
+      for row in hosted_rows {
+        let handle: String = row?;
+        if !values.iter().any(|value| value.eq_ignore_ascii_case(&handle)) {
+          values.push(handle);
+        }
+      }
+    }
+    Ok(values)
   }
 
   fn seller_town_tag(&self, seller: &str) -> String {

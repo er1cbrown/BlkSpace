@@ -5,7 +5,14 @@
 //! the exact request bytes are used for both signing and sending.
 
 use crate::blob_store::BlobStore;
-use crate::db::{CloudPostRecord, Database};
+use crate::db::{
+  CloudPostRecord,
+  Database,
+  HostedFollowing,
+  HostedNotification,
+  HostedReply,
+  HostedSocialOutboxItem,
+};
 use crate::key_store::KeyStore;
 use base64::Engine;
 use nostr_sdk::prelude::{EventBuilder, Keys, Kind, Tag};
@@ -38,6 +45,20 @@ pub struct PortfolioSyncResult {
   pub pushed: usize,
   pub failed: usize,
   pub pending: usize,
+  pub disabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SocialSyncResult {
+  pub pushed: usize,
+  pub failed: usize,
+  pub pending: usize,
+  pub pulled: usize,
+  pub cached: usize,
+  pub notifications: usize,
+  pub replies: usize,
+  pub following: usize,
   pub disabled: bool,
 }
 
@@ -88,6 +109,18 @@ struct HostedRow {
   channel_id: Option<String>,
   #[serde(rename = "mediaBlobs", alias = "media_blobs", default)]
   media_blobs: Option<Value>,
+  #[serde(rename = "likesCount", alias = "likes_count", default)]
+  likes_count: Option<i64>,
+  #[serde(rename = "repliesCount", alias = "replies_count", default)]
+  replies_count: Option<i64>,
+  #[serde(rename = "repostsCount", alias = "reposts_count", default)]
+  reposts_count: Option<i64>,
+  #[serde(default)]
+  liked: bool,
+  #[serde(default)]
+  reposted: bool,
+  #[serde(rename = "viewerState", alias = "viewer_state", default)]
+  viewer_state: Option<Value>,
   #[serde(rename = "createdAt", alias = "created_at")]
   created_at: String,
   #[serde(rename = "updatedAt", alias = "updated_at", default)]
@@ -241,6 +274,44 @@ impl PortfolioSyncClient {
     serde_json::from_slice(&bytes).map_err(|e| format!("Hosted API returned invalid JSON: {e}"))
   }
 
+  async fn signed_post_json(
+    &self,
+    keys: &Keys,
+    path: &str,
+    payload: &Value,
+  ) -> Result<Value, String> {
+    let body = serde_json::to_vec(payload)
+      .map_err(|error| format!("Could not encode hosted request: {error}"))?;
+    let endpoint = self.endpoint(path);
+    let authorization = sign_nip98(keys, "POST", &endpoint, &body).await?;
+    let response = self
+      .http
+      .post(endpoint)
+      .header(CONTENT_TYPE, "application/json")
+      .header(AUTHORIZATION, authorization)
+      .body(body)
+      .send()
+      .await
+      .map_err(|error| format!("Hosted request failed: {error}"))?;
+    self.read_json_response(response).await
+  }
+
+  async fn signed_get_json(
+    &self,
+    keys: &Keys,
+    endpoint: Url,
+  ) -> Result<Value, String> {
+    let authorization = sign_nip98(keys, "GET", &endpoint, b"").await?;
+    let response = self
+      .http
+      .get(endpoint.clone())
+      .header(AUTHORIZATION, authorization)
+      .send()
+      .await
+      .map_err(|error| format!("Hosted request failed: {error}"))?;
+    self.read_json_response(response).await
+  }
+
   pub async fn pull(
     &self,
     town: &str,
@@ -265,6 +336,41 @@ impl PortfolioSyncClient {
     let value = self.read_json_response(response).await?;
     let envelope: HostedEnvelope =
       serde_json::from_value(value).map_err(|e| format!("Hosted API page is invalid: {e}"))?;
+    let rows = envelope
+      .rows
+      .into_iter()
+      .filter_map(|row| parse_hosted_row(row).ok())
+      .collect();
+    Ok((rows, envelope.next_cursor))
+  }
+
+  pub async fn pull_for_viewer(
+    &self,
+    keys: &Keys,
+    town: &str,
+    cursor: Option<&str>,
+  ) -> Result<(Vec<CloudPostRecord>, Option<String>), String> {
+    let mut endpoint = self.endpoint("api/portfolio/posts");
+    {
+      let mut query = endpoint.query_pairs_mut();
+      if !town.trim().is_empty() {
+        query.append_pair("town", town.trim());
+      }
+      if let Some(cursor) = cursor.filter(|value| !value.is_empty()) {
+        query.append_pair("cursor", cursor);
+      }
+    }
+    let authorization = sign_nip98(keys, "GET", &endpoint, b"").await?;
+    let response = self
+      .http
+      .get(endpoint)
+      .header(AUTHORIZATION, authorization)
+      .send()
+      .await
+      .map_err(|e| format!("Hosted viewer pull failed: {e}"))?;
+    let value = self.read_json_response(response).await?;
+    let envelope: HostedEnvelope =
+      serde_json::from_value(value).map_err(|e| format!("Hosted viewer page is invalid: {e}"))?;
     let rows = envelope
       .rows
       .into_iter()
@@ -310,6 +416,211 @@ impl PortfolioSyncClient {
       remote_id,
       revision: response.revision.unwrap_or(1),
     })
+  }
+
+  pub async fn register_identity(&self, keys: &Keys, handle: &str) -> Result<Value, String> {
+    self
+      .signed_post_json(
+        keys,
+        "api/portfolio/identity",
+        &serde_json::json!({ "handle": handle }),
+      )
+      .await
+  }
+
+  pub async fn push_social_action(
+    &self,
+    keys: &Keys,
+    item: &HostedSocialOutboxItem,
+  ) -> Result<Value, String> {
+    if item.actor_pubkey != keys.public_key().to_hex() {
+      return Err("Stored social action does not match this account.".into());
+    }
+    let (path, payload) = match item.action_type.as_str() {
+      "like" | "repost" => {
+        let post_uid = item
+          .post_uid
+          .as_deref()
+          .filter(|value| !value.is_empty())
+          .ok_or("Social action is missing its post identity.")?;
+        let desired_state = item
+          .desired_state
+          .ok_or("Social action is missing its desired state.")?;
+        (
+          format!("api/portfolio/interactions/{}", item.action_type),
+          serde_json::json!({
+            "postUid": post_uid,
+            "desiredState": desired_state,
+            "actionUid": item.action_uid,
+          }),
+        )
+      }
+      "reply" => {
+        let post_uid = item
+          .post_uid
+          .as_deref()
+          .filter(|value| !value.is_empty())
+          .ok_or("Reply action is missing its post identity.")?;
+        let reply_uid = item
+          .reply_uid
+          .as_deref()
+          .filter(|value| !value.is_empty())
+          .ok_or("Reply action is missing its reply identity.")?;
+        let content = item
+          .content
+          .as_deref()
+          .map(str::trim)
+          .filter(|value| !value.is_empty())
+          .ok_or("Reply action is empty.")?;
+        if content.chars().count() > 2_000 {
+          return Err("Reply action is too long.".into());
+        }
+        (
+          "api/portfolio/interactions/reply".to_string(),
+          serde_json::json!({
+            "postUid": post_uid,
+            "replyUid": reply_uid,
+            "content": content,
+            "actionUid": item.action_uid,
+          }),
+        )
+      }
+      "follow" => {
+        let target_handle = item
+          .target_handle
+          .as_deref()
+          .map(str::trim)
+          .filter(|value| !value.is_empty())
+          .ok_or("Follow action is missing its target.")?;
+        let desired_state = item
+          .desired_state
+          .ok_or("Follow action is missing its desired state.")?;
+        let mut body = serde_json::json!({
+          "targetHandle": target_handle,
+          "desiredState": desired_state,
+          "actionUid": item.action_uid,
+        });
+        if let Some(target_pubkey) = item.target_pubkey.as_deref().filter(|value| !value.is_empty()) {
+          body["targetPubkey"] = serde_json::Value::String(target_pubkey.to_string());
+        }
+        (
+          "api/portfolio/interactions/follow".to_string(),
+          body,
+        )
+      }
+      _ => return Err("Unsupported hosted social action.".into()),
+    };
+    self.signed_post_json(keys, &path, &payload).await
+  }
+
+  pub async fn following(&self, keys: &Keys) -> Result<Vec<HostedFollowing>, String> {
+    let value = self
+      .signed_get_json(
+        keys,
+        self.endpoint("api/portfolio/interactions/following"),
+      )
+      .await?;
+    let rows = value
+      .get("rows")
+      .or_else(|| value.get("following"))
+      .or_else(|| value.get("items"))
+      .and_then(Value::as_array)
+      .ok_or("Hosted following response is invalid.")?;
+    let following = rows
+      .iter()
+      .filter_map(|row| {
+        let target_pubkey = row
+          .get("targetPubkey")
+          .or_else(|| row.get("pubkey"))
+          .and_then(Value::as_str)?;
+        let target_handle = row
+          .get("handle")
+          .or_else(|| row.get("targetHandle"))
+          .and_then(Value::as_str)
+          .unwrap_or("");
+        (!target_pubkey.is_empty() && !target_handle.is_empty()).then(|| HostedFollowing {
+          target_pubkey: target_pubkey.to_ascii_lowercase(),
+          target_handle: target_handle.to_ascii_lowercase(),
+        })
+      })
+      .collect::<Vec<_>>();
+    Ok(following)
+  }
+
+  pub async fn replies(&self, post_uid: &str) -> Result<Vec<HostedReply>, String> {
+    let mut endpoint = self.endpoint("api/portfolio/interactions/replies");
+    endpoint
+      .query_pairs_mut()
+      .append_pair("postUid", post_uid);
+    let response = self
+      .http
+      .get(endpoint)
+      .send()
+      .await
+      .map_err(|error| format!("Hosted replies pull failed: {error}"))?;
+    let value = self.read_json_response(response).await?;
+    let rows = value
+      .get("rows")
+      .or_else(|| value.get("replies"))
+      .or_else(|| value.get("items"))
+      .and_then(Value::as_array)
+      .ok_or("Hosted replies response is invalid.")?;
+    rows
+      .iter()
+      .cloned()
+      .map(|row| {
+        serde_json::from_value::<HostedReply>(row)
+          .map_err(|error| format!("Hosted reply is invalid: {error}"))
+      })
+      .collect()
+  }
+
+  pub async fn notifications(
+    &self,
+    keys: &Keys,
+    limit: i64,
+  ) -> Result<Vec<HostedNotification>, String> {
+    let mut endpoint = self.endpoint("api/portfolio/interactions/notifications");
+    endpoint
+      .query_pairs_mut()
+      .append_pair("limit", &limit.clamp(1, 100).to_string());
+    let value = self.signed_get_json(keys, endpoint).await?;
+    let rows = value
+      .get("rows")
+      .or_else(|| value.get("notifications"))
+      .or_else(|| value.get("items"))
+      .and_then(Value::as_array)
+      .ok_or("Hosted notifications response is invalid.")?;
+    rows
+      .iter()
+      .cloned()
+      .map(|row| {
+        serde_json::from_value::<HostedNotification>(row)
+          .map_err(|error| format!("Hosted notification is invalid: {error}"))
+      })
+      .collect()
+  }
+
+  pub async fn mark_notifications_read(
+    &self,
+    keys: &Keys,
+    notification_ids: &[String],
+  ) -> Result<Value, String> {
+    if notification_ids.len() > 100 {
+      return Err("Choose no more than 100 notifications to mark read.".into());
+    }
+    let payload = if notification_ids.is_empty() {
+      serde_json::json!({ "all": true })
+    } else {
+      serde_json::json!({ "notificationIds": notification_ids })
+    };
+    self
+      .signed_post_json(
+        keys,
+        "api/portfolio/interactions/notifications/read",
+        &payload,
+      )
+      .await
   }
 
   async fn request_media_target(
@@ -502,6 +813,12 @@ fn parse_hosted_row(row: HostedRow) -> Result<CloudPostRecord, String> {
     town_tag: row.town_tag,
     channel_id: row.channel_id.unwrap_or_default(),
     media_blobs,
+    likes_count: row.likes_count.unwrap_or(0).max(0),
+    replies_count: row.replies_count.unwrap_or(0).max(0),
+    reposts_count: row.reposts_count.unwrap_or(0).max(0),
+    liked: row.liked,
+    reposted: row.reposted,
+    viewer_state: row.viewer_state.is_some(),
     created_at,
     updated_at,
     revision: row.revision.unwrap_or(1).max(1),
@@ -868,6 +1185,113 @@ pub fn sync_once(
   })
 }
 
+/// Flush idempotent hosted social actions, refresh viewer-aware post state, and
+/// cache the authenticated notification feed. Private keys remain in KeyStore.
+pub fn sync_social_once(
+  db: &Database,
+  key_store: &KeyStore,
+  author_handle: &str,
+  author_pubkey: &str,
+  town: &str,
+) -> Result<SocialSyncResult, String> {
+  if !cloud_sync_enabled() {
+    return Ok(SocialSyncResult {
+      pushed: 0,
+      failed: 0,
+      pending: db.count_social_actions(author_pubkey)?,
+      pulled: 0,
+      cached: 0,
+      notifications: 0,
+      replies: 0,
+      following: 0,
+      disabled: true,
+    });
+  }
+
+  let secret = key_store
+    .load(author_handle)?
+    .ok_or("No signing key is available for this account.")?;
+  let keys = Keys::parse(secret.trim())
+    .map_err(|_| "Stored social signing key is invalid.")?
+    ;
+  if keys.public_key().to_hex() != author_pubkey {
+    return Err("Stored signing key does not match this account.".into());
+  }
+
+  let client = PortfolioSyncClient::from_env()?;
+  // Older deployments may not expose identity registration yet; keep social
+  // mutations retryable instead of making an otherwise valid action fail.
+  let _ = run_block_on(client.register_identity(&keys, author_handle));
+  let due = db.due_social_actions(author_pubkey, 50)?;
+  let mut pushed = 0usize;
+  let mut failed = 0usize;
+  for item in due {
+    match run_block_on(client.push_social_action(&keys, &item)) {
+      Ok(_) => {
+        db.mark_social_action_synced(item.id)?;
+        pushed += 1;
+      }
+      Err(error) => {
+        db.mark_social_action_retry(item.id, &error)?;
+        failed += 1;
+      }
+    }
+  }
+
+  let (rows, _cursor) = run_block_on(client.pull_for_viewer(&keys, town, None))?;
+  for row in &rows {
+    db.apply_social_snapshot(
+      &row.post_uid,
+      author_pubkey,
+      row.liked,
+      row.reposted,
+      row.likes_count,
+      row.replies_count,
+      row.reposts_count,
+      row.revision,
+    )?;
+  }
+  let cached = db.upsert_hosted_posts(&rows)?;
+  let mut reply_count = 0usize;
+  for row in &rows {
+    if row.replies_count <= 0 {
+      continue;
+    }
+    if let Ok(replies) = run_block_on(client.replies(&row.post_uid)) {
+      for reply in &replies {
+        db.upsert_hosted_reply(reply)?;
+        reply_count += 1;
+      }
+    }
+  }
+  let following = run_block_on(client.following(&keys))
+    .ok()
+    .and_then(|rows| db.replace_hosted_follows(author_pubkey, &rows).ok())
+    .unwrap_or(0);
+  let notifications = run_block_on(client.notifications(&keys, 100))?;
+  let notification_count = db.upsert_hosted_notifications(author_pubkey, &notifications)?;
+
+  Ok(SocialSyncResult {
+    pushed,
+    failed,
+    pending: db.count_social_actions(author_pubkey)?,
+    pulled: rows.len(),
+    cached,
+    notifications: notification_count,
+    replies: reply_count,
+    following,
+    disabled: false,
+  })
+}
+
+pub fn mark_notifications_read_once(
+  client: &PortfolioSyncClient,
+  keys: &Keys,
+  notification_ids: &[String],
+) -> Result<Value, String> {
+  run_block_on(client.mark_notifications_read(keys, notification_ids))
+}
+
 fn run_block_on<T>(future: impl std::future::Future<Output = T>) -> T {
   tokio::runtime::Builder::new_current_thread()
     .enable_all()
@@ -990,5 +1414,40 @@ mod tests {
     let event: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(event["kind"], 27235);
     assert_eq!(event["content"], "");
+  }
+
+  #[test]
+  fn parses_hosted_social_notification_aliases() {
+    let notification: HostedNotification = serde_json::from_value(serde_json::json!({
+      "id": "notification-12345678",
+      "notificationId": "notification-12345678",
+      "actorHandle": "alice",
+      "actorPubkey": "aa",
+      "type": "like",
+      "message": "liked your post",
+      "createdAt": "2026-09-24T00:00:00Z",
+      "unread": true
+    }))
+    .unwrap();
+    assert_eq!(notification.notification_uid, "notification-12345678");
+    assert_eq!(notification.kind, "like");
+    assert!(notification.unread);
+  }
+
+  #[test]
+  fn parses_hosted_reply_shape() {
+    let reply: HostedReply = serde_json::from_value(serde_json::json!({
+      "id": "reply-12345678",
+      "replyUid": "reply-12345678",
+      "postUid": "post-12345678",
+      "authorHandle": "alice",
+      "authorPubkey": "aa",
+      "content": "hello",
+      "createdAt": "2026-09-24T00:00:00Z"
+    }))
+    .unwrap();
+    assert_eq!(reply.reply_uid, "reply-12345678");
+    assert_eq!(reply.post_uid, "post-12345678");
+    assert!(!reply.pending);
   }
 }

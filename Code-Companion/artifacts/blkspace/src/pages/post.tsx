@@ -18,6 +18,8 @@ import {
   useAppGetPost,
   useAppListReplies,
   useAppCreateReply,
+  useAppToggleLike,
+  useTauriRepostPost,
 } from "@/hooks/use-app-data";
 import { SafeContent } from "@/components/ui/safe-content";
 import { MediaDisplay } from "@/components/ui/media-display";
@@ -41,6 +43,16 @@ export default function PostPage() {
   const { data: replies, isLoading: repliesLoading } = useAppListReplies(id);
 
   const createReply = useAppCreateReply();
+  const toggleLike = useAppToggleLike();
+  const repostPost = useTauriRepostPost();
+
+  const handleLike = () => {
+    toggleLike.mutate({ postId: id, desiredState: !post?.liked });
+  };
+
+  const handleRepost = () => {
+    repostPost.mutate(id);
+  };
 
   const handleReplySubmit = () => {
     if (!replyContent.trim()) return;
@@ -132,27 +144,46 @@ export default function PostPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-wrap gap-6 py-4 border-t border-border/50 text-muted-foreground items-center">
-              <div className="flex gap-2 items-center">
+              <Button
+                variant="ghost"
+                className="h-8 gap-2 px-2 text-muted-foreground hover:text-primary"
+                onClick={() =>
+                  toggleLike.mutate({ postId: id, desiredState: !post.liked })
+                }
+                disabled={toggleLike.isPending}
+              >
                 <MessageSquare className="w-5 h-5" />{" "}
                 <span className="font-medium text-foreground">
                   {post.repliesCount}
                 </span>{" "}
                 Replies
-              </div>
-              <div className="flex gap-2 items-center">
+              </Button>
+              <Button
+                variant="ghost"
+                className="h-8 gap-2 px-2 text-muted-foreground hover:text-green-500"
+                onClick={handleRepost}
+                disabled={repostPost.isPending}
+              >
                 <Repeat2 className="w-5 h-5" />{" "}
                 <span className="font-medium text-foreground">
                   {post.repostsCount}
                 </span>{" "}
                 Reposts
-              </div>
-              <div className="flex gap-2 items-center">
-                <Heart className="w-5 h-5" />{" "}
+              </Button>
+              <Button
+                variant="ghost"
+                className="h-8 gap-2 px-2 text-muted-foreground hover:text-destructive"
+                onClick={handleLike}
+                disabled={toggleLike.isPending}
+              >
+                <Heart
+                  className={`w-5 h-5 ${post.liked ? "fill-current text-destructive" : ""}`}
+                />{" "}
                 <span className="font-medium text-foreground">
                   {post.likesCount}
                 </span>{" "}
                 Likes
-              </div>
+              </Button>
               <ShareCardButton
                 variant="outline"
                 share={{
@@ -182,9 +213,7 @@ export default function PostPage() {
                 <div className="flex justify-end">
                   <Button
                     onClick={handleReplySubmit}
-                    disabled={
-                      id < 0 || createReply.isPending || !replyContent.trim()
-                    }
+                    disabled={createReply.isPending || !replyContent.trim()}
                     className="rounded-full px-6"
                   >
                     Reply

@@ -48,11 +48,23 @@ async function mirrorPost(post: WebUserPost) {
 
 type HostedPortfolioRow = {
   id: string | number;
+  post_uid?: string;
+  postUid?: string;
   author_handle?: string;
   authorHandle?: string;
+  author_pubkey?: string;
+  authorPubkey?: string;
   content: string;
   town_tag?: string;
   townTag?: string;
+  replies_count?: number;
+  repliesCount?: number;
+  reposts_count?: number;
+  repostsCount?: number;
+  likes_count?: number;
+  likesCount?: number;
+  liked?: boolean;
+  reposted?: boolean;
   media_blobs?: unknown;
   mediaBlobs?: unknown;
   created_at?: string;
@@ -92,22 +104,32 @@ export async function refreshPortfolioFromTurso(): Promise<void> {
       const id = Number(row.id);
       if (!id) continue;
       const mediaBlobs = parseHostedMedia(row.mediaBlobs ?? row.media_blobs);
+      const postUid = row.postUid ?? row.post_uid;
       const authorHandle = row.authorHandle ?? row.author_handle ?? "";
+      const authorPubkey = row.authorPubkey ?? row.author_pubkey;
       const townTag = row.townTag ?? row.town_tag ?? "";
+      const repliesCount = row.repliesCount ?? row.replies_count ?? 0;
+      const repostsCount = row.repostsCount ?? row.reposts_count ?? 0;
+      const likesCount = row.likesCount ?? row.likes_count ?? 0;
+      const liked = row.liked ?? false;
+      const reposted = row.reposted ?? false;
       const createdAt =
         row.createdAt ?? row.created_at ?? new Date().toISOString();
       const existingIndex = merged.findIndex((post) => post.id === id);
       const hostedPost: WebUserPost = {
         id,
+        postUid,
         authorHandle,
+        authorPubkey,
         authorDisplayName: authorHandle,
         authorAvatarUrl: "",
         content: row.content,
         townTag,
-        repliesCount: 0,
-        repostsCount: 0,
-        likesCount: 0,
-        liked: false,
+        repliesCount,
+        repostsCount,
+        likesCount,
+        liked,
+        reposted,
         mediaBlobs,
         nostrEventId: "",
         relayUrl: "",
@@ -120,10 +142,17 @@ export async function refreshPortfolioFromTurso(): Promise<void> {
         const existing = merged[existingIndex];
         merged[existingIndex] = {
           ...existing,
+          postUid: postUid ?? existing.postUid,
           authorHandle,
+          authorPubkey: authorPubkey ?? existing.authorPubkey,
           authorDisplayName: authorHandle,
           content: row.content,
           townTag,
+          repliesCount,
+          repostsCount,
+          likesCount,
+          liked,
+          reposted,
           mediaBlobs: mediaBlobs.length ? mediaBlobs : existing.mediaBlobs,
           createdAt: existing.createdAt || createdAt,
         };

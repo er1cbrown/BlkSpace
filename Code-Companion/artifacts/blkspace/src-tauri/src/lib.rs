@@ -1095,6 +1095,247 @@ fn toggle_follow(state: State<AppState>, session_token: String, followed_handle:
 }
 
 #[tauri::command]
+fn queue_social_action(
+  state: State<AppState>,
+  session_token: String,
+  action_type: String,
+  post_id: Option<i64>,
+  target_handle: Option<String>,
+  desired_state: Option<bool>,
+  content: Option<String>,
+) -> Result<serde_json::Value, String> {
+  let (handle, actor_pubkey) = get_session_info(&state, &session_token)?;
+  let action_uid = uuid::Uuid::new_v4().to_string();
+  let action = action_type.trim().to_ascii_lowercase();
+  let reply_content = content.unwrap_or_default().trim().to_string();
+
+  match action.as_str() {
+    "like" | "repost" => {
+      let post_id = post_id.ok_or("A post is required for this action.")?;
+      let post_uid = state
+        .db
+        .post_uid_for_display_id(post_id)
+        .map_err(|e| format!("Could not resolve post identity: {e}"))?;
+      let desired = desired_state.unwrap_or_else(|| {
+        if post_id >= 0 {
+          if action == "like" {
+            !state.db.is_liked(post_id, &handle).unwrap_or(false)
+          } else {
+            !state.db.is_reposted(post_id, &handle).unwrap_or(false)
+          }
+        } else {
+          state
+            .db
+            .social_state(&post_uid, &actor_pubkey)
+            .ok()
+            .flatten()
+            .map(|state| {
+              if action == "like" { !state.liked } else { !state.reposted }
+            })
+            .unwrap_or(true)
+        }
+      });
+      if post_id >= 0 {
+        if action == "like" {
+          state
+            .db
+            .set_like_state(post_id, &handle, desired)
+            .map_err(|e| e.to_string())?;
+        } else {
+          state
+            .db
+            .set_repost_state(post_id, &handle, desired)
+            .map_err(|e| e.to_string())?;
+        }
+      } else {
+        let mut social = state
+          .db
+          .social_state(&post_uid, &actor_pubkey)
+          .map_err(|e| e.to_string())?
+          .unwrap_or(db::HostedSocialState {
+            post_uid: post_uid.clone(),
+            liked: false,
+            reposted: false,
+            likes_count: 0,
+            replies_count: 0,
+            reposts_count: 0,
+            revision: 0,
+          });
+        if action == "like" && social.liked != desired {
+          social.likes_count = (social.likes_count + if desired { 1 } else { -1 }).max(0);
+          social.liked = desired;
+        }
+        if action == "repost" && social.reposted != desired {
+          social.reposts_count = (social.reposts_count + if desired { 1 } else { -1 }).max(0);
+          social.reposted = desired;
+        }
+        state
+          .db
+          .upsert_social_state(&social, &actor_pubkey)
+          .map_err(|e| e.to_string())?;
+      }
+      state
+        .db
+        .enqueue_social_action(
+          &action_uid,
+          &actor_pubkey,
+          &action,
+          Some(&post_uid),
+          None,
+          None,
+          Some(desired),
+          None,
+          None,
+          0,
+        )
+        .map_err(|e| e.to_string())?;
+      Ok(serde_json::json!({
+        "ok": true,
+        "pending": true,
+        "actionUid": action_uid,
+        "postUid": post_uid,
+        "desiredState": desired,
+      }))
+    }
+    "follow" => {
+      let followed = target_handle.ok_or("A target handle is required.")?;
+      validate_handle(&followed).map_err(map_err)?;
+      let desired = desired_state.unwrap_or_else(|| {
+        !state
+          .db
+          .is_following(&handle, &followed)
+          .unwrap_or(false)
+      });
+      let target_exists = state
+        .db
+        .get_user(&followed)
+        .map_err(|e| e.to_string())?
+        .is_some();
+      if target_exists {
+        state
+          .db
+          .set_follow_state(&handle, &followed, desired)
+          .map_err(|e| e.to_string())?;
+      }
+      let target_pubkey = state
+        .db
+        .pubkey_for_handle(&followed)
+        .map_err(|e| e.to_string())?;
+      state
+        .db
+        .enqueue_social_action(
+          &action_uid,
+          &actor_pubkey,
+          "follow",
+          None,
+          Some(&followed),
+          target_pubkey.as_deref(),
+          Some(desired),
+          None,
+          None,
+          0,
+        )
+        .map_err(|e| e.to_string())?;
+      Ok(serde_json::json!({
+        "ok": true,
+        "pending": true,
+        "actionUid": action_uid,
+        "targetHandle": followed,
+        "desiredState": desired,
+      }))
+    }
+    "reply" => {
+      let post_id = post_id.ok_or("A post is required for a reply.")?;
+      if reply_content.is_empty() || reply_content.len() > 2_000 {
+        return Err("Reply must be between 1 and 2000 characters.".into());
+      }
+      let post_uid = state
+        .db
+        .post_uid_for_display_id(post_id)
+        .map_err(|e| format!("Could not resolve post identity: {e}"))?;
+      let reply_uid = uuid::Uuid::new_v4().to_string();
+      let reply = if post_id >= 0 {
+        let result = state
+          .db
+          .create_reply(post_id, &handle, &reply_content)
+          .map_err(|e| e.to_string())?;
+        let reply_uid = state
+          .db
+          .reply_uid_for_local_reply(result.reply.id)
+          .map_err(|e| e.to_string())?;
+        state
+          .db
+          .enqueue_social_action(
+            &action_uid,
+            &actor_pubkey,
+            "reply",
+            Some(&post_uid),
+            None,
+            None,
+            None,
+            Some(&reply_uid),
+            Some(&reply_content),
+            0,
+          )
+          .map_err(|e| e.to_string())?;
+        result.reply
+      } else {
+        let display = state
+          .db
+          .get_user(&handle)
+          .map_err(|e| e.to_string())?
+          .map(|user| user.display_name)
+          .unwrap_or_else(|| handle.clone());
+        let reply = Reply {
+          id: state.db.hosted_reply_local_id(&reply_uid),
+          post_id,
+          author_handle: handle.clone(),
+          author_display_name: display,
+          author_avatar_url: String::new(),
+          content: reply_content.clone(),
+          created_at: chrono::Utc::now().to_rfc3339(),
+        };
+        state
+          .db
+          .upsert_hosted_reply(&db::HostedReply {
+            reply_uid: reply_uid.clone(),
+            post_uid: post_uid.clone(),
+            author_handle: handle.clone(),
+            author_pubkey: actor_pubkey.clone(),
+            content: reply_content.clone(),
+            created_at: reply.created_at.clone(),
+            pending: true,
+          })
+          .map_err(|e| e.to_string())?;
+        state
+          .db
+          .enqueue_social_action(
+            &action_uid,
+            &actor_pubkey,
+            "reply",
+            Some(&post_uid),
+            None,
+            None,
+            None,
+            Some(&reply_uid),
+            Some(&reply_content),
+            0,
+          )
+          .map_err(|e| e.to_string())?;
+        reply
+      };
+      Ok(serde_json::json!({
+        "ok": true,
+        "pending": true,
+        "actionUid": action_uid,
+        "reply": reply,
+      }))
+    }
+    _ => Err("Unsupported social action.".into()),
+  }
+}
+
+#[tauri::command]
 fn get_following(state: State<AppState>, session_token: String) -> Result<Vec<String>, String> {
   let follower = get_handle_from_session(&state, &session_token)?;
   // Real kind 3 for feeds: toggle_follow publishes signed Kind::Custom(3) p: tags + now persists to follows table.
@@ -1774,6 +2015,15 @@ fn list_posts(
 }
 
 #[tauri::command]
+fn list_hosted_replies(state: State<AppState>, post_id: i64) -> Result<Vec<db::HostedReply>, String> {
+  let post_uid = state
+    .db
+    .post_uid_for_display_id(post_id)
+    .map_err(|e| format!("Could not resolve post identity: {e}"))?;
+  state.db.list_hosted_replies(&post_uid)
+}
+
+#[tauri::command]
 fn get_post(state: State<AppState>, id: i64, current_user: Option<String>) -> Result<Option<Post>, String> {
   if id < 0 {
     return state.db.get_hosted_post(id);
@@ -1884,7 +2134,10 @@ fn queue_hosted_post(
   post: &Post,
 ) -> Result<String, String> {
   let keys = load_user_nostr_keys(state, author_handle)?;
-  let post_uid = uuid::Uuid::new_v4().to_string();
+  let post_uid = state
+    .db
+    .post_uid_for_local_post(post.id)
+    .map_err(|e| format!("Could not resolve post identity: {e}"))?;
   let payload = portfolio_sync::HostedPostPayload {
     id: portfolio_sync::stable_portfolio_id(&post_uid),
     post_uid: post_uid.clone(),
@@ -1968,6 +2221,24 @@ fn sync_portfolio_once(
     &state.db,
     &state.blob_store,
     &state.key_store,
+    &session_pubkey,
+    town.as_deref().unwrap_or("tsu"),
+  )
+}
+
+/// Flush idempotent social actions and refresh viewer-aware hosted state.
+#[tauri::command]
+fn sync_social_once(
+  state: State<AppState>,
+  session_token: String,
+  town: Option<String>,
+) -> Result<portfolio_sync::SocialSyncResult, String> {
+  let (handle, session_pubkey) = get_session_info(&state, &session_token)?;
+  let _guard = state.portfolio_sync_lock.lock().unwrap();
+  portfolio_sync::sync_social_once(
+    &state.db,
+    &state.key_store,
+    &handle,
     &session_pubkey,
     town.as_deref().unwrap_or("tsu"),
   )
@@ -2089,6 +2360,45 @@ fn get_notifications(state: State<AppState>, session_token: String) -> Result<Ve
 }
 
 // ─── Wallet Commands ─────────────────────────────────────
+
+#[tauri::command]
+fn get_social_notifications(
+  state: State<AppState>,
+  session_token: String,
+) -> Result<Vec<db::HostedNotification>, String> {
+  let (_, session_pubkey) = get_session_info(&state, &session_token)?;
+  state.db.list_hosted_notifications(&session_pubkey)
+}
+
+#[tauri::command]
+fn mark_social_notifications_read(
+  state: State<AppState>,
+  session_token: String,
+  notification_ids: Vec<String>,
+) -> Result<(), String> {
+  let (handle, session_pubkey) = get_session_info(&state, &session_token)?;
+  let keys = load_user_nostr_keys(&state, &handle)?;
+  if keys.public_key().to_hex() != session_pubkey {
+    return Err("Stored key does not match the signed-in identity.".into());
+  }
+  let client = portfolio_sync::PortfolioSyncClient::from_env()?;
+  let result = portfolio_sync::mark_notifications_read_once(
+    &client,
+    &keys,
+    &notification_ids,
+  )?;
+  if notification_ids.is_empty() {
+    state
+      .db
+      .mark_hosted_notifications_read(&session_pubkey)?;
+  } else {
+    state
+      .db
+      .mark_hosted_notifications_read_ids(&session_pubkey, &notification_ids)?;
+  }
+  let _ = result;
+  Ok(())
+}
 
 #[tauri::command]
 fn get_wallet_tx(state: State<AppState>, session_token: String) -> Result<Vec<WalletTx>, String> {
@@ -5475,6 +5785,7 @@ pub fn run() {
       set_community_role,
       get_community_role,
       toggle_follow,
+      queue_social_action,
       get_following,
       list_marketplace,
       create_marketplace_listing,
@@ -5494,8 +5805,10 @@ pub fn run() {
       publish_mix,
       list_posts,
       get_post,
+      list_hosted_replies,
       create_post,
        sync_portfolio_once,
+      sync_social_once,
        list_hosted_posts,
        get_hosted_post,
       get_user_posts,
@@ -5506,6 +5819,8 @@ pub fn run() {
       create_channel,
       toggle_like,
       get_notifications,
+      get_social_notifications,
+      mark_social_notifications_read,
       get_wallet_tx,
       send_weixbucks,
       get_tokenomics_policy,

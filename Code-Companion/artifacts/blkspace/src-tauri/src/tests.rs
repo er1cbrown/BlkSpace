@@ -179,6 +179,12 @@ mod tests {
       town_tag: "tsu".into(),
       channel_id: "general".into(),
       media_blobs: vec![],
+      likes_count: 0,
+      replies_count: 0,
+      reposts_count: 0,
+      liked: false,
+      reposted: false,
+      viewer_state: false,
       created_at: "2026-09-24T00:00:00Z".into(),
       updated_at: "2026-09-24T00:00:00Z".into(),
       revision: 1,
@@ -236,6 +242,66 @@ mod tests {
     db.update_hosted_outbox_payload(item_id, payload).unwrap();
     let saved = db.due_hosted_outbox(&"cc".repeat(32), 10).unwrap();
     assert!(saved[0].payload.contains("https://media.example.test/photo.jpg"));
+  }
+
+  #[test]
+  fn unauthenticated_pull_preserves_viewer_social_state() {
+    let db = setup_test_db();
+    let mut row = CloudPostRecord {
+      post_uid: "viewer-state-12345678".into(),
+      remote_id: "9002".into(),
+      author_handle: "remote_user".into(),
+      author_pubkey: "bb".repeat(32),
+      content: "viewer state".into(),
+      town_tag: "tsu".into(),
+      channel_id: "general".into(),
+      media_blobs: vec![],
+      likes_count: 4,
+      replies_count: 0,
+      reposts_count: 0,
+      liked: true,
+      reposted: false,
+      viewer_state: true,
+      created_at: "2026-09-24T00:00:00Z".into(),
+      updated_at: "2026-09-24T00:00:00Z".into(),
+      revision: 1,
+    };
+    assert_eq!(db.upsert_hosted_posts(&[row.clone()]).unwrap(), 1);
+    row.liked = false;
+    row.viewer_state = false;
+    assert_eq!(db.upsert_hosted_posts(&[row]).unwrap(), 0);
+    assert!(db.list_hosted_posts(Some("tsu"), 100).unwrap()[0].liked);
+  }
+
+  #[test]
+  fn local_post_identity_and_social_outbox_are_durable() {
+    let db = setup_test_db();
+    db.create_user("author", "Author", "").unwrap();
+    let post = db.create_post("author", "Identity", "tsu", NO_CHANNEL, &[]).unwrap().post;
+    let post_uid = db.post_uid_for_local_post(post.id).unwrap();
+    assert!(post_uid.len() >= 8);
+    assert_eq!(db.post_uid_for_display_id(post.id).unwrap(), post_uid);
+
+    let action_uid = "action-12345678";
+    db.enqueue_social_action(
+      action_uid,
+      &"aa".repeat(32),
+      "like",
+      Some(&post_uid),
+      None,
+      None,
+      Some(true),
+      None,
+      None,
+      0,
+    )
+    .unwrap();
+    let due = db.due_social_actions(&"aa".repeat(32), 10).unwrap();
+    assert_eq!(due.len(), 1);
+    assert_eq!(due[0].action_uid, action_uid);
+    assert_eq!(due[0].desired_state, Some(true));
+    db.mark_social_action_synced(due[0].id).unwrap();
+    assert_eq!(db.count_social_actions(&"aa".repeat(32)).unwrap(), 0);
   }
 
   #[test]

@@ -308,10 +308,6 @@ export default function FeedPage() {
   };
 
   const handleLike = (postId: number) => {
-    if (postId < 0) {
-      toast.message("Hosted posts are read-only in this sync phase.");
-      return;
-    }
     if (!requireWallet("like posts")) return;
     toggleLike.mutate(
       { postId },
@@ -346,10 +342,6 @@ export default function FeedPage() {
   };
 
   const handleRepost = (postId: number) => {
-    if (postId < 0) {
-      toast.message("Hosted posts are read-only in this sync phase.");
-      return;
-    }
     if (!requireWallet("repost")) return;
     if (!isTauri()) {
       toast("Repost requires the Tauri app");
