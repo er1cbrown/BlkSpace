@@ -25,6 +25,42 @@ describe("hosted media urls", () => {
   });
 });
 
+describe("hosted R2 file uploads", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([
+    ["voice.mp3", "audio/mpeg", "https://media.example.test/voice.mp3"],
+    ["notes.pdf", "application/pdf", "https://media.example.test/notes.pdf"],
+  ])("uploads %s through an R2 PUT target", async (name, type, publicUrl) => {
+    const file = new File(["bytes"], name, { type });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          ok: true,
+          provider: "r2",
+          method: "PUT",
+          uploadUrl: "https://upload.example.test/signed",
+          publicUrl,
+          headers: { "content-type": type },
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(uploadHostedMedia(file)).resolves.toBe(publicUrl);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://upload.example.test/signed",
+      expect.objectContaining({
+        method: "PUT",
+        body: file,
+        headers: { "content-type": type },
+      }),
+    );
+  });
+});
+
 describe("hosted video uploads", () => {
   const file = new File(["video bytes"], "clip.mp4", { type: "video/mp4" });
   afterEach(() => vi.unstubAllGlobals());

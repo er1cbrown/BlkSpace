@@ -46,42 +46,64 @@ async function mirrorPost(post: WebUserPost) {
   }
 }
 
+type HostedPortfolioRow = {
+  id: string | number;
+  author_handle?: string;
+  authorHandle?: string;
+  content: string;
+  town_tag?: string;
+  townTag?: string;
+  media_blobs?: unknown;
+  mediaBlobs?: unknown;
+  created_at?: string;
+  createdAt?: string;
+};
+
+function parseHostedMedia(value: unknown): string[] {
+  const parsed =
+    typeof value === "string"
+      ? (() => {
+          try {
+            return JSON.parse(value) as unknown;
+          } catch {
+            return [];
+          }
+        })()
+      : value;
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter(
+      (item): item is string =>
+        typeof item === "string" && /^https:\/\//i.test(item),
+    )
+    .slice(0, 10);
+}
+
 /** Pull posts saved on Turso into this browser. No-op until the database is configured. */
 export async function refreshPortfolioFromTurso(): Promise<void> {
   try {
     const res = await fetch("/api/portfolio/posts");
     if (!res.ok) return;
-    const body = (await res.json()) as {
-      rows?: Array<{
-        id: string | number;
-        author_handle: string;
-        content: string;
-        town_tag: string;
-        media_blobs: string;
-        created_at: string;
-      }>;
-    };
+    const body = (await res.json()) as { rows?: HostedPortfolioRow[] };
     if (!body.rows?.length) return;
     const local = load();
-    const seen = new Set(local.map((p) => p.id));
     const merged = [...local];
     for (const row of body.rows) {
       const id = Number(row.id);
-      if (!id || seen.has(id)) continue;
-      let mediaBlobs: string[] = [];
-      try {
-        const parsed = JSON.parse(row.media_blobs || "[]");
-        if (Array.isArray(parsed)) mediaBlobs = parsed.map(String);
-      } catch {
-        mediaBlobs = [];
-      }
-      merged.push({
+      if (!id) continue;
+      const mediaBlobs = parseHostedMedia(row.mediaBlobs ?? row.media_blobs);
+      const authorHandle = row.authorHandle ?? row.author_handle ?? "";
+      const townTag = row.townTag ?? row.town_tag ?? "";
+      const createdAt =
+        row.createdAt ?? row.created_at ?? new Date().toISOString();
+      const existingIndex = merged.findIndex((post) => post.id === id);
+      const hostedPost: WebUserPost = {
         id,
-        authorHandle: row.author_handle,
-        authorDisplayName: row.author_handle,
+        authorHandle,
+        authorDisplayName: authorHandle,
         authorAvatarUrl: "",
         content: row.content,
-        townTag: row.town_tag,
+        townTag,
         repliesCount: 0,
         repostsCount: 0,
         likesCount: 0,
@@ -89,11 +111,25 @@ export async function refreshPortfolioFromTurso(): Promise<void> {
         mediaBlobs,
         nostrEventId: "",
         relayUrl: "",
-        createdAt: row.created_at,
+        createdAt,
         engagementQuality: 1,
         maliciousScore: 0,
         riskLevel: "low",
-      });
+      };
+      if (existingIndex >= 0) {
+        const existing = merged[existingIndex];
+        merged[existingIndex] = {
+          ...existing,
+          authorHandle,
+          authorDisplayName: authorHandle,
+          content: row.content,
+          townTag,
+          mediaBlobs: mediaBlobs.length ? mediaBlobs : existing.mediaBlobs,
+          createdAt: existing.createdAt || createdAt,
+        };
+      } else {
+        merged.push(hostedPost);
+      }
     }
     merged.sort((a, b) => b.id - a.id);
     save(merged.slice(0, 100));

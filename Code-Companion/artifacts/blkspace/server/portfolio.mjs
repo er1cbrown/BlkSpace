@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { HttpError } from "./http.mjs";
+import { isAllowedHostedMediaUrl } from "./media.mjs";
 
 const MAX_POSTS_PAGE = 100;
 const DEFAULT_POSTS_PAGE = 100;
@@ -22,7 +23,10 @@ function normalizePostUid(value, legacyId) {
     return null;
   }
   if (typeof value !== "string" || !POST_UID_RE.test(value)) {
-    throw new HttpError(400, "postUid must be a stable 8-128 character identifier.");
+    throw new HttpError(
+      400,
+      "postUid must be a stable 8-128 character identifier.",
+    );
   }
   return value;
 }
@@ -155,7 +159,9 @@ export function createPortfolio(env) {
         await optionalQuery(
           "ALTER TABLE portfolio_posts ADD COLUMN channel_id TEXT DEFAULT ''",
         );
-        await optionalQuery("ALTER TABLE portfolio_posts ADD COLUMN updated_at TEXT");
+        await optionalQuery(
+          "ALTER TABLE portfolio_posts ADD COLUMN updated_at TEXT",
+        );
         await optionalQuery(
           "ALTER TABLE portfolio_posts ADD COLUMN revision INTEGER DEFAULT 1",
         );
@@ -228,10 +234,10 @@ export function createPortfolio(env) {
       mediaBlobs: requestedMedia,
       mediaUrls: requestedUrls,
     } = body;
-    const handle = typeof rawHandle === "string" ? rawHandle.trim().toLowerCase() : "";
+    const handle =
+      typeof rawHandle === "string" ? rawHandle.trim().toLowerCase() : "";
     const media = requestedMedia ?? requestedUrls ?? [];
-    const legacyId =
-      Number.isSafeInteger(id) && id > 0 ? id : undefined;
+    const legacyId = Number.isSafeInteger(id) && id > 0 ? id : undefined;
     const postUid = normalizePostUid(requestedPostUid, legacyId);
 
     if (
@@ -248,7 +254,7 @@ export function createPortfolio(env) {
         (value) =>
           typeof value !== "string" ||
           value.length > 2048 ||
-          !value.startsWith("https://"),
+          !isAllowedHostedMediaUrl(value, env),
       ) ||
       (!content.trim() && !media.length) ||
       !postUid
@@ -269,7 +275,9 @@ export function createPortfolio(env) {
       [handle, pubkey],
     );
     const identity = (
-      await query("SELECT pubkey FROM portfolio_identities WHERE handle = ?", [handle])
+      await query("SELECT pubkey FROM portfolio_identities WHERE handle = ?", [
+        handle,
+      ])
     )[0];
     if (identity?.pubkey !== pubkey) {
       throw new HttpError(
@@ -284,7 +292,10 @@ export function createPortfolio(env) {
       )
     )[0];
     if (otherIdentity) {
-      throw new HttpError(409, "This Nostr key is already bound to another handle.");
+      throw new HttpError(
+        409,
+        "This Nostr key is already bound to another handle.",
+      );
     }
 
     const existing = requestedPostUid
@@ -320,7 +331,10 @@ export function createPortfolio(env) {
         (existing.channel_id || "") !== channelId ||
         !sameMedia(existingMedia, media)
       ) {
-        throw new HttpError(409, "postUid already belongs to different content.");
+        throw new HttpError(
+          409,
+          "postUid already belongs to different content.",
+        );
       }
       return {
         ok: true,
@@ -392,7 +406,12 @@ export function createPortfolio(env) {
       await ensure();
       const boundedLimit = Math.min(
         MAX_POSTS_PAGE,
-        Math.max(1, Number.isSafeInteger(Number(limit)) ? Number(limit) : DEFAULT_POSTS_PAGE),
+        Math.max(
+          1,
+          Number.isSafeInteger(Number(limit))
+            ? Number(limit)
+            : DEFAULT_POSTS_PAGE,
+        ),
       );
       const decoded = decodeCursor(cursor);
       const where = [];
@@ -422,7 +441,8 @@ export function createPortfolio(env) {
       return {
         ok: true,
         rows: page,
-        nextCursor: hasMore && page.length ? encodeCursor(rows[boundedLimit - 1]) : null,
+        nextCursor:
+          hasMore && page.length ? encodeCursor(rows[boundedLimit - 1]) : null,
         serverTime: new Date().toISOString(),
       };
     },

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createWebUserPost, listWebUserPosts } from "@/lib/web-posts";
+import {
+  createWebUserPost,
+  listWebUserPosts,
+  refreshPortfolioFromTurso,
+} from "@/lib/web-posts";
 import { createHttpAuthHeader, storeIdentity } from "@/lib/auth";
 import { verifyEvent } from "nostr-tools/pure";
 
@@ -52,5 +56,31 @@ describe("cloud post acknowledgement", () => {
       `${window.location.origin}/api/portfolio/post`,
     ]);
     expect(event.tags).toContainEqual(["method", "POST"]);
+  });
+
+  it("keeps hosted image arrays when refreshing the browser cache", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        rows: [
+          {
+            id: 77,
+            authorHandle: "bob",
+            content: "photo post",
+            townTag: "tsu",
+            mediaBlobs: ["https://media.example.test/photo.jpg"],
+            createdAt: "2026-09-24T00:00:00Z",
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await refreshPortfolioFromTurso();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(listWebUserPosts("tsu")[0].mediaBlobs).toEqual([
+      "https://media.example.test/photo.jpg",
+    ]);
   });
 });

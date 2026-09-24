@@ -2702,6 +2702,18 @@ impl Database {
     Ok(())
   }
 
+  pub fn update_hosted_outbox_payload(&self, id: i64, payload: &str) -> Result<(), String> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "UPDATE hosted_post_outbox
+          SET payload = ?1, updated_at = datetime('now')
+        WHERE id = ?2",
+      params![payload, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+  }
+
   pub fn due_hosted_outbox(
     &self,
     author_pubkey: &str,

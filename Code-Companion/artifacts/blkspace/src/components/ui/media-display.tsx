@@ -34,6 +34,31 @@ interface MediaItem {
 const INLINE_LOAD_LIMIT = 8 * 1024 * 1024; // 8 MB auto-inline (photos)
 const VIDEO_INLINE_LIMIT = 32 * 1024 * 1024; // wall video — tap Play if larger
 
+function remoteMimeType(filename: string, stream: boolean): string {
+  if (stream) return "video/mp4";
+  const name = filename.toLowerCase();
+  if (/\.(jpg|jpeg|png|gif|webp|avif|bmp|heic|heif)$/.test(name)) {
+    return "image/jpeg";
+  }
+  if (name.endsWith(".mp3")) return "audio/mpeg";
+  if (name.endsWith(".m4a")) return "audio/mp4";
+  if (name.endsWith(".aac")) return "audio/aac";
+  if (name.endsWith(".ogg") || name.endsWith(".opus")) return "audio/ogg";
+  if (name.endsWith(".wav")) return "audio/wav";
+  if (name.endsWith(".flac")) return "audio/flac";
+  if (name.endsWith(".pdf")) return "application/pdf";
+  if (name.endsWith(".doc")) return "application/msword";
+  if (name.endsWith(".docx")) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (name.endsWith(".rtf")) return "application/rtf";
+  if (name.endsWith(".json")) return "application/json";
+  if (name.endsWith(".zip")) return "application/zip";
+  if (/\.(txt|md|csv)$/.test(name)) return "text/plain";
+  if (/\.(mp4|m4v|webm|mov|avi|mkv)$/.test(name)) return "video/mp4";
+  return "application/octet-stream";
+}
+
 function b64ToObjectUrl(b64: string, mime: string): string {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
@@ -110,13 +135,7 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
                 info: {
                   hash,
                   filename: stream ? "Video" : decodeURIComponent(name),
-                  mimeType: stream
-                    ? "video/mp4"
-                    : name.match(/\.pdf$/i)
-                      ? "application/pdf"
-                      : name.match(/\.(mp3|m4a|wav|ogg)$/i)
-                        ? "audio/mpeg"
-                        : "image/jpeg",
+                  mimeType: remoteMimeType(name, stream),
                   fileSize: 0,
                   uploaderHandle: "",
                   createdAt: "",

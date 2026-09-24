@@ -1966,6 +1966,7 @@ fn sync_portfolio_once(
   let _guard = state.portfolio_sync_lock.lock().unwrap();
   portfolio_sync::sync_once(
     &state.db,
+    &state.blob_store,
     &state.key_store,
     &session_pubkey,
     town.as_deref().unwrap_or("tsu"),

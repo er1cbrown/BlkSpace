@@ -380,7 +380,7 @@ fn check_relay_health(url: &str) -> Result<RelayStatus, String> {
 | **Per-pubkey** | 30 requests / 60 seconds | `lib.rs:54-68` |
 | **Per-session** | Implicit (session token required) | `lib.rs` (session validation) |
 | **Event sync** | 100 events / batch | `relay_manager.rs` |
-| **Media upload** | 20MB max | `blob_store.rs` / upload path |
+| **Media upload** | 50MB absolute; typed hosted limits (15MB image, 50MB video, 25MB audio, 20MB PDF, 15MB documents) | `blob_store.rs`, `media-upload.ts`, `server/media.mjs` |
 
 **Status:** ✅ Implemented.
 

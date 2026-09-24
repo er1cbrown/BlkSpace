@@ -21,6 +21,7 @@ export interface UploadTarget {
   method: "PUT" | "POST";
   uploadUrl: string;
   publicUrl: string;
+  headers?: Record<string, string>;
 }
 
 /** Upload one file. Returns the public URL, or null when R2/Stream is not configured. */
@@ -68,7 +69,9 @@ export async function uploadHostedMedia(file: File): Promise<string | null> {
     !body?.uploadUrl ||
     !body.publicUrl ||
     (body.method !== "PUT" && body.method !== "POST") ||
-    (body.provider !== "r2" && body.provider !== "stream")
+    (body.provider !== "r2" && body.provider !== "stream") ||
+    (body.provider === "r2" && body.method !== "PUT") ||
+    (body.provider === "stream" && body.method !== "POST")
   ) {
     throw new Error("Media upload service returned an invalid upload target.");
   }
@@ -77,13 +80,16 @@ export async function uploadHostedMedia(file: File): Promise<string | null> {
     method: body.method,
     uploadUrl: body.uploadUrl,
     publicUrl: body.publicUrl,
+    headers: body.headers,
   };
 
   if (target.method === "PUT") {
     const put = await fetch(target.uploadUrl, {
       method: "PUT",
       body: file,
-      headers: file.type ? { "content-type": file.type } : undefined,
+      headers:
+        target.headers ||
+        (file.type ? { "content-type": file.type } : undefined),
     });
     if (!put.ok) {
       throw new Error(`R2 upload failed (${put.status})`);

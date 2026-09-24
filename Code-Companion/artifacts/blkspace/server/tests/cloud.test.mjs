@@ -320,7 +320,63 @@ describe("standalone cloud server", () => {
     const target = await image.json();
     expect(target.provider).toBe("r2");
     expect(target.uploadUrl).toContain("X-Amz-Signature");
+    expect(target.headers["content-type"]).toBe("image/jpeg");
     expect(target.secretAccessKey).toBeUndefined();
+    const unsafe = await post("/api/media/upload-target", {
+      filename: "unsafe.svg",
+      mime: "image/svg+xml",
+      size: 5,
+    });
+    expect(unsafe.status).toBe(400);
+    const hostedImage = await post("/api/portfolio/post", {
+      id: 1005,
+      authorHandle: "alice",
+      content: "hosted image",
+      townTag: "tsu",
+      mediaBlobs: ["https://media.example.test/photo.jpg"],
+    });
+    expect(hostedImage.status).toBe(200);
+    db.run("DELETE FROM portfolio_posts WHERE id = 1005");
+    const untrustedImage = await post("/api/portfolio/post", {
+      id: 1006,
+      authorHandle: "alice",
+      content: "untrusted image",
+      townTag: "tsu",
+      mediaBlobs: ["https://evil.example/photo.jpg"],
+    });
+    expect(untrustedImage.status).toBe(400);
+    const audio = await post("/api/media/upload-target", {
+      filename: "voice.mp3",
+      mime: "audio/mpeg",
+      size: 5,
+    });
+    expect(audio.status).toBe(200);
+    expect((await audio.json()).headers["content-type"]).toBe("audio/mpeg");
+    const pdf = await post("/api/media/upload-target", {
+      filename: "notes.pdf",
+      mime: "application/pdf",
+      size: 5,
+    });
+    expect(pdf.status).toBe(200);
+    expect((await pdf.json()).headers["content-type"]).toBe("application/pdf");
+    const mismatched = await post("/api/media/upload-target", {
+      filename: "notes.pdf",
+      mime: "audio/mpeg",
+      size: 5,
+    });
+    expect(mismatched.status).toBe(400);
+    const oversizedAudio = await post("/api/media/upload-target", {
+      filename: "voice.mp3",
+      mime: "audio/mpeg",
+      size: 25 * 1024 * 1024 + 1,
+    });
+    expect(oversizedAudio.status).toBe(400);
+    const unsupported = await post("/api/media/upload-target", {
+      filename: "payload.exe",
+      mime: "application/octet-stream",
+      size: 5,
+    });
+    expect(unsupported.status).toBe(400);
     const video = await post("/api/media/upload-target", {
       filename: "clip.mp4",
       mime: "video/mp4",
@@ -330,5 +386,35 @@ describe("standalone cloud server", () => {
     expect((await video.json()).error).toContain(
       "Stream authorization failed (403)",
     );
+
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+      if (String(url).startsWith("https://api.cloudflare.com/")) {
+        return Response.json({
+          success: true,
+          result: {
+            uid: "stream-test-uid",
+            uploadURL: "https://upload.videodelivery.net/stream-test",
+          },
+        });
+      }
+      return previousFetch(url, options);
+    };
+    try {
+      const stream = await post("/api/media/upload-target", {
+        filename: "clip.mp4",
+        mime: "video/mp4",
+        size: 5,
+      });
+      expect(stream.status).toBe(200);
+      const streamTarget = await stream.json();
+      expect(streamTarget.provider).toBe("stream");
+      expect(streamTarget.method).toBe("POST");
+      expect(streamTarget.publicUrl).toBe(
+        "https://iframe.videodelivery.net/stream-test-uid",
+      );
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
   });
 });

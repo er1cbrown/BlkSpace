@@ -22,6 +22,20 @@ describe("twitter-style video attach", () => {
     expect(MEDIA_ACCEPT_VIDEO).toMatch(/video\/mp4/);
   });
 
+  it("rejects SVG images for shared posts", () => {
+    const file = new File(["<svg />"], "unsafe.svg", {
+      type: "image/svg+xml",
+    });
+    expect(isAllowedUpload(file).ok).toBe(false);
+  });
+
+  it("rejects a MIME type that does not match the extension", () => {
+    const file = new File(["not an image"], "clip.mp4", {
+      type: "image/jpeg",
+    });
+    expect(isAllowedUpload(file).ok).toBe(false);
+  });
+
   it("rejects oversized video over 50MB", () => {
     const file = new File(["x"], "big.mp4", { type: "video/mp4" });
     Object.defineProperty(file, "size", { value: 51 * 1024 * 1024 });

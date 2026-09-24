@@ -20,7 +20,7 @@ export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 /** HTML accept attribute for composer + create page. */
 export const MEDIA_ACCEPT =
-  "image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.md,.csv,.json,.zip";
+  "image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.md,.csv,.json,.zip,.rtf";
 
 /** X/Twitter-style: one video clip on a wall post (library picker, not Reels). */
 export const MEDIA_ACCEPT_VIDEO =
@@ -63,6 +63,43 @@ const EXT_KIND: Record<string, MediaKind> = {
   rtf: "doc",
 };
 
+const EXT_MIME: Record<string, string[]> = {
+  svg: ["image/svg+xml"],
+  jpg: ["image/jpeg"],
+  jpeg: ["image/jpeg"],
+  png: ["image/png"],
+  gif: ["image/gif"],
+  webp: ["image/webp"],
+  heic: ["image/heic"],
+  heif: ["image/heif"],
+  avif: ["image/avif"],
+  bmp: ["image/bmp"],
+  mp4: ["video/mp4"],
+  m4v: ["video/mp4", "video/x-m4v"],
+  webm: ["video/webm"],
+  mov: ["video/quicktime"],
+  avi: ["video/x-msvideo"],
+  mkv: ["video/x-matroska"],
+  mp3: ["audio/mpeg", "audio/mp3"],
+  m4a: ["audio/mp4", "audio/x-m4a"],
+  aac: ["audio/aac", "audio/x-aac", "audio/mp4"],
+  ogg: ["audio/ogg", "application/ogg"],
+  opus: ["audio/opus", "audio/ogg"],
+  wav: ["audio/wav", "audio/x-wav"],
+  flac: ["audio/flac", "audio/x-flac"],
+  pdf: ["application/pdf"],
+  doc: ["application/msword"],
+  docx: [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ],
+  txt: ["text/plain"],
+  md: ["text/plain", "text/markdown"],
+  csv: ["text/csv"],
+  json: ["application/json", "text/json"],
+  zip: ["application/zip", "application/x-zip-compressed"],
+  rtf: ["application/rtf", "application/x-rtf"],
+};
+
 const MIME_KIND_PREFIX: [string, MediaKind][] = [
   ["image/", "image"],
   ["video/", "video"],
@@ -74,6 +111,12 @@ export function extensionOf(filename: string): string {
   const i = filename.lastIndexOf(".");
   if (i < 0) return "";
   return filename.slice(i + 1).toLowerCase();
+}
+
+function mimeMatchesExtension(file: File): boolean {
+  const mime = file.type.toLowerCase().split(";", 1)[0].trim();
+  if (!mime || mime === "application/octet-stream") return true;
+  return EXT_MIME[extensionOf(file.name)]?.includes(mime) ?? false;
 }
 
 export function mediaKindFromFile(file: {
@@ -98,7 +141,23 @@ export function isAllowedUpload(
   if (!file.name.includes(".")) {
     return { ok: false, reason: "File needs an extension (e.g. .png, .mp4)" };
   }
+  if (!mimeMatchesExtension(file)) {
+    return {
+      ok: false,
+      reason: "File extension and MIME type do not match.",
+    };
+  }
   const kind = mediaKindFromFile(file);
+  if (
+    kind === "image" &&
+    (file.type.toLowerCase() === "image/svg+xml" ||
+      extensionOf(file.name) === "svg")
+  ) {
+    return {
+      ok: false,
+      reason: "SVG images are not supported for shared posts.",
+    };
+  }
   if (kind === "other") {
     return {
       ok: false,

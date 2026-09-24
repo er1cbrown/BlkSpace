@@ -41,8 +41,15 @@ the flag is explicitly set. Never put `TURSO_DATABASE_URL` or
 
 ## Current limits
 
-- Native media hashes are local-only; native media is not pushed until a
-  Rust-side R2/Stream upload flow exists.
+- Native raster images, audio, PDFs, and common documents are promoted to
+  hosted R2 URLs during sync; the local SHA-256 reference remains in the local
+  post and Nostr event.
+- Native video is promoted through a Cloudflare Stream multipart upload during
+  sync; the local SHA-256 reference remains local until the hosted post is
+  acknowledged.
+- Media is limited to the allowlisted types and per-kind limits in
+  `server/media.mjs`; unsupported or mismatched MIME/extension pairs remain
+  local-only.
 - The first pull caches the newest hosted page (up to 100 rows).
 - Hosted rows are read-only until authenticated interaction endpoints exist.
 - The server keeps legacy `id` response aliases for the deployed browser client.

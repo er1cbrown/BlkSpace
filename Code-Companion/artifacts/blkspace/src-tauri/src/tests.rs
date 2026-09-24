@@ -20,8 +20,8 @@ mod tests {
   #[test]
   fn stored_login_event_is_signed_for_challenge() {
     let keys = nostr_sdk::prelude::Keys::generate();
-    let event_json = super::sign_stored_login_event(&keys, "stored-login-challenge").unwrap();
-    let verified = super::verify_nostr_auth_event(&event_json, "stored-login-challenge").unwrap();
+    let event_json = crate::sign_stored_login_event(&keys, "stored-login-challenge").unwrap();
+    let verified = crate::verify_nostr_auth_event(&event_json, "stored-login-challenge").unwrap();
     assert_eq!(verified, keys.public_key().to_hex());
   }
 
@@ -214,6 +214,28 @@ mod tests {
     };
     db.ack_hosted_outbox(&due[0], &ack).unwrap();
     assert_eq!(db.count_hosted_outbox(&"bb".repeat(32)).unwrap(), 0);
+  }
+
+  #[test]
+  fn hosted_outbox_payload_can_be_promoted_to_a_hosted_url() {
+    let db = setup_test_db();
+    db.create_user("author", "Author", "").unwrap();
+    let post = db.create_post("author", "Photo", "tsu", NO_CHANNEL, &[]).unwrap().post;
+    db.queue_hosted_post(
+      "image-post-12345678",
+      post.id,
+      "author",
+      &"cc".repeat(32),
+      r#"{"id":123456789,"postUid":"image-post-12345678","authorHandle":"author","content":"Photo","townTag":"tsu","channelId":"","mediaBlobs":["local-hash"]}"#,
+    )
+    .unwrap();
+    let mut due = db.due_hosted_outbox(&"cc".repeat(32), 10).unwrap();
+    assert_eq!(due.len(), 1);
+    let item_id = due.remove(0).id;
+    let payload = r#"{"id":123456789,"postUid":"image-post-12345678","authorHandle":"author","content":"Photo","townTag":"tsu","channelId":"","mediaBlobs":["https://media.example.test/photo.jpg"]}"#;
+    db.update_hosted_outbox_payload(item_id, payload).unwrap();
+    let saved = db.due_hosted_outbox(&"cc".repeat(32), 10).unwrap();
+    assert!(saved[0].payload.contains("https://media.example.test/photo.jpg"));
   }
 
   #[test]

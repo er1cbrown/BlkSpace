@@ -46,7 +46,7 @@ From this folder:
 bun run dev
 ```
 
-The Vite development and preview plugins use the same API handlers as the cloud server. A photo or PDF uploads to R2. A video uploads to Cloudflare Stream. The post stores the public `https://` link.
+The Vite development and preview plugins use the same API handlers as the cloud server. Photos, audio, PDFs, and common documents upload to R2. Video uploads to Cloudflare Stream using multipart upload. The post stores the public `https://` link. Native Tauri clients perform the same upload sequence in Rust during hosted sync.
 
 ## Hostinger deployment
 
@@ -63,5 +63,6 @@ The production URL is `https://bkspc.app`. The temporary fallback URL is `https:
 - **Stream authorization failed (401/403):** create or edit the API token with **Account → Stream → Edit** and include the account matching `CLOUDFLARE_ACCOUNT_ID` under **Account Resources**. A token being active does not mean it has access to Stream. R2 keys do not grant Stream access. Ensure Stream is enabled on that account.
 - Replace `CLOUDFLARE_API_TOKEN` in the local or deployment `.env`, then restart/recreate the server. Bun can retain environment values from startup.
 - **Saved on this browser** means local browser storage, not a Cloudflare upload. Videos saved this way are not shared with other devices; the Turso fallback only stores metadata for large files. Reattach the original video after fixing Stream access.
+- Native attachments follow the same provider split: R2 `PUT` for images/audio/PDF/documents and Stream multipart `POST` for video. Unsupported MIME/extension pairs and files over the per-kind limit remain local-only.
 - A browser upload and the cloud post acknowledgement are both required. A successful file upload does not make a post durable if the post write fails.
 - Desktop attachments use the native blob store instead of Stream. The browser path uses the cloud API and requires the signed-in Nostr key used during account creation.

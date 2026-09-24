@@ -6,7 +6,7 @@ Target verified on 2026-09-23: KVM 2, Docker Compose, host-network Traefik with 
 
 The production container serves the built React application and `/api/portfolio/*`, `/api/media/upload-target`, and `/api/health`. It does not run Vite. Server dependencies are bundled; runtime image contains only the server and public frontend, not source files or `.env`.
 
-Writes use NIP-98 proofs signed with the user's existing browser or native Nostr key. Native clients also send a stable `postUid`; retries are idempotent. Post handles are bound to keys on first cloud post, and post ownership is enforced. A new device needs the encrypted backup plus password, or the recovery phrase. Posts wait for Turso acknowledgement and active feeds refresh every five seconds. Hosted attachments must be HTTPS URLs; the browser-local blob store is not a cross-device store. Likes/follows remain local and are not part of this deployment's shared-state claim.
+Writes use NIP-98 proofs signed with the user's existing browser or native Nostr key. Native clients also send a stable `postUid`; retries are idempotent. Post handles are bound to keys on first cloud post, and post ownership is enforced. A new device needs the encrypted backup plus password, or the recovery phrase. Posts wait for Turso acknowledgement and active feeds refresh every five seconds. Native images, audio, PDFs, and common documents are promoted to R2 URLs during hosted sync; native video uses Cloudflare Stream multipart upload. Browser-local blob IDs remain local-only. Likes/follows remain local and are not part of this deployment's shared-state claim.
 
 ## Deploy on the VPS
 
@@ -31,7 +31,7 @@ In R2 bucket CORS, include the exact application origins for `PUT`/`GET` and all
 1. `/api/health` responds with JSON; `/api/portfolio/posts` responds with shared rows.
 2. Unsigned writes return 401; unknown `/api/*` paths return JSON 404, not the SPA.
 3. On three independent browsers, create distinct identities, join the same yard, and post in both directions. Observe the five-second refresh, then reload.
-4. Upload an image and video, wait for video processing, and play on the other devices.
+4. Upload an image, audio file, PDF/document, and video; wait for video processing and play/save each item on the other devices.
 5. Close the uploading laptop: cloud posts/media must remain accessible.
 
 The health endpoint is process liveness, not a claim that Turso/Cloudflare permissions are healthy. Use the actual posts/upload tests to verify dependencies. Do not record physical-device checks as passing based only on HTTP or unit tests.

@@ -4,6 +4,7 @@
 //! header. NIP-98 proofs are created here with the key held by KeyStore and
 //! the exact request bytes are used for both signing and sending.
 
+use crate::blob_store::BlobStore;
 use crate::db::{CloudPostRecord, Database};
 use crate::key_store::KeyStore;
 use base64::Engine;
@@ -11,6 +12,7 @@ use nostr_sdk::prelude::{EventBuilder, Keys, Kind, Tag};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use reqwest::redirect::Policy;
 use reqwest::Client;
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -104,6 +106,55 @@ struct PushResponse {
   id: Option<Value>,
   #[serde(default)]
   revision: Option<i64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct HostedMediaTarget {
+  provider: String,
+  method: String,
+  #[serde(rename = "uploadUrl", alias = "upload_url")]
+  upload_url: String,
+  #[serde(rename = "publicUrl", alias = "public_url")]
+  public_url: String,
+  #[serde(default)]
+  headers: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HostedMediaKind {
+  Image,
+  Video,
+  Audio,
+  Pdf,
+  Document,
+}
+
+impl HostedMediaKind {
+  fn label(self) -> &'static str {
+    match self {
+      Self::Image => "image",
+      Self::Video => "video",
+      Self::Audio => "audio",
+      Self::Pdf => "PDF",
+      Self::Document => "document",
+    }
+  }
+
+  fn limit(self) -> usize {
+    match self {
+      Self::Image => 15 * 1024 * 1024,
+      Self::Video => 50 * 1024 * 1024,
+      Self::Audio => 25 * 1024 * 1024,
+      Self::Pdf => 20 * 1024 * 1024,
+      Self::Document => 15 * 1024 * 1024,
+    }
+  }
+}
+
+#[derive(Debug)]
+enum MediaPromotionError {
+  Blocked(String),
+  Retry(String),
 }
 
 pub fn stable_portfolio_id(post_uid: &str) -> i64 {
@@ -260,6 +311,106 @@ impl PortfolioSyncClient {
       revision: response.revision.unwrap_or(1),
     })
   }
+
+  async fn request_media_target(
+    &self,
+    keys: &Keys,
+    filename: &str,
+    mime: &str,
+    size: usize,
+    kind: HostedMediaKind,
+  ) -> Result<HostedMediaTarget, String> {
+    let body = serde_json::to_vec(&serde_json::json!({
+      "filename": filename,
+      "mime": mime,
+      "size": size,
+    }))
+    .map_err(|e| format!("Could not encode media target request: {e}"))?;
+    let endpoint = self.endpoint("api/media/upload-target");
+    let authorization = sign_nip98(keys, "POST", &endpoint, &body).await?;
+    let response = self
+      .http
+      .post(endpoint)
+      .timeout(Duration::from_secs(30))
+      .header(CONTENT_TYPE, "application/json")
+      .header(AUTHORIZATION, authorization)
+      .body(body)
+      .send()
+      .await
+      .map_err(|_| "Hosted media target request failed.".to_string())?;
+    let value = self.read_json_response(response).await?;
+    let target: HostedMediaTarget = serde_json::from_value(value)
+      .map_err(|_| "Hosted media target response is invalid.".to_string())?;
+    let method = target.method.to_ascii_uppercase();
+    let provider_matches = match kind {
+      HostedMediaKind::Video => target.provider == "stream" && method == "POST",
+      _ => target.provider == "r2" && method == "PUT",
+    };
+    if !provider_matches
+      || !is_https_media_url(&target.upload_url)
+      || !is_https_media_url(&target.public_url)
+    {
+      return Err(format!(
+        "Hosted {} service returned an incompatible upload target.",
+        kind.label()
+      ));
+    }
+    Ok(target)
+  }
+
+  async fn upload_media_bytes(
+    &self,
+    target: &HostedMediaTarget,
+    filename: &str,
+    mime: &str,
+    bytes: Vec<u8>,
+  ) -> Result<(), String> {
+    let method = target.method.to_ascii_uppercase();
+    let response = if method == "PUT" {
+      let mut request = self
+        .http
+        .put(&target.upload_url)
+        .timeout(Duration::from_secs(120))
+        .body(bytes);
+      let mut has_content_type = false;
+      for (name, value) in &target.headers {
+        if name.eq_ignore_ascii_case("content-type") {
+          has_content_type = true;
+        }
+        request = request.header(name.as_str(), value.as_str());
+      }
+      if !has_content_type {
+        request = request.header(CONTENT_TYPE, mime);
+      }
+      request
+        .send()
+        .await
+        .map_err(|_| "Hosted R2 media upload failed.".to_string())?
+    } else if method == "POST" {
+      let part = reqwest::multipart::Part::bytes(bytes)
+        .file_name(filename.to_string())
+        .mime_str(mime)
+        .map_err(|_| "Could not encode hosted media upload.".to_string())?;
+      let form = reqwest::multipart::Form::new().part("file", part);
+      self
+        .http
+        .post(&target.upload_url)
+        .timeout(Duration::from_secs(600))
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|_| "Hosted Stream media upload failed.".to_string())?
+    } else {
+      return Err("Hosted media target uses an unsupported HTTP method.".into());
+    };
+    if !response.status().is_success() {
+      return Err(format!(
+        "Hosted media upload failed with status {}.",
+        response.status().as_u16()
+      ));
+    }
+    Ok(())
+  }
 }
 
 fn validate_payload(payload: &HostedPostPayload) -> Result<(), String> {
@@ -279,7 +430,7 @@ fn validate_payload(payload: &HostedPostPayload) -> Result<(), String> {
     || payload
       .media_blobs
       .iter()
-      .any(|value| !value.starts_with("https://"))
+      .any(|value| !is_https_media_url(value))
   {
     return Err("Native media must be uploaded before hosted sync.".into());
   }
@@ -337,7 +488,7 @@ fn parse_hosted_row(row: HostedRow) -> Result<CloudPostRecord, String> {
     return Err("Hosted row is too large.".into());
   }
   let media_blobs = parse_media(row.media_blobs)?;
-  if media_blobs.iter().any(|value| !value.starts_with("https://")) {
+  if media_blobs.iter().any(|value| !is_https_media_url(value)) {
     return Err("Hosted row contains an unsafe media URL.".into());
   }
   let created_at = row.created_at;
@@ -374,9 +525,263 @@ fn truncate(value: &str, max: usize) -> String {
   value.chars().take(max).collect()
 }
 
-/// Pull hosted rows, then push due local outbox rows for one identity.
+fn is_https_media_url(value: &str) -> bool {
+  Url::parse(value)
+    .map(|url| {
+      url.scheme() == "https"
+        && url.host_str().is_some()
+        && url.username().is_empty()
+        && url.password().is_none()
+    })
+    .unwrap_or(false)
+}
+
+fn is_local_blob_hash(value: &str) -> bool {
+  value.len() == 64 && value.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+}
+
+fn extension_of(filename: &str) -> String {
+  filename
+    .rsplit('.')
+    .next()
+    .unwrap_or_default()
+    .to_ascii_lowercase()
+}
+
+fn inferred_mime(extension: &str) -> Option<&'static str> {
+  Some(match extension {
+    "jpg" | "jpeg" => "image/jpeg",
+    "png" => "image/png",
+    "gif" => "image/gif",
+    "webp" => "image/webp",
+    "avif" => "image/avif",
+    "bmp" => "image/bmp",
+    "heic" => "image/heic",
+    "heif" => "image/heif",
+    "mp4" | "m4v" => "video/mp4",
+    "webm" => "video/webm",
+    "mov" => "video/quicktime",
+    "avi" => "video/x-msvideo",
+    "mkv" => "video/x-matroska",
+    "mp3" => "audio/mpeg",
+    "m4a" | "aac" => "audio/mp4",
+    "ogg" | "opus" => "audio/ogg",
+    "wav" => "audio/wav",
+    "flac" => "audio/flac",
+    "pdf" => "application/pdf",
+    "doc" => "application/msword",
+    "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "txt" => "text/plain",
+    "md" => "text/markdown",
+    "csv" => "text/csv",
+    "json" => "application/json",
+    "zip" => "application/zip",
+    "rtf" => "application/rtf",
+    _ => return None,
+  })
+}
+
+fn hosted_media_kind(
+  mime: &str,
+  filename: &str,
+) -> Option<(HostedMediaKind, usize, String)> {
+  let extension = extension_of(filename);
+  let supplied = mime.split(';').next().unwrap_or_default().trim().to_ascii_lowercase();
+  let effective = if supplied.is_empty() || supplied == "application/octet-stream" {
+    inferred_mime(&extension).unwrap_or(&supplied).to_string()
+  } else {
+    supplied
+  };
+  let kind = match extension.as_str() {
+    "jpg" | "jpeg" | "png" | "gif" | "webp" | "avif" | "bmp" | "heic" | "heif"
+      if matches!(
+        effective.as_str(),
+        "image/jpeg"
+          | "image/png"
+          | "image/gif"
+          | "image/webp"
+          | "image/avif"
+          | "image/bmp"
+          | "image/heic"
+          | "image/heif"
+      ) =>
+    {
+      HostedMediaKind::Image
+    }
+    "mp4" | "m4v" | "webm" | "mov" | "avi" | "mkv"
+      if matches!(
+        effective.as_str(),
+        "video/mp4"
+          | "video/x-m4v"
+          | "video/webm"
+          | "video/quicktime"
+          | "video/x-msvideo"
+          | "video/x-matroska"
+      ) =>
+    {
+      HostedMediaKind::Video
+    }
+    "mp3" | "m4a" | "aac" | "ogg" | "opus" | "wav" | "flac"
+      if matches!(
+        effective.as_str(),
+        "audio/mpeg"
+          | "audio/mp3"
+          | "audio/mp4"
+          | "audio/x-m4a"
+          | "audio/aac"
+          | "audio/x-aac"
+          | "audio/ogg"
+          | "application/ogg"
+          | "audio/opus"
+          | "audio/wav"
+          | "audio/x-wav"
+          | "audio/flac"
+          | "audio/x-flac"
+      ) =>
+    {
+      HostedMediaKind::Audio
+    }
+    "pdf" if effective == "application/pdf" => HostedMediaKind::Pdf,
+    "doc" | "docx" | "txt" | "md" | "csv" | "json" | "zip" | "rtf"
+      if matches!(
+        effective.as_str(),
+        "application/msword"
+          | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          | "application/rtf"
+          | "application/x-rtf"
+          | "application/json"
+          | "text/json"
+          | "application/zip"
+          | "application/x-zip-compressed"
+          | "text/plain"
+          | "text/markdown"
+          | "text/csv"
+      ) =>
+    {
+      HostedMediaKind::Document
+    }
+    _ => return None,
+  };
+  Some((kind, kind.limit(), effective))
+}
+
+fn fallback_kind_from_mime(mime: &str) -> HostedMediaKind {
+  let mime = mime.to_ascii_lowercase();
+  if mime.starts_with("image/") {
+    HostedMediaKind::Image
+  } else if mime.starts_with("video/") {
+    HostedMediaKind::Video
+  } else if mime.starts_with("audio/") {
+    HostedMediaKind::Audio
+  } else if mime == "application/pdf" {
+    HostedMediaKind::Pdf
+  } else {
+    HostedMediaKind::Document
+  }
+}
+
+fn fallback_media_filename(kind: HostedMediaKind, hash: &str) -> String {
+  let extension = match kind {
+    HostedMediaKind::Image => "jpg",
+    HostedMediaKind::Video => "mp4",
+    HostedMediaKind::Audio => "mp3",
+    HostedMediaKind::Pdf => "pdf",
+    HostedMediaKind::Document => "txt",
+  };
+  format!("{hash}.{extension}")
+}
+
+fn promote_native_media(
+  db: &Database,
+  blob_store: &BlobStore,
+  client: &PortfolioSyncClient,
+  keys: &Keys,
+  item_id: i64,
+  payload: &mut HostedPostPayload,
+  promoted: &mut HashMap<String, String>,
+) -> Result<(), MediaPromotionError> {
+  for index in 0..payload.media_blobs.len() {
+    let reference = payload.media_blobs[index].clone();
+    if is_https_media_url(&reference) {
+      continue;
+    }
+    if !is_local_blob_hash(&reference) {
+      return Err(MediaPromotionError::Blocked(
+        "Only local media hashes can be promoted to hosted media.".into(),
+      ));
+    }
+    if let Some(public_url) = promoted.get(&reference) {
+      payload.media_blobs[index] = public_url.clone();
+      let encoded = serde_json::to_string(payload)
+        .map_err(|e| MediaPromotionError::Retry(format!("Could not save media URL: {e}")))?;
+      db.update_hosted_outbox_payload(item_id, &encoded)
+        .map_err(MediaPromotionError::Retry)?;
+      continue;
+    }
+
+    let record = match db.get_blob_record(&reference) {
+      Ok(Some(record)) => record,
+      Ok(None) => {
+        return Err(MediaPromotionError::Blocked(
+          "The local media file is no longer available; attach it again before sharing.".into(),
+        ));
+      }
+      Err(error) => {
+        return Err(MediaPromotionError::Retry(format!(
+          "Could not inspect local media: {error}"
+        )));
+      }
+    };
+    let filename = if record.filename.trim().is_empty() {
+      fallback_media_filename(fallback_kind_from_mime(&record.mime_type), &reference)
+    } else {
+      record.filename.clone()
+    };
+    let (kind, limit, mime) = match hosted_media_kind(&record.mime_type, &filename) {
+      Some(media) => media,
+      None => {
+        return Err(MediaPromotionError::Blocked(
+          "This media type is not supported for shared posts yet.".into(),
+        ));
+      }
+    };
+    let bytes = blob_store.get_blob(&reference).ok_or_else(|| {
+      MediaPromotionError::Blocked(
+        "The local media bytes are no longer available; attach the file again.".into(),
+      )
+    })?;
+    if bytes.is_empty() || bytes.len() > limit {
+      return Err(MediaPromotionError::Blocked(format!(
+        "Shared {} files must be between 1 byte and {} MB.",
+        kind.label(),
+        limit / 1024 / 1024
+      )));
+    }
+    let target = run_block_on(client.request_media_target(
+      keys,
+      &filename,
+      &mime,
+      bytes.len(),
+      kind,
+    ))
+    .map_err(MediaPromotionError::Retry)?;
+    run_block_on(client.upload_media_bytes(&target, &filename, &mime, bytes))
+      .map_err(MediaPromotionError::Retry)?;
+
+    payload.media_blobs[index] = target.public_url.clone();
+    promoted.insert(reference, target.public_url);
+    let encoded = serde_json::to_string(payload)
+      .map_err(|e| MediaPromotionError::Retry(format!("Could not save media URL: {e}")))?;
+    db.update_hosted_outbox_payload(item_id, &encoded)
+      .map_err(MediaPromotionError::Retry)?;
+  }
+  Ok(())
+}
+
+/// Pull hosted rows, promote local media, then push due outbox rows for one identity.
 pub fn sync_once(
   db: &Database,
+  blob_store: &BlobStore,
   key_store: &KeyStore,
   author_pubkey: &str,
   town: &str,
@@ -395,10 +800,11 @@ pub fn sync_once(
   let (rows, _cursor) = run_block_on(client.pull(town, None))?;
   let cached = db.upsert_hosted_posts(&rows)?;
   let due = db.due_hosted_outbox(author_pubkey, 10)?;
+  let mut promoted_media: HashMap<String, String> = HashMap::new();
   let mut pushed = 0usize;
   let mut failed = 0usize;
   for item in due {
-    let payload = match serde_json::from_str::<HostedPostPayload>(&item.payload) {
+    let mut payload = match serde_json::from_str::<HostedPostPayload>(&item.payload) {
       Ok(payload) => payload,
       Err(error) => {
         db.mark_hosted_outbox_blocked(item.id, &format!("Invalid outbox payload: {error}"))?;
@@ -406,18 +812,6 @@ pub fn sync_once(
         continue;
       }
     };
-    if payload
-      .media_blobs
-      .iter()
-      .any(|value| !value.starts_with("https://"))
-    {
-      db.mark_hosted_outbox_blocked(
-        item.id,
-        "Native media must be uploaded to the hosted media service first.",
-      )?;
-      failed += 1;
-      continue;
-    }
     let keys = match key_store.load(&item.author_handle) {
       Ok(Some(secret)) => match Keys::parse(secret.trim()) {
         Ok(keys) if keys.public_key().to_hex() == author_pubkey => keys,
@@ -433,6 +827,26 @@ pub fn sync_once(
         continue;
       }
     };
+    if let Err(error) = promote_native_media(
+      db,
+      blob_store,
+      &client,
+      &keys,
+      item.id,
+      &mut payload,
+      &mut promoted_media,
+    ) {
+      match error {
+        MediaPromotionError::Blocked(message) => {
+          db.mark_hosted_outbox_blocked(item.id, &message)?;
+        }
+        MediaPromotionError::Retry(message) => {
+          db.mark_hosted_outbox_retry(item.id, &message)?;
+        }
+      }
+      failed += 1;
+      continue;
+    }
     match run_block_on(client.push(&keys, &payload)) {
       Ok(ack) => {
         db.ack_hosted_outbox(&item, &ack)?;
@@ -484,7 +898,7 @@ mod tests {
       "authorPubkey": "aa",
       "content": "hello",
       "townTag": "tsu",
-      "mediaBlobs": "[]",
+      "mediaBlobs": ["https://media.example.test/photo.jpg"],
       "createdAt": "2026-09-24T00:00:00Z",
       "revision": 1
     }))
@@ -492,7 +906,75 @@ mod tests {
     let parsed = parse_hosted_row(row).unwrap();
     assert_eq!(parsed.post_uid, "native-12345678");
     assert_eq!(parsed.remote_id, "42");
-    assert_eq!(parsed.media_blobs.len(), 0);
+    assert_eq!(parsed.media_blobs.len(), 1);
+    assert_eq!(parsed.media_blobs[0], "https://media.example.test/photo.jpg");
+  }
+
+  #[test]
+  fn parses_r2_media_target_aliases() {
+    let target: HostedMediaTarget = serde_json::from_value(serde_json::json!({
+      "provider": "r2",
+      "method": "PUT",
+      "upload_url": "https://upload.example.test/signed",
+      "public_url": "https://media.example.test/photo.jpg",
+      "headers": { "content-type": "image/jpeg" }
+    }))
+    .unwrap();
+    assert_eq!(target.provider, "r2");
+    assert_eq!(target.method, "PUT");
+    assert!(is_https_media_url(&target.public_url));
+  }
+
+  #[test]
+  fn classifies_supported_hosted_media() {
+    let (image, image_limit, image_mime) =
+      hosted_media_kind("image/jpeg", "photo.jpg").unwrap();
+    assert_eq!(image, HostedMediaKind::Image);
+    assert_eq!(image_limit, 15 * 1024 * 1024);
+    assert_eq!(image_mime, "image/jpeg");
+
+    let (audio, audio_limit, audio_mime) =
+      hosted_media_kind("audio/mpeg", "voice.mp3").unwrap();
+    assert_eq!(audio, HostedMediaKind::Audio);
+    assert_eq!(audio_limit, 25 * 1024 * 1024);
+    assert_eq!(audio_mime, "audio/mpeg");
+
+    let (document, document_limit, document_mime) =
+      hosted_media_kind("application/pdf", "notes.pdf").unwrap();
+    assert_eq!(document, HostedMediaKind::Pdf);
+    assert_eq!(document_limit, 20 * 1024 * 1024);
+    assert_eq!(document_mime, "application/pdf");
+
+    let (video, video_limit, video_mime) =
+      hosted_media_kind("video/quicktime", "clip.mov").unwrap();
+    assert_eq!(video, HostedMediaKind::Video);
+    assert_eq!(video_limit, 50 * 1024 * 1024);
+    assert_eq!(video_mime, "video/quicktime");
+
+    assert!(hosted_media_kind("image/svg+xml", "unsafe.svg").is_none());
+    assert!(hosted_media_kind("application/octet-stream", "payload.exe").is_none());
+    assert!(hosted_media_kind("application/octet-stream", "voice.mp3").is_some());
+  }
+
+  #[test]
+  fn parses_stream_media_target_aliases() {
+    let target: HostedMediaTarget = serde_json::from_value(serde_json::json!({
+      "provider": "stream",
+      "method": "POST",
+      "upload_url": "https://upload.videodelivery.net/target",
+      "public_url": "https://iframe.videodelivery.net/uid"
+    }))
+    .unwrap();
+    assert_eq!(target.provider, "stream");
+    assert_eq!(target.method, "POST");
+    assert!(is_https_media_url(&target.public_url));
+  }
+
+  #[test]
+  fn only_lowercase_sha_hashes_are_local_media() {
+    assert!(is_local_blob_hash(&"a".repeat(64)));
+    assert!(!is_local_blob_hash(&"A".repeat(64)));
+    assert!(!is_local_blob_hash("https://media.example.test/photo.jpg"));
   }
 
   #[tokio::test]
