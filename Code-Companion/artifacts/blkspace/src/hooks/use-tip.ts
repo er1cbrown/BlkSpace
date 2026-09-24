@@ -27,11 +27,18 @@ export interface TipInput {
   settleNow?: boolean;
 }
 
-export function tipFeeFor(amount: number, feeBps: number = FEE_BPS.tip): number {
+export function tipFeeFor(
+  amount: number,
+  feeBps: number = FEE_BPS.tip,
+): number {
   return calcPlatformFee(amount, feeBps);
 }
 
-function setTipStatus(id: string, status: TipStatus, extra?: Partial<TipRecord>) {
+function setTipStatus(
+  id: string,
+  status: TipStatus,
+  extra?: Partial<TipRecord>,
+) {
   const tip = getEconomicStore().tips.find((t) => t.id === id);
   if (!tip) return;
   if (tip.status !== status && !canTransitionTip(tip.status, status)) {
@@ -103,7 +110,9 @@ export function useTip(baseBalance: number) {
       const amount = Math.floor(input.amount);
       const feeBps = input.feeBps ?? FEE_BPS.tip;
       const fee = tipFeeFor(amount, feeBps);
-      const settleNow = input.settleNow !== false && (typeof navigator === "undefined" || navigator.onLine);
+      const settleNow =
+        input.settleNow !== false &&
+        (typeof navigator === "undefined" || navigator.onLine);
 
       if (!toHandle) throw new Error("Recipient required");
       if (amount <= 0) throw new Error("Amount must be positive");

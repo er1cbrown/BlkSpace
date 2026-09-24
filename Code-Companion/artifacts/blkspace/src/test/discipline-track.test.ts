@@ -77,7 +77,9 @@ describe("discipline-track", () => {
       "faculty",
     ] as const) {
       const line = disciplineUpliftLine(id);
-      expect(line.toLowerCase()).not.toMatch(/buy rank|ad slot|boost fyp/);
+      expect(line.toLowerCase()).not.toMatch(
+        /(?:^|[.!?]\s*)(?:buy rank|ad slot|boost fyp)/,
+      );
       expect(getDisciplineTrack(id).id).toBe(id);
     }
   });

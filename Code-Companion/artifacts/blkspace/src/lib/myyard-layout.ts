@@ -64,12 +64,7 @@ export type FontStyleId = "system" | "serif" | "mono" | "display";
 export type CardRadiusId = "sharp" | "soft" | "round";
 
 export type MyYardFxId =
-  | "none"
-  | "sparkle"
-  | "glitter"
-  | "scanlines"
-  | "grain"
-  | "vhs";
+  "none" | "sparkle" | "glitter" | "scanlines" | "grain" | "vhs";
 export type MyYardCursorId = "default" | "sparkle" | "cross" | "neon";
 export type MyYardTextFxId = "none" | "glow" | "chrome" | "outline";
 export type MyYardBannerMotionId = "still" | "pan" | "pulse";
@@ -275,7 +270,9 @@ function clampFx(v: MyYardAesthetic["fx"] | undefined): MyYardFxId {
   const ok = ["none", "sparkle", "glitter", "scanlines", "grain", "vhs"];
   return ok.includes(v as string) ? (v as MyYardFxId) : "none";
 }
-function clampCursor(v: MyYardAesthetic["cursorPack"] | undefined): MyYardCursorId {
+function clampCursor(
+  v: MyYardAesthetic["cursorPack"] | undefined,
+): MyYardCursorId {
   const ok = ["default", "sparkle", "cross", "neon"];
   return ok.includes(v as string) ? (v as MyYardCursorId) : "default";
 }
@@ -372,8 +369,7 @@ export function mergeMyYardLayout(
             []
           ).slice(0, MAX_GALLERY),
           playlistHashes: normalizeTape(
-            patch.aesthetic.playlistHashes ??
-              current.aesthetic?.playlistHashes,
+            patch.aesthetic.playlistHashes ?? current.aesthetic?.playlistHashes,
           ),
         }
       : current.aesthetic

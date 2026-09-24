@@ -25,9 +25,7 @@ export default function PlayPage() {
   // Block clearly dangerous schemes already rejected by isSafeHttpUrl;
   // also refuse data: and javascript if they sneak past.
   const blocked =
-    !rawUrl ||
-    /^(javascript|data|blob|file):/i.test(rawUrl) ||
-    !safe;
+    !rawUrl || /^(javascript|data|blob|file):/i.test(rawUrl) || !safe;
 
   return (
     <AppShell wide>

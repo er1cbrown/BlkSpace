@@ -52,9 +52,7 @@ export function EconomyPillarsBar({
       {PILLARS.map((p) => {
         const Icon = p.icon;
         const href =
-          "profile" in p && p.profile && handle
-            ? `/profile/${handle}`
-            : p.href;
+          "profile" in p && p.profile && handle ? `/profile/${handle}` : p.href;
         const isHash = href.startsWith("#");
         const className = cn(
           "rounded-xl border border-primary/15 bg-card/80 p-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/5",

@@ -99,7 +99,11 @@ export function stateChecksum(s: GameState): number {
   return h >>> 0;
 }
 
-function stepFighter(f: FighterState, input: number, other: FighterState): void {
+function stepFighter(
+  f: FighterState,
+  input: number,
+  other: FighterState,
+): void {
   if (f.hitstun > 0) {
     f.hitstun -= 1;
     f.vx = (f.vx * 3) >> 2;
@@ -109,10 +113,10 @@ function stepFighter(f: FighterState, input: number, other: FighterState): void 
     if (input & IN_RIGHT) move += 1;
     if (move !== 0) f.facing = move > 0 ? 1 : -1;
     f.vx = move * 3;
-    if ((input & IN_UP) && f.y >= GROUND_Y && f.jv === 0) {
+    if (input & IN_UP && f.y >= GROUND_Y && f.jv === 0) {
       f.jv = -8;
     }
-    if ((input & IN_ATTACK) && f.attackCd === 0 && f.atkActive === 0) {
+    if (input & IN_ATTACK && f.attackCd === 0 && f.atkActive === 0) {
       f.atkActive = 6;
       f.attackCd = 18;
     }
@@ -276,7 +280,10 @@ export class RollbackSession {
     // Predict remote for `produce`
     let remotePred = this.lastRemoteConfirmed;
     const already = this.frames.get(produce);
-    if (already?.remoteConfirmed !== null && already?.remoteConfirmed !== undefined) {
+    if (
+      already?.remoteConfirmed !== null &&
+      already?.remoteConfirmed !== undefined
+    ) {
       remotePred = already.remoteConfirmed;
     } else if (this.latencyFrames === 0) {
       remotePred = remoteTrueNow | 0;
@@ -291,12 +298,14 @@ export class RollbackSession {
       remoteConfirmed:
         this.latencyFrames === 0
           ? remoteTrueNow | 0
-          : this.frames.get(produce)?.remoteConfirmed ?? null,
+          : (this.frames.get(produce)?.remoteConfirmed ?? null),
     });
 
     const stored = this.frames.get(produce)!;
     const remoteUse =
-      stored.remoteConfirmed !== null ? stored.remoteConfirmed : stored.remotePred;
+      stored.remoteConfirmed !== null
+        ? stored.remoteConfirmed
+        : stored.remotePred;
     const inputs = this.pack(stored.local, remoteUse);
 
     this.state = advance(this.state, inputs);

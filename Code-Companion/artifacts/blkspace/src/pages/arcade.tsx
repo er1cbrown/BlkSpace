@@ -136,7 +136,10 @@ export default function ArcadePage() {
           </div>
           <p className="text-sm text-muted-foreground max-w-2xl">
             Campus shelf for student games and systems demos — play in the{" "}
-            <Link href="/play" className="text-primary underline-offset-2 hover:underline">
+            <Link
+              href="/play"
+              className="text-primary underline-offset-2 hover:underline"
+            >
               Play shell
             </Link>
             , share with the yard, optional soft WB list later. Same{" "}
@@ -150,7 +153,10 @@ export default function ArcadePage() {
             </span>{" "}
             — Flash nostalgia trilogy (Rumble → Smash Flash → Capoeira/tag
             classes), original cast only.{" "}
-            <Link href="/rollback" className="text-primary underline-offset-2 hover:underline font-medium">
+            <Link
+              href="/rollback"
+              className="text-primary underline-offset-2 hover:underline font-medium"
+            >
               Rollback lab (N1)
             </Link>
           </p>
@@ -290,9 +296,7 @@ export default function ArcadePage() {
           </Select>
           <Select
             value={sizeFilter}
-            onValueChange={(v) =>
-              setSizeFilter(v as ArcadeSizeClass | "all")
-            }
+            onValueChange={(v) => setSizeFilter(v as ArcadeSizeClass | "all")}
           >
             <SelectTrigger className="sm:w-[140px]">
               <SelectValue placeholder="Size" />

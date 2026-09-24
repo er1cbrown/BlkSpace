@@ -14,10 +14,7 @@
  */
 
 import { createYardEvent, type YardEvent } from "@/lib/yard-events";
-import {
-  createTournament,
-  type Tournament,
-} from "@/lib/club-activities";
+import { createTournament, type Tournament } from "@/lib/club-activities";
 import { embedAmalgamationMeta } from "@/lib/amalgamation-meta";
 import { grantLeagueBadge } from "@/lib/yard-spirit";
 import { injectHubItemsIfAbsent, type HubItem } from "@/lib/content-hub";
@@ -73,7 +70,8 @@ export const SBF_SERIES: readonly SbfSeriesEntry[] = [
     productId: PRODUCT_ID_SBF_TAG_3,
     version: "3.0",
     title: "Super BKSPC Fighters: Tag",
-    nostalgiaClass: "Capoeira Fighter craft + 2XKO-style tag + MUGEN host energy",
+    nostalgiaClass:
+      "Capoeira Fighter craft + 2XKO-style tag + MUGEN host energy",
     castNote: "Staple HBCU-inspired mascots (original designs) + series vets",
     headline:
       "Culture movement kits · tag/assist · full expansion-pack download",
@@ -90,8 +88,7 @@ export const YARD_DAY_BRAWL_TITLE = "Yard Day Brawl";
 export const YARD_DAY_BRAWL_NAME = SUPER_BLKSPACE_FIGHTERS;
 
 /** Umbrella identity */
-export const PROJECT_B_EQUATION =
-  "ProjectB(XK20) = ProjectBlackSpaceFighters";
+export const PROJECT_B_EQUATION = "ProjectB(XK20) = ProjectBlackSpaceFighters";
 
 /** Per-title product lines */
 export const SBF_PRODUCT_LINES =
@@ -206,19 +203,22 @@ export const BRAWL_MODES: {
   {
     id: "story",
     label: "Story",
-    blurb: "Solo path: welcome → club trials → Yard Day finale (narrative posts).",
+    blurb:
+      "Solo path: welcome → club trials → Yard Day finale (narrative posts).",
     eventKind: "tournament",
   },
   {
     id: "versus",
     label: "Versus",
-    blurb: "1v1 or free-for-all bracket. Report scores; multi-round auto-advance.",
+    blurb:
+      "1v1 or free-for-all bracket. Report scores; multi-round auto-advance.",
     eventKind: "tournament",
   },
   {
     id: "survival",
     label: "Survival",
-    blurb: "Wave challenge — how many club bots can you outlast? Soft WB by wave.",
+    blurb:
+      "Wave challenge — how many club bots can you outlast? Soft WB by wave.",
     eventKind: "social",
   },
   {
@@ -285,8 +285,7 @@ export async function hostYardDayBrawl(
 
   // Prefer Arcade / homebrew jam URL — never claim NG Rumble / Flash ROM
   const playUrl =
-    input.playUrl?.trim() ||
-    "https://webassembly.github.io/wabt/demo/";
+    input.playUrl?.trim() || "https://webassembly.github.io/wabt/demo/";
   const liveUrl = input.liveUrl?.trim() || "";
   const clubChannel = input.clubChannel?.trim() || "#sbf-watch";
   const prizeWb = Math.max(
@@ -316,8 +315,6 @@ export async function hostYardDayBrawl(
   const description = embedAmalgamationMeta(body, {
     playUrl,
     liveUrl: liveUrl || undefined,
-    clubChannel,
-    prizeWb: prizeWb > 0 ? prizeWb : undefined,
   });
 
   const event = await createYardEvent({

@@ -47,7 +47,9 @@ export function HyperEvmPanel({ className }: { className?: string }) {
   const [cfg, setCfg] = useState(() => getHyperevmConfig());
   const [accountDraft, setAccountDraft] = useState(cfg.account);
   const [bi9Draft, setBi9Draft] = useState(cfg.bi9);
-  const [networkDraft, setNetworkDraft] = useState<HyperevmNetwork>(cfg.network);
+  const [networkDraft, setNetworkDraft] = useState<HyperevmNetwork>(
+    cfg.network,
+  );
   const [hype, setHype] = useState<string | null>(null);
   const [bi9, setBi9] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -89,7 +91,9 @@ export function HyperEvmPanel({ className }: { className?: string }) {
   const addChain = async () => {
     const eth = injectedEthereum();
     if (!eth) {
-      toast.error("No injected wallet. Add HyperEVM from chainlist.org/chain/999");
+      toast.error(
+        "No injected wallet. Add HyperEVM from chainlist.org/chain/999",
+      );
       return;
     }
     try {
@@ -191,7 +195,11 @@ export function HyperEvmPanel({ className }: { className?: string }) {
               <Button size="sm" onClick={() => void refresh()} disabled={busy}>
                 {busy ? "Reading…" : "Read HYPE / BI9"}
               </Button>
-              <Button size="sm" variant="outline" onClick={() => void addChain()}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void addChain()}
+              >
                 Add HyperEVM to wallet
               </Button>
               <Button size="sm" variant="outline" asChild>
@@ -208,7 +216,9 @@ export function HyperEvmPanel({ className }: { className?: string }) {
 
             {(hype !== null || bi9 !== null) && (
               <div className="rounded-xl border bg-muted/30 p-3 space-y-1">
-                <p className="text-xs text-muted-foreground">Balances (read-only)</p>
+                <p className="text-xs text-muted-foreground">
+                  Balances (read-only)
+                </p>
                 <p className="font-bold">
                   {hype ?? "—"}{" "}
                   <span className="text-sm font-normal text-muted-foreground">

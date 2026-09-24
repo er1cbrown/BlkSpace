@@ -17,9 +17,7 @@ export type WebProfileMusic = {
   savedAt: string;
 };
 
-type Stored =
-  | WebProfileMusic
-  | { tracks: WebProfileMusic[]; savedAt?: string };
+type Stored = WebProfileMusic | { tracks: WebProfileMusic[]; savedAt?: string };
 
 function readStored(handle: string): WebProfileMusic[] {
   if (!handle) return [];
@@ -97,7 +95,10 @@ export function appendWebProfileTrack(
   return next;
 }
 
-export function removeWebProfileTrack(handle: string, id: string): WebProfileMusic[] {
+export function removeWebProfileTrack(
+  handle: string,
+  id: string,
+): WebProfileMusic[] {
   const next = readStored(handle).filter((t) => t.id !== id);
   writeStored(handle, next);
   return next;

@@ -5,7 +5,11 @@
  * Client estimates from local Connect + optional feed/follow samples.
  * Time/space: O(|orgs| + |opps| + |follows|) — not global O(N_u^2).
  */
-import { listOpportunities, listOrgs, type ConnectOrg } from "@/lib/project-connect";
+import {
+  listOpportunities,
+  listOrgs,
+  type ConnectOrg,
+} from "@/lib/project-connect";
 import {
   domainsForOpportunity,
   type OpportunityDomain,

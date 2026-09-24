@@ -14,10 +14,7 @@
  */
 
 import { isTauri } from "@/lib/tauri-api";
-import {
-  getIntranetStatus,
-  type IntranetStatus,
-} from "@/lib/hbcu-intranet";
+import { getIntranetStatus, type IntranetStatus } from "@/lib/hbcu-intranet";
 import {
   getReticulumStatus,
   RNS_INSTALL_HINT,
@@ -33,11 +30,7 @@ import {
 export type ConnectivityRouteId = "A" | "B" | "C";
 
 export type RouteRuntimeStatus =
-  | "live"
-  | "partial"
-  | "unavailable"
-  | "vision"
-  | "web_only";
+  "live" | "partial" | "unavailable" | "vision" | "web_only";
 
 export interface ConnectivityRouteDef {
   id: ConnectivityRouteId;
@@ -55,7 +48,8 @@ export const CONNECTIVITY_ROUTES: readonly ConnectivityRouteDef[] = [
     id: "A",
     codename: "social",
     title: "Social mesh",
-    endGoalSlice: "Host nights · chat · Connect · feed · match results into cache",
+    endGoalSlice:
+      "Host nights · chat · Connect · feed · match results into cache",
     transport: "Nostr WebSocket relays · town / intranet tags",
     localStore: "Embedded Turso / SQLite (per device — not a mesh peer)",
     neverUseFor: "60 Hz fight inputs · LoRa group spam as primary chat",
@@ -135,7 +129,7 @@ export async function probeThreeRoutes(): Promise<ThreeRouteSnapshot> {
     };
   }
 
-  const routeA: RouteStatusSnapshot = (() => {
+  const routeA = ((): RouteStatusSnapshot => {
     const def = routeDef("A");
     if (!desktop) {
       return {

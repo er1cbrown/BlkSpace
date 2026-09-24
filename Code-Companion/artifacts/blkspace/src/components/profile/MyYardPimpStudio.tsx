@@ -160,7 +160,9 @@ export function MyYardPimpStudio({
               size="sm"
               variant="secondary"
               onClick={() => {
-                onPatch({ customCss: appendSnippet(aesthetic.customCss, snip) });
+                onPatch({
+                  customCss: appendSnippet(aesthetic.customCss, snip),
+                });
                 toast.success(`${snip.label} added`);
               }}
             >

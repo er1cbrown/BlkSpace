@@ -11,7 +11,10 @@ describe("browser portfolio files", () => {
     const file = new File(["syllabus"], "syllabus.pdf", {
       type: "application/pdf",
     });
-    const id = await webStoreFile(file, "data:application/pdf;base64,c3lsbGFidXM=");
+    const id = await webStoreFile(
+      file,
+      "data:application/pdf;base64,c3lsbGFidXM=",
+    );
     expect(isWebBlobId(id)).toBe(true);
     const saved = await webGetBlobAsync(id);
     expect(saved?.filename).toBe("syllabus.pdf");

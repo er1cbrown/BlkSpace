@@ -11,7 +11,9 @@ export function WalletDisclaimer() {
       <p className="flex items-start gap-2">
         <Coins className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <span>
-          <strong className="text-foreground">Practice credits (WeixBucks)</strong>{" "}
+          <strong className="text-foreground">
+            Practice credits (WeixBucks)
+          </strong>{" "}
           are earn-only soft currency for the yard and creator shop — not
           investment advice and not purchasable with cash.{" "}
           <strong className="text-foreground">Yard Cred</strong> is reliability
@@ -25,7 +27,10 @@ export function WalletDisclaimer() {
       </p>
       <p className="text-xs pl-6">
         Learn how brokerages and markets work under{" "}
-        <Link href="/wallet" className="text-primary underline-offset-2 hover:underline">
+        <Link
+          href="/wallet"
+          className="text-primary underline-offset-2 hover:underline"
+        >
           Learn markets
         </Link>{" "}
         — BKSPC is not a brokerage.

@@ -172,7 +172,8 @@ export function PostComposer({
       setPending((prev) => {
         const kept = prev.filter((p) => {
           if (p.kind !== "video") return true;
-          if (p.previewUrl.startsWith("blob:")) URL.revokeObjectURL(p.previewUrl);
+          if (p.previewUrl.startsWith("blob:"))
+            URL.revokeObjectURL(p.previewUrl);
           if (p.hash && isWebBlobId(p.hash)) webDeleteBlob(p.hash);
           return false;
         });
@@ -184,9 +185,7 @@ export function PostComposer({
       ? 0
       : pending.filter((p) => p.kind !== "video").length +
         pending.filter((p) => p.kind === "video").length;
-    const room = opts?.videoOnly
-      ? MAX_VIDEOS_PER_POST
-      : maxFiles - occupied;
+    const room = opts?.videoOnly ? MAX_VIDEOS_PER_POST : maxFiles - occupied;
     if (room <= 0) {
       toast.error(`Max ${maxFiles} files per post`);
       return;

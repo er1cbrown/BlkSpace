@@ -204,10 +204,11 @@ export default function DeviceMeshTestPage() {
             </h1>
           </div>
           <p className="text-lg opacity-90 max-w-2xl">
-            Secure connectivity · 3 routes (Social ∥ Resilient ∥ Play). Cross-device
-            sync + HBCU intranet — {topo.totalYards} yards on shared relays (not{" "}
-            {topo.pairwiseLinksIfFullMesh.toLocaleString()} pairwise). Nostr,
-            optional RNS, play/rollback design — not one spaghetti pipe.
+            Secure connectivity · 3 routes (Social ∥ Resilient ∥ Play).
+            Cross-device sync + HBCU intranet — {topo.totalYards} yards on
+            shared relays (not {topo.pairwiseLinksIfFullMesh.toLocaleString()}{" "}
+            pairwise). Nostr, optional RNS, play/rollback design — not one
+            spaghetti pipe.
           </p>
           <div className="flex items-center gap-2 mt-4 text-sm">
             <Badge variant="outline" className="bg-background/20">
@@ -689,9 +690,10 @@ export default function DeviceMeshTestPage() {
                 </CardTitle>
                 <CardDescription>
                   Target: Windows 10, 4GB RAM, i3 — shell ready &amp; feed
-                  interactive &lt;3s (process clock) plus SQLite/blob gates. Sign
-                  off DEVICE_MESH_TESTING.md §4.1 / YARD_RELEASE_CHECKLIST A4.
-                  Open /feed once this session before bench for feed-interactive.
+                  interactive &lt;3s (process clock) plus SQLite/blob gates.
+                  Sign off DEVICE_MESH_TESTING.md §4.1 / YARD_RELEASE_CHECKLIST
+                  A4. Open /feed once this session before bench for
+                  feed-interactive.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

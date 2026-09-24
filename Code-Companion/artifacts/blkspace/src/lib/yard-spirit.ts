@@ -8,11 +8,7 @@ import { getCurrentHandle } from "@/lib/auth";
 import type { MyYardAesthetic } from "@/lib/myyard-layout";
 import { DEFAULT_AESTHETIC } from "@/lib/myyard-layout";
 
-export type SpiritLayer =
-  | "individual"
-  | "community"
-  | "university"
-  | "league";
+export type SpiritLayer = "individual" | "community" | "university" | "league";
 
 export type SpiritCosmeticKind = "badge" | "frame" | "myyard_preset";
 
@@ -162,7 +158,8 @@ export const SPIRIT_CATALOG: SpiritCosmetic[] = [
   {
     id: "preset_brawl_night",
     name: "SBF series Night MyYard",
-    blurb: "Flash-era neon for ProjectBlackSpaceFighters trilogy nights (YDB1→XQ5D→5DXQ).",
+    blurb:
+      "Flash-era neon for ProjectBlackSpaceFighters trilogy nights (YDB1→XQ5D→5DXQ).",
     kind: "myyard_preset",
     layer: "league",
     priceWb: 15,

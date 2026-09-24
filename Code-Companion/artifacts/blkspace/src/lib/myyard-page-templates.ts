@@ -2,10 +2,7 @@
  * React-side page templates for MyYard (Myspace diversity without raw CSS first).
  * Visual + audio nuance can layer on later; these set the aesthetic skeleton.
  */
-import {
-  DEFAULT_AESTHETIC,
-  type MyYardAesthetic,
-} from "@/lib/myyard-layout";
+import { DEFAULT_AESTHETIC, type MyYardAesthetic } from "@/lib/myyard-layout";
 import type { ProfileThemeId } from "@/lib/myyard-catalog";
 
 export type PageTemplateId =

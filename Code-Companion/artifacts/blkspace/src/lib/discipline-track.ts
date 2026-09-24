@@ -7,19 +7,10 @@
 import type { HubTopic } from "@/lib/content-hub";
 
 export type DisciplineTrack =
-  | "general"
-  | "social"
-  | "finance"
-  | "creative"
-  | "research"
-  | "faculty";
+  "general" | "social" | "finance" | "creative" | "research" | "faculty";
 
 export type DisciplineStartPath =
-  | "/feed"
-  | "/hub"
-  | "/focus"
-  | "/communities"
-  | "/connect";
+  "/feed" | "/hub" | "/focus" | "/communities" | "/connect" | "/wallet";
 
 export type DisciplinePinnedModules = {
   events: boolean;
@@ -275,11 +266,7 @@ export function applyDisciplineToUiPrefs<
     pinnedModules?: DisciplinePinnedModules;
     startPath?: DisciplineStartPath;
   },
->(
-  prefs: T,
-  track: DisciplineTrack,
-  opts?: { setStartPath?: boolean },
-): T {
+>(prefs: T, track: DisciplineTrack, opts?: { setStartPath?: boolean }): T {
   const meta = getDisciplineTrack(track);
   return {
     ...prefs,

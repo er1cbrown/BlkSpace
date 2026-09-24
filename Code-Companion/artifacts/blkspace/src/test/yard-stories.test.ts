@@ -58,9 +58,9 @@ describe("yard-stories (24h ephemeral)", () => {
   });
 
   it("requires content or media", () => {
-    expect(() =>
-      createYardStory({ content: "  ", townTag: "tsu" }),
-    ).toThrow(/text or media/i);
+    expect(() => createYardStory({ content: "  ", townTag: "tsu" })).toThrow(
+      /text or media/i,
+    );
   });
 
   it("clearAllStories empties store", () => {

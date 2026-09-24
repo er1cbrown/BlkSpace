@@ -196,22 +196,24 @@ export function EscrowTradesPanel() {
                   {(isBuyer || isSeller) &&
                     canonical !== "released" &&
                     canonical !== "refunded" && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={refund.isPending}
-                      onClick={async () => {
-                        try {
-                          await refund.mutateAsync(t.id);
-                          toast.success("Refunded to buyer · listing reopened");
-                        } catch (e) {
-                          toast.error(String(e));
-                        }
-                      }}
-                    >
-                      Refund
-                    </Button>
-                  )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={refund.isPending}
+                        onClick={async () => {
+                          try {
+                            await refund.mutateAsync(t.id);
+                            toast.success(
+                              "Refunded to buyer · listing reopened",
+                            );
+                          } catch (e) {
+                            toast.error(String(e));
+                          }
+                        }}
+                      >
+                        Refund
+                      </Button>
+                    )}
                 </div>
               </div>
             );

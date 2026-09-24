@@ -294,7 +294,9 @@ export function listYardThemes(opts?: {
   control?: "public" | "private";
   query?: string;
 }): YardThemePack[] {
-  let list = ALL_YARD_CATALOG.map((h) => YARD_THEME_PACKS[h.id]).filter(Boolean);
+  let list = ALL_YARD_CATALOG.map((h) => YARD_THEME_PACKS[h.id]).filter(
+    Boolean,
+  );
   if (opts?.featuredOnly) {
     list = list.filter((y) => y.featured);
   }

@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { installBufferPolyfill } from "@/lib/buffer-polyfill";
-import { createNostrIdentity, nsecToMnemonic, mnemonicToNsec } from "@/lib/auth";
+import {
+  createNostrIdentity,
+  nsecToMnemonic,
+  mnemonicToNsec,
+} from "@/lib/auth";
 
 describe("buffer-polyfill", () => {
   it("installs Buffer.from / isBuffer for bip39", () => {

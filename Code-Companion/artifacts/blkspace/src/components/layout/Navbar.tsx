@@ -22,9 +22,7 @@ export function Navbar() {
     { href: "/connect", label: "Connect" },
     { href: "/media", label: "Media" },
     { href: "/communities", label: "Communities" },
-    ...(isYardMod(getCurrentHandle())
-      ? [{ href: "/mod", label: "Mod" }]
-      : []),
+    ...(isYardMod(getCurrentHandle()) ? [{ href: "/mod", label: "Mod" }] : []),
     { href: "/relays", label: "Network" },
     { href: "/mesh-test", label: "Sync Test" },
     { href: "/architecture", label: "Stack" },

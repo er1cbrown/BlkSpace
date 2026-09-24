@@ -10,7 +10,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Award, Building2, CheckCircle2, Handshake, Sparkles } from "lucide-react";
+import {
+  Award,
+  Building2,
+  CheckCircle2,
+  Handshake,
+  Sparkles,
+} from "lucide-react";
 import { getYardCred } from "@/lib/project-connect";
 
 /**
@@ -116,7 +122,9 @@ export function YardCredCard({ handle }: { handle: string }) {
           </ul>
           <p className="text-xs text-muted-foreground">
             Interests expressed:{" "}
-            <span className="text-foreground font-medium">{cred.interests}</span>
+            <span className="text-foreground font-medium">
+              {cred.interests}
+            </span>
             {" · "}
             Daily interest caps apply (anti-spam).
           </p>

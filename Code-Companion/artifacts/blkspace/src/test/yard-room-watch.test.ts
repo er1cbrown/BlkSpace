@@ -19,10 +19,9 @@ describe("parseWatchSource", () => {
   });
 
   it("accepts an allowlisted HTTPS Jellyfin origin", () => {
-    const r = parseWatchSource(
-      "https://media.campus.example/Items/deadbeef",
-      { jellyfinOrigins: ["https://media.campus.example"] },
-    );
+    const r = parseWatchSource("https://media.campus.example/Items/deadbeef", {
+      jellyfinOrigins: ["https://media.campus.example"],
+    });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.ticket.kind).toBe("jellyfin");
@@ -45,7 +44,9 @@ describe("parseWatchSource", () => {
   });
 
   it("refuses unknown HTTPS as Jellyfin", () => {
-    const r = parseWatchSource("https://random.example/web/index.html#!/details?id=1");
+    const r = parseWatchSource(
+      "https://random.example/web/index.html#!/details?id=1",
+    );
     expect(r.ok).toBe(false);
   });
 

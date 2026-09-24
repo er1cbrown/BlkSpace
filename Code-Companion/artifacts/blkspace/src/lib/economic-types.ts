@@ -3,12 +3,7 @@
 export type TipStatus = "pending" | "confirmed" | "settled" | "failed";
 
 export type EscrowStatus =
-  | "listed"
-  | "matched"
-  | "funds_locked"
-  | "delivered"
-  | "released"
-  | "dispute";
+  "listed" | "matched" | "funds_locked" | "delivered" | "released" | "dispute";
 
 /** Extra terminal state kept for existing refunds. */
 export type EscrowStatusExtended = EscrowStatus | "refunded";
@@ -72,16 +67,18 @@ export const TIP_TRANSITIONS: Record<TipStatus, TipStatus[]> = {
   failed: [],
 };
 
-export const ESCROW_TRANSITIONS: Record<EscrowStatusExtended, EscrowStatusExtended[]> =
-  {
-    listed: ["matched"],
-    matched: ["funds_locked"],
-    funds_locked: ["delivered", "dispute", "released", "refunded"],
-    delivered: ["released", "dispute", "refunded"],
-    dispute: ["delivered", "released", "refunded"],
-    released: [],
-    refunded: [],
-  };
+export const ESCROW_TRANSITIONS: Record<
+  EscrowStatusExtended,
+  EscrowStatusExtended[]
+> = {
+  listed: ["matched"],
+  matched: ["funds_locked"],
+  funds_locked: ["delivered", "dispute", "released", "refunded"],
+  delivered: ["released", "dispute", "refunded"],
+  dispute: ["delivered", "released", "refunded"],
+  released: [],
+  refunded: [],
+};
 
 export function canTransitionTip(from: TipStatus, to: TipStatus): boolean {
   return TIP_TRANSITIONS[from].includes(to);

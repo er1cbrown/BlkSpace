@@ -14,10 +14,7 @@ import {
   mediaKindFromMime,
   type MediaKind,
 } from "@/lib/media-upload";
-import {
-  isWebBlobId,
-  webGetBlobAsync,
-} from "@/lib/media-web-store";
+import { isWebBlobId, webGetBlobAsync } from "@/lib/media-web-store";
 import { isRemoteMediaUrl, isStreamUrl } from "@/lib/remote-media";
 import { cn } from "@/lib/utils";
 
@@ -211,9 +208,9 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
       const info = await tauriGetBlobMetadata(token, hash);
       const size = info?.fileSize ?? 0;
       const kind = mediaKindFromMime(info?.mimeType || "", info?.filename);
-      const inlineLimit = kind === "video" ? VIDEO_INLINE_LIMIT : INLINE_LOAD_LIMIT;
-      const large =
-        size > inlineLimit || kind === "pdf" || kind === "doc";
+      const inlineLimit =
+        kind === "video" ? VIDEO_INLINE_LIMIT : INLINE_LOAD_LIMIT;
+      const large = size > inlineLimit || kind === "pdf" || kind === "doc";
 
       setItems((prev) => {
         const next = [...prev];
@@ -243,6 +240,8 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
         return next;
       });
     });
+
+    return undefined;
   }, [hashes.join(",")]);
 
   const loadLarge = async (i: number) => {
@@ -288,10 +287,7 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
 
   if (hashes.length === 0) return null;
   // Allow web blob ids without Tauri; pure tauri hashes need desktop
-  if (
-    !isTauri() &&
-    !hashes.some((h) => isWebBlobId(h) || isRemoteMediaUrl(h))
-  )
+  if (!isTauri() && !hashes.some((h) => isWebBlobId(h) || isRemoteMediaUrl(h)))
     return null;
 
   return (

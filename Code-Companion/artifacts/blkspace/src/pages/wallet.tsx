@@ -216,9 +216,7 @@ function SendDialog({
               onChange={(e) => setMessage(e.target.value)}
             />
           </div>
-          {lastError && (
-            <p className="text-sm text-destructive">{lastError}</p>
-          )}
+          {lastError && <p className="text-sm text-destructive">{lastError}</p>}
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -228,11 +226,7 @@ function SendDialog({
             onClick={handleSend}
             disabled={busy || !toHandle.trim() || !amount}
           >
-            {phase === "settling"
-              ? "Settling…"
-              : busy
-                ? "Sending..."
-                : "Send"}
+            {phase === "settling" ? "Settling…" : busy ? "Sending..." : "Send"}
           </Button>
         </DialogFooter>
       </DialogContent>

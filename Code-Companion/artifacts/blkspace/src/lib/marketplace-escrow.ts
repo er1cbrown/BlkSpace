@@ -232,11 +232,7 @@ function pushEvent(
   e.events.push({ status, at: nowMs(), by, note });
 }
 
-function recordEscrowHistory(
-  e: EscrowTrade,
-  amount: number,
-  actor: string,
-) {
+function recordEscrowHistory(e: EscrowTrade, amount: number, actor: string) {
   const canonical = toCanonicalEscrowStatus(e.status);
   pushHistory({
     id: `hist_escrow_${e.id}_${canonical}`,
@@ -247,8 +243,7 @@ function recordEscrowHistory(
     fee: e.platformFee,
     status: canonical,
     createdAt: nowMs(),
-    counterparty:
-      actor === e.buyerHandle ? e.sellerHandle : e.buyerHandle,
+    counterparty: actor === e.buyerHandle ? e.sellerHandle : e.buyerHandle,
     nostrEventId: `local:escrow:${e.id}:${canonical}`,
     yardCredDelta:
       canonical === "released" ? YARD_CRED_RELEASE_DELTA : undefined,

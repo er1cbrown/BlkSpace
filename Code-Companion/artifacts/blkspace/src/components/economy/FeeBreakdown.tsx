@@ -13,7 +13,9 @@ export function FeeBreakdown({
   const fee = calcPlatformFee(amount, feeBps);
   const net = Math.max(0, amount - fee);
   return (
-    <div className={className ?? "text-[10px] text-muted-foreground space-y-0.5"}>
+    <div
+      className={className ?? "text-[10px] text-muted-foreground space-y-0.5"}
+    >
       <p>
         Amount {amount} WB · platform fee {formatFeePercent(feeBps)} = {fee} WB
       </p>

@@ -105,67 +105,70 @@ export default function SignupPage() {
               />
             ) : (
               <>
-            <div className="space-y-2">
-              <Label htmlFor="name">Display Name</Label>
-              <Input
-                id="name"
-                placeholder="Your name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="handle">Handle</Label>
-              <Input
-                id="handle"
-                placeholder="yourhandle"
-                value={handle}
-                onChange={(e) =>
-                  setHandle(e.target.value.replace(/[^a-zA-Z0-9]/g, ""))
-                }
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                Inside BKSPC you are @{normalizeHandle(handle) || "handle"}.
-                Your address is {bkspcAddress(handle || "handle")}.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@school.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="new-password"
-              />
-              <p className="text-xs text-muted-foreground">
-                At least 8 characters, with one uppercase letter, one lowercase
-                letter, one digit 0–9, and one symbol. Latin letters only.
-              </p>
-            </div>
-            <p className="text-xs text-muted-foreground text-center">
-              Other social accounts connect to this @handle later. Email
-              verification sends once mail is hooked up.
-            </p>
-            <Button
-              onClick={joinYard}
-              className="w-full rounded-full h-12 text-base font-bold"
-              disabled={saving || !handle.trim() || !email.trim() || !password}
-            >
-              {saving ? "Creating..." : "Join the Yard"}
-            </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Display Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="Your name"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="handle">Handle</Label>
+                  <Input
+                    id="handle"
+                    placeholder="yourhandle"
+                    value={handle}
+                    onChange={(e) =>
+                      setHandle(e.target.value.replace(/[^a-zA-Z0-9]/g, ""))
+                    }
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Inside BKSPC you are @{normalizeHandle(handle) || "handle"}.
+                    Your address is {bkspcAddress(handle || "handle")}.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@school.edu"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    At least 8 characters, with one uppercase letter, one
+                    lowercase letter, one digit 0–9, and one symbol. Latin
+                    letters only.
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Other social accounts connect to this @handle later. Email
+                  verification sends once mail is hooked up.
+                </p>
+                <Button
+                  onClick={joinYard}
+                  className="w-full rounded-full h-12 text-base font-bold"
+                  disabled={
+                    saving || !handle.trim() || !email.trim() || !password
+                  }
+                >
+                  {saving ? "Creating..." : "Join the Yard"}
+                </Button>
               </>
             )}
             <p className="text-center text-sm text-muted-foreground">

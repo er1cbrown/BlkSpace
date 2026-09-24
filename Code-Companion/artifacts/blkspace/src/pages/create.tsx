@@ -64,8 +64,7 @@ export default function CreatePage() {
       return;
     }
 
-    const postContent =
-      body || (mode === "reel" ? "🎬 New reel" : "📎");
+    const postContent = body || (mode === "reel" ? "🎬 New reel" : "📎");
     createPost.mutate(
       {
         content: postContent,
@@ -168,9 +167,10 @@ export default function CreatePage() {
           {mode === "story" ? (
             <>
               <p>
-                Stories live <strong className="text-foreground">24 hours</strong>{" "}
-                on this device / browser, then disappear. They do not stay on
-                the permanent feed.
+                Stories live{" "}
+                <strong className="text-foreground">24 hours</strong> on this
+                device / browser, then disappear. They do not stay on the
+                permanent feed.
               </p>
               <p>No soft-credit farm on stories — keep the economy honest.</p>
             </>

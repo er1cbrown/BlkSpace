@@ -9,7 +9,10 @@ export function EscrowTimeline({ events }: { events: EscrowEvent[] }) {
         const canonical = toCanonicalEscrowStatus(ev.status);
         const label = ESCROW_STATUS_LABEL[canonical] || ev.status;
         return (
-          <li key={`${ev.at}-${i}`} className="text-[10px] text-muted-foreground">
+          <li
+            key={`${ev.at}-${i}`}
+            className="text-[10px] text-muted-foreground"
+          >
             <span className="font-medium text-foreground">{label}</span>
             {" · "}
             {new Date(ev.at).toLocaleString()}

@@ -326,8 +326,10 @@ export default function HubPage() {
                     item.mediaUrl &&
                     isSafeHttpUrl(item.mediaUrl) && (
                       <Link
-                        href={playShellPath(item.mediaUrl) +
-                          `&title=${encodeURIComponent(item.title)}`}
+                        href={
+                          playShellPath(item.mediaUrl) +
+                          `&title=${encodeURIComponent(item.title)}`
+                        }
                       >
                         <Button size="sm" className="gap-1 h-8">
                           <Gamepad2 className="w-3.5 h-3.5" />

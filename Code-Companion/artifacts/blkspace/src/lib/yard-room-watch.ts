@@ -95,7 +95,8 @@ function jellyfinFromUrl(url: URL, extra: string[]): WatchParseResult {
   if (!isAllowedJellyfinOrigin(origin, extra)) {
     return {
       ok: false,
-      reason: "Jellyfin origin is not on the allowlist (HTTPS + configured host, or localhost)",
+      reason:
+        "Jellyfin origin is not on the allowlist (HTTPS + configured host, or localhost)",
     };
   }
   const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
@@ -125,13 +126,15 @@ function jellyfinFromUrl(url: URL, extra: string[]): WatchParseResult {
 function syncplayFromUrl(url: URL): WatchParseResult {
   const host = url.hostname.toLowerCase();
   const okHost =
-    host === "syncplay.pl" ||
-    host.endsWith(".syncplay.pl") ||
-    isLoopback(host);
+    host === "syncplay.pl" || host.endsWith(".syncplay.pl") || isLoopback(host);
   if (!okHost) {
     return { ok: false, reason: "Syncplay host is not allowlisted" };
   }
-  if (url.protocol !== "https:" && url.protocol !== "syncplay:" && !isLoopback(host)) {
+  if (
+    url.protocol !== "https:" &&
+    url.protocol !== "syncplay:" &&
+    !isLoopback(host)
+  ) {
     return { ok: false, reason: "Syncplay must be https (or loopback)" };
   }
   return {
@@ -145,10 +148,14 @@ function parseObject(raw: unknown, extra: string[]): WatchParseResult {
     return { ok: false, reason: "watch ticket is not an object" };
   }
   const o = raw as Record<string, unknown>;
-  if (o.v !== 1) return { ok: false, reason: "unsupported watch ticket version" };
+  if (o.v !== 1)
+    return { ok: false, reason: "unsupported watch ticket version" };
   const kind = o.kind;
   if (kind !== "jellyfin" && kind !== "iroh" && kind !== "syncplay") {
-    return { ok: false, reason: "watch kind must be jellyfin, iroh, or syncplay" };
+    return {
+      ok: false,
+      reason: "watch kind must be jellyfin, iroh, or syncplay",
+    };
   }
   const ticket: WatchTicket = {
     v: 1,
@@ -162,24 +169,32 @@ function parseObject(raw: unknown, extra: string[]): WatchParseResult {
     syncplayUrl: typeof o.syncplayUrl === "string" ? o.syncplayUrl : undefined,
   };
   if (kind === "jellyfin") {
-    if (!ticket.origin) return { ok: false, reason: "jellyfin ticket missing origin" };
+    if (!ticket.origin)
+      return { ok: false, reason: "jellyfin ticket missing origin" };
     if (!isAllowedJellyfinOrigin(ticket.origin, extra)) {
       return { ok: false, reason: "Jellyfin origin is not on the allowlist" };
     }
   }
   if (kind === "iroh") {
     if (!ticket.ticket && !ticket.cid) {
-      return { ok: false, reason: "iroh ticket missing cid or blkspace1 ticket" };
+      return {
+        ok: false,
+        reason: "iroh ticket missing cid or blkspace1 ticket",
+      };
     }
     if (ticket.ticket && !ticket.ticket.startsWith(IROH_PREFIX)) {
       return { ok: false, reason: "iroh share must be a blkspace1 ticket" };
     }
     if (!isMediaMime(ticket.mime)) {
-      return { ok: false, reason: "iroh watch mime must be video/* or audio/*" };
+      return {
+        ok: false,
+        reason: "iroh watch mime must be video/* or audio/*",
+      };
     }
   }
   if (kind === "syncplay") {
-    if (!ticket.syncplayUrl) return { ok: false, reason: "syncplay ticket missing url" };
+    if (!ticket.syncplayUrl)
+      return { ok: false, reason: "syncplay ticket missing url" };
     try {
       return syncplayFromUrl(new URL(ticket.syncplayUrl));
     } catch {
@@ -212,7 +227,8 @@ export function parseWatchSource(
   if (text.startsWith(IROH_PREFIX)) {
     return {
       ok: false,
-      reason: "bare blkspace1 ticket needs a video/audio mime; wrap as blkspace-watch.v1",
+      reason:
+        "bare blkspace1 ticket needs a video/audio mime; wrap as blkspace-watch.v1",
     };
   }
 
@@ -230,7 +246,10 @@ export function parseWatchSource(
   if (url.protocol === "syncplay:") return syncplayFromUrl(url);
 
   if (url.protocol !== "https:" && !isLoopback(url.hostname)) {
-    return { ok: false, reason: "only https (or localhost) watch URLs are allowed" };
+    return {
+      ok: false,
+      reason: "only https (or localhost) watch URLs are allowed",
+    };
   }
 
   if (

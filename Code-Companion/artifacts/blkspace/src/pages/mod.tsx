@@ -44,8 +44,8 @@ export default function ModPage() {
 
         {!mod ? (
           <p className="text-sm border border-dashed rounded-xl p-4">
-            This desk is for yard mods. Reports still go into the queue from
-            the feed.
+            This desk is for yard mods. Reports still go into the queue from the
+            feed.
           </p>
         ) : (
           <>
@@ -73,10 +73,15 @@ export default function ModPage() {
             <section className="space-y-3">
               <h2 className="font-semibold">Report queue</h2>
               {reports.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No open reports.</p>
+                <p className="text-sm text-muted-foreground">
+                  No open reports.
+                </p>
               ) : (
                 reports.map((report) => (
-                  <div key={report.id} className="border rounded-xl p-3 space-y-2">
+                  <div
+                    key={report.id}
+                    className="border rounded-xl p-3 space-y-2"
+                  >
                     <p className="text-sm">
                       Post {report.postId} by @{report.authorHandle} ·{" "}
                       {report.reason}
@@ -95,7 +100,9 @@ export default function ModPage() {
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => banHandle(report.authorHandle, report.id)}
+                        onClick={() =>
+                          banHandle(report.authorHandle, report.id)
+                        }
                       >
                         Ban @{report.authorHandle}
                       </Button>

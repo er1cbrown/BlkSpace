@@ -1,13 +1,8 @@
-# Campus web preview — no MSI required.
+# Optional GitHub Pages preview; production is deployed on Hostinger.
 # https://er1cbrown.github.io/BlkSpace/  (after GitHub Pages is enabled on the repo)
 name: Deploy Web Preview (Pages)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "Code-Companion/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 env:

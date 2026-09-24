@@ -6,20 +6,26 @@
  */
 
 type BufCtor = {
-  from(data: ArrayBuffer | ArrayLike<number> | string, enc?: string): Uint8Array & {
+  from(
+    data: ArrayBuffer | ArrayLike<number> | string,
+    enc?: string,
+  ): Uint8Array & {
     toString(enc?: string): string;
   };
   isBuffer(x: unknown): boolean;
   alloc(n: number): Uint8Array;
 };
 
-type BufferHost = typeof globalThis & {
+type BufferHost = {
   Buffer?: BufCtor;
-  global?: typeof globalThis;
+  global?: unknown;
 };
 
 function installFallback(g: BufferHost): BufCtor {
-  const asBytes = (data: ArrayBuffer | ArrayLike<number> | string, enc?: string) => {
+  const asBytes = (
+    data: ArrayBuffer | ArrayLike<number> | string,
+    enc?: string,
+  ) => {
     if (typeof data === "string") {
       if (enc === "hex") {
         const hex = data.replace(/^0x/i, "");
@@ -70,12 +76,12 @@ function installFallback(g: BufferHost): BufCtor {
 }
 
 export function installBufferPolyfill(): BufCtor {
-  const g = globalThis as BufferHost;
+  const g = globalThis as unknown as BufferHost;
   if (typeof g.Buffer === "undefined") {
     installFallback(g);
   }
   if (typeof g.global === "undefined") {
-    g.global = g;
+    g.global = globalThis;
   }
   return g.Buffer as BufCtor;
 }

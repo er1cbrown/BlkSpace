@@ -22,6 +22,11 @@ import { requireDemoWrites } from "../middlewares/demo-auth";
 
 const router = Router();
 
+function parsePostId(value: string | string[] | undefined): number {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return Number.parseInt(raw ?? "", 10);
+}
+
 async function enrichPost(
   post: typeof postsTable.$inferSelect,
   viewerHandle?: string,
@@ -106,7 +111,7 @@ router.get("/trending", async (req, res) => {
 });
 
 router.get("/:id", async (req, res) => {
-  const parsed = GetPostParams.safeParse({ id: parseInt(req.params.id) });
+  const parsed = GetPostParams.safeParse({ id: parsePostId(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
     return;
@@ -124,7 +129,7 @@ router.get("/:id", async (req, res) => {
 });
 
 router.delete("/:id", requireDemoWrites, async (req, res) => {
-  const parsed = DeletePostParams.safeParse({ id: parseInt(req.params.id) });
+  const parsed = DeletePostParams.safeParse({ id: parsePostId(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
     return;
@@ -134,7 +139,7 @@ router.delete("/:id", requireDemoWrites, async (req, res) => {
 });
 
 router.post("/:id/like", requireDemoWrites, async (req, res) => {
-  const parsed = LikePostParams.safeParse({ id: parseInt(req.params.id) });
+  const parsed = LikePostParams.safeParse({ id: parsePostId(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
     return;
@@ -170,7 +175,7 @@ router.post("/:id/like", requireDemoWrites, async (req, res) => {
 });
 
 router.delete("/:id/like", requireDemoWrites, async (req, res) => {
-  const parsed = UnlikePostParams.safeParse({ id: parseInt(req.params.id) });
+  const parsed = UnlikePostParams.safeParse({ id: parsePostId(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
     return;
@@ -209,7 +214,9 @@ router.delete("/:id/like", requireDemoWrites, async (req, res) => {
 });
 
 router.get("/:id/replies", async (req, res) => {
-  const parsed = ListRepliesParams.safeParse({ id: parseInt(req.params.id) });
+  const parsed = ListRepliesParams.safeParse({
+    id: parsePostId(req.params.id),
+  });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
     return;
@@ -237,7 +244,7 @@ router.get("/:id/replies", async (req, res) => {
 
 router.post("/:id/replies", requireDemoWrites, async (req, res) => {
   const paramsParsed = CreateReplyParams.safeParse({
-    id: parseInt(req.params.id),
+    id: parsePostId(req.params.id),
   });
   const bodyParsed = CreateReplyBody.safeParse(req.body);
   if (!paramsParsed.success || !bodyParsed.success) {

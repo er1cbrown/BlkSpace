@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  sortBySparseScore,
-  sparseLinearScore,
-} from "@/lib/sparse-rank";
+import { sortBySparseScore, sparseLinearScore } from "@/lib/sparse-rank";
 import { computeYardScaleMetrics } from "@/lib/yard-scale-metrics";
 
 /**

@@ -63,7 +63,9 @@ export function blogFypScore(
   );
 
   const eng =
-    (p.likesCount || 0) * (p.engagementQuality || 1) * (1 - (p.maliciousScore || 0));
+    (p.likesCount || 0) *
+    (p.engagementQuality || 1) *
+    (1 - (p.maliciousScore || 0));
 
   let recency = 0;
   if (p.createdAt) {

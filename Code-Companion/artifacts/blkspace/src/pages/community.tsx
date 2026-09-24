@@ -741,9 +741,9 @@ export default function CommunityPage() {
                   )}
                   <div className="pt-4 border-t">
                     <strong>Casual rules:</strong> Keep it fun, respectful, and
-                    campus-proud. Professional networking welcome in #networking.
-                    MyYards on this mesh can look different — campus theme ≠
-                    your personal creator space.
+                    campus-proud. Professional networking welcome in
+                    #networking. MyYards on this mesh can look different —
+                    campus theme ≠ your personal creator space.
                   </div>
                 </CardContent>
               </Card>

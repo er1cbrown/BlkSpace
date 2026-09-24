@@ -35,7 +35,12 @@ import { useGuestMode } from "@/lib/guest-mode";
 import { YardSidebar } from "@/components/layout/YardSidebar";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { isTauriRuntime, loadUiPrefs, saveUiPrefs } from "@/lib/ui-prefs";
+import {
+  isTauriRuntime,
+  loadUiPrefs,
+  saveUiPrefs,
+  type ChromeSkinId,
+} from "@/lib/ui-prefs";
 import { getYardTheme } from "@/lib/yard-themes";
 import { applyUiPrefsToDocument } from "@/lib/ui-prefs";
 
@@ -335,9 +340,9 @@ export function AppShell({
               <button
                 type="button"
                 onClick={() => {
-                  const next =
+                  const next: ChromeSkinId =
                     uiPrefs.chromeSkin === "terminal" ? "default" : "terminal";
-                  const prefs = { ...uiPrefs, chromeSkin: next as const };
+                  const prefs = { ...uiPrefs, chromeSkin: next };
                   if (next === "terminal") setTheme("dark");
                   saveUiPrefs(prefs);
                 }}

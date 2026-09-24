@@ -157,6 +157,9 @@ export function dismissReport(reportId: string) {
   patchReport(reportId, "dismissed");
 }
 
-export function postVisible(post: { id: number; authorHandle: string }): boolean {
+export function postVisible(post: {
+  id: number;
+  authorHandle: string;
+}): boolean {
   return !isPostHidden(post.id) && !isHandleBanned(post.authorHandle);
 }

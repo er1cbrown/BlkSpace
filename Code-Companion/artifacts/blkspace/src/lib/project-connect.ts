@@ -760,8 +760,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     description:
       "Run the Yard student smoke checklist on a 4–8 GB Windows laptop: install MSI, guest browse, TSU account/post, Customize, Live, Tier 0 benchmark. Fill the results sheet — this is the conference evidence path, not a marketing demo.",
     durationText: "1–2 hr · per device",
-    tagsJson:
-      '["ieee","device-b","tier0","evaluation","systems","smoke-test"]',
+    tagsJson: '["ieee","device-b","tier0","evaluation","systems","smoke-test"]',
     status: "open",
     createdBy: "demo_user",
     interestCount: 2,
@@ -792,8 +791,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     description:
       "Execute one IEEE-style persona script (finance, NPHC fellowship, or campus brand) with P/W/F scoring and screenshots. Results feed the conference pack — no real money, no brokerage claims.",
     durationText: "90 min · per persona",
-    tagsJson:
-      '["ieee","use-case","evaluation","credibility","persona"]',
+    tagsJson: '["ieee","use-case","evaluation","credibility","persona"]',
     status: "open",
     createdBy: "demo_user",
     interestCount: 0,
@@ -808,8 +806,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     description:
       "Help classmates with budgeting metaphors using soft WeixBucks concepts (caps, fees). Service hours + Yard Cred. Not licensed financial advice.",
     durationText: "ongoing · 2 hr/month",
-    tagsJson:
-      '["finance","budget","literacy","service","fisk","volunteer"]',
+    tagsJson: '["finance","budget","literacy","service","fisk","volunteer"]',
     status: "open",
     createdBy: "demo_user",
     interestCount: 0,
@@ -856,8 +853,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     description:
       "Fisk hosts: help a TSU fashion brand run a soft pop-up or digital merch drop. Escrow-friendly listings; host gets collaboration credit on profile. Not Fizz-only anonymity.",
     durationText: "2 weeks · event weekend",
-    tagsJson:
-      '["fashion","host","fisk","merch","pop-up","yard-sale","collab"]',
+    tagsJson: '["fashion","host","fisk","merch","pop-up","yard-sale","collab"]',
     status: "open",
     createdBy: "demo_user",
     interestCount: 1,
@@ -872,8 +868,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     description:
       "Upload past photoshoot sets to Studio / MyYard grid so buyers and hosts see a credible trail before purchasing on Yard Sale. Completions build Yard Cred.",
     durationText: "ongoing",
-    tagsJson:
-      '["fashion","studio","portfolio","myyard","brand","credibility"]',
+    tagsJson: '["fashion","studio","portfolio","myyard","brand","credibility"]',
     status: "open",
     createdBy: "demo_user",
     interestCount: 0,

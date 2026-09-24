@@ -165,7 +165,12 @@ export function StoryStrip() {
                   className="flex flex-col items-center gap-1.5 w-[72px] shrink-0 cursor-pointer bg-transparent border-0 p-0"
                   onClick={() => openStories(handle)}
                 >
-                  <div className={cn("w-[68px] h-[68px] rounded-full p-[2px]", ring)}>
+                  <div
+                    className={cn(
+                      "w-[68px] h-[68px] rounded-full p-[2px]",
+                      ring,
+                    )}
+                  >
                     <Avatar className="w-full h-full border-2 border-background">
                       <AvatarImage src="" />
                       <AvatarFallback className="text-sm font-semibold">
@@ -183,7 +188,12 @@ export function StoryStrip() {
             return (
               <Link key={handle} href={`/profile/${handle}`}>
                 <div className="flex flex-col items-center gap-1.5 w-[72px] shrink-0 cursor-pointer">
-                  <div className={cn("w-[68px] h-[68px] rounded-full p-[2px]", ring)}>
+                  <div
+                    className={cn(
+                      "w-[68px] h-[68px] rounded-full p-[2px]",
+                      ring,
+                    )}
+                  >
                     <Avatar className="w-full h-full border-2 border-background">
                       <AvatarImage src="" />
                       <AvatarFallback className="text-sm font-semibold">

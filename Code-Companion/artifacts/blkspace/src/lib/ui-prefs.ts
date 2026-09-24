@@ -61,7 +61,8 @@ export interface UiPrefs {
   showFocusNav: boolean;
   showFacultyNav: boolean;
   /** Default start route after login */
-  startPath: "/feed" | "/hub" | "/focus" | "/communities" | "/connect";
+  startPath:
+    "/feed" | "/hub" | "/focus" | "/communities" | "/connect" | "/wallet";
   /** Which hub modules user pins */
   pinnedModules: {
     events: boolean;
@@ -180,7 +181,8 @@ export function normalizeUiPrefs(
     p.startPath === "/hub" ||
     p.startPath === "/focus" ||
     p.startPath === "/communities" ||
-    p.startPath === "/connect"
+    p.startPath === "/connect" ||
+    p.startPath === "/wallet"
       ? p.startPath
       : "/feed";
 

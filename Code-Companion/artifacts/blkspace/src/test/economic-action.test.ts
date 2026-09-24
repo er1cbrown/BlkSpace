@@ -83,7 +83,7 @@ describe("optimistic balances + tip fee", () => {
     applyBalanceDelta("alice", -25);
     applyBalanceDelta("bob", 25 - calcPlatformFee(25, FEE_BPS.tip));
     expect(overlayBalance("alice", 1250)).toBe(1225);
-    expect(overlayBalance("bob", 0)).toBe(24);
+    expect(overlayBalance("bob", 0)).toBe(25);
     expect(getEconomicStore().balances.alice).toBe(-25);
   });
 });

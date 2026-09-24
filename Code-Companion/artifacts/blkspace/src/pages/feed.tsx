@@ -471,8 +471,7 @@ export default function FeedPage() {
         </Link>
       </div>
 
-      {(focusPrefs?.persona === "meharry_med" ||
-        focusPrefs?.studyOnlyFeed) && (
+      {(focusPrefs?.persona === "meharry_med" || focusPrefs?.studyOnlyFeed) && (
         <div className="mb-2 flex items-center gap-2 rounded-md border border-teal-500/20 bg-teal-500/5 px-2.5 py-1.5 text-xs">
           <HeartPulse className="w-3.5 h-3.5 text-teal-500 shrink-0" />
           <span className="text-muted-foreground flex-1">Focus Path on</span>
@@ -496,13 +495,22 @@ export default function FeedPage() {
           >
             Following
           </TabsTrigger>
-          <TabsTrigger value="local" className="text-xs sm:text-sm font-semibold">
+          <TabsTrigger
+            value="local"
+            className="text-xs sm:text-sm font-semibold"
+          >
             Yard
           </TabsTrigger>
-          <TabsTrigger value="blog" className="text-xs sm:text-sm font-semibold">
+          <TabsTrigger
+            value="blog"
+            className="text-xs sm:text-sm font-semibold"
+          >
             Blog
           </TabsTrigger>
-          <TabsTrigger value="connect" className="text-xs sm:text-sm font-semibold">
+          <TabsTrigger
+            value="connect"
+            className="text-xs sm:text-sm font-semibold"
+          >
             Connect
           </TabsTrigger>
         </TabsList>
@@ -677,16 +685,12 @@ export default function FeedPage() {
               <p className="text-lg font-semibold text-foreground mb-2">
                 {activeTab === "following"
                   ? "Your circle is quiet"
-                  : activeTab === "blog" || activeTab === "read"
-                    ? "No blog-style posts yet"
-                    : "The yard is quiet"}
+                  : "The yard is quiet"}
               </p>
               <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
                 {activeTab === "following"
                   ? "Follow people from Search or Yards — their posts show up here."
-                  : activeTab === "blog" || activeTab === "read"
-                    ? "Write a longer yard note. Blog FYP ranks substance + yard locality — not paid boosts."
-                    : "Be the first to post today. Students earn WeixBucks for showing up."}
+                  : "Be the first to post today. Students earn WeixBucks for showing up."}
               </p>
               {isGuest ? (
                 <Link href="/welcome">

@@ -39,8 +39,6 @@ describe("ProjectConnect IEEE evaluation seeds (web demo)", () => {
     const opps = await listOpportunities();
     const ieee = opps.filter((o) => o.orgId === "org_ieee_tsu");
     expect(ieee.length).toBeGreaterThanOrEqual(3);
-    expect(
-      ieee.some((o) => /Device B|Tier 0/i.test(o.title)),
-    ).toBe(true);
+    expect(ieee.some((o) => /Device B|Tier 0/i.test(o.title))).toBe(true);
   });
 });

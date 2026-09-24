@@ -205,13 +205,17 @@ export default function ProfilePage() {
       }
       inflightTracks.current.add(id);
       if (!isTauri()) {
-        void import("@/lib/profile-music-web").then(({ loadWebProfileTape }) => {
-          const rec = loadWebProfileTape(profileHandle).find((t) => t.id === id);
-          inflightTracks.current.delete(id);
-          if (!rec?.dataUrl) return;
-          srcByIdRef.current[id] = rec.dataUrl;
-          setSrcById((p) => ({ ...p, [id]: rec.dataUrl }));
-        });
+        void import("@/lib/profile-music-web").then(
+          ({ loadWebProfileTape }) => {
+            const rec = loadWebProfileTape(profileHandle).find(
+              (t) => t.id === id,
+            );
+            inflightTracks.current.delete(id);
+            if (!rec?.dataUrl) return;
+            srcByIdRef.current[id] = rec.dataUrl;
+            setSrcById((p) => ({ ...p, [id]: rec.dataUrl }));
+          },
+        );
         return;
       }
       const token = getSessionToken() || "";
@@ -250,7 +254,8 @@ export default function ProfilePage() {
     src: srcById[id] ?? null,
     name: audioBlobs.find((b) => b.hash === id)?.filename,
   }));
-  const audioSrc = (profileSong && srcById[profileSong]) || tapeTracks[0]?.src || null;
+  const audioSrc =
+    (profileSong && srcById[profileSong]) || tapeTracks[0]?.src || null;
 
   const profilePubkey = useMemo(() => {
     const fromUser = user?.pubkey?.trim() ?? "";
@@ -544,15 +549,12 @@ export default function ProfilePage() {
             </p>
             {(() => {
               const patch =
-                handle === currentUser || !handle
-                  ? getWebProfilePatch()
-                  : {};
+                handle === currentUser || !handle ? getWebProfilePatch() : {};
               const github =
                 (user as { githubUrl?: string }).githubUrl ||
                 patch.githubUrl ||
                 "";
-              const x =
-                (user as { xUrl?: string }).xUrl || patch.xUrl || "";
+              const x = (user as { xUrl?: string }).xUrl || patch.xUrl || "";
               const web =
                 (user as { websiteUrl?: string }).websiteUrl ||
                 patch.websiteUrl ||

@@ -74,7 +74,10 @@ export function whenWebBlobsReady(): Promise<void> {
   return hydrated;
 }
 
-export async function webStoreFile(file: File, dataUrl: string): Promise<string> {
+export async function webStoreFile(
+  file: File,
+  dataUrl: string,
+): Promise<string> {
   const id = `web_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
   const rec: WebBlobRecord = {
     id,
@@ -97,7 +100,9 @@ export function webGetBlob(id: string): WebBlobRecord | null {
   return store.get(id) ?? null;
 }
 
-export async function webGetBlobAsync(id: string): Promise<WebBlobRecord | null> {
+export async function webGetBlobAsync(
+  id: string,
+): Promise<WebBlobRecord | null> {
   await whenWebBlobsReady();
   return store.get(id) ?? null;
 }

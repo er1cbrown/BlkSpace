@@ -19,13 +19,7 @@ export type HubTopic =
   | "systems";
 
 export type HubItemKind =
-  | "post"
-  | "video"
-  | "article"
-  | "stream"
-  | "portfolio"
-  | "lesson"
-  | "playable";
+  "post" | "video" | "article" | "stream" | "portfolio" | "lesson" | "playable";
 
 export interface HubItem {
   id: string;

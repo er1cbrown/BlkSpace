@@ -48,7 +48,7 @@ export function YardDayBrawlPanel({ communityId }: { communityId: string }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<BrawlModeId>("versus");
-  const [stageId, setStageId] = useState(BRAWL_STAGES[0].id);
+  const [stageId, setStageId] = useState<string>(BRAWL_STAGES[0].id);
   const [ticketPrice, setTicketPrice] = useState("3");
   const [prizeWb, setPrizeWb] = useState(String(YARD_DAY_BRAWL_LADDER.firstWb));
   const [playUrl, setPlayUrl] = useState(
@@ -107,7 +107,9 @@ export function YardDayBrawlPanel({ communityId }: { communityId: string }) {
           <ul className="list-disc pl-4 space-y-0.5">
             {SBF_SERIES.map((g) => (
               <li key={g.productId}>
-                <span className="font-mono text-foreground/90">{g.productId}</span>{" "}
+                <span className="font-mono text-foreground/90">
+                  {g.productId}
+                </span>{" "}
                 {g.title} {g.version} — {g.nostalgiaClass}
               </li>
             ))}
@@ -133,9 +135,10 @@ export function YardDayBrawlPanel({ communityId }: { communityId: string }) {
             Host {SUPER_BLKSPACE_FIGHTERS} night
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Series club night (YDB1 shell) — Story · Versus · Survival · Challenge.
-            Tickets, bracket, spectator hub, soft prizes. Flash-*feel* WASM jam.
-            Full 2.0 / 5DXQ engines ship as Arcade homebrew packs later.
+            Series club night (YDB1 shell) — Story · Versus · Survival ·
+            Challenge. Tickets, bracket, spectator hub, soft prizes.
+            Flash-*feel* WASM jam. Full 2.0 / 5DXQ engines ship as Arcade
+            homebrew packs later.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">

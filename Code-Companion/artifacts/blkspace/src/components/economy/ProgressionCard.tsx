@@ -20,8 +20,7 @@ export function ProgressionCard({
   const cap = summary?.dailyCapWb ?? 200;
   const earned = summary?.earnedTodayWb ?? 0;
   const next = TIER_NEXT_XP[Math.min(tier, 3)];
-  const prev =
-    tier <= 0 ? 0 : tier === 1 ? 100 : tier === 2 ? 400 : 1200;
+  const prev = tier <= 0 ? 0 : tier === 1 ? 100 : tier === 2 ? 400 : 1200;
   const span = next == null ? 1 : next - prev;
   const into = next == null ? 1 : Math.min(1, Math.max(0, (xp - prev) / span));
   const pct = Math.round(into * 100);
@@ -47,9 +46,7 @@ export function ProgressionCard({
         <div>
           <div className="flex justify-between text-xs text-muted-foreground mb-1">
             <span>XP {xp.toLocaleString()}</span>
-            <span>
-              {next == null ? "Max tier" : `Next tier at ${next} XP`}
-            </span>
+            <span>{next == null ? "Max tier" : `Next tier at ${next} XP`}</span>
           </div>
           <Progress value={pct} className="h-2" />
         </div>

@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import {
   Music,
   Play,
@@ -85,7 +79,8 @@ export function ProfileMusicPlayer({
   const [duration, setDuration] = useState(0);
   const [current, setCurrent] = useState(0);
 
-  const safeIndex = tracks.length === 0 ? 0 : Math.min(index, tracks.length - 1);
+  const safeIndex =
+    tracks.length === 0 ? 0 : Math.min(index, tracks.length - 1);
   const active = tracks[safeIndex];
   const activeSrc = active?.src ?? null;
 
@@ -257,9 +252,7 @@ export function ProfileMusicPlayer({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-primary/80 mb-0.5">
             <Music className="w-2.5 h-2.5" />
-            {hasPlaylist
-              ? `Tape ${safeIndex + 1}/${tracks.length}`
-              : subtitle}
+            {hasPlaylist ? `Tape ${safeIndex + 1}/${tracks.length}` : subtitle}
           </div>
           <div className="font-medium text-sm truncate">
             {active.name || `${active.id.slice(0, 10)}…`}
@@ -286,7 +279,9 @@ export function ProfileMusicPlayer({
         </div>
       </div>
 
-      <div className={cn("flex items-center gap-2 px-3 pb-3", compact && "pt-0")}>
+      <div
+        className={cn("flex items-center gap-2 px-3 pb-3", compact && "pt-0")}
+      >
         <Button
           type="button"
           size="icon"

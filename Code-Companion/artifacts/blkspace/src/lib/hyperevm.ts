@@ -80,7 +80,8 @@ export function formatWei(wei: bigint, decimals = 18, maxFrac = 6): string {
   const frac = abs % base;
   if (frac === 0n) return `${neg ? "-" : ""}${whole}`;
   let fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
-  if (fracStr.length > maxFrac) fracStr = fracStr.slice(0, maxFrac).replace(/0+$/, "");
+  if (fracStr.length > maxFrac)
+    fracStr = fracStr.slice(0, maxFrac).replace(/0+$/, "");
   return `${neg ? "-" : ""}${whole}.${fracStr}`;
 }
 
@@ -108,7 +109,9 @@ export function getHyperevmConfig(): HyperevmConfig {
   let network: HyperevmNetwork = "mainnet";
   const fromLs = lsGet(LS_NETWORK);
   if (fromLs === "testnet" || fromLs === "mainnet") network = fromLs;
-  const fromEnv = (import.meta.env.VITE_HYPEREVM_NETWORK as string | undefined)?.trim();
+  const fromEnv = (
+    import.meta.env.VITE_HYPEREVM_NETWORK as string | undefined
+  )?.trim();
   if (fromEnv === "testnet" || fromEnv === "mainnet") network = fromEnv;
 
   const chain = network === "testnet" ? HYPEREVM_TESTNET : HYPEREVM_MAINNET;
@@ -183,7 +186,10 @@ async function rpc<T>(
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });
   if (!res.ok) throw new Error(`HyperEVM RPC HTTP ${res.status}`);
-  const body = (await res.json()) as { result?: T; error?: { message?: string } };
+  const body = (await res.json()) as {
+    result?: T;
+    error?: { message?: string };
+  };
   if (body.error?.message) throw new Error(body.error.message);
   return body.result as T;
 }
@@ -193,7 +199,12 @@ export async function fetchNativeBalance(
   account: string,
   fetchFn: FetchLike = fetch,
 ): Promise<bigint> {
-  const hex = await rpc<string>(rpcUrl, "eth_getBalance", [account, "latest"], fetchFn);
+  const hex = await rpc<string>(
+    rpcUrl,
+    "eth_getBalance",
+    [account, "latest"],
+    fetchFn,
+  );
   return BigInt(hex || "0x0");
 }
 

@@ -116,7 +116,9 @@ export function CustomizeStation({
     };
   });
   const [music, setMusic] = useState<string | null>(
-    () => normalizeTape(layout.aesthetic?.playlistHashes, profileSong)[0] ?? profileSong,
+    () =>
+      normalizeTape(layout.aesthetic?.playlistHashes, profileSong)[0] ??
+      profileSong,
   );
   const [modules, setModules] = useState(
     () => layout.modules || { logosDeck: false, bibleNlp: false },
@@ -254,7 +256,9 @@ export function CustomizeStation({
                   }}
                 >
                   <p className="text-sm font-medium">{tpl.label}</p>
-                  <p className="text-[11px] text-muted-foreground">{tpl.blurb}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {tpl.blurb}
+                  </p>
                 </button>
               ))}
             </div>
@@ -598,8 +602,8 @@ export function CustomizeStation({
                 }}
               />
               <p className="text-[11px] text-muted-foreground">
-                Browser storage only. Max {MAX_WEB_TAPE} tracks on web.
-                Desktop hashes can hold {MAX_PLAYLIST}.
+                Browser storage only. Max {MAX_WEB_TAPE} tracks on web. Desktop
+                hashes can hold {MAX_PLAYLIST}.
               </p>
             </div>
           )}
@@ -641,10 +645,7 @@ export function CustomizeStation({
               </p>
               <ol className="space-y-1">
                 {tape.map((id, i) => (
-                  <li
-                    key={id}
-                    className="flex items-center gap-2 text-xs"
-                  >
+                  <li key={id} className="flex items-center gap-2 text-xs">
                     <span className="tabular-nums text-muted-foreground w-4">
                       {i + 1}
                     </span>
@@ -780,9 +781,9 @@ export function CustomizeStation({
             className="font-mono text-xs min-h-[220px]"
           />
           <p className="text-[11px] text-muted-foreground">
-            {a.customCss.length.toLocaleString()} / {MAX_CSS_LEN.toLocaleString()}{" "}
-            chars. LazyVim is optional (needs nvim on this machine) — packs and
-            snippets do not.
+            {a.customCss.length.toLocaleString()} /{" "}
+            {MAX_CSS_LEN.toLocaleString()} chars. LazyVim is optional (needs
+            nvim on this machine) — packs and snippets do not.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button

@@ -129,7 +129,9 @@ async function decryptSecret(
 
 export function assertBackupPassword(password: string): void {
   if (password.length < MIN_BACKUP_PASSWORD) {
-    throw new Error(`Password must be at least ${MIN_BACKUP_PASSWORD} characters`);
+    throw new Error(
+      `Password must be at least ${MIN_BACKUP_PASSWORD} characters`,
+    );
   }
 }
 

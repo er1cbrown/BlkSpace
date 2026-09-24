@@ -28,7 +28,10 @@ import {
   stateChecksum,
   type GameState,
 } from "@/lib/sbf-rollback-core";
-import { SBF_NETPLAY_TARGET, PRODUCT_ID_YARD_DAY_BRAWL } from "@/lib/yard-day-brawl";
+import {
+  SBF_NETPLAY_TARGET,
+  PRODUCT_ID_YARD_DAY_BRAWL,
+} from "@/lib/yard-day-brawl";
 import { Swords, RefreshCw, Shield, Play, Pause } from "lucide-react";
 
 type OppMode = "dummy" | "p2keys";
@@ -52,7 +55,13 @@ function draw(
   ctx.lineTo(W, GROUND_Y * scale);
   ctx.stroke();
 
-  const body = (x: number, y: number, facing: number, color: string, atk: number) => {
+  const body = (
+    x: number,
+    y: number,
+    facing: number,
+    color: string,
+    atk: number,
+  ) => {
     const px = x * scale;
     const py = y * scale;
     ctx.fillStyle = color;
@@ -147,7 +156,11 @@ export function SbfRollbackTrainer() {
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       keysRef.current.add(e.key.toLowerCase());
-      if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(e.key.toLowerCase())) {
+      if (
+        [" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(
+          e.key.toLowerCase(),
+        )
+      ) {
         e.preventDefault();
       }
     };
@@ -223,12 +236,16 @@ export function SbfRollbackTrainer() {
         </AlertTitle>
         <AlertDescription className="text-xs text-muted-foreground space-y-1">
           <p className="font-mono text-[10px]">{SBF_ROLLBACK_BUILD_ID}</p>
-          <p>Route C data plane — GGPO-class predict / rollback / resim on this device.</p>
+          <p>
+            Route C data plane — GGPO-class predict / rollback / resim on this
+            device.
+          </p>
           <p className="text-foreground/80">{SBF_NETPLAY_TARGET}</p>
           <p>
-            <strong className="text-foreground">P1:</strong> A/D or ←/→ · W/↑ jump ·
-            J/Space attack ·{" "}
-            <strong className="text-foreground">P2:</strong> dummy or ←/→/↑/Enter
+            <strong className="text-foreground">P1:</strong> A/D or ←/→ · W/↑
+            jump · J/Space attack ·{" "}
+            <strong className="text-foreground">P2:</strong> dummy or
+            ←/→/↑/Enter
           </p>
         </AlertDescription>
       </Alert>
@@ -240,7 +257,8 @@ export function SbfRollbackTrainer() {
             Yard Day Brawl · rollback lab
           </CardTitle>
           <CardDescription className="text-xs">
-            Artificial remote latency forces predictions — watch rollbacks tick up
+            Artificial remote latency forces predictions — watch rollbacks tick
+            up
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -298,7 +316,12 @@ export function SbfRollbackTrainer() {
                 </>
               )}
             </Button>
-            <Button size="sm" variant="outline" className="gap-1" onClick={reset}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              onClick={reset}
+            >
               <RefreshCw className="w-3.5 h-3.5" /> Reset
             </Button>
             <Button size="sm" variant="secondary" onClick={verify}>
@@ -316,7 +339,9 @@ export function SbfRollbackTrainer() {
             <Badge variant={stats.rollbacks > 0 ? "default" : "secondary"}>
               rollbacks {stats.rollbacks}
             </Badge>
-            <Badge variant="outline">last depth {stats.lastRollbackDepth}</Badge>
+            <Badge variant="outline">
+              last depth {stats.lastRollbackDepth}
+            </Badge>
             <Badge variant="outline">preds {stats.predictedFrames}</Badge>
             <Badge variant="outline">P0 HP {stats.p0hp}</Badge>
             <Badge variant="outline">P1 HP {stats.p1hp}</Badge>

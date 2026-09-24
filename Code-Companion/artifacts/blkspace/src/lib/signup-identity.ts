@@ -25,7 +25,11 @@ export function bkspcAddress(handle: string): string {
 /** Latin letters, digits 0–9, and symbols. No other scripts or numeral systems. */
 export function passwordError(password: string): string | null {
   if (password.length < 8) return "Password must be at least 8 characters.";
-  if (![...password].every((ch) => ch.charCodeAt(0) >= 33 && ch.charCodeAt(0) <= 126)) {
+  if (
+    ![...password].every(
+      (ch) => ch.charCodeAt(0) >= 33 && ch.charCodeAt(0) <= 126,
+    )
+  ) {
     return "Use only Latin letters, digits 0–9, and symbols.";
   }
   if (!/[a-z]/.test(password)) return "Include at least one lowercase letter.";

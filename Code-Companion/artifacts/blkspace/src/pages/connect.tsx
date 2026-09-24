@@ -161,7 +161,10 @@ function ConnectHub() {
       const j = JSON.parse(raw) as { skills?: string[] | string };
       if (Array.isArray(j.skills)) return j.skills.map(String);
       if (typeof j.skills === "string")
-        return j.skills.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+        return j.skills
+          .split(/[,;]/)
+          .map((s) => s.trim())
+          .filter(Boolean);
       return [];
     } catch {
       return [];

@@ -849,8 +849,8 @@ function ClientShootView({
           Download export package (JSON)
         </Button>
         <p className="text-[10px] text-muted-foreground">
-          All-in-one access: every file in this shoot. Use mediaRef with
-          BKSPC blob APIs or your linked storage to pull full resolution.
+          All-in-one access: every file in this shoot. Use mediaRef with BKSPC
+          blob APIs or your linked storage to pull full resolution.
         </p>
       </CardContent>
     </Card>

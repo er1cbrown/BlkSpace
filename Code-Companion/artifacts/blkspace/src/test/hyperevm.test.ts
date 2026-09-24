@@ -33,9 +33,9 @@ describe("HyperEVM mainnet constants", () => {
 describe("addresses", () => {
   it("rejects zero and junk", () => {
     expect(isHexAddress("0xabc")).toBe(false);
-    expect(isConfiguredAddress("0x0000000000000000000000000000000000000000")).toBe(
-      false,
-    );
+    expect(
+      isConfiguredAddress("0x0000000000000000000000000000000000000000"),
+    ).toBe(false);
     expect(
       isConfiguredAddress("0x2222222222222222222222222222222222222222"),
     ).toBe(true);
@@ -46,7 +46,9 @@ describe("abi helpers", () => {
   it("encodes balanceOf", () => {
     const data = encodeBalanceOf("0x0000000000000000000000000000000000000001");
     expect(data.startsWith("0x70a08231")).toBe(true);
-    expect(data.endsWith("0000000000000000000000000000000000000001")).toBe(true);
+    expect(data.endsWith("0000000000000000000000000000000000000001")).toBe(
+      true,
+    );
     expect(data.length).toBe(2 + 8 + 64);
   });
 

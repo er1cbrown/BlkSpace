@@ -36,9 +36,7 @@ describe("yard-arcade", () => {
 
   it("rejects non-play posts without media", () => {
     expect(
-      isArcadeItem(
-        item({ kind: "post", topic: "culture", mediaUrl: "" }),
-      ),
+      isArcadeItem(item({ kind: "post", topic: "culture", mediaUrl: "" })),
     ).toBe(false);
   });
 

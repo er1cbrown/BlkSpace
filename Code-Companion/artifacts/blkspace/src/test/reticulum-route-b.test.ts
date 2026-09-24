@@ -14,7 +14,9 @@ describe("Route B RNS policy", () => {
   });
 
   it("keeps RNS spool off Nostr keys and forbids LXMF / RNode", () => {
-    expect(routeB?.localStore.toLowerCase()).toContain("never next to nostr keys");
+    expect(routeB?.localStore.toLowerCase()).toContain(
+      "never next to nostr keys",
+    );
     expect(routeB?.neverUseFor).toMatch(/Python sidecar/);
     expect(routeB?.neverUseFor).toMatch(/LXMF identity store/);
     expect(routeB?.neverUseFor).toMatch(/RNode serial\/BLE/);

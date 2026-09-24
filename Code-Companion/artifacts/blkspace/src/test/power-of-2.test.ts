@@ -7,7 +7,11 @@ import {
   solanaIsCanonicalMint,
 } from "@/lib/power-of-2";
 import { WB_TO_BKSPC_RATIO } from "@/lib/tokenomics";
-import { BRIDGE_EXCLUDED_ASSETS, HYPEREVM_ASSETS, HYPEREVM_GATES_COPY } from "@/lib/hyperevm";
+import {
+  BRIDGE_EXCLUDED_ASSETS,
+  HYPEREVM_ASSETS,
+  HYPEREVM_GATES_COPY,
+} from "@/lib/hyperevm";
 import { BKSPC_GATES_COPY } from "@/lib/bkspc-config";
 
 describe("Power of 2 — ERC-20 is canonical", () => {
@@ -29,7 +33,9 @@ describe("Power of 2 — ERC-20 is canonical", () => {
     expect(POWER_OF_2.optionalSolanaPrototype.token).toBe("BKSPC");
     expect(POWER_OF_2.optionalSolanaPrototype.wbRatio).toBe(1000);
     expect(WB_TO_BKSPC_RATIO).toBe(1000);
-    expect(POWER_OF_2.optionalSolanaPrototype.interactsWithWeixBucks).toBe(true);
+    expect(POWER_OF_2.optionalSolanaPrototype.interactsWithWeixBucks).toBe(
+      true,
+    );
   });
 
   it("points the wallet on-chain pillar at HyperEVM BI9", () => {
@@ -47,9 +53,13 @@ describe("Power of 2 — ERC-20 is canonical", () => {
   });
 
   it("states ERC-20 canonical in wallet gate copy", () => {
-    expect(HYPEREVM_GATES_COPY.join(" ")).toMatch(/Canonical on-chain token is BI9 \(ERC-20\)/);
+    expect(HYPEREVM_GATES_COPY.join(" ")).toMatch(
+      /Canonical on-chain token is BI9 \(ERC-20\)/,
+    );
     expect(HYPEREVM_GATES_COPY.join(" ")).toMatch(/do not convert to BI9/i);
-    expect(HYPEREVM_GATES_COPY.join(" ")).not.toMatch(/not student settlement/i);
+    expect(HYPEREVM_GATES_COPY.join(" ")).not.toMatch(
+      /not student settlement/i,
+    );
     expect(BKSPC_GATES_COPY.join(" ")).toMatch(/not the canonical mint/i);
     expect(BKSPC_GATES_COPY.join(" ")).toMatch(/BI9 ERC-20/);
   });

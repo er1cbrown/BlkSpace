@@ -107,8 +107,7 @@ export function RecoverySetup({
             {saving ? "Saving…" : "Save recovery password"}
           </Button>
           <p className="text-xs text-muted-foreground text-center">
-            At least 8 characters. A backup file downloads — keep this
-            password.
+            At least 8 characters. A backup file downloads — keep this password.
           </p>
           <div className="flex justify-center gap-4 text-xs text-muted-foreground">
             <button
@@ -146,9 +145,7 @@ export function RecoverySetup({
               checked={phraseAck}
               onChange={(e) => setPhraseAck(e.target.checked)}
             />
-            <span>
-              I wrote down my 24-word recovery phrase in a safe place
-            </span>
+            <span>I wrote down my 24-word recovery phrase in a safe place</span>
           </label>
           <Button
             onClick={onDone}
@@ -170,8 +167,8 @@ export function RecoverySetup({
       {mode === "skip" && (
         <>
           <p className="text-sm text-amber-200 bg-amber-950/30 border border-amber-600/30 rounded-lg p-3">
-            If this device dies with no backup, this handle is gone. You can
-            add a password later in Settings.
+            If this device dies with no backup, this handle is gone. You can add
+            a password later in Settings.
           </p>
           <Button
             variant="outline"

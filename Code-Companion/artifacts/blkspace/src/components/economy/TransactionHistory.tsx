@@ -37,15 +37,14 @@ export function TransactionHistory({
   const ledger = useEconomicLedger();
   const [filter, setFilter] = useState<Filter>("all");
   const items =
-    ledger.history.length > 0
-      ? ledger.history
-      : fallback.map(fromLegacy);
+    ledger.history.length > 0 ? ledger.history : fallback.map(fromLegacy);
 
   const visible = useMemo(() => {
     return items.filter((tx) => {
       if (filter === "all") return true;
       if (filter === "tip" || filter === "escrow") return tx.kind === filter;
-      if (filter === "failed") return tx.status === "failed" || tx.status === "dispute";
+      if (filter === "failed")
+        return tx.status === "failed" || tx.status === "dispute";
       if (filter === "open") {
         return (
           tx.status === "pending" ||

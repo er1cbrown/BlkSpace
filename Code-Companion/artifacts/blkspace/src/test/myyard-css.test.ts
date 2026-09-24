@@ -85,7 +85,9 @@ describe("MyYard CSS + templates", () => {
   });
 
   it("parses missing pimp fields to safe defaults", () => {
-    const layout = parseMyYardLayout(JSON.stringify({ aesthetic: { mood: "hi" } }));
+    const layout = parseMyYardLayout(
+      JSON.stringify({ aesthetic: { mood: "hi" } }),
+    );
     expect(layout.aesthetic?.fx).toBe("none");
     expect(layout.aesthetic?.cursorPack).toBe("default");
     expect(layout.aesthetic?.marqueeMood).toBe(false);

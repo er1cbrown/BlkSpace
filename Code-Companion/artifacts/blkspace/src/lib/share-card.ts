@@ -44,7 +44,9 @@ export function playShellPath(playUrl: string): string {
 export function buildShareText(input: ShareCardInput): string {
   const lines: string[] = [];
   const brand = BRAND.name || "BKSPC";
-  const handle = input.authorHandle ? `@${input.authorHandle.replace(/^@/, "")}` : "";
+  const handle = input.authorHandle
+    ? `@${input.authorHandle.replace(/^@/, "")}`
+    : "";
 
   switch (input.kind) {
     case "post":
@@ -56,7 +58,8 @@ export function buildShareText(input: ShareCardInput): string {
       if (input.body && input.title) {
         lines.push(input.body.trim().slice(0, 200));
       }
-      if (handle) lines.push(`— ${handle}${input.yardId ? ` · ${input.yardId}` : ""}`);
+      if (handle)
+        lines.push(`— ${handle}${input.yardId ? ` · ${input.yardId}` : ""}`);
       break;
     case "profile":
       lines.push(`${handle || "Profile"} on ${brand}`);

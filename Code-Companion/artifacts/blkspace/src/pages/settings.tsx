@@ -54,10 +54,7 @@ import {
   persistBackupLocally,
   MIN_BACKUP_PASSWORD,
 } from "@/lib/account-backup";
-import {
-  getWebProfilePatch,
-  saveWebProfilePatch,
-} from "@/lib/web-userspace";
+import { getWebProfilePatch, saveWebProfilePatch } from "@/lib/web-userspace";
 import {
   Eye,
   EyeOff,
@@ -84,6 +81,7 @@ import {
   DENSITY_OPTIONS,
   FEED_LAYOUT_OPTIONS,
   FONT_SCALE_OPTIONS,
+  type ChromeSkinId,
   type UiPrefs,
   loadUiPrefs,
   saveUiPrefs,
@@ -451,7 +449,7 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      const next =
+                      const next: ChromeSkinId =
                         uiPrefs.chromeSkin === "terminal"
                           ? "default"
                           : "terminal";
@@ -623,9 +621,13 @@ export default function SettingsPage() {
                       type="button"
                       onClick={() => {
                         setUiPrefs((prev) =>
-                          applyDisciplineToUiPrefs(prev, t.id as DisciplineTrack, {
-                            setStartPath: false,
-                          }),
+                          applyDisciplineToUiPrefs(
+                            prev,
+                            t.id as DisciplineTrack,
+                            {
+                              setStartPath: false,
+                            },
+                          ),
                         );
                       }}
                       className={`rounded-lg border px-3 py-2 text-left text-sm ${
@@ -784,16 +786,14 @@ export default function SettingsPage() {
                   type="button"
                   className="w-full rounded-full h-11"
                   disabled={
-                    backupBusy ||
-                    backupPassword.length < MIN_BACKUP_PASSWORD
+                    backupBusy || backupPassword.length < MIN_BACKUP_PASSWORD
                   }
                   onClick={handleSavePasswordBackup}
                 >
                   {backupBusy ? "Saving…" : "Save password backup file"}
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Keep the downloaded file. BlkSpace cannot reset this
-                  password.
+                  Keep the downloaded file. BlkSpace cannot reset this password.
                 </p>
               </div>
 

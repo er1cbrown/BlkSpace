@@ -3,12 +3,7 @@
  * settle in the background, roll back on failure.
  */
 export type EconomicPhase =
-  | "idle"
-  | "submitting"
-  | "optimistic"
-  | "settling"
-  | "settled"
-  | "failed";
+  "idle" | "submitting" | "optimistic" | "settling" | "settled" | "failed";
 
 export interface EconomicActionOpts<T> {
   applyOptimistic: () => T;

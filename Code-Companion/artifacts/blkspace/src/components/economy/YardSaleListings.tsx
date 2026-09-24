@@ -206,7 +206,10 @@ export function YardSaleListings({
                   </Badge>
                 )}
                 {isBest ? (
-                  <Badge variant="secondary" className="text-[10px] font-normal">
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] font-normal"
+                  >
                     Best available
                   </Badge>
                 ) : (

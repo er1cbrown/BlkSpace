@@ -47,9 +47,13 @@ function RouteCard({ route }: { route: RouteStatusSnapshot }) {
             <span className="font-mono text-xs opacity-70">{route.id}</span>
             {route.def.title}
           </CardTitle>
-          <Badge variant={statusBadgeVariant(route.status)}>{route.label}</Badge>
+          <Badge variant={statusBadgeVariant(route.status)}>
+            {route.label}
+          </Badge>
         </div>
-        <CardDescription className="text-xs">{route.def.endGoalSlice}</CardDescription>
+        <CardDescription className="text-xs">
+          {route.def.endGoalSlice}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2 text-xs">
         <p className="text-muted-foreground">{route.detail}</p>
@@ -102,7 +106,9 @@ export function SecureConnectivityRoutesPanel() {
     <div className="space-y-4">
       <Alert className="border-primary/30 bg-primary/5">
         <Shield className="w-4 h-4" />
-        <AlertTitle className="text-sm">Secure connectivity · 3 routes</AlertTitle>
+        <AlertTitle className="text-sm">
+          Secure connectivity · 3 routes
+        </AlertTitle>
         <AlertDescription className="text-xs text-muted-foreground space-y-1">
           <p className="font-mono text-[11px] text-foreground/90">
             {SECURE_CONNECTIVITY_EQUATION}
@@ -120,13 +126,16 @@ export function SecureConnectivityRoutesPanel() {
       </Alert>
 
       <div className="flex flex-wrap gap-2 items-center">
-        <Button size="sm" onClick={() => void refresh()} disabled={busy} className="gap-1">
+        <Button
+          size="sm"
+          onClick={() => void refresh()}
+          disabled={busy}
+          className="gap-1"
+        >
           <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} />
           {busy ? "Probing…" : "Probe routes"}
         </Button>
-        <Badge variant="outline">
-          {snap?.isDesktop ? "Desktop" : "Web"}
-        </Badge>
+        <Badge variant="outline">{snap?.isDesktop ? "Desktop" : "Web"}</Badge>
         {snap?.at && (
           <span className="text-[10px] text-muted-foreground font-mono">
             {snap.at}

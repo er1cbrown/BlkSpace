@@ -32,12 +32,15 @@ export type DomainFilter =
   | "fashion";
 
 const KEYWORDS: Record<OpportunityDomain, RegExp> = {
-  scholarship: /scholar|grant|aid|tuition|bursar|fellowship.*fund|fund.*fellow/i,
+  scholarship:
+    /scholar|grant|aid|tuition|bursar|fellowship.*fund|fund.*fellow/i,
   service: /service|volunteer|community|outreach|tutoring|clinic/i,
   fellowship: /fellowship|brother|chapter|nphc|fratern|soror|sisterhood/i,
   research: /research|lab|faculty|ra\b|paper|clinical|nlp|ml\b/i,
-  finance: /financ|broker|invest|equity|stock|market|nasdaq|portfolio|accounting|cfa|budget|literacy/i,
-  fashion: /fashion|merch|lookbook|photoshoot|streetwear|apparel|design|drop|brand|model|atelier|style/i,
+  finance:
+    /financ|broker|invest|equity|stock|market|nasdaq|portfolio|accounting|cfa|budget|literacy/i,
+  fashion:
+    /fashion|merch|lookbook|photoshoot|streetwear|apparel|design|drop|brand|model|atelier|style/i,
   greek: /omega|nphc|fratern|soror|psi|phi|aka|dst|iota|kappa|sigma/i,
   campus: /yard|campus|homecoming|rsvp|event|convention|conference/i,
   professional: /professional|career|internship|mentor|ama|leadership/i,
@@ -120,9 +123,7 @@ export function matchesDomainFilter(
  * Sparse multi-hot vector in fixed basis order (for scoring w·f).
  * Length = |OPPORTUNITY_DOMAINS|.
  */
-export function domainFeatureVector(
-  domains: OpportunityDomain[],
-): number[] {
+export function domainFeatureVector(domains: OpportunityDomain[]): number[] {
   const set = new Set(domains);
   return OPPORTUNITY_DOMAINS.map((d) => (set.has(d) ? 1 : 0));
 }

@@ -2,10 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Share2, Check } from "lucide-react";
 import { toast } from "sonner";
-import {
-  copyShareCard,
-  type ShareCardInput,
-} from "@/lib/share-card";
+import { copyShareCard, type ShareCardInput } from "@/lib/share-card";
 import { cn } from "@/lib/utils";
 
 type Props = {

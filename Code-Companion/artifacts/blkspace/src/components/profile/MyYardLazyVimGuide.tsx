@@ -55,7 +55,12 @@ export function MyYardLazyVimGuide({
         </table>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" variant="secondary" onClick={onPasteStarter}>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={onPasteStarter}
+        >
           Paste starter CSS
         </Button>
         {canOpenLazyVim && onOpenLazyVim && (

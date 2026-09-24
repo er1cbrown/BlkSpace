@@ -150,7 +150,10 @@ export function createYardStory(input: {
   };
 
   const store = loadStore();
-  store.stories = [story, ...store.stories.filter((s) => isStoryActive(s, now))];
+  store.stories = [
+    story,
+    ...store.stories.filter((s) => isStoryActive(s, now)),
+  ];
   saveStore(store);
   return story;
 }

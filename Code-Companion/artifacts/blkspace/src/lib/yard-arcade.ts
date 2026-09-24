@@ -60,7 +60,10 @@ export function sizeMeta(id: ArcadeSizeClass): ArcadeSizeMeta {
 /** Parse size class from earnHint / body tags [[size:micro]] */
 export function parseArcadeSize(item: HubItem): ArcadeSizeClass {
   const blob = `${item.earnHint || ""} ${item.body || ""}`;
-  if (/\[\[size:micro\]\]/i.test(blob) || /\bmicro\b/i.test(item.earnHint || ""))
+  if (
+    /\[\[size:micro\]\]/i.test(blob) ||
+    /\bmicro\b/i.test(item.earnHint || "")
+  )
     return "micro";
   if (/\[\[size:full\]\]/i.test(blob) || /\bfull\b/i.test(item.earnHint || ""))
     return "full";
@@ -134,8 +137,7 @@ export function publishArcadeGame(input: {
   }
   const size = input.sizeClass || "tier0";
   const price = Math.max(0, Math.floor(input.listPriceWb || 0));
-  const yard =
-    input.yardId || loadUiPrefs().homeYardId || "tsu";
+  const yard = input.yardId || loadUiPrefs().homeYardId || "tsu";
   const sizeTag = `[[size:${size}]]`;
   const priceHint =
     price > 0

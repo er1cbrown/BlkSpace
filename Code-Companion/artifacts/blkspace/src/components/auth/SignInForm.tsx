@@ -61,8 +61,7 @@ export function SignInForm() {
     setError("");
     try {
       const typedHandle = handle.trim();
-      const localFits =
-        local && (!typedHandle || typedHandle === local.handle);
+      const localFits = local && (!typedHandle || typedHandle === local.handle);
       const raw = fileText.trim() || (localFits ? JSON.stringify(local) : "");
       if (!raw) {
         throw new Error(
@@ -71,10 +70,7 @@ export function SignInForm() {
       }
       const backup = parseBackupJson(raw);
       const restored = await restorePasswordBackup(backup, password);
-      await loginWithNsec(
-        restored.nsecHex,
-        typedHandle || restored.handle,
-      );
+      await loginWithNsec(restored.nsecHex, typedHandle || restored.handle);
     } catch (e) {
       setError(
         e instanceof Error

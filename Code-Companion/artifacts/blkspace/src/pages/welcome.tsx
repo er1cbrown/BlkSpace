@@ -32,11 +32,7 @@ import { applyMedSchoolOnboarding } from "@/lib/focus-mode";
 import { applyFacultyOnboarding } from "@/lib/faculty-desk";
 import { getYardTheme } from "@/lib/yard-themes";
 import { YardPicker } from "@/components/ui-prefs/YardPicker";
-import {
-  loadUiPrefs,
-  saveUiPrefs,
-  type ChromeSkinId,
-} from "@/lib/ui-prefs";
+import { loadUiPrefs, saveUiPrefs, type ChromeSkinId } from "@/lib/ui-prefs";
 import { ensureIntranetConnected } from "@/lib/hbcu-intranet";
 import { markJustJoined } from "@/lib/yard-orientation";
 import { cn } from "@/lib/utils";
@@ -377,9 +373,7 @@ export default function WelcomePage() {
         <main className="flex-1 flex items-center justify-center p-4">
           <Card className="w-full max-w-lg shadow-lg border-primary/10">
             <CardHeader className="text-center pb-4">
-              <CardTitle className="text-2xl font-serif">
-                Get back in
-              </CardTitle>
+              <CardTitle className="text-2xl font-serif">Get back in</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Pick a password you already remember.
               </p>
