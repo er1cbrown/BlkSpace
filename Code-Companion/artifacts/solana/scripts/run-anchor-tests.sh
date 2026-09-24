@@ -6,6 +6,11 @@ cd "$(dirname "$0")/.."
 export ANCHOR_PROVIDER_URL="${ANCHOR_PROVIDER_URL:-http://127.0.0.1:8899}"
 export ANCHOR_WALLET="${ANCHOR_WALLET:-$HOME/.config/solana/id.json}"
 
+if [[ "${CI:-}" == "true" && ! -f "${ANCHOR_WALLET}" ]]; then
+  mkdir -p "$(dirname "${ANCHOR_WALLET}")"
+  solana-keygen new --no-bip39-passphrase --outfile "${ANCHOR_WALLET}" >/dev/null 2>&1
+fi
+
 echo "Building bkspc program..."
 cargo build-sbf --manifest-path programs/bkspc/Cargo.toml
 
