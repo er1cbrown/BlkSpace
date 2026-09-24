@@ -182,7 +182,9 @@ export default function PostPage() {
                 <div className="flex justify-end">
                   <Button
                     onClick={handleReplySubmit}
-                    disabled={id < 0 || createReply.isPending || !replyContent.trim()}
+                    disabled={
+                      id < 0 || createReply.isPending || !replyContent.trim()
+                    }
                     className="rounded-full px-6"
                   >
                     Reply

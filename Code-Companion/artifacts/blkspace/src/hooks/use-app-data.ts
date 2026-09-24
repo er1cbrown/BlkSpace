@@ -162,8 +162,7 @@ export function useAppListPosts(
   });
 
   if (IS_TAURI) {
-    const local =
-      tauriInfinite.data?.pages.flatMap((page) => page.posts) ?? [];
+    const local = tauriInfinite.data?.pages.flatMap((page) => page.posts) ?? [];
     const merged = [...local, ...(hostedPosts.data ?? [])]
       .filter(
         (post, index, all) =>
@@ -290,12 +289,14 @@ export function useAppGetUserPosts(handle: string, currentUser: string) {
     queryFn: async () => {
       const local = await tauri.tauriGetUserPosts(handle, currentUser);
       const hosted = await tauri.tauriListHostedPosts(undefined, 100);
-      return [...local, ...hosted.filter((post) => post.authorHandle === handle)]
-        .sort(
-          (left, right) =>
-            new Date(right.createdAt).getTime() -
-            new Date(left.createdAt).getTime(),
-        );
+      return [
+        ...local,
+        ...hosted.filter((post) => post.authorHandle === handle),
+      ].sort(
+        (left, right) =>
+          new Date(right.createdAt).getTime() -
+          new Date(left.createdAt).getTime(),
+      );
     },
     enabled: IS_TAURI && !!handle,
   });
@@ -431,7 +432,9 @@ export function useAppCreatePost() {
       if (token) {
         void tauri
           .tauriSyncPortfolioOnce(token)
-          .then(() => qc.invalidateQueries({ queryKey: ["tauri", "hosted-posts"] }))
+          .then(() =>
+            qc.invalidateQueries({ queryKey: ["tauri", "hosted-posts"] }),
+          )
           .catch(() => undefined);
       }
     },

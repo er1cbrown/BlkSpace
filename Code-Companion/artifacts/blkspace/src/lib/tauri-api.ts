@@ -714,7 +714,10 @@ export function tauriListHostedPosts(
   town?: string,
   limit?: number,
 ): Promise<TauriPost[]> {
-  return invoke("list_hosted_posts", { town: town || null, limit: limit ?? 100 });
+  return invoke("list_hosted_posts", {
+    town: town || null,
+    limit: limit ?? 100,
+  });
 }
 
 export function tauriGetHostedPost(postId: number): Promise<TauriPost | null> {
