@@ -10,8 +10,9 @@ import {
   MIN_BACKUP_PASSWORD,
 } from "@/lib/account-backup";
 import { nsecToMnemonic } from "@/lib/auth";
+import { isTauri } from "@/lib/tauri-api";
 
-type Mode = "password" | "phrase" | "skip";
+type Mode = "device" | "password" | "phrase" | "skip";
 
 export function RecoverySetup({
   nsecHex,
@@ -22,7 +23,9 @@ export function RecoverySetup({
   handle: string;
   onDone: () => void;
 }) {
-  const [mode, setMode] = useState<Mode>("password");
+  const [mode, setMode] = useState<Mode>(() =>
+    isTauri() ? "device" : "password",
+  );
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [phraseAck, setPhraseAck] = useState(false);
@@ -62,6 +65,31 @@ export function RecoverySetup({
       {error && (
         <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">
           {error}
+        </div>
+      )}
+
+      {mode === "device" && (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
+            <p className="font-medium text-foreground">Your key is secured</p>
+            <p className="mt-1 text-muted-foreground">
+              You can continue without a password or backup file. This device
+              can sign you in automatically.
+            </p>
+          </div>
+          <Button
+            onClick={onDone}
+            className="w-full rounded-full h-12 font-bold bg-green-600 hover:bg-green-700"
+          >
+            Continue
+          </Button>
+          <button
+            type="button"
+            className="w-full text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setMode("phrase")}
+          >
+            Save a recovery phrase for another device (optional)
+          </button>
         </div>
       )}
 
@@ -157,9 +185,9 @@ export function RecoverySetup({
           <button
             type="button"
             className="w-full text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => setMode("password")}
+            onClick={() => setMode(isTauri() ? "device" : "password")}
           >
-            Back to password
+            {isTauri() ? "Back" : "Back to password"}
           </button>
         </>
       )}

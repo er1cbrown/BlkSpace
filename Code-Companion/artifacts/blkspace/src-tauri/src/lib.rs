@@ -192,19 +192,23 @@ fn verify_nostr_auth_event(
 
 // ─── Auth Commands ───────────────────────────────────────
 
-#[tauri::command]
-fn get_challenge(state: State<AppState>, handle: String) -> Result<String, String> {
-  validate_handle(&handle).map_err(map_err)?;
+fn issue_challenge(state: &AppState, handle: &str) -> Result<String, String> {
+  validate_handle(handle).map_err(map_err)?;
   let challenge = generate_challenge();
   let mut challenges = state.challenges.lock().unwrap();
   challenges.insert(challenge.clone(), PendingChallenge {
-    handle: handle.clone(),
+    handle: handle.to_string(),
     challenge: challenge.clone(),
     created_at: Instant::now(),
   });
   // Clean expired challenges
   challenges.retain(|_, c| c.created_at.elapsed() < Duration::from_secs(120));
   Ok(challenge)
+}
+
+#[tauri::command]
+fn get_challenge(state: State<AppState>, handle: String) -> Result<String, String> {
+  issue_challenge(&state, &handle)
 }
 
 #[tauri::command]
@@ -260,6 +264,47 @@ fn login(
   sessions.retain(|_, s| s.created_at.elapsed() < Duration::from_secs(86400));
 
   Ok(token)
+}
+
+fn sign_stored_login_event(
+  keys: &nostr_sdk::prelude::Keys,
+  challenge: &str,
+) -> Result<String, String> {
+  use nostr_sdk::prelude::{EventBuilder, Kind, Tag};
+
+  let tags = vec![
+    Tag::parse(vec!["challenge".to_string(), challenge.to_string()])
+      .map_err(|e| format!("Could not build login challenge tag: {e}"))?,
+    Tag::parse(vec!["relay".to_string(), "blkspace".to_string()])
+      .map_err(|e| format!("Could not build login relay tag: {e}"))?,
+  ];
+  let runtime = tokio::runtime::Builder::new_current_thread()
+    .enable_all()
+    .build()
+    .map_err(|e| format!("Could not create login signing runtime: {e}"))?;
+  let event = runtime.block_on(async {
+    EventBuilder::new(Kind::Custom(22242), "")
+      .tags(tags)
+      .sign(keys)
+      .await
+      .map_err(|e| format!("Could not sign stored-key login: {e}"))
+  })?;
+  serde_json::to_string(&event).map_err(|e| format!("Could not encode login event: {e}"))
+}
+
+/// Re-authenticate on the same device without exposing or re-entering the key.
+/// The Rust key store signs the challenge; the WebView receives only a session token.
+#[tauri::command]
+fn login_with_stored_key(
+  state: State<AppState>,
+  handle: String,
+) -> Result<String, String> {
+  validate_handle(&handle).map_err(map_err)?;
+  let keys = load_user_nostr_keys(&state, &handle)?;
+  let challenge = issue_challenge(&state, &handle)?;
+  let auth_event = sign_stored_login_event(&keys, &challenge)?;
+  let pubkey = keys.public_key().to_hex();
+  login(state, handle, pubkey, challenge, auth_event)
 }
 
 #[tauri::command]
@@ -5408,6 +5453,7 @@ pub fn run() {
       get_platform,
       get_challenge,
       login,
+      login_with_stored_key,
       verify_session,
       logout,
       store_key,

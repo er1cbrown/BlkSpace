@@ -98,6 +98,7 @@ vi.mock("@/lib/tauri-api", () => ({
   tauriHasKey: () => Promise.resolve(false),
   tauriGetChallenge: () => Promise.resolve(""),
   tauriLogin: () => Promise.resolve(""),
+  tauriLoginWithStoredKey: () => Promise.resolve(""),
   tauriLogout: () => Promise.resolve(),
   tauriVerifySession: () => Promise.resolve(""),
   tauriUploadBlob: () => Promise.resolve({}),

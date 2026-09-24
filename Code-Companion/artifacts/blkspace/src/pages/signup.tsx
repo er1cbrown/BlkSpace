@@ -36,6 +36,7 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [createdNsec, setCreatedNsec] = useState<string | null>(null);
   const [joinedHandle, setJoinedHandle] = useState("");
+  const native = isTauri();
 
   const joinYard = async () => {
     const cleanHandle = normalizeHandle(handle);
@@ -83,11 +84,17 @@ export default function SignupPage() {
         <Card className="w-full max-w-md shadow-lg border-primary/10">
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-3xl font-serif">
-              {createdNsec ? "Get back in" : "Join the Yard"}
+              {createdNsec
+                ? native
+                  ? "Your account is ready"
+                  : "Get back in"
+                : "Join the Yard"}
             </CardTitle>
             <CardDescription className="text-base">
               {createdNsec
-                ? "Pick a password you already remember"
+                ? native
+                  ? "Your key is secured on this device."
+                  : "Pick a password you already remember"
                 : "Create your free account in seconds"}
             </CardDescription>
           </CardHeader>

@@ -362,6 +362,11 @@ export function tauriLogin(
   return invoke("login", { handle, pubkey, challenge, authEvent });
 }
 
+/** Re-authenticate using the key already held by Rust KeyStore. */
+export function tauriLoginWithStoredKey(handle: string): Promise<string> {
+  return invoke("login_with_stored_key", { handle });
+}
+
 export function tauriVerifySession(sessionToken: string): Promise<string> {
   return invoke("verify_session", { sessionToken });
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   createNostrIdentity,
+  authenticateWithStoredKey,
   derivePubkey,
   nsecToMnemonic,
   mnemonicToNsec,
@@ -105,6 +106,14 @@ describe("auth.ts", () => {
 
     it("rejects garbage", () => {
       expect(() => normalizeSecretKey("not-a-key")).toThrow();
+    });
+  });
+
+  describe("authenticateWithStoredKey", () => {
+    it("is unavailable in the web preview", async () => {
+      await expect(authenticateWithStoredKey("test_user")).rejects.toThrow(
+        /desktop app/i,
+      );
     });
   });
 

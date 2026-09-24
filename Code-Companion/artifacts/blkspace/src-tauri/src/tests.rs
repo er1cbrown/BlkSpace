@@ -18,6 +18,14 @@ mod tests {
   }
 
   #[test]
+  fn stored_login_event_is_signed_for_challenge() {
+    let keys = nostr_sdk::prelude::Keys::generate();
+    let event_json = super::sign_stored_login_event(&keys, "stored-login-challenge").unwrap();
+    let verified = super::verify_nostr_auth_event(&event_json, "stored-login-challenge").unwrap();
+    assert_eq!(verified, keys.public_key().to_hex());
+  }
+
+  #[test]
   fn test_validate_handle() {
     assert!(validate_handle("test_user").is_ok());
     assert!(validate_handle("test-user").is_ok());

@@ -18,7 +18,7 @@ export default function LoginPage() {
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-3xl font-serif">Welcome back</CardTitle>
             <CardDescription className="text-base">
-              Handle and the password you set.
+              Use the key saved on this device, or recover on a new one.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">

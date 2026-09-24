@@ -20,7 +20,7 @@ export default function RecoverPage() {
               Recover account
             </CardTitle>
             <CardDescription className="text-base">
-              Same password. Add the backup file if this is a new browser.
+              Use a recovery phrase or a backup file from another device.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">

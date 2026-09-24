@@ -60,6 +60,7 @@ export default function WelcomePage() {
   const [createdNsec, setCreatedNsec] = useState<string | null>(null);
   const [joinedHandle, setJoinedHandle] = useState("");
   const [postJoinPath, setPostJoinPath] = useState("/feed");
+  const native = isTauri();
 
   const totalSteps = 3;
 
@@ -355,7 +356,9 @@ export default function WelcomePage() {
           </p>
         </div>
         <p className="text-xs text-muted-foreground text-center">
-          Next: pick a password you remember.
+          {native
+            ? "Next: finish securing your account on this device."
+            : "Next: pick a password you remember."}
         </p>
         {error && (
           <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg">
@@ -373,9 +376,13 @@ export default function WelcomePage() {
         <main className="flex-1 flex items-center justify-center p-4">
           <Card className="w-full max-w-lg shadow-lg border-primary/10">
             <CardHeader className="text-center pb-4">
-              <CardTitle className="text-2xl font-serif">Get back in</CardTitle>
+              <CardTitle className="text-2xl font-serif">
+                {native ? "Your account is ready" : "Get back in"}
+              </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Pick a password you already remember.
+                {native
+                  ? "Your key is secured on this device."
+                  : "Pick a password you already remember."}
               </p>
             </CardHeader>
             <CardContent>

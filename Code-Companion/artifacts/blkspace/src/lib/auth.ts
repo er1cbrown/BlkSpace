@@ -6,6 +6,8 @@ import {
   tauriHasKey,
   tauriGetChallenge,
   tauriLogin,
+  tauriLoginWithStoredKey,
+  tauriGetUser,
   tauriLogout,
   tauriVerifySession,
 } from "@/lib/tauri-api";
@@ -274,6 +276,44 @@ export async function authenticateWithNostr(
 }
 
 /**
+ * Re-authenticate a native account using the key already held by Rust KeyStore.
+ * The key never crosses the Tauri boundary; JavaScript receives only a session token.
+ */
+export async function authenticateWithStoredKey(
+  handle: string,
+): Promise<string> {
+  if (!isTauri()) {
+    throw new Error(
+      "Saved-device sign-in is only available in the desktop app.",
+    );
+  }
+  const cleanHandle = handle.trim();
+  if (!cleanHandle) {
+    throw new Error("Enter your handle to continue.");
+  }
+  let token: string;
+  try {
+    token = await tauriLoginWithStoredKey(cleanHandle);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/no user nostr key|no key/i.test(message)) {
+      throw new Error(
+        "No saved key was found on this device. Use your recovery phrase or backup file instead.",
+      );
+    }
+    throw error;
+  }
+  const user = await tauriGetUser(cleanHandle);
+  if (!user) {
+    throw new Error("This handle is no longer available on the server.");
+  }
+  storeSession(token, user.pubkey);
+  localStorage.setItem(HANDLE_KEY, cleanHandle);
+  localStorage.setItem(DISPLAY_KEY, user.displayName || cleanHandle);
+  return token;
+}
+
+/**
  * On app boot: drop stale sessions and web sessions with no secret.
  * Call once at startup (App mount).
  */
@@ -286,7 +326,9 @@ export async function verifySessionOnBoot(): Promise<void> {
       // Returns handle on success; throws / rejects when session is invalid.
       await tauriVerifySession(token);
     } catch {
-      clearIdentity();
+      // Keep the non-secret handle/display name so the native login screen can
+      // offer "sign in on this device" without asking for a backup file.
+      clearSession();
     }
     return;
   }
