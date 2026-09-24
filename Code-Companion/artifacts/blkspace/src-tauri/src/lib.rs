@@ -11,6 +11,7 @@ mod secure_dm;
 mod blob_store;
 mod key_store;
 mod relay_manager;
+mod portfolio_sync;
 mod sendme_share;
 mod reticulum_bridge;
 mod tier0_benchmark;
@@ -100,6 +101,7 @@ struct AppState {
   rate_limiter: Mutex<HashMap<String, Vec<i64>>>,
   relay_manager: Mutex<RelayManager>,
   relay_town_subscriptions: Mutex<Vec<String>>,
+  portfolio_sync_lock: Mutex<()>,
 }
 
 const RATE_LIMIT_WINDOW: i64 = 60;
@@ -1728,6 +1730,9 @@ fn list_posts(
 
 #[tauri::command]
 fn get_post(state: State<AppState>, id: i64, current_user: Option<String>) -> Result<Option<Post>, String> {
+  if id < 0 {
+    return state.db.get_hosted_post(id);
+  }
   state.db.get_post(id, current_user.as_deref()).map_err(|e| AppError::from(e).to_string())
 }
 
@@ -1828,6 +1833,34 @@ fn publish_post_to_nostr(
   }
 }
 
+fn queue_hosted_post(
+  state: &AppState,
+  author_handle: &str,
+  post: &Post,
+) -> Result<String, String> {
+  let keys = load_user_nostr_keys(state, author_handle)?;
+  let post_uid = uuid::Uuid::new_v4().to_string();
+  let payload = portfolio_sync::HostedPostPayload {
+    id: portfolio_sync::stable_portfolio_id(&post_uid),
+    post_uid: post_uid.clone(),
+    author_handle: author_handle.to_string(),
+    content: post.content.clone(),
+    town_tag: post.town_tag.clone(),
+    channel_id: post.channel_id.clone(),
+    media_blobs: post.media_blobs.clone(),
+  };
+  let encoded = serde_json::to_string(&payload)
+    .map_err(|e| format!("Could not encode hosted post: {e}"))?;
+  state.db.queue_hosted_post(
+    &post_uid,
+    post.id,
+    author_handle,
+    &keys.public_key().to_hex(),
+    &encoded,
+  )?;
+  Ok(post_uid)
+}
+
 #[tauri::command]
 fn create_post(
   state: State<AppState>,
@@ -1856,6 +1889,10 @@ fn create_post(
     .create_post(&author_handle, &body, &town_tag, &ch, &hashes)
     .map_err(|e| AppError::from(e).to_string())?;
 
+  if let Err(error) = queue_hosted_post(&state, &author_handle, &result.post) {
+    log::warn!("Hosted post queued failed for {author_handle}: {error}");
+  }
+
   publish_post_to_nostr(
     &state,
     &author_handle,
@@ -1867,6 +1904,43 @@ fn create_post(
   );
 
   Ok(result)
+}
+
+/// Pull hosted posts and push this account's durable hosted outbox.
+#[tauri::command]
+fn sync_portfolio_once(
+  state: State<AppState>,
+  session_token: String,
+  town: Option<String>,
+) -> Result<portfolio_sync::PortfolioSyncResult, String> {
+  let (handle, session_pubkey) = get_session_info(&state, &session_token)?;
+  let keys = load_user_nostr_keys(&state, &handle)?;
+  if keys.public_key().to_hex() != session_pubkey {
+    return Err("Stored key does not match the signed-in identity.".into());
+  }
+  let _guard = state.portfolio_sync_lock.lock().unwrap();
+  portfolio_sync::sync_once(
+    &state.db,
+    &state.key_store,
+    &session_pubkey,
+    town.as_deref().unwrap_or("tsu"),
+  )
+}
+
+#[tauri::command]
+fn list_hosted_posts(
+  state: State<AppState>,
+  town: Option<String>,
+  limit: Option<i64>,
+) -> Result<Vec<Post>, String> {
+  state
+    .db
+    .list_hosted_posts(town.as_deref(), limit.unwrap_or(100))
+}
+
+#[tauri::command]
+fn get_hosted_post(state: State<AppState>, post_id: i64) -> Result<Option<Post>, String> {
+  state.db.get_hosted_post(post_id)
 }
 
 #[tauri::command]
@@ -3336,6 +3410,9 @@ fn flush_offline_queue(state: State<AppState>, session_token: String) -> Result<
           .db
           .create_post(&handle, &p.content, &p.town_tag, &p.channel_id, &hashes)
           .map_err(|e| AppError::from(e).to_string())?;
+        if let Err(error) = queue_hosted_post(&state, &handle, &result.post) {
+          log::warn!("Hosted post queued failed for {handle}: {error}");
+        }
         publish_post_to_nostr(
           &state,
           &handle,
@@ -5147,6 +5224,7 @@ pub fn run() {
         PLATFORM_INTRANET_TAG.to_string(),
         PLATFORM_APP_TAG.to_string(),
       ]),
+      portfolio_sync_lock: Mutex::new(()),
     })
     .setup(move |app| {
       if cfg!(debug_assertions) {
@@ -5370,6 +5448,9 @@ pub fn run() {
       list_posts,
       get_post,
       create_post,
+       sync_portfolio_once,
+       list_hosted_posts,
+       get_hosted_post,
       get_user_posts,
       get_trending_feed,
       list_replies,

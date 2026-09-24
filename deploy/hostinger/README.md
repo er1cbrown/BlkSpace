@@ -6,7 +6,7 @@ Target verified on 2026-09-23: KVM 2, Docker Compose, host-network Traefik with 
 
 The production container serves the built React application and `/api/portfolio/*`, `/api/media/upload-target`, and `/api/health`. It does not run Vite. Server dependencies are bundled; runtime image contains only the server and public frontend, not source files or `.env`.
 
-Writes use NIP-98 proofs signed with the user's existing browser Nostr key. Post handles are bound to keys on first cloud post, and post ownership is enforced. A new device needs the encrypted backup plus password, or the recovery phrase. Posts wait for Turso acknowledgement and active feeds refresh every five seconds. Hosted attachments must be HTTPS URLs; the browser-local blob store is not a cross-device store. Likes/follows remain browser-local and are not part of this deployment's shared-state claim.
+Writes use NIP-98 proofs signed with the user's existing browser or native Nostr key. Native clients also send a stable `postUid`; retries are idempotent. Post handles are bound to keys on first cloud post, and post ownership is enforced. A new device needs the encrypted backup plus password, or the recovery phrase. Posts wait for Turso acknowledgement and active feeds refresh every five seconds. Hosted attachments must be HTTPS URLs; the browser-local blob store is not a cross-device store. Likes/follows remain local and are not part of this deployment's shared-state claim.
 
 ## Deploy on the VPS
 

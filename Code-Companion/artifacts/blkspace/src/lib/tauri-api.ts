@@ -230,6 +230,7 @@ export interface TauriPost {
   engagementQuality: number;
   maliciousScore: number;
   riskLevel: "low" | "medium" | "high";
+  syncSource?: "local" | "hosted";
 }
 
 export interface TauriReply {
@@ -691,6 +692,33 @@ export function tauriPublishMix(
     key,
     tracklist,
   });
+}
+
+export interface TauriPortfolioSyncResult {
+  pulled: number;
+  cached: number;
+  pushed: number;
+  failed: number;
+  pending: number;
+  disabled: boolean;
+}
+
+export function tauriSyncPortfolioOnce(
+  sessionToken: string,
+  town?: string,
+): Promise<TauriPortfolioSyncResult> {
+  return invoke("sync_portfolio_once", { sessionToken, town: town || null });
+}
+
+export function tauriListHostedPosts(
+  town?: string,
+  limit?: number,
+): Promise<TauriPost[]> {
+  return invoke("list_hosted_posts", { town: town || null, limit: limit ?? 100 });
+}
+
+export function tauriGetHostedPost(postId: number): Promise<TauriPost | null> {
+  return invoke("get_hosted_post", { postId });
 }
 
 export interface TauriPaginatedPosts {

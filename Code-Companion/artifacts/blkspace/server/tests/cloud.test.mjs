@@ -156,6 +156,40 @@ describe("standalone cloud server", () => {
     }
   });
 
+  test("native postUid is idempotent and paginated", async () => {
+    const body = {
+      postUid: "native-alice-12345678",
+      authorHandle: "alice",
+      content: "hello from native",
+      townTag: "tsu",
+      channelId: "general",
+      mediaBlobs: [],
+    };
+    const first = await post("/api/portfolio/post", body, alice);
+    const firstBody = await first.json();
+    expect(first.status).toBe(200);
+    expect(firstBody.postUid).toBe(body.postUid);
+    expect(firstBody.remoteId).toBeTruthy();
+
+    const retry = await post("/api/portfolio/post", body, alice);
+    expect(retry.status).toBe(200);
+    expect((await retry.json()).remoteId).toBe(firstBody.remoteId);
+
+    const changed = await post(
+      "/api/portfolio/post",
+      { ...body, content: "changed" },
+      alice,
+    );
+    expect(changed.status).toBe(409);
+
+    const page = await (
+      await fetch(`${base}/api/portfolio/posts?town=tsu&limit=1`)
+    ).json();
+    expect(page.rows[0].postUid).toBeTruthy();
+    expect(page.serverTime).toBeTruthy();
+    db.run("DELETE FROM portfolio_posts WHERE post_uid = ?", [body.postUid]);
+  });
+
   test("retrying a signed post does not duplicate it", async () => {
     const r = await post("/api/portfolio/post", {
       id: 1001,

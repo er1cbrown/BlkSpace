@@ -3,7 +3,7 @@ mod tests {
   use sha2::{Digest, Sha256};
   use crate::params;
   use crate::db::{
-    Database, DAILY_WB_EARN_CAP, MARKETPLACE_PLATFORM_FEE_BPS, MIN_WITHDRAW_KARMA,
+    CloudPostRecord, Database, DAILY_WB_EARN_CAP, MARKETPLACE_PLATFORM_FEE_BPS, MIN_WITHDRAW_KARMA,
     MIN_WITHDRAW_POSTS, MIN_WITHDRAW_WB, MIN_WITHDRAW_YARD_CRED, TIP_PLATFORM_FEE_BPS,
     TokenomicsPolicy, WEEKLY_WITHDRAW_CAP_WB, calc_platform_fee, validate_handle,
     validate_display_name, validate_content, validate_bio, validate_town,
@@ -157,6 +157,55 @@ mod tests {
     
     let posts = db.list_posts(Some("tsu"), None, None, None).unwrap().posts;
     assert_eq!(posts.len(), 2);
+  }
+
+  #[test]
+  fn hosted_posts_are_cached_without_local_rewards() {
+    let db = setup_test_db();
+    let row = CloudPostRecord {
+      post_uid: "remote-post-12345678".into(),
+      remote_id: "9001".into(),
+      author_handle: "remote_user".into(),
+      author_pubkey: "aa".repeat(32),
+      content: "A post from another device".into(),
+      town_tag: "tsu".into(),
+      channel_id: "general".into(),
+      media_blobs: vec![],
+      created_at: "2026-09-24T00:00:00Z".into(),
+      updated_at: "2026-09-24T00:00:00Z".into(),
+      revision: 1,
+    };
+    assert_eq!(db.upsert_hosted_posts(&[row.clone()]).unwrap(), 1);
+    assert_eq!(db.upsert_hosted_posts(&[row]).unwrap(), 0);
+    let hosted = db.list_hosted_posts(Some("tsu"), 100).unwrap();
+    assert_eq!(hosted.len(), 1);
+    assert!(hosted[0].id < 0);
+    assert_eq!(hosted[0].sync_source, "hosted");
+    assert!(db.list_posts(Some("tsu"), None, None, None).unwrap().posts.is_empty());
+  }
+
+  #[test]
+  fn hosted_outbox_binds_after_acknowledgement() {
+    let db = setup_test_db();
+    db.create_user("author", "Author", "").unwrap();
+    let post = db.create_post("author", "Local first", "tsu", NO_CHANNEL, &[]).unwrap().post;
+    db.queue_hosted_post(
+      "local-post-12345678",
+      post.id,
+      "author",
+      &"bb".repeat(32),
+      r#"{"id":123456789,"postUid":"local-post-12345678","authorHandle":"author","content":"Local first","townTag":"tsu","channelId":"","mediaBlobs":[]}"#,
+    )
+    .unwrap();
+    let due = db.due_hosted_outbox(&"bb".repeat(32), 10).unwrap();
+    assert_eq!(due.len(), 1);
+    let ack = crate::portfolio_sync::HostedPostAck {
+      post_uid: "local-post-12345678".into(),
+      remote_id: "9002".into(),
+      revision: 1,
+    };
+    db.ack_hosted_outbox(&due[0], &ack).unwrap();
+    assert_eq!(db.count_hosted_outbox(&"bb".repeat(32)).unwrap(), 0);
   }
 
   #[test]

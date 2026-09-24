@@ -41,6 +41,7 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 |-------|-----|
 | UI / pages | [`blkspace-ui-system-plan.md`](blkspace-ui-system-plan.md) |
 | Tier 0 performance | [`tier0-load-optimization.md`](tier0-load-optimization.md) |
+| Hosted native post sync | [`implementation/HOSTED_NATIVE_SYNC.md`](implementation/HOSTED_NATIVE_SYNC.md) |
 | Nostr + mesh testing | [`implementation/DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) |
 | Reticulum Route B | [`implementation/RETICULUM_INTEGRATION.md`](implementation/RETICULUM_INTEGRATION.md) — bundled native rns/rnsd; no Python sidecar / LXMF / RNode |
 | Yard room watch | [`features/yard-room-watch.md`](features/yard-room-watch.md) — Jellyfin / Iroh tickets in Live rooms; no scrape CDNs |

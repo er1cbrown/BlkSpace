@@ -34,6 +34,7 @@ base64 = "0.22"
 tokio = { version = "1", features = ["full"] }
 nostr-sdk = { version = "0.38", features = [] }
 url = "2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 async-trait = "0.1"
 # Full build: iroh 1.x Endpoint + iroh-blobs 0.103 (sendme-compatible BlobTicket / hole-punch).
 # Yard: cargo build --no-default-features (no iroh). Do not depend on the sendme crate.

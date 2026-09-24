@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   useQuery,
   useInfiniteQuery,
@@ -82,6 +83,56 @@ export function useAppListPosts(
   currentUser: string,
   enabled = true,
 ) {
+  const queryClient = useQueryClient();
+  const syncTown = town === "all" ? undefined : town;
+  const cloudSync = useQuery({
+    queryKey: ["tauri", "portfolio-sync", town],
+    queryFn: async () => {
+      const token = getSessionToken();
+      if (!token) {
+        return {
+          pulled: 0,
+          cached: 0,
+          pushed: 0,
+          failed: 0,
+          pending: 0,
+          disabled: true,
+        };
+      }
+      try {
+        return await tauri.tauriSyncPortfolioOnce(token, syncTown);
+      } catch {
+        // Hosted sync is best-effort; the local/offline feed remains usable.
+        return {
+          pulled: 0,
+          cached: 0,
+          pushed: 0,
+          failed: 0,
+          pending: 0,
+          disabled: true,
+        };
+      }
+    },
+    enabled: IS_TAURI && enabled,
+    retry: false,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+  const hostedPosts = useQuery({
+    queryKey: ["tauri", "hosted-posts", syncTown || "all"],
+    queryFn: () => tauri.tauriListHostedPosts(syncTown, 100),
+    enabled: IS_TAURI && enabled,
+    staleTime: 10_000,
+    refetchInterval: 30_000,
+  });
+
+  useEffect(() => {
+    if (cloudSync.data?.pulled || cloudSync.data?.cached) {
+      queryClient.invalidateQueries({ queryKey: ["tauri", "hosted-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
+    }
+  }, [cloudSync.data?.cached, cloudSync.data?.pulled, queryClient]);
+
   const tauriInfinite = useInfiniteQuery({
     queryKey: ["tauri", "posts", town, currentUser],
     queryFn: ({ pageParam }) =>
@@ -111,11 +162,21 @@ export function useAppListPosts(
   });
 
   if (IS_TAURI) {
-    const flat =
-      tauriInfinite.data?.pages.flatMap((page) => page.posts) ?? undefined;
+    const local =
+      tauriInfinite.data?.pages.flatMap((page) => page.posts) ?? [];
+    const merged = [...local, ...(hostedPosts.data ?? [])]
+      .filter(
+        (post, index, all) =>
+          all.findIndex((candidate) => candidate.id === post.id) === index,
+      )
+      .sort(
+        (left, right) =>
+          new Date(right.createdAt).getTime() -
+          new Date(left.createdAt).getTime(),
+      );
     return {
-      data: flat,
-      isLoading: tauriInfinite.isLoading,
+      data: merged.length ? merged : undefined,
+      isLoading: tauriInfinite.isLoading || hostedPosts.isLoading,
       isFetchingNextPage: tauriInfinite.isFetchingNextPage,
       fetchNextPage: tauriInfinite.fetchNextPage,
       hasNextPage: tauriInfinite.hasNextPage ?? false,
@@ -208,7 +269,10 @@ const MOCK_NETWORK = {
 export function useAppGetPost(id: number, currentUser: string) {
   const tauriResult = useQuery({
     queryKey: ["tauri", "post", id, currentUser],
-    queryFn: () => tauri.tauriGetPost(id, currentUser),
+    queryFn: () =>
+      id < 0
+        ? tauri.tauriGetHostedPost(id)
+        : tauri.tauriGetPost(id, currentUser),
     enabled: IS_TAURI && !!id,
   });
   const webResult = useQuery({
@@ -223,7 +287,16 @@ export function useAppGetPost(id: number, currentUser: string) {
 export function useAppGetUserPosts(handle: string, currentUser: string) {
   const tauriResult = useQuery({
     queryKey: ["tauri", "userPosts", handle, currentUser],
-    queryFn: () => tauri.tauriGetUserPosts(handle, currentUser),
+    queryFn: async () => {
+      const local = await tauri.tauriGetUserPosts(handle, currentUser);
+      const hosted = await tauri.tauriListHostedPosts(undefined, 100);
+      return [...local, ...hosted.filter((post) => post.authorHandle === handle)]
+        .sort(
+          (left, right) =>
+            new Date(right.createdAt).getTime() -
+            new Date(left.createdAt).getTime(),
+        );
+    },
     enabled: IS_TAURI && !!handle,
   });
   const webResult = useQuery({
@@ -354,6 +427,13 @@ export function useAppCreatePost() {
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
+      const token = getSessionToken();
+      if (token) {
+        void tauri
+          .tauriSyncPortfolioOnce(token)
+          .then(() => qc.invalidateQueries({ queryKey: ["tauri", "hosted-posts"] }))
+          .catch(() => undefined);
+      }
     },
   });
   const queueMut = useMutation({
@@ -382,18 +462,6 @@ export function useAppCreatePost() {
           if (!token) {
             const err = new Error("Sign in to post — open Welcome or Log in");
             opts?.onError?.(err);
-            return;
-          }
-          if (isOffline()) {
-            queueMut.mutate(
-              JSON.stringify({
-                content: input.content,
-                town_tag: input.town_tag,
-                channel_id: input.channel_id || "",
-                media_hashes: input.media_hashes || [],
-              }),
-              opts,
-            );
             return;
           }
           tauriMut.mutate(

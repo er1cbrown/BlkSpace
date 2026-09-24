@@ -41,6 +41,17 @@ vi.mock("@/lib/tauri-api", () => ({
   tauriGetNotifications: () => Promise.resolve([]),
   tauriGetWalletTx: () => Promise.resolve([]),
   tauriSendWeixBucks: () => Promise.resolve([0, 0]),
+  tauriSyncPortfolioOnce: () =>
+    Promise.resolve({
+      pulled: 0,
+      cached: 0,
+      pushed: 0,
+      failed: 0,
+      pending: 0,
+      disabled: true,
+    }),
+  tauriListHostedPosts: () => Promise.resolve([]),
+  tauriGetHostedPost: () => Promise.resolve(null),
   tauriCreatePost: () =>
     Promise.resolve({
       post: { id: 1, authorHandle: "test", content: "hi", townTag: "tsu" },

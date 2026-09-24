@@ -565,7 +565,21 @@ fn load_turso_dotenv() {
   });
 }
 
+fn direct_turso_enabled() -> bool {
+  cfg!(debug_assertions)
+    && matches!(
+      std::env::var("BLKSPACE_ALLOW_DIRECT_TURSO")
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+        .as_str(),
+      "1" | "true" | "yes" | "on"
+    )
+}
+
 fn turso_cloud_creds() -> Option<(String, String)> {
+  if !direct_turso_enabled() {
+    return None;
+  }
   load_turso_dotenv();
   let url = std::env::var("TURSO_DATABASE_URL").ok()?;
   let token = std::env::var("TURSO_AUTH_TOKEN").ok()?;

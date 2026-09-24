@@ -20,7 +20,15 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         });
       }
       if (req.method === "GET" && path === "/api/portfolio/posts")
-        return json(res, 200, await portfolio.posts());
+        return json(
+          res,
+          200,
+          await portfolio.posts({
+            town: url.searchParams.get("town") || "",
+            limit: url.searchParams.get("limit") || undefined,
+            cursor: url.searchParams.get("cursor") || "",
+          }),
+        );
       if (req.method === "GET" && path === "/api/portfolio/blob")
         return json(res, 200, await portfolio.blob(url.searchParams.get("id")));
       if (

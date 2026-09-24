@@ -56,7 +56,7 @@ The VPS deployment reads `deploy/hostinger/.env` and runs the standalone server.
 docker compose --project-directory deploy/hostinger -p blkspace -f deploy/hostinger/compose.yml up -d --force-recreate
 ```
 
-The production URL is `https://bkspc.app`. The temporary fallback URL is `https://blkspace.srv1946189.hstgr.cloud`.
+The production URL is `https://bkspc.app`. The temporary fallback URL is `https://blkspace.srv1946189.hstgr.cloud`. Native Tauri clients use this same HTTPS origin through the Rust-hosted sync client; they never receive the Turso token.
 
 ## If video does not save
 

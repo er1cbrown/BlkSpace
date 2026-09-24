@@ -3,6 +3,7 @@ use crate::sqlite::{
 };
 use crate::params;
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -368,6 +369,34 @@ pub struct Post {
   pub malicious_score: f64,
   /// `low` | `medium` | `high` from MIDF thresholds.
   pub risk_level: String,
+  /// `local` rows are editable/offline-first; `hosted` rows are read-only cache rows.
+  pub sync_source: String,
+}
+
+/// A validated row returned by the hosted portfolio API.
+#[derive(Debug, Clone)]
+pub struct CloudPostRecord {
+  pub post_uid: String,
+  pub remote_id: String,
+  pub author_handle: String,
+  pub author_pubkey: String,
+  pub content: String,
+  pub town_tag: String,
+  pub channel_id: String,
+  pub media_blobs: Vec<String>,
+  pub created_at: String,
+  pub updated_at: String,
+  pub revision: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct HostedOutboxItem {
+  pub id: i64,
+  pub post_uid: String,
+  pub local_post_id: i64,
+  pub author_handle: String,
+  pub author_pubkey: String,
+  pub payload: String,
 }
 
 /// Default page size for feed queries (Tier 0 pagination).
@@ -697,7 +726,7 @@ pub struct Database {
 }
 
 /// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
-const SCHEMA_VERSION: i32 = 9;
+const SCHEMA_VERSION: i32 = 10;
 
 /// Tier 0 page cache in KiB (negative PRAGMA cache_size = KiB).
 /// Default 8 MiB — was 64 MiB which is too heavy for 4 GB laptops.
@@ -1307,6 +1336,49 @@ impl Database {
       CREATE INDEX IF NOT EXISTS idx_offline_queue_author ON offline_queue(author_handle);
       CREATE INDEX IF NOT EXISTS idx_offline_queue_synced ON offline_queue(synced);
 
+      CREATE TABLE IF NOT EXISTS hosted_post_outbox (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_uid TEXT NOT NULL UNIQUE,
+        local_post_id INTEGER NOT NULL UNIQUE,
+        author_handle TEXT NOT NULL,
+        author_pubkey TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        state TEXT NOT NULL DEFAULT 'pending',
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        next_attempt_at TEXT NOT NULL DEFAULT (datetime('now')),
+        last_error TEXT DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_hosted_outbox_due
+        ON hosted_post_outbox(author_pubkey, state, next_attempt_at);
+
+      CREATE TABLE IF NOT EXISTS hosted_posts (
+        local_id INTEGER PRIMARY KEY CHECK(local_id < 0),
+        post_uid TEXT NOT NULL UNIQUE,
+        remote_id TEXT NOT NULL UNIQUE,
+        author_handle TEXT NOT NULL,
+        author_pubkey TEXT NOT NULL,
+        content TEXT NOT NULL,
+        town_tag TEXT NOT NULL,
+        channel_id TEXT NOT NULL DEFAULT '',
+        media_blobs TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1,
+        last_pulled_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_hosted_posts_town_time
+        ON hosted_posts(town_tag, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS hosted_post_bindings (
+        post_uid TEXT PRIMARY KEY,
+        local_post_id INTEGER NOT NULL UNIQUE,
+        remote_id TEXT NOT NULL UNIQUE
+      );
+
       CREATE TABLE IF NOT EXISTS device_sync_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         device_id TEXT NOT NULL,
@@ -1770,6 +1842,7 @@ impl Database {
           engagement_quality: 1.0,
           malicious_score: 0.0,
           risk_level: "low".to_string(),
+          sync_source: "local".to_string(),
         })
       },
     )?;
@@ -2023,6 +2096,7 @@ impl Database {
         engagement_quality: 1.0,
         malicious_score: 0.0,
         risk_level: "low".to_string(),
+          sync_source: "local".to_string(),
       })
     }
 
@@ -2119,6 +2193,7 @@ impl Database {
           engagement_quality: 1.0,
           malicious_score: 0.0,
           risk_level: "low".to_string(),
+          sync_source: "local".to_string(),
         }),
         None => None,
       }
@@ -2392,6 +2467,344 @@ impl Database {
     reward
   }
 
+  fn hosted_local_id(post_uid: &str) -> i64 {
+    let digest = Sha256::digest(post_uid.as_bytes());
+    let mut value = 0u64;
+    for byte in digest.iter().take(8) {
+      value = (value << 8) | u64::from(*byte);
+    }
+    // Keep the absolute value below JavaScript's 2^53-1 safe-integer limit.
+    value &= 0x1fff_ffff_ffff_ffff;
+    -((value | 1) as i64)
+  }
+
+  /// Cache hosted rows without creating local users, granting rewards, or
+  /// mutating the local post table. Hosted rows use opaque negative UI ids.
+  pub fn upsert_hosted_posts(&self, rows: &[CloudPostRecord]) -> Result<usize, String> {
+    if rows.is_empty() {
+      return Ok(0);
+    }
+    let conn = self.conn.lock().unwrap();
+    let mut changed = 0usize;
+    for row in rows {
+      if row.post_uid.len() < 8
+        || row.post_uid.len() > 128
+        || row.remote_id.is_empty()
+        || row.author_handle.is_empty()
+        || row.author_handle.len() > 30
+        || row.content.len() > 10_000
+        || row.town_tag.len() > 100
+        || row.media_blobs.len() > 10
+        || row.media_blobs.iter().any(|value| !value.starts_with("https://"))
+      {
+        continue;
+      }
+      let bound: Option<i64> = conn
+        .query_row(
+          "SELECT local_post_id FROM hosted_post_bindings WHERE post_uid = ?1 OR remote_id = ?2",
+          params![row.post_uid, row.remote_id],
+          |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+      if bound.is_some() {
+        let _ = conn.execute(
+          "DELETE FROM hosted_posts WHERE post_uid = ?1 OR remote_id = ?2",
+          params![row.post_uid, row.remote_id],
+        );
+        continue;
+      }
+
+      let existing: Option<(i64, i64)> = conn
+        .query_row(
+          "SELECT local_id, revision FROM hosted_posts WHERE post_uid = ?1",
+          params![row.post_uid],
+          |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+      let media_json = serde_json::to_string(&row.media_blobs).map_err(|e| e.to_string())?;
+      let created_at = if row.created_at.trim().is_empty() {
+        chrono::Utc::now().to_rfc3339()
+      } else {
+        row.created_at.clone()
+      };
+      let updated_at = if row.updated_at.trim().is_empty() {
+        created_at.clone()
+      } else {
+        row.updated_at.clone()
+      };
+      match existing {
+        Some((local_id, old_revision)) => {
+          if row.revision <= old_revision {
+            continue;
+          }
+          conn.execute(
+            r#"UPDATE hosted_posts
+                SET remote_id = ?1, author_handle = ?2, author_pubkey = ?3,
+                    content = ?4, town_tag = ?5, channel_id = ?6,
+                    media_blobs = ?7, created_at = ?8, updated_at = ?9,
+                    revision = ?10, last_pulled_at = datetime('now')
+              WHERE local_id = ?11"#,
+            params![
+              row.remote_id,
+              row.author_handle,
+              row.author_pubkey,
+              row.content,
+              row.town_tag,
+              row.channel_id,
+              media_json,
+              created_at,
+              updated_at,
+              row.revision,
+              local_id,
+            ],
+          )
+          .map_err(|e| e.to_string())?;
+          changed += 1;
+        }
+        None => {
+          let mut local_id = Self::hosted_local_id(&row.post_uid);
+          let mut attempts = 0;
+          while conn
+            .query_row(
+              "SELECT local_id FROM hosted_posts WHERE local_id = ?1",
+              params![local_id],
+              |r| r.get::<_, i64>(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?
+            .is_some()
+          {
+            local_id = if local_id == -1 { -2 } else { local_id - 1 };
+            attempts += 1;
+            if attempts > 8 {
+              return Err("Could not allocate a hosted cache id".into());
+            }
+          }
+          conn.execute(
+            r#"INSERT INTO hosted_posts
+             (local_id, post_uid, remote_id, author_handle, author_pubkey,
+              content, town_tag, channel_id, media_blobs, created_at,
+              updated_at, revision)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)"#,
+            params![
+              local_id,
+              row.post_uid,
+              row.remote_id,
+              row.author_handle,
+              row.author_pubkey,
+              row.content,
+              row.town_tag,
+              row.channel_id,
+              media_json,
+              created_at,
+              updated_at,
+              row.revision,
+            ],
+          )
+          .map_err(|e| e.to_string())?;
+          changed += 1;
+        }
+      }
+    }
+    Ok(changed)
+  }
+
+  pub fn list_hosted_posts(&self, town: Option<&str>, limit: i64) -> Result<Vec<Post>, String> {
+    let conn = self.conn.lock().unwrap();
+    let bounded = limit.clamp(1, 100);
+    let (sql, args) = if let Some(town) = town.filter(|value| !value.is_empty()) {
+      (
+        r#"SELECT local_id, post_uid, remote_id, author_handle, author_pubkey,
+                content, town_tag, channel_id, media_blobs, created_at
+           FROM hosted_posts
+          WHERE town_tag = ?1
+            AND NOT EXISTS (
+              SELECT 1 FROM hosted_post_bindings b
+                WHERE b.post_uid = hosted_posts.post_uid
+                   OR b.remote_id = hosted_posts.remote_id
+            )
+          ORDER BY created_at DESC, local_id DESC LIMIT ?2"#,
+        params![town, bounded],
+      )
+    } else {
+      (
+        r#"SELECT local_id, post_uid, remote_id, author_handle, author_pubkey,
+                content, town_tag, channel_id, media_blobs, created_at
+           FROM hosted_posts
+          WHERE NOT EXISTS (
+              SELECT 1 FROM hosted_post_bindings b
+                WHERE b.post_uid = hosted_posts.post_uid
+                   OR b.remote_id = hosted_posts.remote_id
+            )
+          ORDER BY created_at DESC, local_id DESC LIMIT ?1"#,
+        params![bounded],
+      )
+    };
+    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+    let rows = stmt
+      .query_map(args, |row| {
+        let media_json: String = row.get(8)?;
+        let media_blobs = serde_json::from_str(&media_json).unwrap_or_default();
+        Ok(Post {
+          id: row.get(0)?,
+          author_handle: row.get(3)?,
+          author_display_name: row.get(3)?,
+          author_avatar_url: String::new(),
+          content: row.get(5)?,
+          town_tag: row.get(6)?,
+          channel_id: row.get(7)?,
+          replies_count: 0,
+          reposts_count: 0,
+          likes_count: 0,
+          liked: false,
+          media_blobs,
+          nostr_event_id: String::new(),
+          relay_url: String::new(),
+          created_at: row.get(9)?,
+          engagement_quality: 1.0,
+          malicious_score: 0.0,
+          risk_level: "low".into(),
+          sync_source: "hosted".into(),
+        })
+      })
+      .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+  }
+
+  pub fn get_hosted_post(&self, local_id: i64) -> Result<Option<Post>, String> {
+    if local_id >= 0 {
+      return Ok(None);
+    }
+    Ok(self
+      .list_hosted_posts(None, 100)?
+      .into_iter()
+      .find(|post| post.id == local_id))
+  }
+
+  pub fn queue_hosted_post(
+    &self,
+    post_uid: &str,
+    local_post_id: i64,
+    author_handle: &str,
+    author_pubkey: &str,
+    payload: &str,
+  ) -> Result<(), String> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      r#"INSERT OR IGNORE INTO hosted_post_outbox
+       (post_uid, local_post_id, author_handle, author_pubkey, payload)
+       VALUES (?1, ?2, ?3, ?4, ?5)"#,
+      params![post_uid, local_post_id, author_handle, author_pubkey, payload],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+  }
+
+  pub fn due_hosted_outbox(
+    &self,
+    author_pubkey: &str,
+    limit: i64,
+  ) -> Result<Vec<HostedOutboxItem>, String> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn
+      .prepare(
+        r#"SELECT id, post_uid, local_post_id, author_handle, author_pubkey, payload
+           FROM hosted_post_outbox
+          WHERE author_pubkey = ?1
+            AND state = 'pending'
+            AND next_attempt_at <= datetime('now')
+          ORDER BY id ASC LIMIT ?2"#,
+      )
+      .map_err(|e| e.to_string())?;
+    let rows = stmt
+      .query_map(params![author_pubkey, limit.clamp(1, 50)], |row| {
+        Ok(HostedOutboxItem {
+          id: row.get(0)?,
+          post_uid: row.get(1)?,
+          local_post_id: row.get(2)?,
+          author_handle: row.get(3)?,
+          author_pubkey: row.get(4)?,
+          payload: row.get(5)?,
+        })
+      })
+      .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+  }
+
+  pub fn ack_hosted_outbox(
+    &self,
+    item: &HostedOutboxItem,
+    ack: &crate::portfolio_sync::HostedPostAck,
+  ) -> Result<(), String> {
+    if ack.post_uid != item.post_uid {
+      return Err("Hosted acknowledgement postUid did not match the outbox item.".into());
+    }
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      r#"INSERT OR IGNORE INTO hosted_post_bindings (post_uid, local_post_id, remote_id)
+       VALUES (?1, ?2, ?3)"#,
+      params![ack.post_uid, item.local_post_id, ack.remote_id],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute(
+      "DELETE FROM hosted_posts WHERE post_uid = ?1 OR remote_id = ?2",
+      params![ack.post_uid, ack.remote_id],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute(
+      r#"UPDATE hosted_post_outbox
+          SET state = 'synced', attempt_count = attempt_count + 1,
+              last_error = '', updated_at = datetime('now')
+        WHERE id = ?1"#,
+      params![item.id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+  }
+
+  pub fn mark_hosted_outbox_retry(&self, id: i64, error: &str) -> Result<(), String> {
+    let conn = self.conn.lock().unwrap();
+    let error = error.chars().take(500).collect::<String>();
+    conn.execute(
+      r#"UPDATE hosted_post_outbox
+          SET state = 'pending', attempt_count = attempt_count + 1,
+              next_attempt_at = datetime('now', '+60 seconds'),
+              last_error = ?1, updated_at = datetime('now')
+        WHERE id = ?2"#,
+      params![error, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+  }
+
+  pub fn mark_hosted_outbox_blocked(&self, id: i64, error: &str) -> Result<(), String> {
+    let conn = self.conn.lock().unwrap();
+    let error = error.chars().take(500).collect::<String>();
+    conn.execute(
+      r#"UPDATE hosted_post_outbox
+          SET state = 'blocked', attempt_count = attempt_count + 1,
+              last_error = ?1, updated_at = datetime('now')
+        WHERE id = ?2"#,
+      params![error, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+  }
+
+  pub fn count_hosted_outbox(&self, author_pubkey: &str) -> Result<usize, String> {
+    let conn = self.conn.lock().unwrap();
+    let count: i64 = conn
+      .query_row(
+        "SELECT COUNT(*) FROM hosted_post_outbox WHERE author_pubkey = ?1 AND state = 'pending'",
+        params![author_pubkey],
+        |r| r.get(0),
+      )
+      .map_err(|e| e.to_string())?;
+    Ok(count.max(0) as usize)
+  }
+
   pub fn create_post(&self, author_handle: &str, content: &str, town_tag: &str, channel_id: &str, media_hashes: &[String]) -> Result<CreatePostResult> {
     let quality = self.update_engagement_quality(author_handle)?;
     let is_community = !channel_id.is_empty();
@@ -2473,6 +2886,7 @@ impl Database {
       engagement_quality: quality,
       malicious_score: 0.0,
       risk_level: "low".to_string(),
+          sync_source: "local".to_string(),
     };
     self.enrich_post_security(&mut post);
 
@@ -3781,6 +4195,7 @@ impl Database {
         engagement_quality: 1.0,
         malicious_score: 0.0,
         risk_level: "low".to_string(),
+          sync_source: "local".to_string(),
       })
     })?;
       let mut posts = Vec::new();
@@ -3837,6 +4252,7 @@ impl Database {
           engagement_quality: 1.0,
           malicious_score: 0.0,
           risk_level: "low".to_string(),
+          sync_source: "local".to_string(),
         })
       })?;
       let mut posts = Vec::new();
