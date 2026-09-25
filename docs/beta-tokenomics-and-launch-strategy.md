@@ -1,6 +1,25 @@
 # BlkSpace — Beta Tokenomics + Launch Strategy
 
-**Date:** 2026-06-22  
+> ## ⚠️ ARCHIVED — NOT A LIVE STRATEGY
+>
+> **Superseded 2026-09-25 by [`economy-canonical.md`](economy-canonical.md).**
+>
+> This document plans a **pump.fun memecoin launch with explicit
+> investor-return framing** ("you profit by buying BKSPC…", "For investors").
+> That position is **incompatible** with the consumer-protection invariant in
+> `economy-canonical.md` §4 under *both* economy models, and it contradicts the
+> "not an investment contract" framing in `four-pillar-economy.md`.
+>
+> It is retained **only as a historical record of an abandoned strategy**. Do not
+> implement, cite, or present it as current. If pump.fun is genuinely still
+> intended, then `economy-canonical.md` §12 must be reopened with counsel
+> *before* any of this is treated as live — the two positions cannot both stand.
+>
+> Reason archived: a reviewer or future maintainer who greps the repository for
+> token strategy will otherwise find a live-looking investor playbook
+> contradicting the canonical model.
+
+**Date:** 2026-06-22 (archived 2026-09-25)  
 **Question:** What's the best beta-hosting option to secure domain + token + website link, with optimal tokenomics for all use cases (student → faculty → professional → admin → investor), and how does profit actually flow through Solana?  
 **Identity:** BLKSPACE — aggregate amalgamation social network for HBCU creators. Student-first. Faculty-adjacent. Investor-aware.  
 
