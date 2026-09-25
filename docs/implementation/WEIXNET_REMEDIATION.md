@@ -9,6 +9,32 @@ features.
 | Issue | Action | Exit criterion |
 |-------|--------|----------------|
 | Ticket sender authentication | Sign v2 `blkspace1.` payloads with the Nostr key over every security-relevant field | **Implemented; Full cargo check passes; focused test link is slow on this Windows toolchain** |
+
+## Verification status on this machine
+
+Recorded so nobody re-derives it. Two configurations cannot be validated locally,
+both for **environmental** reasons rather than code defects.
+
+**`bkspc-devnet` cannot be built here.** Its Solana dependency tree requires
+`openssl-sys`, which needs OpenSSL **1.1.x or 3.x** development files. The only
+OpenSSL on this machine is 4.0.2, which `openssl-sys` 0.9.117 does not support,
+and there is no vcpkg or pkg-config to supply a compatible build. The Solana
+settlement branch of `withdraw_to_solana` is therefore reviewed but **not
+compile-verified**. CI is the authority.
+
+**The Rust test suite has never been executed.** `cargo check` does not compile
+`#[cfg(test)]` code, and while the test binary *links* successfully, it will not
+*launch*: the MinGW linker on this machine resolves `libgcc_s_dw2-1.dll`, which
+does not exist anywhere here — only the `seh` variant is installed. Relinking
+with `-static-libgcc` was attempted and did not complete within the window.
+
+So **27 Rust tests are compile-verified but unexecuted** (5 `nostr_outbox`, 3
+offline-replay, 10 delivery-tier, 9 spool-bounds). CI's "Rust unit tests (Tauri)"
+job runs the same lib suite on Linux and will be the first real execution. Until
+that run is observed, treat those tests as unproven.
+
+Everything else is verified locally: default (Yard) and `--features iroh` (Full)
+`cargo check` pass clean, and the frontend suite is 28 files / 167 tests green.
 | DM security claim | Remove NIP-44/“secure DM” claims until encrypted transport exists | **Done in UI/docs; transport remains plaintext** |
 | Hosted data disclosure | Show local + hosted + Nostr delivery states separately | **Done: `nostr_outbox` reports pending/published/retrying separately from the offline queue** |
 | Economy claim freeze | Describe WeixBucks as a local practice ledger | **Done in current topology and wallet copy** |
