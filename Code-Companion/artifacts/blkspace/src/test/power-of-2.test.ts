@@ -13,8 +13,34 @@ import {
   HYPEREVM_GATES_COPY,
 } from "@/lib/hyperevm";
 import { BKSPC_GATES_COPY } from "@/lib/bkspc-config";
+import { BRAND } from "@/lib/brand";
 
 describe("Power of 2 — ERC-20 is canonical", () => {
+  it("exposes the canonical token distinctly from the Solana prototype", () => {
+    // Two coins coexist deliberately. They must stay DIFFERENT, so the canonical
+    // token cannot be reached through the prototype's ticker field.
+    expect(BRAND.canonicalTokenSymbol).toBe("BI9");
+    expect(BRAND.canonicalTokenName).toBe("BLACKINCCOIN");
+    expect(BRAND.canonicalTokenChain).toBe("HyperEVM");
+
+    // The prototype ticker still exists — BKSPC is a real, separate instrument.
+    expect(BRAND.symbol).toBe("BKSPC");
+    expect(BRAND.coinName).toBe("BKSPC Coin");
+
+    // The invariant: the canonical token is never reachable via the prototype
+    // field. This is what stops "the coin" meaning two things.
+    expect(BRAND.canonicalTokenSymbol).not.toBe(BRAND.symbol);
+    expect(BRAND.canonicalTokenName).not.toBe(BRAND.coinName);
+  });
+
+  it("keeps the product name separate from both token identities", () => {
+    // The nostalgic product mark may equal the prototype ticker, but it must
+    // never be described as the canonical token.
+    expect(BRAND.name).toBe("BKSPC");
+    expect(BRAND.product).toBe("BKSPC");
+    expect(BRAND.canonicalTokenSymbol).not.toBe(BRAND.name);
+  });
+
   it("names BI9 ERC-20 on HyperEVM as the canonical mint", () => {
     expect(POWER_OF_2.canonicalErc20.canonical).toBe(true);
     expect(POWER_OF_2.canonicalErc20.token).toBe("BI9");

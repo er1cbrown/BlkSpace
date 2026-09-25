@@ -1,9 +1,21 @@
 /**
- * BKSPC brand lock — single source of truth for product UI + settlement ticker.
+ * BKSPC brand lock — single source of truth for product UI + token copy.
  *
  * Product name is **BKSPC** only. Not BlkSpace. Not a dual mark.
  * Yards are HBCU campuses only — no SEC / NCAA / PWI picker.
- * Soft credits stay WeixBucks (WB). Settlement ticker is the same mark: BKSPC.
+ * Soft credits stay WeixBucks (WB).
+ *
+ * TWO COINS, DISTINCTLY DIFFERENT. Coexistence is intentional; conflation is not.
+ *
+ *   BI9   — canonical ERC-20 on HyperEVM. The only mint. Settlement, treasury,
+ *           protocol roles. Canonical wherever copy says "the token".
+ *   BKSPC — Solana Token-2022. Optional prototype and wallet-reach. NEVER
+ *           canonical, never a second mint home. Same mark as the *product*,
+ *           which is a branding collision, not a token identity.
+ *
+ * `symbol` therefore means the Solana prototype ticker and must not be used for
+ * canonical-token copy — use `canonicalTokenSymbol` for that. See
+ * docs/economy-canonical.md §2 and §8.
  *
  * Site: bkspc.app · GitHub repo path stays er1cbrown/BlkSpace (history).
  */
@@ -12,10 +24,16 @@ export const BRAND = {
   name: "BKSPC",
   /** Same as name; explicit for copy that says “product” */
   product: "BKSPC",
-  /** Solana token ticker — same as the product mark */
+  /** Solana Token-2022 prototype ticker. NOT the canonical token. */
   symbol: "BKSPC",
-  /** Long form for settlement / legal-facing token copy */
+  /** Long form for Solana-prototype settlement copy */
   coinName: "BKSPC Coin",
+  /** Canonical on-chain token — BI9, ERC-20 on HyperEVM. The only mint. */
+  canonicalTokenSymbol: "BI9",
+  /** Long form for canonical token / legal-facing copy */
+  canonicalTokenName: "BLACKINCCOIN",
+  /** Chain the canonical token lives on */
+  canonicalTokenChain: "HyperEVM",
   /** Soft currency (not the product trademark) */
   softCurrency: "WeixBucks",
   softCurrencySymbol: "WB",

@@ -2644,55 +2644,60 @@ fn withdraw_to_solana(
 ) -> Result<String, String> {
   let user_handle = check_session_rate_limit(&state, &session_token)?;
 
-  // Basic validation of Solana address (must be 32-44 base58 characters)
-  if student_solana_address.len() < 32 || student_solana_address.len() > 44 {
-    return Err("Invalid Solana address format".to_string());
-  }
-
-  let eligibility = state
-    .db
-    .evaluate_withdraw_eligibility(&user_handle, Some(amount_wb))
-    .map_err(|e| AppError::from(e).to_string())?;
-  if !eligibility.eligible {
+  // Refuse BEFORE the balance is touched. A build with no on-chain settlement
+  // cannot fulfil a withdrawal, so it must not debit credits — and it must never
+  // return a fabricated transaction signature. TransactionHistory renders this
+  // value as `Solana <sig>`, so a placeholder here reads to a user as proof of a
+  // real transfer.
+  #[cfg(not(feature = "bkspc-devnet"))]
+  {
+    let _ = (&user_handle, &student_solana_address, amount_wb);
     return Err(
-      eligibility
-        .reasons
-        .first()
-        .cloned()
-        .unwrap_or_else(|| "Withdrawal not eligible".into()),
+      "Solana settlement is not available in this build. No WeixBucks were deducted.".into(),
     );
   }
 
-  // Settlement: debit principal + published fee (simulated on-chain until counsel)
-  let settlement_fee = calc_platform_fee(amount_wb, WITHDRAW_SETTLEMENT_FEE_BPS);
-  let total_debit = amount_wb + settlement_fee;
-  let desc = format!(
-    "Withdrawn to Solana address: {}... ({} WB settlement + {} WB fee)",
-    &student_solana_address[0..8],
-    amount_wb,
-    settlement_fee,
-  );
-  let _new_balance = state.db.deduct_weix_bucks(&user_handle, total_debit, &desc)
-    .map_err(|e| e.to_string())?;
-
   #[cfg(feature = "bkspc-devnet")]
   {
-    return bkspc_settlement::mint_settlement_to_recipient(&student_solana_address, amount_wb)
-      .map_err(|e| format!(
-        "WB debited off-chain but devnet BKSPC mint failed: {e}. File an economy appeal."
-      ));
-  }
-
-  #[cfg(not(feature = "bkspc-devnet"))]
-  {
-    // Simulated signature when bkspc-devnet feature or manifest not configured
-    let chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-    let mut signature = String::new();
-    for _ in 0..88 {
-      let idx = (uuid::Uuid::new_v4().as_u128() % 58) as usize;
-      signature.push(chars.chars().nth(idx).unwrap_or('1'));
+    // Basic validation of Solana address (must be 32-44 base58 characters)
+    if student_solana_address.len() < 32 || student_solana_address.len() > 44 {
+      return Err("Invalid Solana address format".to_string());
     }
-    Ok(signature)
+
+    let eligibility = state
+      .db
+      .evaluate_withdraw_eligibility(&user_handle, Some(amount_wb))
+      .map_err(|e| AppError::from(e).to_string())?;
+    if !eligibility.eligible {
+      return Err(
+        eligibility
+          .reasons
+          .first()
+          .cloned()
+          .unwrap_or_else(|| "Withdrawal not eligible".into()),
+      );
+    }
+
+    // Debit principal + published fee, then mint on devnet. If the mint fails the
+    // credits are already gone, so the error says so and points at the appeal.
+    let settlement_fee = calc_platform_fee(amount_wb, WITHDRAW_SETTLEMENT_FEE_BPS);
+    let total_debit = amount_wb + settlement_fee;
+    let desc = format!(
+      "Withdrawn to Solana address: {}... ({} WB settlement + {} WB fee)",
+      &student_solana_address[0..8],
+      amount_wb,
+      settlement_fee,
+    );
+    let _new_balance = state
+      .db
+      .deduct_weix_bucks(&user_handle, total_debit, &desc)
+      .map_err(|e| e.to_string())?;
+
+    bkspc_settlement::mint_settlement_to_recipient(&student_solana_address, amount_wb).map_err(
+      |e| {
+        format!("WB debited off-chain but devnet BKSPC mint failed: {e}. File an economy appeal.")
+      },
+    )
   }
 }
 
