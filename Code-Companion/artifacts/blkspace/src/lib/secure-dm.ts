@@ -1,10 +1,11 @@
 /**
- * Handle-based secure messaging (ethical, med-school aware).
+ * Handle-based experimental messaging (ethical, med-school aware).
  *
  * - Identity = existing BlkSpace handle (same as rest of app).
  * - Requires No-PHI + ethics ack before send.
  * - Blocks supported. Not a hospital EMR / not HIPAA covered entity.
- * - Persistence: localStorage web; Tauri table when available.
+ * - Persistence: plaintext localStorage in web; plaintext Tauri table when available.
+ * - This is not NIP-44 or other encrypted direct messaging.
  */
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "@/lib/tauri-api";
@@ -247,7 +248,7 @@ export async function sendSecureDm(input: {
       userHandle: to,
       notificationType: "secure_dm",
       fromHandle: me,
-      message: `@${me} sent you a secure handle message (no PHI)`,
+      message: `@${me} sent you a direct handle message (no PHI)`,
       unread: true,
       createdAt: msg.createdAt,
     });

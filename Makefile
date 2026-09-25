@@ -1,4 +1,4 @@
-.PHONY: dev build lint typecheck test format clean setup ci
+.PHONY: dev build lint typecheck test format clean setup ci simulate-routes
 
 # The Bun workspace root is ./Code-Companion; all bun commands run from there.
 CC := Code-Companion
@@ -9,6 +9,9 @@ dev:
 
 dev-web:
 	cd $(CC) && bun run dev
+
+simulate-routes:
+	cd $(CC)/artifacts/blkspace && bun run simulate:routes
 
 build:
 	cd $(CC) && bun run build

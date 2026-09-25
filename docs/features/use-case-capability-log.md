@@ -43,7 +43,7 @@ Trademark intent: protect **BlkSpace** as product. **BKSPC** is the short ticker
 | 7 | Sarah · midterm study / decompress hour | **Done** | Event kind `study`, free pass, capacity, Study club kit | Voice rooms, Google Calendar sync |
 | 8 | Faculty · scholarships / research / internships to campus | **Done** | Connect opps, lead inbox, Faculty kit, **broadcast to yard** | Official award disbursement, mass email, registrar proof |
 | 8b | Private-uni faculty · pipeline to Meharry/HBCU via ProjectConnect | **Done** | Faculty Desk; host **yard events**; owner post gate; interest notify; Faculty badge; pipeline seed; broadcast | Full Workday ATS, campus IdP SSO |
-| 8c | Secure handle DMs + ethical institutional identity | **Done** | `/messages` handle DMs, No-PHI filter, IEEE-aligned principles, domain-declared claims (not fake SSO), block | End-to-end NIP-44 production, real email delivery, registrar SSO |
+| 8c | Experimental direct messages + ethical institutional identity | **Partial** | `/messages` plaintext handle messages, No-PHI filter, IEEE-aligned principles, domain-declared claims (not fake SSO), block | End-to-end encrypted transport, real email delivery, registrar SSO |
 | 9 | Billy photo/video studio · portfolio · client delivery · sell or free all-in-one | **Done** | Studio tab: portfolio collections, shoots, grant free access, paid WB unlock, export JSON | Pixieset CDN, ZIP host, proofing UI, contracts/invoices |
 | 10 | Soft economy · tips · marketplace fees · withdraw gates | **Partial** | WB ledger, fees, Yard Cred on withdraw, marketplace | Mainnet BKSPC cash-out “rights” live for public |
 | 11 | Live streaming (games, event, class) | **Not in product** | Link-out in event description only | Native ingest / player / stream chat |

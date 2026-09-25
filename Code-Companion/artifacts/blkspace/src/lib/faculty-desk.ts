@@ -166,7 +166,7 @@ export const FACULTY_STACK_MAP = [
   },
   {
     competitor: "Discord / Slack / GroupMe",
-    blkspace: "Yards · channels · secure handle DMs · faculty broadcast",
+    blkspace: "Yards · channels · direct handle messages · faculty broadcast",
     use: "Be in the community fabric; DMs are handle-to-handle with No-PHI ethics — not hospital email.",
   },
   {

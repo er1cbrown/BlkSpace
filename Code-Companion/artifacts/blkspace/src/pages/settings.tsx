@@ -1054,21 +1054,22 @@ export default function SettingsPage() {
                   fetching). URLs are displayed as clickable text only.
                 </p>
                 <p>
-                  <strong>Private Messages</strong> — Nostr encrypted direct
-                  messages use experimental encryption (NIP-44). Do not use them
-                  for sensitive communications. A warning will appear when DMs
-                  are enabled.
+                  <strong>Direct messages (experimental)</strong> — Messages are
+                  currently handle-based and stored locally. They are not
+                  NIP-44 encrypted and must not be used for sensitive
+                  communications.
                 </p>
                 <p>
                   <strong>Key Storage</strong> — Your private key is stored on
                   this device only. In Tauri desktop mode, it is stored in an
-                  encrypted file. In web mode, it is stored in your
-                  browser&apos;s localStorage.
+                  encrypted file. In web mode, it is held in session storage
+                  for the current tab session.
                 </p>
                 <p>
-                  <strong>Data Ownership</strong> — Your posts, follows, and
-                  profile are stored on the Nostr relay network. You can move to
-                  any compatible client at any time.
+                  <strong>Data Ownership</strong> — Posts can exist in the local
+                  database, the hosted BlkSpace sync service when enabled, and
+                  signed Nostr relay events when a relay path is available.
+                  Verify the current sync status before relying on a copy.
                 </p>
               </div>
 

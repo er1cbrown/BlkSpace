@@ -636,8 +636,7 @@ export default function DeviceMeshTestPage() {
               <CardHeader>
                 <CardTitle>Offline Queue Test</CardTitle>
                 <CardDescription>
-                  Queue writes offline; flush publishes posts and replies to
-                  Nostr relays on reconnect
+                  Replays explicitly queued local actions; hosted and Nostr delivery are tracked separately
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -647,9 +646,9 @@ export default function DeviceMeshTestPage() {
                     <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
                       <li>Disconnect internet</li>
                       <li>Create a post, reply, or like on Feed</li>
-                      <li>Action is queued locally (count above)</li>
-                      <li>Reconnect internet — auto-flush every 60s</li>
-                      <li>Or tap Flush Now to publish immediately</li>
+                      <li>Explicit actions appear in the local queue (count above)</li>
+                      <li>Reconnect internet — replay runs automatically or on Flush Now</li>
+                      <li>Hosted and Nostr delivery statuses are reported separately</li>
                     </ol>
                   </div>
                   <Button

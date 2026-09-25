@@ -48,14 +48,18 @@ export function ReticulumPanel() {
       <CardContent className="space-y-3 text-sm">
         <div className="flex items-center gap-2">
           <Badge variant={status?.available ? "default" : "outline"}>
-            {status?.available ? "Bundled rnsd" : "Optional off"}
+            {status?.available ? "rnsd detected (not live)" : "Optional off"}
           </Badge>
           <Button size="sm" variant="ghost" onClick={() => void load()}>
             Refresh
           </Button>
         </div>
         <p className="text-muted-foreground">
-          {err || status?.detail || "Probing RNS bridge…"}
+          {err ||
+            (status?.available
+              ? "Native rnsd binary detected; live drain/receive transport is not wired yet."
+              : status?.detail) ||
+            "Probing RNS bridge…"}
         </p>
         {status?.rnsd && (
           <p className="font-mono text-[11px] text-muted-foreground break-all">

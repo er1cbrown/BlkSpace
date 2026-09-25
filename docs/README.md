@@ -44,6 +44,9 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 | Hosted native post sync | [`implementation/HOSTED_NATIVE_SYNC.md`](implementation/HOSTED_NATIVE_SYNC.md) |
 | Nostr + mesh testing | [`implementation/DEVICE_MESH_TESTING.md`](implementation/DEVICE_MESH_TESTING.md) |
 | Reticulum Route B | [`implementation/RETICULUM_INTEGRATION.md`](implementation/RETICULUM_INTEGRATION.md) — bundled native rns/rnsd; no Python sidecar / LXMF / RNode |
+| Current topology | [`implementation/CURRENT_TOPOLOGY.md`](implementation/CURRENT_TOPOLOGY.md) — local, hosted, Nostr, Iroh, and Reticulum truth sheet |
+| Remediation order | [`implementation/WEIXNET_REMEDIATION.md`](implementation/WEIXNET_REMEDIATION.md) — P0 truth/security fixes before feature expansion |
+| WeixNet DevOps simulation | [`implementation/WEIXNET_ROUTE_SIMULATION.md`](implementation/WEIXNET_ROUTE_SIMULATION.md) — deterministic A/B/S scenarios |
 | Yard room watch | [`features/yard-room-watch.md`](features/yard-room-watch.md) — Jellyfin / Iroh tickets in Live rooms; no scrape CDNs |
 | Hostinger Jellyfin | [`implementation/jellyfin-hostinger/README.md`](implementation/jellyfin-hostinger/README.md) — VPS compose scaffold |
 | Mesh skeleton (intra → internet) | [`mesh-perfect-skeleton.md`](mesh-perfect-skeleton.md) |
@@ -80,7 +83,7 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 | Phase | Meaning |
 |-------|---------|
 | **0–1** | App boots, auth, feed, SQLite — **done** |
-| **2** | Nostr relays, Iroh blobs, offline queue — **~90%** (Device B sign-off pending) |
+| **2** | Nostr relays, Iroh blobs, and offline paths — **partial; see current topology and Device B sign-off** |
 | **3** | Yards, MySpace, rewards polish — **~55–75%** |
 | **4** | On-chain finance (**BI9 ERC-20 on HyperEVM**; BlkBridge / BLKSHI later) — **early**; Solana BKSPC is optional prototype |
 | **5** | Scripture NLP, anti-abuse ML, LogosDecks — **not started** |

@@ -268,7 +268,7 @@ export default function FacultyPage() {
             </Link>
             <Link href="/messages">
               <Button size="sm" variant="outline" className="gap-1">
-                Secure DMs
+                Direct messages
               </Button>
             </Link>
             <Link href="/focus">

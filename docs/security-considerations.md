@@ -76,7 +76,8 @@ NIP-04 (Nostr's legacy direct message standard) uses **AES-256-CBC without a MAC
 | NIP-04 | AES-256-CBC (no MAC) | ❌ **Untrusted** | Not implemented |
 | NIP-17 | XSalsa20-Poly1305 (sealed boxes) | ⚠️ **Untrusted** | Not implemented |
 | Public posts | None (plaintext) | ✅ **Trusted** | Primary communication |
-| Sensitive data | **Not on Nostr** | N/A | Encrypted file sharing via Iroh (future) |
+| BlkSpace direct messages | None (local plaintext) | ❌ **Untrusted** | Experimental handle-based local messaging; never use for secrets |
+| Sensitive data | **Not on Nostr** | N/A | Use an out-of-band channel; Iroh sharing is not a messaging substitute |
 
 **Rationale:**  
 HBCU students coordinating protests, sharing financial information, or discussing sensitive topics should **not use Nostr DMs**. BlkSpace recommends:
@@ -84,7 +85,9 @@ HBCU students coordinating protests, sharing financial information, or discussin
 2. **Out-of-band** (Signal, WhatsApp, in-person) for sensitive coordination
 3. **Future:** Iroh-based encrypted blob sharing with pre-shared keys (Phase 2+)
 
-**Status:** ✅ Policy enforced — no DM implementation in codebase.
+**Status:** ✅ Nostr-DM policy enforced — no NIP-04/NIP-17 implementation. The
+current handle-based direct-message feature is local plaintext and remains
+experimental; it is not an encrypted DM transport.
 
 ---
 

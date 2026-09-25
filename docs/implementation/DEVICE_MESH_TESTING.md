@@ -20,6 +20,17 @@ Test BlkSpace across multiple devices to verify:
 
 ### P1 run order (Device B session — canonical)
 
+Before physical-device testing, run the deterministic transport harness from
+`Code-Companion/artifacts/blkspace`:
+
+```bash
+bun run simulate:routes all
+```
+
+It exercises healthy, Nostr-fallback, offline-recovery, and Sendme-outage
+route policies without claiming a live Reticulum or Iroh endpoint. Record the
+JSON output with the eventual Device B results.
+
 Use this sequence on Device B. Record results in [`docs/device-b-m0-results.md`](../device-b-m0-results.md).
 
 | Step | Action | Doc ref |
@@ -210,8 +221,8 @@ Use this when deepening backend/tests with **Device B + local bot accounts** bef
 
 | Data | Cross-device via relays? |
 |------|-------------------------|
-| Posts, replies, likes | ✅ Yes (Nostr) |
-| Wallet earn (WB) | ✅ Per account on each device after sync |
+| Posts, replies, likes | **Partial** — hosted sync is active; Nostr events are stored separately and are not fully materialized into the normal feed yet |
+| Wallet earn (WB) | Local per install; identity recovery does not restore balances |
 | Yard membership | Local per install (re-join on each device) |
 | **Yard roles (mod badges)** | ❌ Local SQLite only — re-assign on each install |
 
@@ -223,20 +234,21 @@ After §2.6, continue with Phase 1 recovery (§1.4–1.5), Phase 3 offline (§3.
 
 ## Phase 3: Offline & Bridge (Day 2) — M0.3
 
-Uses shipped **offline queue** (`queue_offline_action` → `flush_offline_queue`) and `OfflineSyncProvider` (flush on `online` + 60s). No BLE or libp2p required.
+Uses the explicit **offline queue** (`queue_offline_action` → `flush_offline_queue`) for actions that opt into it. Ordinary posts are saved locally and enter the hosted outbox; Nostr publication is a separate best-effort path. No BLE or libp2p required.
 
 ### 3.1 Offline write queue
 
 **Scenario:** Device B loses internet mid-session
 
 1. Disconnect Wi‑Fi on Device B (or use OS offline mode)
-2. On Device B: create post, like, reply, or follow
+2. On Device B: exercise an action that explicitly enters the offline queue
 3. Confirm pending actions in **Sync Test → Offline** (or `count_pending_offline_actions`)
 4. Reconnect internet
 5. Verify:
-   - [ ] Toast: “Synced N offline actions”
-   - [ ] Actions visible on Device A after relay round-trip
-   - [ ] No duplicate Nostr events (canonical id ingest)
+   - [ ] Toast: “Replayed N queued actions”
+   - [ ] Hosted sync status is reported separately
+   - [ ] Nostr delivery is reported separately when a relay path exists
+   - [ ] No duplicate canonical event IDs
 
 ### 3.2 Read-only offline (cached feed)
 
@@ -244,15 +256,17 @@ Uses shipped **offline queue** (`queue_offline_action` → `flush_offline_queue`
 2. Go offline
 3. Verify:
    - [ ] Previously loaded posts still readable from SQLite cache
-   - [ ] New publish shows queued state (not lost)
+   - [ ] New publish is saved locally and its hosted/Nostr delivery state is shown separately
 
-### 3.3 Bridge to online (relay publish)
+### 3.3 Hosted/Nostr delivery after reconnect
 
 1. After 3.1, reconnect internet
-2. Verify:
-   - [ ] Offline events published to Nostr relays
-   - [ ] Other towns see the content (if town-tagged)
-   - [ ] No duplicate events
+2. Verify each path independently:
+   - [ ] Hosted outbox reports pushed/failed/pending
+   - [ ] Nostr relay status is connected when tested
+   - [ ] Nostr events are available in the relay-event view
+   - [ ] Other towns see content only after event materialization/catch-up is enabled
+   - [ ] No duplicate canonical event IDs
 
 ### 3.4 Deferred — BLE / internet-free LAN mesh (M2+)
 

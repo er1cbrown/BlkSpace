@@ -1292,7 +1292,7 @@ function InboxPage() {
                     variant="default"
                     onClick={async () => {
                       await setInterestStatus(item.id, "accepted");
-                      toast.success("Accepted — open secure DM by handle");
+                      toast.success("Accepted — open direct message by handle");
                       qc.invalidateQueries({ queryKey: ["connect"] });
                       window.location.href = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/messages?to=${encodeURIComponent(item.handle)}`;
                     }}

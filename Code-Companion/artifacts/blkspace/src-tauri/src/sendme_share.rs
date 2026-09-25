@@ -2,11 +2,13 @@
 //!
 //! [n0-computer/sendme](https://github.com/n0-computer/sendme) is a CLI that spins up a temporary
 //! iroh endpoint, imports a file/dir into iroh-blobs, and prints a `BlobTicket` for `sendme receive`.
-//! That stack is **iroh 1.x + iroh-blobs 0.103** — not wire-compatible with BlkSpace's optional
-//! iroh-blobs **0.35 store-only** node (Yard builds omit networking entirely).
+//! That stack is **iroh 1.x + iroh-blobs 0.103**. Yard builds omit networking;
+//! Full builds use the same generation of Iroh crates rather than vendoring the
+//! sendme binary.
 //!
 //! BlkSpace therefore implements:
-//! 1. **`blkspace1.` tickets** — portable content-addressed share strings (hash + optional CID + meta).
+//! 1. **`blkspace1.` tickets** — portable content-addressed share strings with
+//!    authenticated v2 metadata and a legacy unsigned v1 compatibility path.
 //! 2. **Local / Iroh materialize** — receiver pulls from local blob_store or Iroh fs-store when present.
 //! 3. **CLI bridge** — detect `sendme` on PATH and expose exact shell commands for true P2P hole-punch.
 //!
@@ -14,7 +16,8 @@
 //! `cargo install sendme` for campus LAN / relay P2P file drops.
 
 use base64::Engine;
-use nostr_sdk::prelude::Keys;
+use bitcoin::secp256k1::{Message, Secp256k1, XOnlyPublicKey};
+use nostr_sdk::prelude::{Keys, Signature};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::process::Command;
@@ -49,33 +52,55 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
   hex::encode(Sha256::digest(bytes))
 }
 
-fn signing_material(p: &BlobSharePayload) -> String {
-  format!(
-    "{}|{}|{}|{}|{}|{}|{}",
-    p.v,
-    p.hash,
-    p.cid.clone().unwrap_or_default(),
-    p.name,
-    p.size,
-    p.issued_at,
-    p.expires_at
-  )
+#[derive(Serialize)]
+struct BlobShareSigningMaterial<'a> {
+  v: u8,
+  hash: &'a str,
+  cid: Option<&'a str>,
+  name: &'a str,
+  mime: &'a str,
+  size: i64,
+  src: &'a str,
+  issued_at: i64,
+  expires_at: i64,
+  p2p_ticket: Option<&'a str>,
 }
 
-/// Stamp issuer + expiry and attach a checksum signature (Device B / HEAD glue).
+fn signing_message(payload: &BlobSharePayload) -> Result<Message, String> {
+  let material = BlobShareSigningMaterial {
+    v: payload.v,
+    hash: &payload.hash,
+    cid: payload.cid.as_deref(),
+    name: &payload.name,
+    mime: &payload.mime,
+    size: payload.size,
+    src: &payload.src,
+    issued_at: payload.issued_at,
+    expires_at: payload.expires_at,
+    p2p_ticket: payload.p2p_ticket.as_deref(),
+  };
+  let encoded =
+    serde_json::to_vec(&material).map_err(|e| format!("ticket signing material: {e}"))?;
+  let digest = Sha256::digest(encoded);
+  Message::from_digest_slice(&digest).map_err(|e| format!("ticket signing message: {e}"))
+}
+
+/// Stamp issuer + expiry and attach a real Schnorr signature over every
+/// security-relevant ticket field. The private key never leaves `Keys`.
 pub fn sign_payload(
   mut payload: BlobSharePayload,
   keys: &Keys,
   ttl_secs: u64,
 ) -> Result<BlobSharePayload, String> {
   let now = chrono::Utc::now().timestamp();
+  payload.v = 2;
   payload.issued_at = now;
   payload.expires_at = now.saturating_add(i64::try_from(ttl_secs).unwrap_or(86_400));
-  let pk = keys.public_key().to_hex();
-  payload.issuer = Some(pk.clone());
-  payload.signature = Some(sha256_hex(
-    format!("{pk}|{}", signing_material(&payload)).as_bytes(),
-  ));
+  payload.issuer = Some(keys.public_key().to_hex());
+  payload.signature = None;
+  let message = signing_message(&payload)?;
+  let signature = keys.sign_schnorr(&message);
+  payload.signature = Some(hex::encode(signature.serialize()));
   Ok(payload)
 }
 
@@ -83,18 +108,39 @@ pub fn verify_payload(payload: &BlobSharePayload) -> Result<(), String> {
   if payload.expires_at > 0 && chrono::Utc::now().timestamp() > payload.expires_at {
     return Err("Share ticket expired".into());
   }
-  let Some(sig) = payload.signature.as_ref() else {
+
+  // v1 tickets predate authenticated tickets. Bare metadata remains readable,
+  // but a legacy issuer/checksum must not be presented as a signature.
+  if payload.v == 1 {
+    if payload.issuer.is_some() || payload.signature.is_some() {
+      return Err("Legacy ticket checksum is not sender-authenticated; create a v2 ticket".into());
+    }
     return Ok(());
-  };
+  }
+  if payload.v != 2 {
+    return Err(format!("Unsupported ticket version {}", payload.v));
+  }
+
   let issuer = payload
     .issuer
     .as_ref()
     .ok_or_else(|| "Signed ticket missing issuer".to_string())?;
-  let expected = sha256_hex(format!("{issuer}|{}", signing_material(payload)).as_bytes());
-  if sig != &expected {
-    return Err("Share ticket signature mismatch".into());
-  }
-  Ok(())
+  let sig = payload
+    .signature
+    .as_ref()
+    .ok_or_else(|| "Signed ticket missing signature".to_string())?;
+  let public_key = XOnlyPublicKey::from_slice(
+    &hex::decode(issuer).map_err(|_| "Invalid ticket issuer".to_string())?,
+  )
+  .map_err(|_| "Invalid ticket issuer".to_string())?;
+  let signature = Signature::from_slice(
+    &hex::decode(sig).map_err(|_| "Invalid ticket signature encoding".to_string())?,
+  )
+  .map_err(|_| "Invalid ticket signature encoding".to_string())?;
+  let message = signing_message(payload)?;
+  Secp256k1::new()
+    .verify_schnorr(&signature, &message, &public_key)
+    .map_err(|_| "Share ticket signature mismatch".to_string())
 }
 
 fn default_src() -> String {
@@ -284,5 +330,70 @@ mod tests {
   fn external_ticket_message() {
     let err = BlobSharePayload::decode_ticket(&"x".repeat(80)).unwrap_err();
     assert!(err.contains("sendme"));
+  }
+
+  fn sample_payload() -> BlobSharePayload {
+    BlobSharePayload {
+      v: 1,
+      hash: "a".repeat(64),
+      cid: Some("b".repeat(64)),
+      name: "syllabus.pdf".into(),
+      mime: "application/pdf".into(),
+      size: 1200,
+      src: "blkspace".into(),
+      issued_at: 0,
+      expires_at: 0,
+      issuer: None,
+      signature: None,
+      p2p_ticket: None,
+    }
+  }
+
+  #[test]
+  fn signs_and_verifies_all_ticket_fields() {
+    let keys = Keys::generate();
+    let signed = sign_payload(sample_payload(), &keys, 3600).unwrap();
+    assert_eq!(signed.v, 2);
+    assert!(signed.signature.is_some());
+    assert!(verify_payload(&signed).is_ok());
+
+    let encoded = signed.encode_ticket().unwrap();
+    let decoded = BlobSharePayload::decode_ticket(&encoded).unwrap();
+    assert!(verify_payload(&decoded).is_ok());
+  }
+
+  #[test]
+  fn rejects_tampering_after_signing() {
+    let keys = Keys::generate();
+    let mut signed = sign_payload(sample_payload(), &keys, 3600).unwrap();
+    signed.mime = "text/html".into();
+    assert!(verify_payload(&signed).is_err());
+
+    let mut signed = sign_payload(sample_payload(), &keys, 3600).unwrap();
+    signed.p2p_ticket = Some("ticket-from-another-source".into());
+    assert!(verify_payload(&signed).is_err());
+  }
+
+  #[test]
+  fn rejects_a_signature_from_a_different_issuer() {
+    let signer = Keys::generate();
+    let other = Keys::generate();
+    let mut signed = sign_payload(sample_payload(), &signer, 3600).unwrap();
+    signed.issuer = Some(other.public_key().to_hex());
+    assert!(verify_payload(&signed).is_err());
+  }
+
+  #[test]
+  fn rejects_legacy_checksum_as_authentication() {
+    let mut legacy = sample_payload();
+    legacy.issuer = Some("issuer".into());
+    legacy.signature = Some(sha256_hex(b"not-a-schnorr-signature"));
+    assert!(verify_payload(&legacy).is_err());
+  }
+
+  #[test]
+  fn accepts_bare_legacy_metadata_without_claiming_authentication() {
+    let legacy = sample_payload();
+    assert!(verify_payload(&legacy).is_ok());
   }
 }

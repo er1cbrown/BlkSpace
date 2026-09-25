@@ -301,7 +301,7 @@ export default function FeedPage() {
           setComposerOpen(false);
           markFirstPostDone();
           if (offline) {
-            toast.success("Post queued — will sync when you're back online");
+            toast.success("Post saved locally — sync will retry when online");
           } else if (result?.earn) {
             showPostEarnCelebration(result.earn);
           } else {

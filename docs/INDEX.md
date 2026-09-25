@@ -56,6 +56,9 @@
 | [implementation/RETICULUM_INTEGRATION.md](./implementation/RETICULUM_INTEGRATION.md) | Route B: bundled native rns/rnsd (no Python sidecar) |
 | [implementation/REAL_NOSTR_RELAYS.md](./implementation/REAL_NOSTR_RELAYS.md) | Live Nostr relay spec |
 | [implementation/MESH_ARCHITECTURE.md](./implementation/MESH_ARCHITECTURE.md) | Cross-device mesh sync |
+| [implementation/CURRENT_TOPOLOGY.md](./implementation/CURRENT_TOPOLOGY.md) | **Current implementation truth sheet** — hosted, local, Nostr, Iroh, and Reticulum paths |
+| [implementation/WEIXNET_REMEDIATION.md](./implementation/WEIXNET_REMEDIATION.md) | P0/P1 execution order after the architecture audit |
+| [implementation/WEIXNET_ROUTE_SIMULATION.md](./implementation/WEIXNET_ROUTE_SIMULATION.md) | Deterministic A/B/S route simulation for DevOps + IEEE |
 | [implementation/DEVICE_MESH_TESTING.md](./implementation/DEVICE_MESH_TESTING.md) | Device B M0 test matrix |
 | [device-b-m0-results.md](./device-b-m0-results.md) | M0 results template |
 | [bkspc-devnet-runbook.md](./bkspc-devnet-runbook.md) | BKSPC devnet mint + treasury setup |

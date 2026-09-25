@@ -14,6 +14,7 @@
     "build:server": "bun build server/server.mjs --target=node --outfile=dist/server.mjs",
     "start": "bun server/server.mjs",
     "test:server": "bun test server/tests",
+    "simulate:routes": "bun scripts/simulate-weixnet.ts",
     "serve": "bun scripts/vite-with-env.mjs preview",
     "serve:tier0": "bun run build:tier0 && bun run serve",
     "serve:full": "bun run build:full && bun run serve",

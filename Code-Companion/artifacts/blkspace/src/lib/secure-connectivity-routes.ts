@@ -190,11 +190,10 @@ export async function probeThreeRoutes(): Promise<ThreeRouteSnapshot> {
       return {
         id: "B",
         def,
-        status: "live" as const,
-        label: "Available",
+        status: "partial" as const,
+        label: "Binary detected",
         detail:
-          resilient.detail ||
-          "RNS bridge up — optional hard path. Not required for feed.",
+          "Native rnsd binary detected, but live drain/receive transport is not wired yet. Not required for feed.",
         metrics: {
           available: true,
           reason: resilient.reason,

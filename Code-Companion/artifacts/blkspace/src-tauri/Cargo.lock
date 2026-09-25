@@ -201,6 +201,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "bincode",
+ "bitcoin",
  "bs58",
  "bytes",
  "chacha20poly1305",

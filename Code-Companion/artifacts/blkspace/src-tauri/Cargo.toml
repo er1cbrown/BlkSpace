@@ -31,6 +31,7 @@ uuid = { version = "1", features = ["v4"] }
 secp256k1 = { version = "0.30", features = ["global-context"] }
 sha2 = "0.10"
 base64 = "0.22"
+bitcoin = { version = "0.32", default-features = false, features = ["rand"] }
 tokio = { version = "1", features = ["full"] }
 nostr-sdk = { version = "0.38", features = [] }
 url = "2"

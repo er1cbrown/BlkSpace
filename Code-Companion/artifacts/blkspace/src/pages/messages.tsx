@@ -126,7 +126,7 @@ export default function MessagesPage() {
       <div className="space-y-4 max-w-4xl">
         <div className="flex flex-wrap items-center gap-2">
           <MessageSquare className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold">Secure messages</h1>
+          <h1 className="text-2xl font-bold">Direct messages</h1>
           <Badge variant="outline">Handle identity</Badge>
           {claim && (
             <Badge className="bg-violet-600/90 text-white text-xs capitalize">

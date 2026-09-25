@@ -58,7 +58,7 @@ export function OfflineSyncProvider({
       if (offline.synced > 0) {
         qc.invalidateQueries({ queryKey: ["tauri"] });
         toast.success(
-          `Synced ${offline.synced} offline action${offline.synced === 1 ? "" : "s"}`,
+          `Replayed ${offline.synced} queued action${offline.synced === 1 ? "" : "s"}`,
         );
       }
       if (offline.failed > 0) {

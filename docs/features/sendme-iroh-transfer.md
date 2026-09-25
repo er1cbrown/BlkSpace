@@ -35,7 +35,12 @@ Portable string:
 blkspace1.<url-safe-base64 JSON>
 ```
 
-Payload (v1):
+**v2 security:** tickets issued by the current app contain a real Nostr-key
+Schnorr signature over the content hash, CID, name, MIME type, source, expiry,
+and P2P ticket. Legacy bare v1 metadata may still be read, but it is not
+sender-authenticated and must not be described as a signed ticket.
+
+Payload (v2):
 
 ```json
 {

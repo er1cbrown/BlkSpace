@@ -1,4 +1,5 @@
-//! Handle-based secure DMs — ethical, med-school aware.
+//! Handle-based experimental direct messages — ethical, med-school aware.
+//! Messages are stored as plaintext; this is not encrypted DM transport.
 //! Not a HIPAA covered entity. No PHI. Identity = BlkSpace handle.
 
 use crate::sqlite::{Connection, OptionalExtension, Result};
@@ -155,7 +156,7 @@ pub fn send_dm(
     params![
       to,
       from,
-      format!("@{from} sent a secure handle message (no PHI)")
+      format!("@{from} sent a direct handle message (no PHI)")
     ],
   );
   get_message(conn, id)?.ok_or(crate::sqlite::Error::QueryReturnedNoRows)
@@ -294,4 +295,3 @@ pub fn upsert_institutional_claim(
   )?;
   Ok(())
 }
-

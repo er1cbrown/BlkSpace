@@ -1,5 +1,11 @@
 # BlkSpace Mesh Architecture (Practical Plan)
 
+> **Current-state warning:** This document describes the target hub-sync design.
+> The shipped client also uses local storage plus the hosted `bkspc.app` sync
+> path, and Reticulum is currently probe/spool only. Use
+> [`CURRENT_TOPOLOGY.md`](./CURRENT_TOPOLOGY.md) for current implementation
+> claims and release language.
+
 **Status:** Draft — aligned with shipped code (2026-06-16)  
 **Related:** `plan.md`, `IROH_INTEGRATION.md`, `REAL_NOSTR_RELAYS.md`, `DEVICE_MESH_TESTING.md`
 
