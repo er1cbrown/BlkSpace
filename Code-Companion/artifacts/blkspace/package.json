@@ -10,6 +10,7 @@
     "build:tier0": "bun scripts/vite-with-env.mjs build --tier0",
     "build:emergency": "bun scripts/build-emergency-dist.mjs",
     "check:bundle:tier0": "bun scripts/check-tier0-bundle.mjs",
+    "rns:dep": "node scripts/rns-dep.mjs",
     "build:full": "bun scripts/vite-with-env.mjs build",
     "build:server": "bun build server/server.mjs --target=node --outfile=dist/server.mjs",
     "start": "bun server/server.mjs",
