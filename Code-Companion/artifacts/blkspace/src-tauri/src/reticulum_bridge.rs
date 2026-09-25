@@ -91,6 +91,139 @@ pub fn is_python_sidecar(path: &Path) -> bool {
   false
 }
 
+// ─── Spool bounds (Phase 0) ────────────────────────────────
+// The spool is append-only, so without a bound it grows forever and a repeated
+// announce becomes a permanent duplicate. These bounds are deliberately
+// transport-independent, so they stay correct whether or not Route B is built.
+
+/// Hard ceiling on `spool.jsonl`. Exceeding it drops the oldest records.
+pub const SPOOL_MAX_BYTES: u64 = 256 * 1024;
+
+/// Records older than this are dropped on compaction.
+pub const SPOOL_MAX_AGE_SECS: i64 = 7 * 24 * 60 * 60;
+
+/// Newest records retained after compaction.
+pub const SPOOL_MAX_RECORDS: usize = 500;
+
+/// One parsed spool line. Malformed lines are dropped, never trusted.
+#[derive(Debug, Clone, PartialEq)]
+struct SpoolRecord {
+  kind: String,
+  yard: String,
+  handle: String,
+  text: String,
+  at: i64,
+}
+
+/// Parse a spool line, or `None` if it is not a usable record.
+fn parse_spool_line(line: &str) -> Option<SpoolRecord> {
+  let value: Value = serde_json::from_str(line).ok()?;
+  // A record must at least identify what it is and who sent it.
+  let kind = value.get("kind")?.as_str()?.to_string();
+  let yard = value.get("yard")?.as_str()?.to_string();
+  let handle = value.get("handle")?.as_str()?.to_string();
+  let text = value
+    .get("text")
+    .and_then(|t| t.as_str())
+    .unwrap_or("")
+    .to_string();
+  let at = value.get("at").and_then(|t| t.as_i64()).unwrap_or(0);
+  Some(SpoolRecord {
+    kind,
+    yard,
+    handle,
+    text,
+    at,
+  })
+}
+
+/// Identity used for deduplication: repeated identical announces collapse.
+fn dedup_key(kind: &str, yard: &str, handle: &str, text: &str) -> String {
+  format!("{kind}\u{1f}{yard}\u{1f}{handle}\u{1f}{text}")
+}
+
+/// Rewrite the spool keeping only recent, unique records within the bounds.
+///
+/// Best-effort by design: a read or write problem returns 0 rather than an
+/// error, because compaction must never be the reason a spool write fails.
+fn compact_spool(path: &Path, now: i64) -> usize {
+  let Ok(contents) = fs::read_to_string(path) else {
+    return 0;
+  };
+
+  // Newest first, so the retention window keeps the most recent records.
+  let mut lines: Vec<&str> = contents.lines().filter(|l| !l.trim().is_empty()).collect();
+  lines.reverse();
+
+  let mut seen: Vec<String> = Vec::new();
+  let mut kept: Vec<String> = Vec::new();
+  for line in lines {
+    let Some(record) = parse_spool_line(line) else {
+      continue; // drop malformed rather than carry it forward
+    };
+    if now - record.at > SPOOL_MAX_AGE_SECS {
+      continue; // expired
+    }
+    let key = dedup_key(&record.kind, &record.yard, &record.handle, &record.text);
+    if seen.contains(&key) {
+      continue; // duplicate of a newer copy
+    }
+    if kept.len() >= SPOOL_MAX_RECORDS {
+      break;
+    }
+    seen.push(key);
+    kept.push(line.to_string());
+  }
+
+  // Restore chronological order to preserve append-only semantics.
+  kept.reverse();
+
+  // Byte ceiling is the backstop against unusually large individual lines; the
+  // record count above is the primary bound.
+  while kept.len() > 1 {
+    let size: u64 = kept.iter().map(|l| l.len() as u64 + 1).sum();
+    if size <= SPOOL_MAX_BYTES {
+      break;
+    }
+    kept.remove(0);
+  }
+
+  let body = kept.iter().fold(String::new(), |mut acc, l| {
+    acc.push_str(l);
+    acc.push('\n');
+    acc
+  });
+  if fs::write(path, body).is_ok() {
+    kept.len()
+  } else {
+    0
+  }
+}
+
+/// Counts for the UI, so spool state is visible rather than inferred.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpoolStats {
+  pub records: usize,
+  pub bytes: u64,
+  /// Ceiling the spool is currently held to, in bytes.
+  pub max_bytes: u64,
+}
+
+/// Report current spool size. Read-only, and never touches the keys directory.
+pub fn spool_stats(app_dir: &Path) -> SpoolStats {
+  let path = spool_path(app_dir);
+  let bytes = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+  let records = fs::read_to_string(&path)
+    .map(|c| c.lines().filter(|l| !l.trim().is_empty()).count())
+    .unwrap_or(0);
+  SpoolStats {
+    records,
+    bytes,
+    max_bytes: SPOOL_MAX_BYTES,
+  }
+}
+
 fn bin_names(stem: &str) -> Vec<String> {
   let mut names = vec![stem.to_string()];
   if cfg!(windows) {
@@ -283,7 +416,13 @@ pub fn spool_event(
     .open(&path)
     .map_err(|e| format!("rns spool: {e}"))?;
   writeln!(file, "{record}").map_err(|e| format!("rns spool write: {e}"))?;
+  drop(file);
 
+  // Bound the spool after appending. A failure here must not fail the write that
+  // already succeeded, so compaction is best-effort by design.
+  let _ = compact_spool(&path, chrono::Utc::now().timestamp());
+
+  let stats = spool_stats(app_dir);
   let status = reticulum_status(app_dir);
   Ok(json!({
     "ok": true,
@@ -291,6 +430,9 @@ pub fn spool_event(
     "available": status.available,
     "kind": kind,
     "spool": path.display().to_string(),
+    "records": stats.records,
+    "bytes": stats.bytes,
+    "maxBytes": stats.max_bytes,
     "lxmf": false,
     "rnode": false,
     "pythonSidecar": false,
@@ -402,6 +544,190 @@ mod tests {
     let spool = fs::read_to_string(spool_path(&app)).unwrap();
     assert!(spool.contains("yard_announce"));
     assert!(!keys_dir(&app).exists());
+  }
+
+  // ─── Spool bounds (Phase 0) ────────────────────────────
+
+  fn write_spool(app: &Path, rows: &[Value]) {
+    let path = spool_path(app);
+    if let Some(parent) = path.parent() {
+      fs::create_dir_all(parent).unwrap();
+    }
+    let body = rows
+      .iter()
+      .map(|r| format!("{r}\n"))
+      .collect::<String>();
+    fs::write(&path, body).unwrap();
+  }
+
+  fn row(kind: &str, handle: &str, text: &str, at: i64) -> Value {
+    json!({
+      "v": 1,
+      "kind": kind,
+      "yard": "tsu",
+      "handle": handle,
+      "text": text,
+      "at": at,
+      "lxmf": false,
+      "rnode": false,
+    })
+  }
+
+  #[test]
+  fn compaction_drops_duplicate_records() {
+    let (_keep, app) = temp_app();
+    let now = 1_000_000i64;
+    write_spool(
+      &app,
+      &[
+        row("yard_announce", "demo_user", "", now - 10),
+        row("yard_announce", "demo_user", "", now - 9), // identical
+        row("yard_announce", "demo_user", "", now - 8), // identical
+        row("yard_note", "demo_user", "hello", now - 7), // different kind
+      ],
+    );
+
+    let kept = compact_spool(&spool_path(&app), now);
+    assert_eq!(kept, 2, "three identical announces must collapse to one");
+
+    let body = fs::read_to_string(spool_path(&app)).unwrap();
+    assert_eq!(body.lines().filter(|l| !l.trim().is_empty()).count(), 2);
+  }
+
+  #[test]
+  fn compaction_drops_expired_records() {
+    let (_keep, app) = temp_app();
+    let now = 10_000_000i64;
+    write_spool(
+      &app,
+      &[
+        row("yard_note", "demo_user", "old", now - SPOOL_MAX_AGE_SECS - 1),
+        row("yard_note", "demo_user", "fresh", now - 10),
+      ],
+    );
+
+    let kept = compact_spool(&spool_path(&app), now);
+    assert_eq!(kept, 1);
+    let body = fs::read_to_string(spool_path(&app)).unwrap();
+    assert!(body.contains("fresh"));
+    assert!(!body.contains("\"old\""));
+  }
+
+  #[test]
+  fn compaction_enforces_the_record_ceiling() {
+    let (_keep, app) = temp_app();
+    let now = 1_000_000i64;
+    let rows: Vec<Value> = (0..SPOOL_MAX_RECORDS + 50)
+      .map(|i| row("yard_note", "demo_user", &format!("note-{i}"), now - 1))
+      .collect();
+    write_spool(&app, &rows);
+
+    let kept = compact_spool(&spool_path(&app), now);
+    assert_eq!(kept, SPOOL_MAX_RECORDS, "record count must be capped");
+  }
+
+  #[test]
+  fn compaction_enforces_the_byte_ceiling() {
+    let (_keep, app) = temp_app();
+    let now = 1_000_000i64;
+    // A few records that together exceed the byte ceiling.
+    let big = "x".repeat(SPOOL_MAX_BYTES as usize / 2);
+    write_spool(
+      &app,
+      &[
+        row("yard_note", "demo_user", &big, now - 3),
+        row("yard_note", "demo_user", &big, now - 2),
+        row("yard_note", "demo_user", &big, now - 1),
+      ],
+    );
+
+    let kept = compact_spool(&spool_path(&app), now);
+    assert!(kept >= 1, "at least the newest record must survive");
+    let size = fs::metadata(spool_path(&app)).unwrap().len();
+    assert!(
+      size <= SPOOL_MAX_BYTES,
+      "spool must respect the byte ceiling, got {size}"
+    );
+  }
+
+  #[test]
+  fn compaction_preserves_chronological_order() {
+    let (_keep, app) = temp_app();
+    let now = 1_000_000i64;
+    write_spool(
+      &app,
+      &[
+        row("yard_note", "demo_user", "first", now - 30),
+        row("yard_note", "demo_user", "second", now - 20),
+        row("yard_note", "demo_user", "third", now - 10),
+      ],
+    );
+
+    compact_spool(&spool_path(&app), now);
+    let body = fs::read_to_string(spool_path(&app)).unwrap();
+    let order: Vec<&str> = vec!["first", "second", "third"];
+    let mut cursor = 0usize;
+    for want in order {
+      let at = body[cursor..].find(want).expect("record must survive") + cursor;
+      cursor = at;
+    }
+  }
+
+  #[test]
+  fn compaction_drops_malformed_lines() {
+    let (_keep, app) = temp_app();
+    let now = 1_000_000i64;
+    let path = spool_path(&app);
+    if let Some(parent) = path.parent() {
+      fs::create_dir_all(parent).unwrap();
+    }
+    let body = format!(
+      "not json at all\n{}\n{}\n",
+      row("yard_note", "demo_user", "good", now - 5),
+      "{\"kind\":\"missing_fields\"}\n"
+    );
+    fs::write(&path, body).unwrap();
+
+    let kept = compact_spool(&path, now);
+    assert_eq!(kept, 1, "only the well-formed, complete record survives");
+    let out = fs::read_to_string(&path).unwrap();
+    assert!(!out.contains("not json"));
+    assert!(!out.contains("missing_fields"));
+    assert!(out.contains("good"));
+  }
+
+  #[test]
+  fn spool_stays_bounded_across_repeated_writes() {
+    let (_keep, app) = temp_app();
+    // The exact pattern that used to grow forever: the same announce repeated.
+    for _ in 0..25 {
+      reticulum_announce_yard(&app, "howard", "demo_user").unwrap();
+    }
+    let stats = spool_stats(&app);
+    assert_eq!(stats.records, 1, "repeated identical announces collapse");
+    assert!(stats.bytes <= stats.max_bytes);
+  }
+
+  #[test]
+  fn spool_stats_on_a_missing_spool_are_zero_not_an_error() {
+    let (_keep, app) = temp_app();
+    let stats = spool_stats(&app);
+    assert_eq!(stats.records, 0);
+    assert_eq!(stats.bytes, 0);
+    assert_eq!(stats.max_bytes, SPOOL_MAX_BYTES);
+  }
+
+  #[test]
+  fn spool_never_persists_a_destination_hash() {
+    // Regression guard for the policy that motivated these bounds.
+    let (_keep, app) = temp_app();
+    let out = reticulum_send_yard_note(&app, "tsu", "demo_user", "note").unwrap();
+    assert_eq!(out["ok"], true);
+    assert_eq!(out["maxBytes"], SPOOL_MAX_BYTES);
+    let spool = fs::read_to_string(spool_path(&app)).unwrap().to_lowercase();
+    for banned in ["destination", "desthash", "destination_hash", "lxmf_identity"] {
+      assert!(!spool.contains(banned), "spool must not contain {banned}");
+    }
   }
 
   #[test]
