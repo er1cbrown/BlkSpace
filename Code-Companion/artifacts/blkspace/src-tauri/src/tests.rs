@@ -1435,6 +1435,56 @@ mod tests {
     assert_eq!(db.count_pending_offline_actions("demo_user").unwrap(), 0);
   }
 
+  // ─── Idempotent Offline Replay ────────────────────────
+
+  #[test]
+  fn offline_queue_records_the_row_a_queued_post_already_created() {
+    let db = setup_test_db();
+    db.create_user("demo_user", "Demo User", "").unwrap();
+    let id = db
+      .queue_offline_action("create_post", r#"{"content":"Once"}"#, "demo_user")
+      .unwrap();
+
+    // Nothing applied yet.
+    assert_eq!(db.offline_action_result(id, "demo_user").unwrap(), None);
+
+    let post = db.create_post("demo_user", "Once", "tsu", NO_CHANNEL, &[]).unwrap().post;
+    db.set_offline_action_result(id, "demo_user", &post.id.to_string())
+      .unwrap();
+
+    // A retry can now resume onto the same row instead of inserting again.
+    let recorded = db.offline_action_result(id, "demo_user").unwrap().unwrap();
+    assert_eq!(recorded, post.id.to_string());
+    assert_eq!(
+      db.list_posts(Some("tsu"), None, None, None).unwrap().posts.len(),
+      1
+    );
+  }
+
+  #[test]
+  fn offline_action_result_is_scoped_to_the_owning_handle() {
+    let db = setup_test_db();
+    db.create_user("owner", "Owner", "").unwrap();
+    db.create_user("other", "Other", "").unwrap();
+    let id = db
+      .queue_offline_action("create_post", r#"{"content":"Mine"}"#, "owner")
+      .unwrap();
+    db.set_offline_action_result(id, "owner", "42").unwrap();
+
+    // Another account must not be able to read or overwrite the reference.
+    assert_eq!(db.offline_action_result(id, "other").unwrap(), None);
+    assert!(db.set_offline_action_result(id, "other", "99").is_err());
+    assert_eq!(db.offline_action_result(id, "owner").unwrap().unwrap(), "42");
+  }
+
+  #[test]
+  fn offline_action_result_reports_missing_rows_as_none() {
+    let db = setup_test_db();
+    db.create_user("demo_user", "Demo User", "").unwrap();
+    assert_eq!(db.offline_action_result(9999, "demo_user").unwrap(), None);
+    assert!(db.set_offline_action_result(9999, "demo_user", "1").is_err());
+  }
+
   // ─── Device Sync Log Tests ──────────────────────────
 
   #[test]

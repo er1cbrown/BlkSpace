@@ -808,7 +808,7 @@ pub struct Database {
 }
 
 /// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
-const SCHEMA_VERSION: i32 = 11;
+const SCHEMA_VERSION: i32 = 12;
 
 /// Tier 0 page cache in KiB (negative PRAGMA cache_size = KiB).
 /// Default 8 MiB — was 64 MiB which is too heavy for 4 GB laptops.
@@ -1191,6 +1191,14 @@ impl Database {
       CREATE INDEX IF NOT EXISTS idx_earn_cat_day ON earn_category_day(handle, day);",
     );
 
+    // Idempotent offline replay (schema 12): remembers which local row a queued
+    // action already produced, so a retried flush resumes instead of creating a
+    // second post.
+    let _ = conn.execute(
+      "ALTER TABLE offline_queue ADD COLUMN result_ref TEXT DEFAULT ''",
+      (),
+    );
+
     conn.execute_batch(
       "
       CREATE TABLE IF NOT EXISTS community_yard_packs (
@@ -1445,7 +1453,8 @@ impl Database {
         payload TEXT NOT NULL,
         author_handle TEXT NOT NULL,
         created_at TEXT DEFAULT (datetime('now')),
-        synced INTEGER DEFAULT 0
+        synced INTEGER DEFAULT 0,
+        result_ref TEXT DEFAULT ''
       );
 
       CREATE INDEX IF NOT EXISTS idx_offline_queue_author ON offline_queue(author_handle);
@@ -6226,6 +6235,45 @@ impl Database {
       |r| r.get(0),
     )?;
     Ok(count)
+  }
+
+  /// Local row already produced by a partially applied queued action, if any.
+  ///
+  /// `flush_offline_queue` writes this the moment a `create_post` succeeds, so a
+  /// retry after a crash or a later failure resumes the original post instead of
+  /// inserting a second one.
+  pub fn offline_action_result(&self, id: i64, author_handle: &str) -> Result<Option<String>> {
+    let conn = self.conn.lock().unwrap();
+    let result = conn.query_row(
+      "SELECT result_ref FROM offline_queue WHERE id = ?1 AND author_handle = ?2",
+      params![id, author_handle],
+      |row| row.get::<_, String>(0),
+    );
+    match result {
+      Ok(value) => Ok(if value.is_empty() { None } else { Some(value) }),
+      Err(crate::sqlite::Error::QueryReturnedNoRows) => Ok(None),
+      Err(e) => Err(e),
+    }
+  }
+
+  /// Record the row a queued action produced (scoped to the owning handle).
+  pub fn set_offline_action_result(
+    &self,
+    id: i64,
+    author_handle: &str,
+    result_ref: &str,
+  ) -> Result<()> {
+    let conn = self.conn.lock().unwrap();
+    let affected = conn.execute(
+      "UPDATE offline_queue SET result_ref = ?1 WHERE id = ?2 AND author_handle = ?3",
+      params![result_ref, id, author_handle],
+    )?;
+    if affected == 0 {
+      return Err(crate::sqlite::Error::ExecuteFailed(
+        "Offline action not found or not owned by session".into(),
+      ));
+    }
+    Ok(())
   }
 
   // ─── Nostr Outbox ─────────────────────────────────────

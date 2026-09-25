@@ -28,6 +28,12 @@ features.
    and Windows proof.
 5. Keep Reticulum optional until native daemon lifecycle, receive/drain, retry,
    and acknowledgement are implemented.
+   **Plan written, not started:** [`RETICULUM_PLAN.md`](RETICULUM_PLAN.md). Two
+   findings from that review: Route B needs a *learned* address book (RNS
+   addresses are not derivable from a Nostr pubkey), so it is a second
+   identity-adjacency system, not just plumbing; and the build should be gated
+   on a measured relay-unavailability number from the three-device matrix rather
+   than started as a standing TODO.
 
 ## P2 — evidence and research
 

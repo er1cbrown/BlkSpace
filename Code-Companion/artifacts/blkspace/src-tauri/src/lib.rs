@@ -3929,17 +3929,45 @@ fn flush_offline_queue(state: State<AppState>, session_token: String) -> Result<
         validate_content(&p.content).map_err(map_err)?;
         validate_town(&p.town_tag).map_err(map_err)?;
         let hashes: Vec<String> = p.media_hashes.into_iter().take(10).collect();
-        let result = state
+
+        // Resume rather than re-create. If a previous attempt already inserted
+        // the post, reuse that row; only insert when nothing was recorded.
+        let existing_id = state
           .db
-          .create_post(&handle, &p.content, &p.town_tag, &p.channel_id, &hashes)
-          .map_err(|e| AppError::from(e).to_string())?;
-        if let Err(error) = queue_hosted_post(&state, &handle, &result.post) {
+          .offline_action_result(id, &handle)
+          .ok()
+          .flatten()
+          .and_then(|v| v.parse::<i64>().ok());
+        let post = match existing_id {
+          Some(post_id) => state
+            .db
+            .get_post(post_id, None)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| {
+              // Recorded row is gone; fall through to a fresh create next flush.
+              format!("Queued post {post_id} is missing; will recreate on next flush")
+            })?,
+          None => {
+            let created = state
+              .db
+              .create_post(&handle, &p.content, &p.town_tag, &p.channel_id, &hashes)
+              .map_err(|e| AppError::from(e).to_string())?;
+            // Record before any further work so a crash here cannot duplicate.
+            state
+              .db
+              .set_offline_action_result(id, &handle, &created.post.id.to_string())
+              .map_err(|e| e.to_string())?;
+            created.post
+          }
+        };
+
+        if let Err(error) = queue_hosted_post(&state, &handle, &post) {
           log::warn!("Hosted post queued failed for {handle}: {error}");
         }
         publish_post_to_nostr(
           &state,
           &handle,
-          result.post.id,
+          post.id,
           &p.content,
           &p.town_tag,
           &p.channel_id,

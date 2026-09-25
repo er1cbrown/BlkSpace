@@ -48,6 +48,11 @@ Spool records are `{ v, kind, yard, handle, text, at }`. They do **not** include
 
 Ship a native `rnsd` in the **Full** installer (TCP-only config under `{app_data}/rns/`). Device B proof of announce over LAN. Do not add LXMF or RNode to close that loop.
 
+The full path to a live transport — daemon lifecycle, the learned address book
+it requires, drain/retry/ACK, and the measured value gate that should decide
+whether to build any of it — is written up in
+[`RETICULUM_PLAN.md`](RETICULUM_PLAN.md).
+
 ## Code
 
 - Rust: `Code-Companion/artifacts/blkspace/src-tauri/src/reticulum_bridge.rs`

@@ -39,11 +39,13 @@ Browser / native client
   local store; a CID alone is not durable public storage.
 - **Reticulum Route B:** current code is a native-binary probe plus local spool.
   There is no bundled daemon, drain/receive loop, acknowledgement, or live TCP
-  transport yet.
+  transport yet. See [`RETICULUM_PLAN.md`](RETICULUM_PLAN.md).
 - **Offline queue:** the explicit `offline_queue` holds deliberately queued
   actions, while the `nostr_outbox` holds signed events for every native post.
-  Local SQLite, the hosted outbox, and relay delivery are tracked separately and
-  reported separately; a post with no relay connection is still durable locally.
+  A queued `create_post` records the local row it produced, so a retried flush
+  resumes that post instead of inserting a duplicate. Local SQLite, the hosted
+  outbox, and relay delivery are tracked separately and reported separately; a
+  post with no relay connection is still durable locally.
 - **Economy:** WeixBucks are a local/off-chain practice ledger in the current
   build. They are not a replicated settlement or a Nostr-auditable double-spend
   resistant ledger.
