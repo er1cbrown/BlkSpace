@@ -4,6 +4,16 @@
 **Companion docs:** [`RETICULUM_INTEGRATION.md`](RETICULUM_INTEGRATION.md) (shipped behavior) · [`WEIXNET_REMEDIATION.md`](WEIXNET_REMEDIATION.md) (P1.5)
 **Code today:** `Code-Companion/artifacts/blkspace/src-tauri/src/reticulum_bridge.rs`
 
+> **Superseded in part.** [`DELIVERY_TIER_CONCEPT.md`](DELIVERY_TIER_CONCEPT.md)
+> reframes Route B as a text-only degraded tier that uses Reticulum's
+> propagation/announce model instead of direct addressed delivery. That removes
+> the need for the learned address book described in §2 below, and reuses the
+> existing Nostr identity and event-id dedup instead of adding a second identity
+> system. §2, §4 Phases 1–3, and §7 should be read as the fallback direct-delivery
+> design; the tier concept is the preferred direction. §1 (what exists today) and
+> the §5 guardrails still apply unchanged, and Phase 0 below matches the concept's
+> Phase 0.
+
 This plan covers what would be required to turn Route B from a probe + spool
 into a working fallback transport. It deliberately leads with a value gate and
 the blocking design problem, because both argue against building it yet.

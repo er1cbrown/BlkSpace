@@ -53,6 +53,12 @@ it requires, drain/retry/ACK, and the measured value gate that should decide
 whether to build any of it — is written up in
 [`RETICULUM_PLAN.md`](RETICULUM_PLAN.md).
 
+The preferred direction is [`DELIVERY_TIER_CONCEPT.md`](DELIVERY_TIER_CONCEPT.md),
+which scopes Route B to a text-only degraded tier reached over Reticulum's
+propagation/announce model. That avoids the address book entirely and reuses the
+existing Nostr identity and event-id dedup, so Reticulum stays a courier rather
+than a second identity system.
+
 ## Code
 
 - Rust: `Code-Companion/artifacts/blkspace/src-tauri/src/reticulum_bridge.rs`

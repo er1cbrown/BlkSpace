@@ -34,6 +34,11 @@ features.
    identity-adjacency system, not just plumbing; and the build should be gated
    on a measured relay-unavailability number from the three-device matrix rather
    than started as a standing TODO.
+   **Preferred direction:** [`DELIVERY_TIER_CONCEPT.md`](DELIVERY_TIER_CONCEPT.md)
+   scopes Route B to a text-only degraded tier over Reticulum propagation, which
+   removes the address book and reuses the existing Nostr identity and event-id
+   dedup. The gate stands: Phase 1 (tier detector + honest UI) should produce the
+   measurement before any daemon work begins.
 
 ## P2 — evidence and research
 
