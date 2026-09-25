@@ -244,6 +244,116 @@ mod tests {
     assert!(saved[0].payload.contains("https://media.example.test/photo.jpg"));
   }
 
+  // ─── Durable Nostr Outbox ──────────────────────────────
+
+  #[test]
+  fn nostr_outbox_holds_one_event_per_post_across_replays() {
+    let db = setup_test_db();
+    db.create_user("author", "Author", "").unwrap();
+    let post = db
+      .create_post("author", "Queued while offline", "tsu", NO_CHANNEL, &[])
+      .unwrap()
+      .post;
+    let event_id = "a".repeat(64);
+    let event_json = r#"{"id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}"#;
+
+    // Replaying the same publish must not queue a second event.
+    db.queue_nostr_event(&event_id, post.id, "author", event_json)
+      .unwrap();
+    db.queue_nostr_event(&event_id, post.id, "author", event_json)
+      .unwrap();
+    assert_eq!(db.count_nostr_outbox("author").unwrap(), 1);
+
+    // A different event id for the same post is also ignored, so one post can
+    // never end up with two published events.
+    db.queue_nostr_event(&"b".repeat(64), post.id, "author", r#"{"id":"other"}"#)
+      .unwrap();
+    assert_eq!(db.count_nostr_outbox("author").unwrap(), 1);
+
+    let stored = db.nostr_event_for_post(post.id).unwrap().unwrap();
+    assert_eq!(stored.0, event_id);
+    assert_eq!(stored.1, event_json);
+  }
+
+  #[test]
+  fn nostr_outbox_retry_defers_but_never_rewrites_the_event() {
+    let db = setup_test_db();
+    db.create_user("author", "Author", "").unwrap();
+    let post = db.create_post("author", "Retry me", "tsu", NO_CHANNEL, &[]).unwrap().post;
+    let event_id = "c".repeat(64);
+    let event_json = r#"{"id":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}"#;
+    db.queue_nostr_event(&event_id, post.id, "author", event_json)
+      .unwrap();
+
+    let due = db.due_nostr_outbox("author", 10).unwrap();
+    assert_eq!(due.len(), 1);
+    assert_eq!(due[0].event_id, event_id);
+    assert_eq!(due[0].local_post_id, post.id);
+
+    db.mark_nostr_outbox_retry(&event_id, "relay timeout").unwrap();
+
+    // Backoff defers the retry, but the event is still queued for later.
+    assert!(db.due_nostr_outbox("author", 10).unwrap().is_empty());
+    assert_eq!(db.count_nostr_outbox("author").unwrap(), 1);
+    let stored = db.nostr_event_for_post(post.id).unwrap().unwrap();
+    assert_eq!(stored.1, event_json);
+  }
+
+  #[test]
+  fn nostr_outbox_ack_binds_the_event_and_clears_the_queue() {
+    let db = setup_test_db();
+    db.create_user("author", "Author", "").unwrap();
+    let post = db
+      .create_post("author", "Publish me", "tsu", NO_CHANNEL, &[])
+      .unwrap()
+      .post;
+    let event_id = "d".repeat(64);
+    db.queue_nostr_event(&event_id, post.id, "author", r#"{"id":"pending"}"#)
+      .unwrap();
+
+    db.ack_nostr_outbox(&event_id, post.id).unwrap();
+
+    assert_eq!(db.count_nostr_outbox("author").unwrap(), 0);
+    assert!(db.nostr_event_for_post(post.id).unwrap().is_none());
+    let stored_post = db.get_post(post.id, None).unwrap().unwrap();
+    assert_eq!(stored_post.nostr_event_id, event_id);
+    assert_eq!(stored_post.relay_url, "self-published");
+  }
+
+  #[test]
+  fn nostr_outbox_pending_state_is_scoped_to_the_author() {
+    let db = setup_test_db();
+    db.create_user("author", "Author", "").unwrap();
+    db.create_user("other", "Other", "").unwrap();
+    let post = db.create_post("author", "Mine", "tsu", NO_CHANNEL, &[]).unwrap().post;
+    db.queue_nostr_event(&"e".repeat(64), post.id, "author", r#"{"id":"mine"}"#)
+      .unwrap();
+
+    assert_eq!(db.count_nostr_outbox("author").unwrap(), 1);
+    assert_eq!(db.count_nostr_outbox("other").unwrap(), 0);
+    assert!(db.due_nostr_outbox("other", 10).unwrap().is_empty());
+  }
+
+  #[test]
+  fn nostr_outbox_summary_reports_pending_and_oldest_entry() {
+    let db = setup_test_db();
+    db.create_user("author", "Author", "").unwrap();
+    let first = db.create_post("author", "First", "tsu", NO_CHANNEL, &[]).unwrap().post;
+    let second = db.create_post("author", "Second", "tsu", NO_CHANNEL, &[]).unwrap().post;
+    db.queue_nostr_event(&"f".repeat(64), first.id, "author", r#"{"id":"one"}"#)
+      .unwrap();
+    db.queue_nostr_event(&"0".repeat(64), second.id, "author", r#"{"id":"two"}"#)
+      .unwrap();
+
+    let (pending, oldest) = db.nostr_outbox_summary("author").unwrap();
+    assert_eq!(pending, 2);
+    assert!(oldest.is_some());
+
+    db.ack_nostr_outbox(&"f".repeat(64), first.id).unwrap();
+    let (pending, _oldest) = db.nostr_outbox_summary("author").unwrap();
+    assert_eq!(pending, 1);
+  }
+
   #[test]
   fn unauthenticated_pull_preserves_viewer_social_state() {
     let db = setup_test_db();

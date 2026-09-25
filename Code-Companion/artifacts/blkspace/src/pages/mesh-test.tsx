@@ -16,6 +16,7 @@ import {
   useTauriGetUserAccountData,
   useTauriGetPendingOfflineActions,
   useTauriFlushOfflineQueue,
+  useTauriGetNostrOutboxStatus,
   useTauriListPinnedContent,
   useTauriListOfflineCache,
   useTauriClaimNodeRewards,
@@ -68,6 +69,7 @@ export default function DeviceMeshTestPage() {
   const { data: relayStatuses } = useTauriRelayStatuses();
   const { data: accountData } = useTauriGetUserAccountData();
   const { data: pendingActions } = useTauriGetPendingOfflineActions();
+  const { data: nostrOutbox } = useTauriGetNostrOutboxStatus();
   const { data: pinnedContent } = useTauriListPinnedContent();
   const { data: offlineCache } = useTauriListOfflineCache();
   const { data: nodeRewards } = useTauriClaimNodeRewards();
@@ -179,9 +181,9 @@ export default function DeviceMeshTestPage() {
         logDeviceSync.mutate({
           deviceId,
           syncType: "offline_flush",
-          itemsCount: result.synced,
+          itemsCount: result.synced + result.nostrSynced,
           durationMs: duration,
-          success: result.failed === 0,
+          success: result.failed === 0 && result.nostrFailed === 0,
         });
       },
     });
@@ -190,6 +192,10 @@ export default function DeviceMeshTestPage() {
   const isDesktop = isTauri();
   const sessionToken = getSessionToken();
   const handle = getCurrentHandle();
+
+  const offlinePending = pendingActions?.length ?? 0;
+  const nostrPending = nostrOutbox?.pending ?? 0;
+  const totalPending = offlinePending + nostrPending;
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -636,7 +642,8 @@ export default function DeviceMeshTestPage() {
               <CardHeader>
                 <CardTitle>Offline Queue Test</CardTitle>
                 <CardDescription>
-                  Replays explicitly queued local actions; hosted and Nostr delivery are tracked separately
+                  Replays explicitly queued local actions, then drains the durable
+                  Nostr outbox. Hosted and Nostr delivery are tracked separately
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -646,9 +653,15 @@ export default function DeviceMeshTestPage() {
                     <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
                       <li>Disconnect internet</li>
                       <li>Create a post, reply, or like on Feed</li>
-                      <li>Explicit actions appear in the local queue (count above)</li>
+                      <li>
+                        Posts are signed and saved locally first; explicit
+                        actions also appear in the local queue
+                      </li>
                       <li>Reconnect internet — replay runs automatically or on Flush Now</li>
-                      <li>Hosted and Nostr delivery statuses are reported separately</li>
+                      <li>
+                        Each queued Nostr event republishes the same event id,
+                        never a new one
+                      </li>
                     </ol>
                   </div>
                   <Button
@@ -656,19 +669,31 @@ export default function DeviceMeshTestPage() {
                     disabled={
                       flushQueue.isPending ||
                       !sessionToken ||
-                      (pendingActions?.length ?? 0) === 0
+                      totalPending === 0
                     }
                     className="w-full sm:w-auto"
                   >
                     {flushQueue.isPending
                       ? "Flushing…"
-                      : `Flush Now (${pendingActions?.length ?? 0} pending)`}
+                      : `Flush Now (${totalPending} pending)`}
                   </Button>
                   {flushQueue.isSuccess && flushQueue.data && (
                     <div className="text-sm text-muted-foreground">
                       Synced {flushQueue.data.synced}, failed{" "}
                       {flushQueue.data.failed}, remaining{" "}
                       {flushQueue.data.remaining}
+                      <div className="mt-1">
+                        Nostr events: {flushQueue.data.nostrSynced} published,{" "}
+                        {flushQueue.data.nostrFailed} retrying,{" "}
+                        {flushQueue.data.nostrPending} awaiting a relay
+                      </div>
+                    </div>
+                  )}
+                  {nostrPending > 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      {nostrPending} signed event
+                      {nostrPending === 1 ? " is" : "s are"} committed locally
+                      and will publish the same event id once a relay connects.
                     </div>
                   )}
                   {flushQueue.isError && (

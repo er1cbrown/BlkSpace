@@ -15,6 +15,9 @@ interface FlushResult {
   synced: number;
   failed: number;
   remaining: number;
+  nostrSynced: number;
+  nostrFailed: number;
+  nostrPending: number;
 }
 
 export function OfflineSyncProvider({
@@ -34,7 +37,14 @@ export function OfflineSyncProvider({
       const token = getSessionToken();
       if (!token)
         return {
-          offline: { synced: 0, failed: 0, remaining: 0 },
+          offline: {
+            synced: 0,
+            failed: 0,
+            remaining: 0,
+            nostrSynced: 0,
+            nostrFailed: 0,
+            nostrPending: 0,
+          },
           hosted: null,
           social: null,
         };
@@ -64,6 +74,21 @@ export function OfflineSyncProvider({
       if (offline.failed > 0) {
         toast.error(
           `${offline.failed} offline action${offline.failed === 1 ? "" : "s"} failed to sync`,
+        );
+      }
+      if (offline.nostrSynced > 0) {
+        toast.success(
+          `Published ${offline.nostrSynced} queued Nostr event${offline.nostrSynced === 1 ? "" : "s"}`,
+        );
+      }
+      if (offline.nostrFailed > 0) {
+        toast.message(
+          `${offline.nostrFailed} Nostr event${offline.nostrFailed === 1 ? "" : "s"} will retry with the same event id.`,
+        );
+      }
+      if (offline.nostrPending > 0 && offline.nostrSynced === 0) {
+        toast.message(
+          `${offline.nostrPending} Nostr event${offline.nostrPending === 1 ? "" : "s"} saved locally and waiting for a relay.`,
         );
       }
       if (hosted && hosted.failed > 0) {

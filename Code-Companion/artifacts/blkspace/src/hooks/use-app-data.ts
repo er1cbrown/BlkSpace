@@ -1460,18 +1460,41 @@ export function useTauriClearSyncedOfflineActions() {
 export function useTauriFlushOfflineQueue() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => {
+    mutationFn: (): Promise<tauri.TauriFlushOfflineResult> => {
       const token = getSessionToken();
       if (!token) {
-        return Promise.resolve({ synced: 0, failed: 0, remaining: 0 });
+        return Promise.resolve({
+          synced: 0,
+          failed: 0,
+          remaining: 0,
+          nostrSynced: 0,
+          nostrFailed: 0,
+          nostrPending: 0,
+        });
       }
       return tauri.tauriFlushOfflineQueue(token);
     },
     onSuccess: (result) => {
-      if (result.synced > 0 || result.failed > 0) {
+      if (
+        result.synced > 0 ||
+        result.failed > 0 ||
+        result.nostrSynced > 0 ||
+        result.nostrFailed > 0 ||
+        result.nostrPending > 0
+      ) {
         qc.invalidateQueries({ queryKey: ["tauri"] });
       }
     },
+  });
+}
+
+/// Durable Nostr outbox: signed events committed locally but not yet accepted
+/// by a relay. `pending > 0` with `relaysConnected === 0` is the offline case.
+export function useTauriGetNostrOutboxStatus() {
+  return useQuery({
+    queryKey: ["tauri", "nostrOutbox"],
+    queryFn: () => tauri.tauriGetNostrOutboxStatus(getSessionToken() || ""),
+    enabled: IS_TAURI,
   });
 }
 

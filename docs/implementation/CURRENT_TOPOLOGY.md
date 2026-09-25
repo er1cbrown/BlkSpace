@@ -29,18 +29,21 @@ Browser / native client
   `https://bkspc.app`; native posts enter a hosted outbox and browser writes use
   hosted acknowledgement. This is a first-class path, not an invisible side
   effect.
-- **Nostr:** real signing and relay-event validation exist. Incoming events are
-  stored in relay/signed-event tables; they are not yet fully materialized into
-  every canonical feed entity.
+- **Nostr:** real signing and relay-event validation exist. Outgoing posts are
+  signed once and committed to a durable `nostr_outbox` before any relay is
+  contacted; retries republish that exact event id, and the row is cleared only
+  after a relay acknowledges it. Incoming events are stored in relay/signed-event
+  tables; they are not yet fully materialized into every canonical feed entity.
 - **Iroh/Sendme:** Full builds can create `blkspace1.` tickets and use
   Iroh/iroh-blobs. Ticket transfer requires an available sender/provider or
   local store; a CID alone is not durable public storage.
 - **Reticulum Route B:** current code is a native-binary probe plus local spool.
   There is no bundled daemon, drain/receive loop, acknowledgement, or live TCP
   transport yet.
-- **Offline queue:** the explicit `offline_queue` exists, but ordinary native
-  post creation uses local SQLite + hosted outbox and only attempts Nostr
-  publication. Do not describe every normal post as durably queued for Nostr.
+- **Offline queue:** the explicit `offline_queue` holds deliberately queued
+  actions, while the `nostr_outbox` holds signed events for every native post.
+  Local SQLite, the hosted outbox, and relay delivery are tracked separately and
+  reported separately; a post with no relay connection is still durable locally.
 - **Economy:** WeixBucks are a local/off-chain practice ledger in the current
   build. They are not a replicated settlement or a Nostr-auditable double-spend
   resistant ledger.

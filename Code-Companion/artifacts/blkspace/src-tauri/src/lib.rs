@@ -2077,6 +2077,70 @@ fn build_post_nostr_tags(
   tags
 }
 
+/// Sign the Nostr text note for a local post exactly once.
+///
+/// Returns `(event_id, event_json)`. If this post already has a signed event in
+/// the durable outbox, that event is reused, so the id published to relays stays
+/// stable across offline replays and manual retries.
+fn sign_post_nostr_event(
+  state: &AppState,
+  author_handle: &str,
+  post_id: i64,
+  content: &str,
+  town_tag: &str,
+  channel_id: &str,
+  media_hashes: &[String],
+) -> Option<(String, String)> {
+  if let Ok(Some(existing)) = state.db.nostr_event_for_post(post_id) {
+    return Some(existing);
+  }
+  let user_keys = user_nostr_keys_for_publish(state, author_handle, "post publish")?;
+  let tag_vecs = build_post_nostr_tags(state, town_tag, channel_id, media_hashes);
+  let runtime = tokio::runtime::Runtime::new().ok()?;
+  runtime.block_on(async {
+    use nostr_sdk::prelude::{EventBuilder, Tag};
+    let nostr_tags: Vec<Tag> = tag_vecs
+      .iter()
+      .filter_map(|t| Tag::parse(t.clone()).ok())
+      .collect();
+    let event = EventBuilder::text_note(content)
+      .tags(nostr_tags)
+      .sign(&user_keys)
+      .await
+      .ok()?;
+    let event_id = event.id.to_hex();
+    let event_json = serde_json::to_string(&event).ok()?;
+    Some((event_id, event_json))
+  })
+}
+
+/// Republish a stored signed event. `Ok` only when a relay acknowledged it.
+fn send_nostr_event(state: &AppState, event_json: &str) -> Result<String, String> {
+  use nostr_sdk::prelude::{Event, JsonUtil};
+  let event = Event::from_json(event_json.as_bytes())
+    .map_err(|e| format!("Stored Nostr event unreadable: {}", e))?;
+  let (client, relay_count) = {
+    let guard = state.relay_manager.lock().unwrap();
+    (guard.client_clone(), guard.relay_count())
+  };
+  if relay_count == 0 {
+    return Err("No Nostr relays connected".into());
+  }
+  let event_id = event.id.to_hex();
+  let runtime =
+    tokio::runtime::Runtime::new().map_err(|e| format!("Relay runtime failed: {}", e))?;
+  runtime
+    .block_on(async { client.send_event(event).await })
+    .map_err(|e| format!("Publish failed: {}", e))?;
+  Ok(event_id)
+}
+
+/// Durable publish path: sign once, persist to the outbox, then attempt delivery.
+///
+/// The signed event is committed locally *before* any relay is contacted, so a
+/// relay outage, an offline post, or a crash mid-publish cannot lose the event.
+/// Failures leave the exact event queued for `flush_offline_queue` to retry; the
+/// same event id is republished every time, never a fresh one.
 fn publish_post_to_nostr(
   state: &AppState,
   author_handle: &str,
@@ -2086,45 +2150,111 @@ fn publish_post_to_nostr(
   channel_id: &str,
   media_hashes: &[String],
 ) {
-  let has_relays = state.relay_manager.lock().unwrap().relay_count() > 0;
-  if !has_relays {
+  let Some((event_id, event_json)) = sign_post_nostr_event(
+    state,
+    author_handle,
+    post_id,
+    content,
+    town_tag,
+    channel_id,
+    media_hashes,
+  ) else {
+    log::warn!("Nostr post signing skipped for {author_handle} (post {post_id})");
+    return;
+  };
+
+  if let Err(error) = state.db.store_nostr_event_json(&event_id, &event_json) {
+    log::warn!("Signed Nostr event store failed for post {post_id}: {error}");
+  }
+  if let Err(error) = state.db.queue_nostr_event(&event_id, post_id, author_handle, &event_json) {
+    log::warn!("Nostr outbox enqueue failed for post {post_id}: {error}");
     return;
   }
-  let user_keys = match user_nostr_keys_for_publish(state, author_handle, "post publish") {
-    Some(k) => k,
-    None => return,
-  };
-  let nostr_client = state.relay_manager.lock().unwrap().client().clone();
-  let tag_vecs = build_post_nostr_tags(state, town_tag, channel_id, media_hashes);
 
-  if let Ok(rt) = tokio::runtime::Runtime::new() {
-    let result = rt.block_on(async {
-      use nostr_sdk::prelude::{Tag, EventBuilder};
-      let nostr_tags: Vec<Tag> = tag_vecs
-        .iter()
-        .filter_map(|t| Tag::parse(t.clone()).ok())
-        .collect();
-      let event = EventBuilder::text_note(content)
-        .tags(nostr_tags)
-        .sign(&user_keys)
-        .await
-        .map_err(|e| format!("Signing failed: {}", e))?;
-      let event_id_hex = event.id.to_hex();
-      if let Ok(json) = serde_json::to_string(&event) {
-        let _ = state.db.store_nostr_event_json(&event_id_hex, &json);
+  // Drop the relay lock before `send_nostr_event` takes it again.
+  let relays_connected = { state.relay_manager.lock().unwrap().relay_count() };
+  if relays_connected == 0 {
+    log::info!("Nostr event {event_id} queued; no relays connected yet");
+    return;
+  }
+
+  match send_nostr_event(state, &event_json) {
+    Ok(sent_event_id) => {
+      if let Err(error) = state.db.ack_nostr_outbox(&sent_event_id, post_id) {
+        log::warn!("Nostr outbox ack failed for {sent_event_id}: {error}");
       }
-      nostr_client
-        .send_event(event)
-        .await
-        .map_err(|e| format!("Publish failed: {}", e))?;
-      Ok::<_, String>(event_id_hex)
-    });
-    match result {
-      Ok(event_id) => {
-        let _ = state.db.update_post_nostr_meta(post_id, &event_id, "self-published");
-      }
-      Err(e) => log::warn!("Nostr post publish failed for {author_handle}: {e}"),
     }
+    Err(error) => {
+      log::warn!("Nostr publish deferred for {author_handle} (post {post_id}): {error}")
+    }
+  }
+}
+
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct NostrOutboxFlushResult {
+  synced: i64,
+  failed: i64,
+  pending: i64,
+}
+
+/// Republish queued signed events for one account.
+///
+/// Retries only stored event ids, so a relay never sees two events for a post.
+/// With no relays connected the queue is left untouched for the next flush.
+fn flush_nostr_outbox(state: &AppState, handle: &str) -> NostrOutboxFlushResult {
+  let pending_now = state.db.count_nostr_outbox(handle).unwrap_or(0);
+  let mut synced = 0i64;
+  let mut failed = 0i64;
+
+  let relays_connected = { state.relay_manager.lock().unwrap().relay_count() };
+  if relays_connected == 0 {
+    return NostrOutboxFlushResult {
+      synced,
+      failed,
+      pending: pending_now,
+    };
+  }
+
+  let due = match state.db.due_nostr_outbox(handle, 20) {
+    Ok(items) => items,
+    Err(error) => {
+      log::warn!("Nostr outbox read failed for {handle}: {error}");
+      return NostrOutboxFlushResult {
+        synced,
+        failed,
+        pending: pending_now,
+      };
+    }
+  };
+
+  for item in due {
+    match send_nostr_event(state, &item.event_json) {
+      Ok(event_id) => {
+        if let Err(error) = state.db.ack_nostr_outbox(&event_id, item.local_post_id) {
+          log::warn!("Nostr outbox ack failed for {event_id}: {error}");
+        } else {
+          synced += 1;
+        }
+      }
+      Err(error) => {
+        if let Err(write_error) = state.db.mark_nostr_outbox_retry(&item.event_id, &error) {
+          log::warn!(
+            "Nostr outbox retry record failed for {}: {write_error}",
+            item.event_id
+          );
+        }
+        log::warn!("Nostr outbox retry failed for {}: {error}", item.event_id);
+        failed += 1;
+      }
+    }
+  }
+
+  let pending = state.db.count_nostr_outbox(handle).unwrap_or(pending_now);
+  NostrOutboxFlushResult {
+    synced,
+    failed,
+    pending,
   }
 }
 
@@ -3704,12 +3834,49 @@ fn count_pending_offline_actions(state: State<AppState>, session_token: String) 
     .map_err(|e| e.to_string())
 }
 
+/// Local-first delivery state for the signed Nostr outbox: what is committed
+/// locally, what a relay has accepted, and what is still queued.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NostrOutboxStatus {
+  /// Signed events still waiting for a relay to accept them.
+  pending: i64,
+  /// Relays currently connected. Delivery cannot progress while this is 0.
+  relays_connected: usize,
+  /// Oldest queued event, so the UI can show queue age rather than a bare count.
+  oldest_pending_at: Option<String>,
+}
+
+#[tauri::command]
+fn get_nostr_outbox_status(
+  state: State<AppState>,
+  session_token: String,
+) -> Result<NostrOutboxStatus, String> {
+  let handle = get_handle_from_session(&state, &session_token)?;
+  let relays_connected = state.relay_manager.lock().unwrap().relay_count();
+  let (pending, oldest_pending_at) = state
+    .db
+    .nostr_outbox_summary(&handle)
+    .map_err(|e| e.to_string())?;
+  Ok(NostrOutboxStatus {
+    pending,
+    relays_connected,
+    oldest_pending_at,
+  })
+}
+
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FlushOfflineResult {
   synced: i64,
   failed: i64,
   remaining: i64,
+  /// Signed Nostr events delivered to a relay during this flush.
+  nostr_synced: i64,
+  /// Events that still failed; they keep the same id for the next attempt.
+  nostr_failed: i64,
+  /// Events still awaiting a relay, including any with no relay connected.
+  nostr_pending: i64,
 }
 
 #[derive(serde::Deserialize)]
@@ -3835,10 +4002,17 @@ fn flush_offline_queue(state: State<AppState>, session_token: String) -> Result<
     .count_pending_offline_actions(&handle)
     .map_err(|e| e.to_string())?;
 
+  // Durable Nostr outbox drains after local actions so a post queued above gets
+  // its first relay attempt in the same pass.
+  let nostr = flush_nostr_outbox(&state, &handle);
+
   Ok(FlushOfflineResult {
     synced,
     failed,
     remaining,
+    nostr_synced: nostr.synced,
+    nostr_failed: nostr.failed,
+    nostr_pending: nostr.pending,
   })
 }
 
@@ -5890,6 +6064,7 @@ pub fn run() {
       clear_synced_offline_actions,
       count_pending_offline_actions,
       flush_offline_queue,
+      get_nostr_outbox_status,
       get_user_account_data,
       log_device_sync,
       run_tier0_benchmark,

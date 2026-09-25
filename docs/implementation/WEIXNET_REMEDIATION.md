@@ -10,13 +10,17 @@ features.
 |-------|--------|----------------|
 | Ticket sender authentication | Sign v2 `blkspace1.` payloads with the Nostr key over every security-relevant field | **Implemented; Full cargo check passes; focused test link is slow on this Windows toolchain** |
 | DM security claim | Remove NIP-44/“secure DM” claims until encrypted transport exists | **Done in UI/docs; transport remains plaintext** |
-| Hosted data disclosure | Show local + hosted + Nostr delivery states separately | **Copy/docs corrected; durable outbox still P1** |
+| Hosted data disclosure | Show local + hosted + Nostr delivery states separately | **Done: `nostr_outbox` reports pending/published/retrying separately from the offline queue** |
 | Economy claim freeze | Describe WeixBucks as a local practice ledger | **Done in current topology and wallet copy** |
 | Recovery wording | State that identity recovery does not restore local DB/wallet rows | **Current topology corrected; user guides still need consolidation** |
 
 ## P1 — make the core paths real
 
-1. Add a durable, idempotent Nostr outbox for native social events.
+1. ~~Add a durable, idempotent Nostr outbox for native social events.~~
+   **Done.** `nostr_outbox` is written at sign time, keyed on event id and post
+   id, retried with a 60s backoff, and cleared on relay acknowledgement. What is
+   *not* done: relay-level negative acknowledgement is not yet distinguished from
+   a transport failure.
 2. Materialize validated Nostr events into canonical feed entities with
    event-ID deduplication and durable subscription cursors.
 3. Prove hosted, local, and relay states independently on two/three devices.

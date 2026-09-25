@@ -1587,12 +1587,30 @@ export interface TauriFlushOfflineResult {
   synced: number;
   failed: number;
   remaining: number;
+  /** Signed Nostr events a relay accepted during this flush. */
+  nostrSynced: number;
+  /** Events that failed this attempt; the same id is retried later. */
+  nostrFailed: number;
+  /** Events still awaiting a relay, including when none are connected. */
+  nostrPending: number;
 }
 
 export function tauriFlushOfflineQueue(
   sessionToken: string,
 ): Promise<TauriFlushOfflineResult> {
   return invoke("flush_offline_queue", { sessionToken });
+}
+
+export interface TauriNostrOutboxStatus {
+  pending: number;
+  relaysConnected: number;
+  oldestPendingAt: string | null;
+}
+
+export function tauriGetNostrOutboxStatus(
+  sessionToken: string,
+): Promise<TauriNostrOutboxStatus> {
+  return invoke("get_nostr_outbox_status", { sessionToken });
 }
 
 // ─── Cross-Device Sync ────────────────────────────────

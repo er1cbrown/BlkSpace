@@ -406,6 +406,18 @@ pub struct HostedOutboxItem {
   pub payload: String,
 }
 
+/// One durable, already-signed Nostr event waiting to be accepted by a relay.
+/// The event id is fixed at sign time, so retries republish the exact same event
+/// instead of creating a second post/event pair.
+#[derive(Debug, Clone)]
+pub struct NostrOutboxItem {
+  pub event_id: String,
+  pub local_post_id: i64,
+  pub author_handle: String,
+  pub event_json: String,
+  pub attempt_count: i64,
+}
+
 #[derive(Debug, Clone)]
 pub struct HostedSocialOutboxItem {
   pub id: i64,
@@ -1370,6 +1382,25 @@ impl Database {
         event_json TEXT NOT NULL,
         stored_at TEXT DEFAULT (datetime('now'))
       );
+
+      -- Durable Nostr outbox. Rows are inserted at sign time (before any relay
+      -- is contacted) and removed only once a relay acknowledges the event, so
+      -- a crash, a relay outage, or an offline post still publishes later.
+      CREATE TABLE IF NOT EXISTS nostr_outbox (
+        event_id TEXT PRIMARY KEY,
+        local_post_id INTEGER NOT NULL UNIQUE,
+        author_handle TEXT NOT NULL,
+        event_json TEXT NOT NULL,
+        state TEXT NOT NULL DEFAULT 'pending',
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        next_attempt_at TEXT NOT NULL DEFAULT (datetime('now')),
+        last_error TEXT DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_nostr_outbox_due
+        ON nostr_outbox(author_handle, state, next_attempt_at);
 
       CREATE TABLE IF NOT EXISTS blob_pins (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -6195,6 +6226,133 @@ impl Database {
       |r| r.get(0),
     )?;
     Ok(count)
+  }
+
+  // ─── Nostr Outbox ─────────────────────────────────────
+
+  /// Persist an already-signed event so delivery survives a crash or relay outage.
+  ///
+  /// Idempotent on both `event_id` and `local_post_id`: replaying a post after
+  /// going offline reuses the single event that was signed at creation time
+  /// instead of producing a second event for the same post.
+  pub fn queue_nostr_event(
+    &self,
+    event_id: &str,
+    local_post_id: i64,
+    author_handle: &str,
+    event_json: &str,
+  ) -> Result<(), String> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      r#"INSERT OR IGNORE INTO nostr_outbox
+       (event_id, local_post_id, author_handle, event_json)
+       VALUES (?1, ?2, ?3, ?4)"#,
+      params![event_id, local_post_id, author_handle, event_json],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+  }
+
+  /// Return the event already signed for a post, so the published id is stable.
+  pub fn nostr_event_for_post(
+    &self,
+    local_post_id: i64,
+  ) -> Result<Option<(String, String)>, String> {
+    let conn = self.conn.lock().unwrap();
+    let result = conn.query_row(
+      "SELECT event_id, event_json FROM nostr_outbox WHERE local_post_id = ?1",
+      params![local_post_id],
+      |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+    );
+    match result {
+      Ok(row) => Ok(Some(row)),
+      Err(crate::sqlite::Error::QueryReturnedNoRows) => Ok(None),
+      Err(e) => Err(e.to_string()),
+    }
+  }
+
+  /// Signed events that are due for another relay attempt, oldest first.
+  pub fn due_nostr_outbox(
+    &self,
+    author_handle: &str,
+    limit: i64,
+  ) -> Result<Vec<NostrOutboxItem>, String> {
+    let conn = self.conn.lock().unwrap();
+    let mut stmt = conn
+      .prepare(
+        r#"SELECT event_id, local_post_id, author_handle, event_json, attempt_count
+           FROM nostr_outbox
+          WHERE author_handle = ?1
+            AND state = 'pending'
+            AND next_attempt_at <= datetime('now')
+          ORDER BY created_at ASC LIMIT ?2"#,
+      )
+      .map_err(|e| e.to_string())?;
+    let rows = stmt
+      .query_map(params![author_handle, limit.clamp(1, 50)], |row| {
+        Ok(NostrOutboxItem {
+          event_id: row.get(0)?,
+          local_post_id: row.get(1)?,
+          author_handle: row.get(2)?,
+          event_json: row.get(3)?,
+          attempt_count: row.get(4)?,
+        })
+      })
+      .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+  }
+
+  /// A relay accepted the event: bind the id to the post and clear the row.
+  /// Both writes happen under the same connection lock so the post never keeps a
+  /// published id that the outbox still believes is undelivered.
+  pub fn ack_nostr_outbox(&self, event_id: &str, local_post_id: i64) -> Result<(), String> {
+    let conn = self.conn.lock().unwrap();
+    conn.execute(
+      "UPDATE posts SET nostr_event_id = ?1, relay_url = 'self-published' WHERE id = ?2",
+      params![event_id, local_post_id],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute(
+      "DELETE FROM nostr_outbox WHERE event_id = ?1",
+      params![event_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+  }
+
+  /// Delivery failed for now: keep the exact event and retry after a backoff.
+  pub fn mark_nostr_outbox_retry(&self, event_id: &str, error: &str) -> Result<(), String> {
+    let conn = self.conn.lock().unwrap();
+    let error: String = error.chars().take(500).collect();
+    conn.execute(
+      r#"UPDATE nostr_outbox
+          SET state = 'pending', attempt_count = attempt_count + 1,
+              next_attempt_at = datetime('now', '+60 seconds'),
+              last_error = ?1, updated_at = datetime('now')
+        WHERE event_id = ?2"#,
+      params![error, event_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+  }
+
+  /// Events still waiting for a relay, plus the oldest queued timestamp.
+  pub fn nostr_outbox_summary(&self, author_handle: &str) -> Result<(i64, Option<String>), String> {
+    let conn = self.conn.lock().unwrap();
+    let (count, oldest): (i64, Option<String>) = conn
+      .query_row(
+        r#"SELECT COUNT(*), MIN(created_at) FROM nostr_outbox
+           WHERE author_handle = ?1 AND state = 'pending'"#,
+        params![author_handle],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+      )
+      .map_err(|e| e.to_string())?;
+    Ok((count, oldest))
+  }
+
+  /// Events still waiting for a relay.
+  pub fn count_nostr_outbox(&self, author_handle: &str) -> Result<i64, String> {
+    self.nostr_outbox_summary(author_handle).map(|(count, _)| count)
   }
 
   // ─── Device Sync Log ──────────────────────────────────
