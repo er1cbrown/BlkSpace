@@ -117,15 +117,77 @@ State these in any paper or demo; they are real.
   congestion. It only helps where T1 and T2 both fail.
 - **Text-only is a real product downgrade.** The app must visibly shed
   capability, and a media-heavy post cannot be degraded into T3.
-- **Best-effort only.** No receipts, so "sent" is unknowable. This is why rule 3
-  above exists.
 - **Unproven at scale.** Propagation behavior, duplicate rates, and battery/
   CPU cost on phones are all unmeasured for this workload.
-- **Operational ambiguity to resolve before building:** whether Reticulum's
-  propagation/announce mechanism can be used *without* adopting LXMF identity
-  storage. The concept assumes yes. This must be confirmed against upstream
-  `markqvist/Reticulum` and recorded as an explicit policy decision, because the
-  whole "courier not identity" property rests on it.
+
+## Dependency scope check (2026-09-25)
+
+The open question this section used to carry — whether announce/propagate is
+usable *without* adopting LXMF identity storage — is **resolved: yes.** A native
+Rust implementation exists and contains the entire T3 slice, with more to spare.
+It is **not** upstream `markqvist/Reticulum`, which is Python-only; the Rust port
+is a separate project.
+
+**Do not use the `reticulum-rs` umbrella crate.** Its `default` feature set
+requires `rns-transport`, which is not published (404 on both crates.io and
+docs.rs). It is a stale 10-line re-export whose repository metadata points at a
+different organisation than the one actually maintaining the code. Depend on the
+real crates directly.
+
+| T3 need | Available | Where |
+|---|---|---|
+| Announce / propagate | yes | `rns-core::announce` |
+| Packet send / receive | yes | `rns-core::packet`, `msgpack` (HMU packets) |
+| Transport, destinations, links | yes | `rns-core::{transport, destination, link}` |
+| Resource advertisements | yes | `rns-core::resource` |
+| Delivery receipts | yes | `rns-core::receipt` — more than this concept assumed |
+| Proof-of-work anti-spam | yes | `rns-core::stamp` |
+| Announce dedup | yes | built-in `announce_dedup` hook example |
+| Node daemon | yes | `rns-server` — described as the only binary needed to ship |
+| Interfaces | yes | `rns-net`: TCP, UDP, Local, Auto, I2P, Backbone, and others |
+
+LXMF is **not** part of `rns-core`, so the "courier, not identity system"
+property holds without adopting any LXMF identity store. `rns-core` is
+`no_std`-compatible and its only runtime dependencies are `libm`, `log`, and
+`rns-crypto` — a much smaller and more auditable tree than the Iroh dependency.
+
+Interoperability is validated rather than assumed: Python-generated conformance
+vectors pinned to Reticulum 1.4.0, live Python/Rust interop tests, and 20 Docker
+multi-node E2E suites covering chain, mesh, and star topologies.
+
+### Blockers before any adoption
+
+1. **License — the real gate.** The maintained project (`lelloman/rns-rs`) ships
+   a custom **"Reticulum License"**, not a standard SPDX license; crates.io
+   reports `non-standard`. It is an MIT-style permission grant with **two added
+   use restrictions**: the software may not be used in a system whose functions
+   include the ability to purposefully do harm to human beings, and it may not be
+   used, directly or indirectly, to create an AI/ML/LLM training dataset or to
+   contribute to the training or development of such a model or algorithm. Use
+   restrictions make this **not OSI-approved** — it is source-available.
+   Vendoring it needs explicit legal sign-off, and it constrains relicensing and
+   institutional or corporate use.
+2. **The AI/ML clause reaches tooling, not just distribution.** It should be read
+   by whoever owns that decision rather than assumed, particularly before any
+   vendored copy is used in an AI-assisted workflow.
+3. **Windows is unconfirmed.** `rns-crypto` and `rns-core` are portable and
+   `no_std`, and the project references `LoadLibrary`, so Windows is evidently
+   contemplated. But published CI evidence and docs.rs builds are Linux, and
+   Device B is Windows, so this needs a real build before Phase 3 is credible.
+4. **Small project, single primary maintainer.** 34 stars, 6 forks, ~110
+   downloads of `rns-core` 0.1.17. Pre-1.0, so APIs will break. Acceptable for a
+   campus prototype with a pinned, vendored dependency; thin assurance for
+   anything holding real user keys.
+5. **Ecosystem churn.** At least three repositories are in circulation
+   (`lelloman/rns-rs`, `BeechatNetworkSystemsLtd/reticulum-rs`,
+   `FreeTAKTeam/LXMF-rs`) with differing licenses and scopes. Pin exactly and
+   re-verify provenance on every bump.
+
+### Revised recommendation
+
+Phase 1 (tier detector + honest tier UI) is unaffected and should proceed — it
+needs no Reticulum code. Phase 2+ stays blocked on item 1. Treat the capability
+result as good news and the license result as the gate.
 
 ## Phases
 

@@ -35,10 +35,13 @@ features.
    on a measured relay-unavailability number from the three-device matrix rather
    than started as a standing TODO.
    **Preferred direction:** [`DELIVERY_TIER_CONCEPT.md`](DELIVERY_TIER_CONCEPT.md)
-   scopes Route B to a text-only degraded tier over Reticulum propagation, which
-   removes the address book and reuses the existing Nostr identity and event-id
-   dedup. The gate stands: Phase 1 (tier detector + honest UI) should produce the
-   measurement before any daemon work begins.
+   scopes Route B to a text-only degraded tier. Dependency scope-checked
+   2026-09-25: a native Rust implementation exists and contains the whole T3
+   slice (announce, packet, transport, receipts, proof-of-work) with no LXMF
+   involved, so the courier-not-identity property holds. **Phase 2+ is blocked on
+   licensing** — the maintained project ships a custom non-OSI "Reticulum
+   License" with use restrictions. Phase 1 (tier detector + honest UI) needs no
+   Reticulum code and is unblocked.
 
 ## P2 — evidence and research
 
