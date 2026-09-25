@@ -1,5 +1,5 @@
 /**
- * ProjectConnectBKSPC — credibility layer client.
+ * ProjectConnectBKSPC â€” credibility layer client.
  * Uses Tauri when available; otherwise in-memory demo store for web promo demos.
  */
 import { invoke } from "@tauri-apps/api/core";
@@ -73,7 +73,7 @@ export const ORG_TYPES: { id: OrgType | "all"; label: string }[] = [
   { id: "peer", label: "Peer" },
 ];
 
-// ─── Web demo store ──────────────────────────────────────
+// â”€â”€â”€ Web demo store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const DEMO_ORGS: ConnectOrg[] = [
   {
@@ -83,7 +83,7 @@ const DEMO_ORGS: ConnectOrg[] = [
     orgType: "professional",
     yardId: "tsu",
     description:
-      "National Society of Black Engineers — TSU chapter. Career prep, hackathons, peer mentorship.",
+      "National Society of Black Engineers â€” TSU chapter. Career prep, hackathons, peer mentorship.",
     createdBy: "demo_user",
     memberCount: 2,
     opportunityCount: 1,
@@ -109,7 +109,7 @@ const DEMO_ORGS: ConnectOrg[] = [
     orgType: "research",
     yardId: "tsu",
     description:
-      "Master's-track research: clinical data, health AI, medtech pipelines. Built for HBCU scholars moving into biomedical data sciences — and for faculty who need motivated analysts.",
+      "Master's-track research: clinical data, health AI, medtech pipelines. Built for HBCU scholars moving into biomedical data sciences â€” and for faculty who need motivated analysts.",
     createdBy: "demo_user",
     memberCount: 1,
     opportunityCount: 3,
@@ -135,7 +135,7 @@ const DEMO_ORGS: ConnectOrg[] = [
     orgType: "service",
     yardId: "tsu",
     description:
-      "Volunteer projects with Nashville partners — tutoring, food drives, campus clean-ups.",
+      "Volunteer projects with Nashville partners â€” tutoring, food drives, campus clean-ups.",
     createdBy: "jane_doe",
     memberCount: 1,
     opportunityCount: 1,
@@ -174,7 +174,7 @@ const DEMO_ORGS: ConnectOrg[] = [
     orgType: "club",
     yardId: "tsu",
     description:
-      "Campus fashion society for student brands, photoshoot crews, and merch. Credible MyYard portfolio + Yard Sale hosts can verify — multi-campus expansion (e.g. Fisk) with identity, not anonymous Fizz threads.",
+      "Campus fashion society for student brands, photoshoot crews, and merch. Credible MyYard portfolio + Yard Sale hosts can verify â€” multi-campus expansion (e.g. Fisk) with identity, not anonymous Fizz threads.",
     createdBy: "demo_user",
     memberCount: 5,
     opportunityCount: 3,
@@ -200,7 +200,7 @@ const DEMO_ORGS: ConnectOrg[] = [
     orgType: "club",
     yardId: "howard",
     description:
-      "Cross-campus fashion majors. Authenticated P2P trades with escrow — art, tech packs, digital merch.",
+      "Cross-campus fashion majors. Authenticated P2P trades with escrow â€” art, tech packs, digital merch.",
     createdBy: "hbcustudent",
     memberCount: 2,
     opportunityCount: 1,
@@ -252,7 +252,7 @@ const DEMO_ORGS: ConnectOrg[] = [
     orgType: "peer",
     yardId: "meharry",
     description:
-      "Underrepresented med students supporting each other — Step refresh, wellness, low-bandwidth mentorship.",
+      "Underrepresented med students supporting each other â€” Step refresh, wellness, low-bandwidth mentorship.",
     createdBy: "jane_doe",
     memberCount: 2,
     opportunityCount: 2,
@@ -265,7 +265,7 @@ const DEMO_ORGS: ConnectOrg[] = [
     orgType: "professional",
     yardId: "meharry",
     description:
-      "Student National Medical Association chapter energy — advocacy, pipeline, professional network without LinkedIn grind.",
+      "Student National Medical Association chapter energy â€” advocacy, pipeline, professional network without LinkedIn grind.",
     createdBy: "campus_king",
     memberCount: 1,
     opportunityCount: 1,
@@ -274,11 +274,11 @@ const DEMO_ORGS: ConnectOrg[] = [
   {
     id: "org_private_uni_bridge",
     slug: "private-uni-hbcu-bridge",
-    name: "Private University · HBCU Research Bridge",
+    name: "Private University Â· HBCU Research Bridge",
     orgType: "research",
     yardId: "meharry",
     description:
-      "Faculty from a private university (Nashville region) meeting Meharry & HBCU students on BlkSpace ProjectConnect — RA roles, summer research, pipeline mentorship. Handshake energy, yard-native.",
+      "Faculty from a private university (Nashville region) meeting Meharry & HBCU students on BlkSpace ProjectConnect â€” RA roles, summer research, pipeline mentorship. Handshake energy, yard-native.",
     createdBy: "demo_user",
     memberCount: 2,
     opportunityCount: 3,
@@ -300,11 +300,11 @@ const DEMO_ORGS: ConnectOrg[] = [
   {
     id: "org_opp_meharry",
     slug: "omega-psi-phi-meharry",
-    name: "Omega Psi Phi · Meharry",
+    name: "Omega Psi Phi Â· Meharry",
     orgType: "professional",
     yardId: "meharry",
     description:
-      "Brotherhood · scholarship · service · uplift. Graduate and professional students connecting with NPHC and campus orgs for fellowship, community service, and conference prep.",
+      "Brotherhood Â· scholarship Â· service Â· uplift. Graduate and professional students connecting with NPHC and campus orgs for fellowship, community service, and conference prep.",
     createdBy: "demo_user",
     memberCount: 3,
     opportunityCount: 3,
@@ -317,7 +317,7 @@ const DEMO_ORGS: ConnectOrg[] = [
     orgType: "professional",
     yardId: "fisk",
     description:
-      "Markets literacy, case comps, brokerage career prep. Practice credits on the yard — real brokerage accounts stay with licensed firms. Educational only; not investment advice.",
+      "Markets literacy, case comps, brokerage career prep. Practice credits on the yard â€” real brokerage accounts stay with licensed firms. Educational only; not investment advice.",
     createdBy: "demo_user",
     memberCount: 4,
     opportunityCount: 3,
@@ -326,11 +326,11 @@ const DEMO_ORGS: ConnectOrg[] = [
   {
     id: "org_ieee_tsu",
     slug: "ieee-student-branch-tsu",
-    name: "IEEE Student Branch · TSU",
+    name: "IEEE Student Branch Â· TSU",
     orgType: "professional",
     yardId: "tsu",
     description:
-      "IEEE student branch for systems, networking, and socio-technical demos. Use ProjectConnect for paper dry-runs, Device B smoke crews, and faculty review — not token marketing.",
+      "IEEE student branch for systems, networking, and socio-technical demos. Use ProjectConnect for paper dry-runs, Device B smoke crews, and faculty review â€” not token marketing.",
     createdBy: "demo_user",
     memberCount: 4,
     opportunityCount: 3,
@@ -466,7 +466,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgType: "research",
     title: "Clinical NLP for Care Notes (MedTech)",
     description:
-      "Pipeline for de-identified clinical notes: preprocessing, entity extraction, evaluation. Ideal for students entering biomedical data sciences. No PHI on laptops — synthetic/demo data only.",
+      "Pipeline for de-identified clinical notes: preprocessing, entity extraction, evaluation. Ideal for students entering biomedical data sciences. No PHI on laptops â€” synthetic/demo data only.",
     durationText: "1 semester",
     tagsJson: '["research","medtech","NLP","biomedical"]',
     status: "open",
@@ -479,7 +479,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgId: "org_bmds",
     orgName: "Biomedical Data Sciences & MedTech",
     orgType: "research",
-    title: "Wearable Signal ML — Risk Stratification Prototype",
+    title: "Wearable Signal ML â€” Risk Stratification Prototype",
     description:
       "Explore time-series features from wearable-like synthetic signals for early risk flags. Python/pandas/sklearn. Portfolio-ready figures for medtech interviews.",
     durationText: "6 months",
@@ -509,10 +509,10 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgId: "org_meharry_research",
     orgName: "Meharry Medical Research Network",
     orgType: "research",
-    title: "Health Disparities Micro-Lab (async · 2–4 hr/week)",
+    title: "Health Disparities Micro-Lab (async Â· 2â€“4 hr/week)",
     description:
-      "Low-bandwidth research for students on rotations. Async lit review + short write-ups on community health disparities. No mandatory live meetings — check-ins by message.",
-    durationText: "2–4 hr/week · flexible",
+      "Low-bandwidth research for students on rotations. Async lit review + short write-ups on community health disparities. No mandatory live meetings â€” check-ins by message.",
+    durationText: "2â€“4 hr/week Â· flexible",
     tagsJson:
       '["research","meharry","async","low-bandwidth","health-disparities","med"]',
     status: "open",
@@ -525,10 +525,10 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgId: "org_meharry_research",
     orgName: "Meharry Medical Research Network",
     orgType: "research",
-    title: "Clinical Data Literacy · 15-min weekly micro-sessions",
+    title: "Clinical Data Literacy Â· 15-min weekly micro-sessions",
     description:
       "Short async modules on reading papers + basic stats for clinic. Built for med students who refuse a second full course load.",
-    durationText: "15 min/week · async",
+    durationText: "15 min/week Â· async",
     tagsJson: '["research","meharry","async","15 min","med","micro"]',
     status: "open",
     createdBy: "demo_user",
@@ -542,8 +542,8 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgType: "peer",
     title: "Step / shelf refresh buddy (text-first)",
     description:
-      "Pair underrepresented med students for 2×10 min text check-ins weekly. Not a live study hall — accountability without calendar death.",
-    durationText: "20 min/week · flex",
+      "Pair underrepresented med students for 2Ã—10 min text check-ins weekly. Not a live study hall â€” accountability without calendar death.",
+    durationText: "20 min/week Â· flex",
     tagsJson: '["peer","meharry","step","low-bandwidth","med"]',
     status: "open",
     createdBy: "jane_doe",
@@ -555,10 +555,10 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgId: "org_meharry_peers",
     orgName: "Meharry Peer Circle",
     orgType: "peer",
-    title: "Finance literacy for med (Black dollar · soft credits)",
+    title: "Finance literacy for med (Black dollar Â· soft credits)",
     description:
-      "Peer circle on WeixBucks habits, Cred before coin, debt/loan awareness — underrepresented community economics without pump-and-dump culture.",
-    durationText: "30 min biweekly · async notes",
+      "Peer circle on WeixBucks habits, Cred before coin, debt/loan awareness â€” underrepresented community economics without pump-and-dump culture.",
+    durationText: "30 min biweekly Â· async notes",
     tagsJson: '["peer","meharry","finance","literacy","WB","BKSPC"]',
     status: "open",
     createdBy: "jane_doe",
@@ -570,7 +570,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgId: "org_snma_meharry",
     orgName: "SNMA @ Meharry",
     orgType: "professional",
-    title: "Pipeline mentorship · low-bandwidth",
+    title: "Pipeline mentorship Â· low-bandwidth",
     description:
       "Mentor a premed for 1 async message thread / week. Builds Cred and underrepresented network density without eating clinic blocks.",
     durationText: "1 async thread/week",
@@ -583,12 +583,12 @@ const DEMO_OPPS: ConnectOpportunity[] = [
   {
     id: 80,
     orgId: "org_private_uni_bridge",
-    orgName: "Private University · HBCU Research Bridge",
+    orgName: "Private University Â· HBCU Research Bridge",
     orgType: "research",
-    title: "Summer RA · health equity (Meharry + HBCU students)",
+    title: "Summer RA Â· health equity (Meharry + HBCU students)",
     description:
-      "Private-university faculty lab recruiting underrepresented students. 8–10 week summer RA with optional async prep. Apply via ProjectConnect — we meet you on BlkSpace, not only LinkedIn.",
-    durationText: "Summer · ~10 hr/week",
+      "Private-university faculty lab recruiting underrepresented students. 8â€“10 week summer RA with optional async prep. Apply via ProjectConnect â€” we meet you on BlkSpace, not only LinkedIn.",
+    durationText: "Summer Â· ~10 hr/week",
     tagsJson:
       '["faculty","pipeline","meharry","hbcu","underrepresented","research","RA"]',
     status: "open",
@@ -599,12 +599,12 @@ const DEMO_OPPS: ConnectOpportunity[] = [
   {
     id: 81,
     orgId: "org_private_uni_bridge",
-    orgName: "Private University · HBCU Research Bridge",
+    orgName: "Private University Â· HBCU Research Bridge",
     orgType: "research",
-    title: "Semester RA · clinical informatics (async-friendly)",
+    title: "Semester RA Â· clinical informatics (async-friendly)",
     description:
       "Part-time research assistant for de-identified / synthetic clinical data projects. Flexible for Meharry rotations. Faculty provide mentorship + letter of rec pathway.",
-    durationText: "1 semester · 4–6 hr/week · flex",
+    durationText: "1 semester Â· 4â€“6 hr/week Â· flex",
     tagsJson: '["faculty","pipeline","async","med","underrepresented","RA"]',
     status: "open",
     createdBy: "demo_user",
@@ -614,12 +614,12 @@ const DEMO_OPPS: ConnectOpportunity[] = [
   {
     id: 82,
     orgId: "org_private_uni_bridge",
-    orgName: "Private University · HBCU Research Bridge",
+    orgName: "Private University Â· HBCU Research Bridge",
     orgType: "professional",
     title: "Faculty office hours on the yard (monthly)",
     description:
-      "Open office-hours thread for underrepresented students exploring research careers. Discord/Slack energy — hosted as Connect opp + yard channel presence.",
-    durationText: "1 hr/month · open",
+      "Open office-hours thread for underrepresented students exploring research careers. Discord/Slack energy â€” hosted as Connect opp + yard channel presence.",
+    durationText: "1 hr/month Â· open",
     tagsJson: '["faculty","pipeline","office-hours","underrepresented"]',
     status: "open",
     createdBy: "demo_user",
@@ -634,7 +634,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     title: "Community health disparities analysis (micro-project)",
     description:
       "Short collaborative analysis project with Meharry peers. Private uni faculty co-mentor. Low-bandwidth check-ins; publish abstract-style write-up.",
-    durationText: "6 weeks · 3 hr/week",
+    durationText: "6 weeks Â· 3 hr/week",
     tagsJson:
       '["faculty","public-health","meharry","underrepresented","pipeline"]',
     status: "open",
@@ -647,10 +647,10 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgId: "org_vandy_public_health",
     orgName: "Partner Public Health Lab (private uni)",
     orgType: "research",
-    title: "Paid intern · survey ops (Indeed-class post, yard-native)",
+    title: "Paid intern Â· survey ops (Indeed-class post, yard-native)",
     description:
-      "Soft listing for survey coordination support. Not Workday payroll — interest + interview off-platform if needed. Prioritize underrepresented applicants from HBCU yards.",
-    durationText: "10 weeks · part-time",
+      "Soft listing for survey coordination support. Not Workday payroll â€” interest + interview off-platform if needed. Prioritize underrepresented applicants from HBCU yards.",
+    durationText: "10 weeks Â· part-time",
     tagsJson: '["faculty","internship","pipeline","underrepresented","paid"]',
     status: "open",
     createdBy: "demo_user",
@@ -662,7 +662,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgId: "org_weixnet",
     orgName: "WeixNet Portfolio Lab",
     orgType: "professional",
-    title: "BlkSpace Campus Ambassador · Product Demo Squad",
+    title: "BlkSpace Campus Ambassador Â· Product Demo Squad",
     description:
       "Help ship promo demos of BlkSpace + ProjectConnect for HBCU yards: capture stories, run Tier 0 smoke tests, and showcase WeixNet portfolio work to partners.",
     durationText: "ongoing",
@@ -675,12 +675,12 @@ const DEMO_OPPS: ConnectOpportunity[] = [
   {
     id: 90,
     orgId: "org_opp_meharry",
-    orgName: "Omega Psi Phi · Meharry",
+    orgName: "Omega Psi Phi Â· Meharry",
     orgType: "professional",
-    title: "Academic fellowship interest · Meharry brothers (demo)",
+    title: "Academic fellowship interest Â· Meharry brothers (demo)",
     description:
-      "IEEE / campus product test opportunity. Express interest for scholarship-style fellowship narrative: standing, service hours, academic goals. Not a funded award — structures real chapter ops on Connect.",
-    durationText: "rolling · semester",
+      "IEEE / campus product test opportunity. Express interest for scholarship-style fellowship narrative: standing, service hours, academic goals. Not a funded award â€” structures real chapter ops on Connect.",
+    durationText: "rolling Â· semester",
     tagsJson:
       '["scholarship","fellowship","omega","meharry","nphc","professional"]',
     status: "open",
@@ -691,12 +691,12 @@ const DEMO_OPPS: ConnectOpportunity[] = [
   {
     id: 91,
     orgId: "org_opp_meharry",
-    orgName: "Omega Psi Phi · Meharry",
+    orgName: "Omega Psi Phi Â· Meharry",
     orgType: "service",
-    title: "Community service day · volunteer signup (demo)",
+    title: "Community service day Â· volunteer signup (demo)",
     description:
       "Brotherhood service project near campus. Sign up to volunteer; leads may endorse completion for Yard Cred. Demo content for product review.",
-    durationText: "1 day · recurring",
+    durationText: "1 day Â· recurring",
     tagsJson: '["service","volunteer","community","omega","meharry"]',
     status: "open",
     createdBy: "demo_user",
@@ -706,9 +706,9 @@ const DEMO_OPPS: ConnectOpportunity[] = [
   {
     id: 92,
     orgId: "org_opp_meharry",
-    orgName: "Omega Psi Phi · Meharry",
+    orgName: "Omega Psi Phi Â· Meharry",
     orgType: "professional",
-    title: "Conference / convention crew · logistics volunteers",
+    title: "Conference / convention crew Â· logistics volunteers",
     description:
       "Help with district/national conference prep: travel logistics, program booklet, debrief night. Pair with a yard event for visibility on the feed.",
     durationText: "6 weeks",
@@ -726,7 +726,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgType: "professional",
     title: "Mock equity research note (educational demo)",
     description:
-      "Write a 1-page public-company note using only public filings/news. Peer feedback in club. Educational simulation — not a stock recommendation or brokerage service.",
+      "Write a 1-page public-company note using only public filings/news. Peer feedback in club. Educational simulation â€” not a stock recommendation or brokerage service.",
     durationText: "2 weeks",
     tagsJson:
       '["finance","equity","research","literacy","fisk","markets","nasdaq"]',
@@ -740,7 +740,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgId: "org_fisk_finance",
     orgName: "Fisk Investment & Finance Club",
     orgType: "professional",
-    title: "Brokerage career paths · mentor AMA interest",
+    title: "Brokerage career paths Â· mentor AMA interest",
     description:
       "Sign up for alumni/mentor panels on what brokerages do (orders, KYC, careers). No securities sold. Real accounts remain off-platform with licensed firms.",
     durationText: "rolling",
@@ -754,12 +754,12 @@ const DEMO_OPPS: ConnectOpportunity[] = [
   {
     id: 100,
     orgId: "org_ieee_tsu",
-    orgName: "IEEE Student Branch · TSU",
+    orgName: "IEEE Student Branch Â· TSU",
     orgType: "professional",
     title: "Device B Tier 0 smoke crew (IEEE evaluation)",
     description:
-      "Run the Yard student smoke checklist on a 4–8 GB Windows laptop: install MSI, guest browse, TSU account/post, Customize, Live, Tier 0 benchmark. Fill the results sheet — this is the conference evidence path, not a marketing demo.",
-    durationText: "1–2 hr · per device",
+      "Run the Yard student smoke checklist on a 4â€“8 GB Windows laptop: install MSI, guest browse, TSU account/post, Customize, Live, Tier 0 benchmark. Fill the results sheet â€” this is the conference evidence path, not a marketing demo.",
+    durationText: "1â€“2 hr Â· per device",
     tagsJson: '["ieee","device-b","tier0","evaluation","systems","smoke-test"]',
     status: "open",
     createdBy: "demo_user",
@@ -769,12 +769,12 @@ const DEMO_OPPS: ConnectOpportunity[] = [
   {
     id: 101,
     orgId: "org_ieee_tsu",
-    orgName: "IEEE Student Branch · TSU",
+    orgName: "IEEE Student Branch Â· TSU",
     orgType: "research",
-    title: "Federated campus mesh · abstract dry-run",
+    title: "Federated campus mesh Â· abstract dry-run",
     description:
       "Peer review a 150-word abstract and methods outline for the hybrid Nostr/Iroh campus mesh claim. Flag overclaims (full P2P, mainnet cash-out, mandatory AI). Completions may be endorsed for Yard Cred.",
-    durationText: "1 week · async",
+    durationText: "1 week Â· async",
     tagsJson:
       '["ieee","research","abstract","mesh","networking","peer-review"]',
     status: "open",
@@ -785,12 +785,12 @@ const DEMO_OPPS: ConnectOpportunity[] = [
   {
     id: 102,
     orgId: "org_ieee_tsu",
-    orgName: "IEEE Student Branch · TSU",
+    orgName: "IEEE Student Branch Â· TSU",
     orgType: "professional",
-    title: "Persona use-case runner · Fisk / Meharry / Fashion",
+    title: "Persona use-case runner Â· Fisk / Meharry / Fashion",
     description:
-      "Execute one IEEE-style persona script (finance, NPHC fellowship, or campus brand) with P/W/F scoring and screenshots. Results feed the conference pack — no real money, no brokerage claims.",
-    durationText: "90 min · per persona",
+      "Execute one IEEE-style persona script (finance, NPHC fellowship, or campus brand) with P/W/F scoring and screenshots. Results feed the conference pack â€” no real money, no brokerage claims.",
+    durationText: "90 min Â· per persona",
     tagsJson: '["ieee","use-case","evaluation","credibility","persona"]',
     status: "open",
     createdBy: "demo_user",
@@ -802,10 +802,10 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgId: "org_fisk_finance",
     orgName: "Fisk Investment & Finance Club",
     orgType: "service",
-    title: "Personal finance clinic · peer educators",
+    title: "Personal finance clinic Â· peer educators",
     description:
       "Help classmates with budgeting metaphors using soft WeixBucks concepts (caps, fees). Service hours + Yard Cred. Not licensed financial advice.",
-    durationText: "ongoing · 2 hr/month",
+    durationText: "ongoing Â· 2 hr/month",
     tagsJson: '["finance","budget","literacy","service","fisk","volunteer"]',
     status: "open",
     createdBy: "demo_user",
@@ -817,9 +817,9 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgId: "org_tsu_fashion_society",
     orgName: "TSU Fashion Society",
     orgType: "club",
-    title: "Brand lookbook photoshoot · models & assistants (TSU)",
+    title: "Brand lookbook photoshoot Â· models & assistants (TSU)",
     description:
-      "Jimmy’s campus brand needs models, a shooter assist, and styling hands for a TSU lookbook. Build portfolio credits on Connect — then list drops on Yard Sale with escrow. Demo venture ops.",
+      "Jimmyâ€™s campus brand needs models, a shooter assist, and styling hands for a TSU lookbook. Build portfolio credits on Connect â€” then list drops on Yard Sale with escrow. Demo venture ops.",
     durationText: "1 weekend shoot",
     tagsJson:
       '["fashion","photoshoot","brand","lookbook","tsu","studio","portfolio"]',
@@ -833,7 +833,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgId: "org_tsu_fashion_society",
     orgName: "TSU Fashion Society",
     orgType: "club",
-    title: "Cross-yard seller intro · expand TSU brand to Fisk",
+    title: "Cross-yard seller intro Â· expand TSU brand to Fisk",
     description:
       "TSU student brands seeking Fisk hosts/buyers for a pop-up or digital drop. Portable identity + Yard Cred beat anonymous Fizz posts. Pair with Fisk Campus Creatives Market.",
     durationText: "4 weeks",
@@ -852,7 +852,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     title: "Host a visiting TSU brand drop (Fisk)",
     description:
       "Fisk hosts: help a TSU fashion brand run a soft pop-up or digital merch drop. Escrow-friendly listings; host gets collaboration credit on profile. Not Fizz-only anonymity.",
-    durationText: "2 weeks · event weekend",
+    durationText: "2 weeks Â· event weekend",
     tagsJson: '["fashion","host","fisk","merch","pop-up","yard-sale","collab"]',
     status: "open",
     createdBy: "demo_user",
@@ -864,7 +864,7 @@ const DEMO_OPPS: ConnectOpportunity[] = [
     orgId: "org_tsu_fashion_society",
     orgName: "TSU Fashion Society",
     orgType: "club",
-    title: "Studio portfolio polish · shoot archive to MyYard",
+    title: "Studio portfolio polish Â· shoot archive to MyYard",
     description:
       "Upload past photoshoot sets to Studio / MyYard grid so buyers and hosts see a credible trail before purchasing on Yard Sale. Completions build Yard Cred.",
     durationText: "ongoing",
@@ -902,7 +902,7 @@ function loadWeb(): WebState {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const s = JSON.parse(raw) as WebState;
-      // Merge seed demos so new org packs (e.g. ΩΨΦ Meharry) appear without wipe
+      // Merge seed demos so new org packs (e.g. Î©Î¨Î¦ Meharry) appear without wipe
       const orgIds = new Set((s.orgs || []).map((o) => o.id));
       for (const o of DEMO_ORGS) {
         if (!orgIds.has(o.id)) s.orgs.push(structuredClone(o));
@@ -956,7 +956,7 @@ function webCred(handle: string): YardCred {
   };
 }
 
-// ─── Public API ──────────────────────────────────────────
+// â”€â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function listOrgs(orgType?: string): Promise<ConnectOrg[]> {
   if (isTauri()) {
@@ -989,7 +989,7 @@ export async function createOrg(input: {
     return invoke("connect_create_org", { sessionToken, ...input });
   }
   const s = loadWeb();
-  const handle = getCurrentHandle() || "demo_user";
+  const handle = getCurrentHandle();
   // Prefer existing org owned by this user with same name (idempotent re-post)
   const existing = s.orgs.find(
     (o) =>
@@ -1148,7 +1148,7 @@ export async function createOpportunity(input: {
   const s = loadWeb();
   const org = s.orgs.find((o) => o.id === input.orgId);
   if (!org) throw new Error("Org not found");
-  const handle = getCurrentHandle() || "demo_user";
+  const handle = getCurrentHandle();
   if (!canPostOpportunitiesForOrg(org, handle)) {
     throw new Error(
       "Only org owners/leads can post opportunities for this lab",
@@ -1201,7 +1201,7 @@ export async function expressInterest(input: {
   const s = loadWeb();
   const opp = s.opps.find((o) => o.id === input.opportunityId);
   if (!opp) throw new Error("Opportunity not found");
-  const handle = getCurrentHandle() || "demo_user";
+  const handle = getCurrentHandle();
   const existing = s.interests.find(
     (i) => i.opportunityId === input.opportunityId && i.handle === handle,
   );
@@ -1235,7 +1235,7 @@ export async function expressInterest(input: {
   opp.interestCount += 1;
   saveWeb(s);
   // Notify faculty / opp creator
-  const msg = `@${handle} expressed interest in "${opp.title}" — open Lead inbox on ProjectConnect`;
+  const msg = `@${handle} expressed interest in "${opp.title}" â€” open Lead inbox on ProjectConnect`;
   if (opp.createdBy && opp.createdBy !== handle) {
     pushWebNotification(opp.createdBy, handle, msg);
   }
@@ -1265,7 +1265,7 @@ export async function listInbox(): Promise<ConnectInterest[]> {
     if (!sessionToken) return [];
     return invoke("connect_inbox", { sessionToken });
   }
-  const handle = getCurrentHandle() || "demo_user";
+  const handle = getCurrentHandle();
   const s = loadWeb();
   // Match Tauri: opp creator OR org owner (createdBy on org)
   const ownedOrgIds = new Set(
@@ -1286,7 +1286,7 @@ export async function listMyInterests(): Promise<ConnectInterest[]> {
     if (!sessionToken) return [];
     return invoke("connect_my_interests", { sessionToken });
   }
-  const handle = getCurrentHandle() || "demo_user";
+  const handle = getCurrentHandle();
   return loadWeb().interests.filter((i) => i.handle === handle);
 }
 
@@ -1307,7 +1307,7 @@ export async function setInterestStatus(
   const s = loadWeb();
   const row = s.interests.find((i) => i.id === interestId);
   if (!row) return;
-  const handle = getCurrentHandle() || "demo_user";
+  const handle = getCurrentHandle();
   const opp = s.opps.find((item) => item.id === row.opportunityId);
   const org = opp && s.orgs.find((item) => item.id === opp.orgId);
   if (!opp || !org || (opp.createdBy !== handle && org.createdBy !== handle)) {

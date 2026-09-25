@@ -362,7 +362,14 @@ export default function ProfilePage() {
     if (!token) return;
     tauriGetBlobBytes(token, hash)
       .then((b64) => {
-        if (!b64) return;
+        if (!b64) {
+          // The hash is stored but the bytes are gone. Say so rather than
+          // rendering a profile that silently lost its banner.
+          console.warn(
+            `[profile] banner hash ${hash} has no stored bytes; showing without banner`,
+          );
+          return;
+        }
         setLocalLayoutOverride((prev) => {
           const base = prev || myyardLayout;
           return mergeMyYardLayout(base, {
@@ -373,7 +380,9 @@ export default function ProfilePage() {
           });
         });
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[profile] failed to load banner image:", err);
+      });
   }, [aesthetic.bannerImageHash, aesthetic.bannerImageDataUrl]);
 
   const topFriends: TopFriend[] = (() => {

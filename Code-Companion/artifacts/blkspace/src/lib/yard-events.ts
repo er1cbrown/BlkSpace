@@ -106,7 +106,7 @@ function defaultStore(): DemoStore {
       {
         id: 1,
         communityId: "tsu",
-        title: "Tiger Service Day · First Campus Cleanup",
+        title: "Tiger Service Day Â· First Campus Cleanup",
         description:
           "Club exclusive first community service. Free pass + check-in code. Join Tiger Community Service Hub on ProjectConnect if required.",
         location: "Student Center Plaza",
@@ -242,7 +242,7 @@ export async function listYardEvents(
       currentUser: currentUser ?? null,
     });
   }
-  const me = currentUser || getCurrentHandle() || "demo_user";
+  const me = currentUser || getCurrentHandle();
   return load()
     .events.filter((e) => e.communityId === communityId)
     .map((e) => enrich(e, me));
@@ -277,7 +277,7 @@ export async function createYardEvent(args: {
       eventKind: args.eventKind ?? "general",
     });
   }
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const s = load();
   const id = s.nextId++;
   const ev: YardEvent = {
@@ -316,7 +316,7 @@ export async function rsvpYardEvent(
       status,
     });
   }
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const s = load();
   const ev = s.events.find((e) => e.id === eventId);
   if (!ev) throw new Error("Event not found");
@@ -379,7 +379,7 @@ export async function cancelYardEventRsvp(eventId: number): Promise<boolean> {
       eventId,
     });
   }
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const s = load();
   const list = s.rsvps[String(eventId)] || [];
   s.rsvps[String(eventId)] = list.filter((r) => r.handle !== me);
@@ -432,7 +432,7 @@ export async function checkInEventGuest(
   );
   if (!g) throw new Error("Guest not found for this event");
   if (g.waitlisted || g.status === "waitlist") {
-    throw new Error("Guest is waitlisted — cannot check in");
+    throw new Error("Guest is waitlisted â€” cannot check in");
   }
   if (g.status !== "going") throw new Error(`Guest status is '${g.status}'`);
   if (g.checkedIn) {
@@ -450,7 +450,7 @@ const DEMO_OPEN: OpenToCandidate[] = [
     university: "Tennessee State University",
     town: "tsu",
     headline:
-      "CS junior · finished summer SWE internship · seeking research + lab roles",
+      "CS junior Â· finished summer SWE internship Â· seeking research + lab roles",
     major: "Computer Science",
     skills: ["Python", "Rust", "privacy", "MPC"],
     portfolioUrl: "https://github.com/example",
@@ -466,7 +466,7 @@ const DEMO_OPEN: OpenToCandidate[] = [
     displayName: "HBCU Student",
     university: "Howard University",
     town: "howard",
-    headline: "Fashion + design major · open to collabs and service clubs",
+    headline: "Fashion + design major Â· open to collabs and service clubs",
     major: "Fashion Design",
     skills: ["Adobe", "tech packs", "merch"],
     portfolioUrl: "",

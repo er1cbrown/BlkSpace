@@ -20,7 +20,7 @@ import { EconomicStatusBadge } from "@/components/economy/EconomicStatusBadge";
 import { EscrowTimeline } from "@/components/economy/EscrowTimeline";
 
 export function EscrowTradesPanel() {
-  const handle = getCurrentHandle() || "demo_user";
+  const handle = getCurrentHandle();
   const { data: trades = [] } = useMyEscrows();
   const markDelivered = useEscrowMarkDelivered();
   const confirmRelease = useEscrowConfirmRelease();
@@ -46,7 +46,7 @@ export function EscrowTradesPanel() {
             <h4 className="font-bold text-sm">Escrow trades</h4>
           </div>
           <p className="text-xs text-muted-foreground">
-            Fashion / digital buys use 2-party escrow: pay → deliver → release.
+            Fashion / digital buys use 2-party escrow: pay â†’ deliver â†’ release.
             Your active trades will show here.
           </p>
         </CardContent>
@@ -88,18 +88,18 @@ export function EscrowTradesPanel() {
                   {t.orgName && (
                     <Badge variant="secondary" className="text-[10px]">
                       {t.orgName}
-                      {t.orgFee > 0 ? ` · ${t.orgFee} WB club` : ""}
+                      {t.orgFee > 0 ? ` Â· ${t.orgFee} WB club` : ""}
                     </Badge>
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  @{t.buyerHandle} → @{t.sellerHandle} · {t.amount} WB hold ·
-                  seller net {t.sellerNet} WB · {t.townTag}
+                  @{t.buyerHandle} â†’ @{t.sellerHandle} Â· {t.amount} WB hold Â·
+                  seller net {t.sellerNet} WB Â· {t.townTag}
                 </div>
                 {t.deliveryRef && (
                   <div className="text-[10px] font-mono break-all">
                     Delivery: {t.deliveryRef}
-                    {t.deliveryNote ? ` · ${t.deliveryNote}` : ""}
+                    {t.deliveryNote ? ` Â· ${t.deliveryNote}` : ""}
                   </div>
                 )}
                 {t.disputeReason && canonical === "dispute" && (
@@ -157,7 +157,7 @@ export function EscrowTradesPanel() {
                           try {
                             const r = await confirmRelease.mutateAsync(t.id);
                             toast.success(
-                              `Released ${r.sellerNet ?? t.sellerNet} WB to seller · Yard Cred +1`,
+                              `Released ${r.sellerNet ?? t.sellerNet} WB to seller Â· Yard Cred +1`,
                             );
                           } catch (e) {
                             toast.error(String(e));
@@ -204,7 +204,7 @@ export function EscrowTradesPanel() {
                           try {
                             await refund.mutateAsync(t.id);
                             toast.success(
-                              "Refunded to buyer · listing reopened",
+                              "Refunded to buyer Â· listing reopened",
                             );
                           } catch (e) {
                             toast.error(String(e));
@@ -231,7 +231,7 @@ export function EscrowTradesPanel() {
                 className="text-xs text-muted-foreground flex justify-between py-1"
               >
                 <span>
-                  {t.listingTitle} · {statusLabel(t.status)}
+                  {t.listingTitle} Â· {statusLabel(t.status)}
                 </span>
                 <span>{t.amount} WB</span>
               </div>

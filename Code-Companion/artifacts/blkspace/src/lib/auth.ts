@@ -239,7 +239,17 @@ export function getStoredPubkey(): string | null {
 export function clearSession() {
   const token = localStorage.getItem(SESSION_KEY);
   if (token && isTauri()) {
-    tauriLogout(token).catch(() => {});
+    // Local state is cleared below either way, so the user is never stuck
+    // signed in. But a swallowed failure here means the server may still
+    // consider this token live while the UI shows signed out — so log it
+    // rather than discard it. Revocation should ideally be retried, which is
+    // why this is surfaced instead of silenced.
+    tauriLogout(token).catch((err) => {
+      console.error(
+        "[auth] server logout failed; local session cleared but the token may still be valid:",
+        err,
+      );
+    });
   }
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(PUBKEY_KEY);
@@ -342,12 +352,24 @@ export async function verifySessionOnBoot(): Promise<void> {
 
 // ─── Current User ───────────────────────────────────────
 
+/**
+ * Placeholder handle used when no identity is stored.
+ *
+ * This is the ONE place a shared "demo" identity is permitted, because the
+ * browser build has no session and the return type is non-nullable. It is a
+ * local-only label for signed-out UI, never an authenticated identity, and it
+ * must never be sent to a backend as an actor. Every other site that used
+ * `getCurrentHandle() || "demo_user"` was dead code and has been removed.
+ */
+export const ANONYMOUS_HANDLE = "demo_user";
+
 export async function getIdentity(): Promise<{
   handle: string;
   displayName: string;
   hasKey: boolean;
 }> {
-  const handle = localStorage.getItem(HANDLE_KEY) || "demo_user";
+  // eslint-disable-next-line honesty/no-demo-user-fallback -- ANONYMOUS_HANDLE, documented above
+  const handle = localStorage.getItem(HANDLE_KEY) || ANONYMOUS_HANDLE;
   const displayName = localStorage.getItem(DISPLAY_KEY) || "Demo User";
 
   if (isTauri()) {
@@ -364,7 +386,8 @@ export async function getIdentity(): Promise<{
 }
 
 export function getCurrentHandle(): string {
-  return localStorage.getItem(HANDLE_KEY) || "demo_user";
+  // eslint-disable-next-line honesty/no-demo-user-fallback -- ANONYMOUS_HANDLE, documented above
+  return localStorage.getItem(HANDLE_KEY) || ANONYMOUS_HANDLE;
 }
 
 export function getCurrentDisplayName(): string {

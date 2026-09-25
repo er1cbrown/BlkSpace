@@ -58,12 +58,12 @@ import {
 import { toast } from "sonner";
 
 /**
- * Faculty Desk — private uni / partner faculty reaching underrepresented
+ * Faculty Desk â€” private uni / partner faculty reaching underrepresented
  * students via ProjectConnect on BlkSpace amalgamation social.
  */
 export default function FacultyPage() {
   const { isGuest } = useGuestMode();
-  const handle = getCurrentHandle() || "demo_user";
+  const handle = getCurrentHandle();
   const qc = useQueryClient();
   const [prefs, setPrefs] = useState<FacultyPrefs>(() => loadFacultyPrefs());
   const [showQuickOpp, setShowQuickOpp] = useState(false);
@@ -72,7 +72,7 @@ export default function FacultyPage() {
   );
   const [oppTitle, setOppTitle] = useState("");
   const [oppDesc, setOppDesc] = useState("");
-  const [duration, setDuration] = useState("2–4 hr/week · async-friendly");
+  const [duration, setDuration] = useState("2â€“4 hr/week Â· async-friendly");
   const [creating, setCreating] = useState(false);
   const [broadcastAfter, setBroadcastAfter] = useState(true);
   const [showEvent, setShowEvent] = useState(false);
@@ -104,7 +104,7 @@ export default function FacultyPage() {
   });
   const { data: openResearch = [] } = useOpenToBoard("research");
 
-  /** Orgs this faculty user owns — never auto-select demo seed orgs. */
+  /** Orgs this faculty user owns â€” never auto-select demo seed orgs. */
   const myOrgs = useMemo(
     () => orgs.filter((o) => o.createdBy === handle),
     [orgs, handle],
@@ -196,13 +196,13 @@ export default function FacultyPage() {
       if (broadcastAfter) {
         try {
           await broadcastOpportunityToYard(opp.id);
-          broadcastNote = " · broadcast to yard";
+          broadcastNote = " Â· broadcast to yard";
         } catch {
           broadcastNote =
-            " · post live (broadcast skipped — open opp to retry)";
+            " Â· post live (broadcast skipped â€” open opp to retry)";
         }
       }
-      toast.success(`Opportunity live · Lead inbox ready${broadcastNote}`);
+      toast.success(`Opportunity live Â· Lead inbox ready${broadcastNote}`);
       setOppTitle("");
       setOppDesc("");
       setShowQuickOpp(false);
@@ -222,7 +222,7 @@ export default function FacultyPage() {
         <section className="rounded-2xl border border-primary/20 bg-gradient-to-br from-violet-500/10 via-background to-background p-6 space-y-3">
           <Badge className="bg-violet-500/20 text-violet-200 border-violet-500/30 gap-1">
             <GraduationCap className="w-3 h-3" />
-            Faculty Desk · ProjectConnect
+            Faculty Desk Â· ProjectConnect
           </Badge>
           <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight">
             Meet students where they already are
@@ -230,19 +230,19 @@ export default function FacultyPage() {
           <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
             Word reached private-university faculty from{" "}
             <strong className="text-foreground">Meharry</strong> on {BRAND.name}{" "}
-            — decentralized amalgamation social (feed + yards + Connect + soft
+            â€” decentralized amalgamation social (feed + yards + Connect + soft
             economy). You want LinkedIn / Handshake / Discord / Workday-lite
             presence without abandoning underrepresented community. Post
-            opportunities, review interest, build Cred — provide pipeline, reap
+            opportunities, review interest, build Cred â€” provide pipeline, reap
             partnership legitimacy.
           </p>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{prefs.institution}</Badge>
             <Badge variant="secondary">
-              Target yard · {prefs.targetYardId}
+              Target yard Â· {prefs.targetYardId}
             </Badge>
             <Badge variant="secondary">
-              Inbox · {Array.isArray(inbox) ? inbox.length : 0} leads
+              Inbox Â· {Array.isArray(inbox) ? inbox.length : 0} leads
             </Badge>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
@@ -310,7 +310,7 @@ export default function FacultyPage() {
                     });
                     setEthicsOpen(false);
                     toast.success(
-                      "Faculty ethical identity saved · handle is your ID (claim self-attested, not SSO)",
+                      "Faculty ethical identity saved Â· handle is your ID (claim self-attested, not SSO)",
                     );
                   } catch (e) {
                     toast.error(String(e));
@@ -332,18 +332,18 @@ export default function FacultyPage() {
           <Card className="border-primary/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">
-                Host a yard event (office hours · info session · pipeline night)
+                Host a yard event (office hours Â· info session Â· pipeline night)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="text-xs text-muted-foreground">
                 Org leads whose lab targets a yard (e.g. Meharry) can host
-                events there — you are part of the organization layer via
-                ProjectConnect, not only “random visitor.” Still no PHI in
+                events there â€” you are part of the organization layer via
+                ProjectConnect, not only â€œrandom visitor.â€ Still no PHI in
                 descriptions.
               </p>
               <Input
-                placeholder="Title — e.g. Faculty office hours · research pipeline"
+                placeholder="Title â€” e.g. Faculty office hours Â· research pipeline"
                 value={evTitle}
                 onChange={(e) => setEvTitle(e.target.value)}
               />
@@ -394,7 +394,7 @@ export default function FacultyPage() {
                       orgId: myOrgs[0]?.id || null,
                     });
                     toast.success(
-                      `Event hosted on ${yard} yard — students can RSVP`,
+                      `Event hosted on ${yard} yard â€” students can RSVP`,
                     );
                     setShowEvent(false);
                     setEvTitle("");
@@ -494,17 +494,17 @@ export default function FacultyPage() {
                   >
                     {myOrgs[0].name}
                   </Link>
-                  {" · "}interests land in Lead inbox
+                  {" Â· "}interests land in Lead inbox
                 </p>
               )}
               {!myOrgs[0] && demoPipelineOrgs[0] && (
                 <p className="text-[11px] text-muted-foreground">
-                  Demo pipeline orgs exist for browsing only — your first post
+                  Demo pipeline orgs exist for browsing only â€” your first post
                   creates <em>your</em> org so you receive applicants.
                 </p>
               )}
               <Input
-                placeholder="Title — e.g. Summer RA · health equity (async OK)"
+                placeholder="Title â€” e.g. Summer RA Â· health equity (async OK)"
                 value={oppTitle}
                 onChange={(e) => setOppTitle(e.target.value)}
               />
@@ -546,7 +546,7 @@ export default function FacultyPage() {
         {/* Competitor map */}
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">
-            Why faculty heard “LinkedIn + Handshake + Discord…”
+            Why faculty heard â€œLinkedIn + Handshake + Discordâ€¦â€
           </h2>
           <div className="grid sm:grid-cols-2 gap-2">
             {FACULTY_STACK_MAP.map((row) => (
@@ -557,7 +557,7 @@ export default function FacultyPage() {
                       {row.competitor}
                     </span>
                     <span className="text-primary font-medium text-right">
-                      → {row.blkspace}
+                      â†’ {row.blkspace}
                     </span>
                   </div>
                   <p className="text-muted-foreground">{row.use}</p>
@@ -571,7 +571,7 @@ export default function FacultyPage() {
         <section className="space-y-3">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            What you provide · what you reap
+            What you provide Â· what you reap
           </h2>
           <div className="grid sm:grid-cols-2 gap-3">
             {FACULTY_BENEFITS.map((b) => (
@@ -629,7 +629,7 @@ export default function FacultyPage() {
                   <CardContent className="p-3">
                     <p className="text-sm font-medium">{o.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {o.orgName} · {o.durationText} · {o.interestCount}{" "}
+                      {o.orgName} Â· {o.durationText} Â· {o.interestCount}{" "}
                       interested
                     </p>
                   </CardContent>
@@ -638,7 +638,7 @@ export default function FacultyPage() {
             ))}
             {pipelineOpps.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No pipeline cards yet — post one above.
+                No pipeline cards yet â€” post one above.
               </p>
             )}
           </div>
@@ -651,7 +651,7 @@ export default function FacultyPage() {
             Open to research (student signals)
           </h2>
           <p className="text-xs text-muted-foreground">
-            Like Handshake interest flags — students toggle Open to research on
+            Like Handshake interest flags â€” students toggle Open to research on
             Pro Profile.
           </p>
           <div className="grid sm:grid-cols-2 gap-2">
@@ -663,7 +663,7 @@ export default function FacultyPage() {
                     <span className="text-muted-foreground">@{c.handle}</span>
                   </p>
                   <p className="text-xs text-muted-foreground line-clamp-2">
-                    {c.headline || c.major || "—"}
+                    {c.headline || c.major || "â€”"}
                   </p>
                   <Link href={`/profile/${c.handle}`}>
                     <Button size="sm" variant="outline">
@@ -675,7 +675,7 @@ export default function FacultyPage() {
             ))}
             {(!openResearch || openResearch.length === 0) && (
               <p className="text-sm text-muted-foreground col-span-2">
-                No open-research flags yet. Students enable them on Profile →
+                No open-research flags yet. Students enable them on Profile â†’
                 Pro.
               </p>
             )}

@@ -70,7 +70,7 @@ type DemoStore = {
   escrows: EscrowTrade[];
   nextListingId: number;
   nextEscrowId: number;
-  /** handle → WB balance delta from escrow activity (demo only) */
+  /** handle â†’ WB balance delta from escrow activity (demo only) */
   balances: Record<string, number>;
 };
 
@@ -119,7 +119,7 @@ function defaultStore(): DemoStore {
         itemType: "art",
         itemRef: "fashion:art:lookbook-01",
         price: 35,
-        title: "Lookbook Illustration — Night Market",
+        title: "Lookbook Illustration â€” Night Market",
         description: "Original digital art for collab lookbooks.",
         isNft: false,
         townTag: "howard",
@@ -155,7 +155,7 @@ function defaultStore(): DemoStore {
         price: 60,
         title: "Atelier SS Capsule Concept",
         description:
-          "Capsule concept board + fabric notes. Spelman Atelier · 12% club split.",
+          "Capsule concept board + fabric notes. Spelman Atelier Â· 12% club split.",
         isNft: false,
         townTag: "spelman",
         fulfillmentMode: "escrow",
@@ -238,7 +238,7 @@ function recordEscrowHistory(e: EscrowTrade, amount: number, actor: string) {
     id: `hist_escrow_${e.id}_${canonical}`,
     kind: "escrow",
     title: e.listingTitle,
-    description: `${ESCROW_STATUS_LABEL[canonical]} · @${actor}`,
+    description: `${ESCROW_STATUS_LABEL[canonical]} Â· @${actor}`,
     amount,
     fee: e.platformFee,
     status: canonical,
@@ -250,7 +250,7 @@ function recordEscrowHistory(e: EscrowTrade, amount: number, actor: string) {
   });
 }
 
-// ─── Public API ──────────────────────────────────────────
+// â”€â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function listMarketplace(): Promise<MarketplaceListing[]> {
   if (isTauri()) {
@@ -290,7 +290,7 @@ export async function createMarketplaceListing(args: {
     });
   }
 
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const s = load();
   const id = s.nextListingId++;
   const mode = args.fulfillmentMode || defaultMode(args.itemType);
@@ -324,7 +324,7 @@ export async function buyMarketplaceListing(
     });
   }
 
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const s = load();
   const listing = s.listings.find((l) => l.id === listingId && !l.soldTo);
   if (!listing) throw new Error("Listing not found");
@@ -408,7 +408,7 @@ export async function listMyEscrows(): Promise<EscrowTrade[]> {
       sessionToken: getSessionToken() || "",
     });
   }
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   return load().escrows.filter(
     (e) => e.buyerHandle === me || e.sellerHandle === me,
   );
@@ -427,7 +427,7 @@ export async function escrowMarkDelivered(
       deliveryNote: deliveryNote ?? null,
     });
   }
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const s = load();
   const e = s.escrows.find((x) => x.id === escrowId);
   if (!e) throw new Error("Escrow not found");
@@ -459,7 +459,7 @@ export async function escrowConfirmRelease(
       escrowId,
     });
   }
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const s = load();
   const e = s.escrows.find((x) => x.id === escrowId);
   if (!e) throw new Error("Escrow not found");
@@ -520,7 +520,7 @@ export async function escrowOpenDispute(
       reason: reason ?? null,
     });
   }
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const s = load();
   const e = s.escrows.find((x) => x.id === escrowId);
   if (!e) throw new Error("Escrow not found");
@@ -550,7 +550,7 @@ export async function escrowRefund(
       escrowId,
     });
   }
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const s = load();
   const e = s.escrows.find((x) => x.id === escrowId);
   if (!e) throw new Error("Escrow not found");

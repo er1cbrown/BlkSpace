@@ -45,12 +45,12 @@ import {
 import { toast } from "sonner";
 
 /**
- * Focus Path — Meharry med / busy underrepresented student.
+ * Focus Path â€” Meharry med / busy underrepresented student.
  * Efficient ProjectConnect + study-refresh media + time/money effort.
  */
 export default function FocusPage() {
   const { isGuest } = useGuestMode();
-  const handle = getCurrentHandle() || "demo_user";
+  const handle = getCurrentHandle();
   const qc = useQueryClient();
   const [prefs, setPrefs] = useState<FocusPrefs>(() => loadFocusPrefs());
   const [budgetEdit, setBudgetEdit] = useState(
@@ -103,15 +103,15 @@ export default function FocusPage() {
       expressInterest({
         opportunityId,
         message:
-          "Low-bandwidth interest from Focus Path — med/rotations-aware. Prefer async or micro-hours.",
+          "Low-bandwidth interest from Focus Path â€” med/rotations-aware. Prefer async or micro-hours.",
         skillsSnapshot:
-          "med student · underrepresented network · Meharry-aware",
+          "med student Â· underrepresented network Â· Meharry-aware",
         classification: "graduate",
         gpa: "",
         gpaShared: false,
       }),
     onSuccess: () => {
-      toast.success("Interest sent in ~2 min — no coffee-chat required");
+      toast.success("Interest sent in ~2 min â€” no coffee-chat required");
       logFocusMinutes(2);
       setPrefs(loadFocusPrefs());
       qc.invalidateQueries({ queryKey: ["connect"] });
@@ -134,7 +134,7 @@ export default function FocusPage() {
         <section className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-background p-6 space-y-3">
           <Badge className="bg-primary/20 text-primary border-primary/30 gap-1">
             <HeartPulse className="w-3 h-3" />
-            Focus Path · Med / busy campus
+            Focus Path Â· Med / busy campus
           </Badge>
           <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight">
             Meharry energy. Efficient {BRAND.name}.
@@ -144,18 +144,18 @@ export default function FocusPage() {
             <strong className="text-foreground">ProjectConnect</strong>, a feed
             that still refreshes school when you&apos;re off campus, and{" "}
             <strong className="text-foreground">time + money effort</strong>{" "}
-            management — not eight apps, not coin casino theater. Soft{" "}
+            management â€” not eight apps, not coin casino theater. Soft{" "}
             <strong className="text-foreground">WeixBucks</strong>,{" "}
             <strong className="text-foreground">Yard Cred</strong>, and gated{" "}
             <strong className="text-foreground">BKSPC</strong> literacy when you
-            have five minutes — not when you&apos;re in clinic.
+            have five minutes â€” not when you&apos;re in clinic.
           </p>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{prefs.campusLabel}</Badge>
-            <Badge variant="secondary">Yard · {prefs.yardId}</Badge>
+            <Badge variant="secondary">Yard Â· {prefs.yardId}</Badge>
             {cred && (
               <Badge variant="secondary">
-                Cred ·{" "}
+                Cred Â·{" "}
                 <span className="text-primary font-bold">{cred.score}</span>
               </Badge>
             )}
@@ -183,7 +183,7 @@ export default function FocusPage() {
               <Progress value={pct} className="h-2" />
               <p className="text-xs text-muted-foreground">
                 {remaining} min left in your intentional budget. Protect
-                rotations — log sessions when you show up here on purpose.
+                rotations â€” log sessions when you show up here on purpose.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -246,7 +246,7 @@ export default function FocusPage() {
                 <strong className="text-foreground">economics education</strong>{" "}
                 that respects the Black dollar, soft campus credits (
                 {BRAND.softCurrency}), and optional coin rights ({BRAND.symbol})
-                — without forcing you to day-trade during boards.
+                â€” without forcing you to day-trade during boards.
               </p>
               <ul className="space-y-2">
                 {LITERACY_PRINCIPLES.slice(0, 3).map((p) => (
@@ -263,7 +263,7 @@ export default function FocusPage() {
               </ul>
               <Link href="/wallet">
                 <Button size="sm" variant="outline" className="gap-1 w-full">
-                  Open Earnings · How to Earn
+                  Open Earnings Â· How to Earn
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </Link>
@@ -343,7 +343,7 @@ export default function FocusPage() {
           </div>
           <p className="text-xs text-muted-foreground">
             Myspace energy for identity, blogspace for notes, YTspace for short
-            lessons — filtered so your off-duty scroll still feeds boards /
+            lessons â€” filtered so your off-duty scroll still feeds boards /
             clinical curiosity.
           </p>
           <div className="space-y-2">
@@ -381,7 +381,7 @@ export default function FocusPage() {
             ))}
             {studyItems.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No med/study Hub cards yet — publish one when you have energy,
+                No med/study Hub cards yet â€” publish one when you have energy,
                 or seed will appear on first Hub visit.
               </p>
             )}
@@ -393,7 +393,7 @@ export default function FocusPage() {
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <FlaskConical className="w-5 h-5 text-primary" />
-              ProjectConnect · underrepresented network (low effort)
+              ProjectConnect Â· underrepresented network (low effort)
             </h2>
             <Link href="/connect">
               <Button size="sm" variant="ghost">
@@ -402,7 +402,7 @@ export default function FocusPage() {
             </Link>
           </div>
           <p className="text-xs text-muted-foreground">
-            You want peers and labs who get HBCU / Meharry life — without a full
+            You want peers and labs who get HBCU / Meharry life â€” without a full
             LinkedIn campaign. Express interest in micro-hours or async work.
             Cred grows from real follow-through later, not from spam.
           </p>
@@ -463,7 +463,7 @@ export default function FocusPage() {
             ))}
             {connectCards.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No open opportunities loaded — open Connect to browse.
+                No open opportunities loaded â€” open Connect to browse.
               </p>
             )}
           </div>
@@ -477,7 +477,7 @@ export default function FocusPage() {
             <p>
               Not a replacement for rotations, Anki, or official Meharry
               systems. Not financial advice. {BRAND.symbol} is gated settlement
-              literacy — soft {BRAND.softCurrencySymbol} teaches habits first.
+              literacy â€” soft {BRAND.softCurrencySymbol} teaches habits first.
               You stay efficient by using Focus Path as a{" "}
               <strong className="text-foreground">
                 timer + filter + Connect rail

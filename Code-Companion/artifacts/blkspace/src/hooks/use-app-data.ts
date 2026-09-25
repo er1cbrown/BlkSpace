@@ -192,6 +192,10 @@ export function useAppListPosts(
     data: webResult.data,
     isLoading: webResult.isLoading,
     isFetchingNextPage: false,
+    // Browser branch has no cursor pagination, so this shim is a genuine no-op
+    // rather than a swallowed error. It exists only to match the Tauri
+    // infinite-query shape callers already destructure.
+    // eslint-disable-next-line no-empty-function
     fetchNextPage: async () => {},
     hasNextPage: false,
   };

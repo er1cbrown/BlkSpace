@@ -16,7 +16,7 @@ export function useEconomicLedger(): EconomicStore {
 }
 
 export function useOptimisticBalance(baseBalance: number): number {
-  const handle = getCurrentHandle() || "demo_user";
+  const handle = getCurrentHandle();
   useEconomicLedger();
   return overlayBalance(handle, baseBalance);
 }

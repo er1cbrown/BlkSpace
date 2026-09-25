@@ -20,6 +20,10 @@ interface GuestModeContextValue {
 const GuestModeContext = createContext<GuestModeContextValue>({
   isGuest: false,
   hasWallet: true,
+  // React requires a default value for the context. This one is never read:
+  // GuestModeProvider always supplies the real `refresh` below. A no-op is the
+  // honest placeholder — a fake implementation would be worse.
+  // eslint-disable-next-line no-empty-function
   refresh: () => {},
 });
 

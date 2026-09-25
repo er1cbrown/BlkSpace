@@ -147,10 +147,13 @@ function ConnectHub() {
   });
   const { data: cred } = useQuery({
     queryKey: ["connect", "cred", handle],
-    queryFn: () => getYardCred(handle || "demo_user"),
-    enabled: !!handle || true,
+    // Without a handle there is no identity to attribute credibility to.
+    // Previously this read `enabled: !!handle || true`, which is always true,
+    // so a signed-out visitor was shown demo_user's Yard Cred.
+    queryFn: () => getYardCred(handle),
+    enabled: !!handle,
   });
-  const { data: meUser } = useAppGetUser(handle || "demo_user");
+  const { data: meUser } = useAppGetUser(handle, !!handle);
 
   /** Skills from pro profile JSON for opportunity matching. */
   const skillTokens = useMemo(() => {

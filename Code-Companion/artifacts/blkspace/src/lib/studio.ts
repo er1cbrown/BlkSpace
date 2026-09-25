@@ -88,7 +88,7 @@ function defaultDemo(): Demo {
         id: 1,
         collectionId: 1,
         mediaRef: "portfolio:shot:01-golden-hour",
-        caption: "Golden hour senior — TSU yard",
+        caption: "Golden hour senior â€” TSU yard",
         kind: "photo",
         sortOrder: 1,
         createdAt: new Date().toISOString(),
@@ -116,10 +116,10 @@ function defaultDemo(): Demo {
       {
         id: 1,
         ownerHandle: "demo_user",
-        title: "Senior Session · Jane",
+        title: "Senior Session Â· Jane",
         description: "Selects + reel. Free grant to client.",
         clientHandle: "jane_doe",
-        clientLabel: "Jane D. · Class of 2027",
+        clientLabel: "Jane D. Â· Class of 2027",
         accessMode: "free",
         priceWb: 0,
         status: "delivered",
@@ -134,7 +134,7 @@ function defaultDemo(): Demo {
         id: 2,
         ownerHandle: "demo_user",
         title: "Org Event Coverage Pack",
-        description: "All-in-one paid unlock — 25 WB.",
+        description: "All-in-one paid unlock â€” 25 WB.",
         clientHandle: "",
         clientLabel: "NSBE media team",
         accessMode: "paid",
@@ -268,7 +268,7 @@ export async function createCollection(args: {
       visibility: args.visibility || "public",
     });
   }
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const d = load();
   const c: StudioCollection = {
     id: d.nextColl++,
@@ -330,7 +330,7 @@ export async function listCollectionItems(
 }
 
 export async function listMyShoots(): Promise<StudioShoot[]> {
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   if (isTauri()) {
     return invoke("studio_list_my_shoots", {
       sessionToken: getSessionToken() || "",
@@ -342,7 +342,7 @@ export async function listMyShoots(): Promise<StudioShoot[]> {
 }
 
 export async function listClientDeliveries(): Promise<StudioShoot[]> {
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   if (isTauri()) {
     return invoke("studio_list_client_deliveries", {
       sessionToken: getSessionToken() || "",
@@ -379,7 +379,7 @@ export async function createShoot(args: {
       pinCode: args.pinCode || "",
     });
   }
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const d = load();
   const s: StudioShoot = {
     id: d.nextShoot++,
@@ -438,7 +438,7 @@ export async function addShootAsset(args: {
 }
 
 export async function listShootAssets(shootId: number): Promise<StudioAsset[]> {
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   if (isTauri()) {
     return invoke("studio_list_shoot_assets", {
       sessionToken: getSessionToken() || null,
@@ -467,7 +467,7 @@ export async function publishShoot(shootId: number): Promise<StudioShoot> {
       shootId,
     });
   }
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const d = load();
   const s = d.shoots.find((x) => x.id === shootId);
   if (!s || s.ownerHandle !== me) throw new Error("Not your shoot");
@@ -511,7 +511,7 @@ export async function purchaseShootAccess(shootId: number): Promise<{
       shootId,
     });
   }
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const d = load();
   const s = d.shoots.find((x) => x.id === shootId);
   if (!s) throw new Error("Shoot not found");
@@ -519,7 +519,7 @@ export async function purchaseShootAccess(shootId: number): Promise<{
     return { alreadyHadAccess: true };
   }
   if (s.accessMode !== "paid") {
-    throw new Error("This delivery is free — ask the studio for a grant");
+    throw new Error("This delivery is free â€” ask the studio for a grant");
   }
   const list = d.access[shootId] || [];
   list.push(me);
@@ -555,6 +555,6 @@ export async function exportShootManifest(
       caption: a.caption,
       kind: a.kind,
     })),
-    note: "All-in-one access package — download via mediaRef / blob APIs.",
+    note: "All-in-one access package â€” download via mediaRef / blob APIs.",
   };
 }

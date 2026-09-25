@@ -113,9 +113,16 @@ export function CreatorMarketplacePanel() {
     if (isTauri()) {
       const token = getSessionToken();
       if (token) {
+        // Surface the failure. An empty picker with no explanation reads as
+        // "you have no media" when the truth is "we could not ask".
         tauriListUserBlobs(token)
           .then(setUserMedia)
-          .catch(() => {});
+          .catch((err) => {
+            console.error("[marketplace] could not load your media:", err);
+            toast.error(
+              "Could not load your media library. Attachments may be unavailable.",
+            );
+          });
       }
     }
   }, []);

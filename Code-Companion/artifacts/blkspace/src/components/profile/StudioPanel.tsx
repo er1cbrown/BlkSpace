@@ -41,7 +41,7 @@ export function StudioPanel({
   profileHandle: string;
   isOwn: boolean;
 }) {
-  const me = getCurrentHandle() || "demo_user";
+  const me = getCurrentHandle();
   const [section, setSection] = useState<"portfolio" | "shoots" | "inbox">(
     "portfolio",
   );
@@ -256,7 +256,7 @@ function CollectionDetail({
                 {it.mediaRef}
               </div>
               <div className="text-muted-foreground line-clamp-2">
-                {it.caption || "—"}
+                {it.caption || "â€”"}
               </div>
             </div>
           ))}
@@ -335,7 +335,7 @@ function ShootsStudioSection({ me }: { me: string }) {
         priceWb: parseInt(price, 10) || 25,
       }),
     onSuccess: (s) => {
-      toast.success("Shoot created — add assets then publish");
+      toast.success("Shoot created â€” add assets then publish");
       setShowCreate(false);
       setSelected(s.id);
       qc.invalidateQueries({ queryKey: ["studio", "my-shoots"] });
@@ -347,7 +347,7 @@ function ShootsStudioSection({ me }: { me: string }) {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <p className="text-xs text-muted-foreground">
-          After a shoot: upload selects → publish delivery → grant free access
+          After a shoot: upload selects â†’ publish delivery â†’ grant free access
           or sell all-in-one unlock
         </p>
         <Button size="sm" onClick={() => setShowCreate(!showCreate)}>
@@ -358,7 +358,7 @@ function ShootsStudioSection({ me }: { me: string }) {
         <Card>
           <CardContent className="p-3 space-y-2">
             <Input
-              placeholder="Shoot title (e.g. Senior Session · Alex)"
+              placeholder="Shoot title (e.g. Senior Session Â· Alex)"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -435,7 +435,7 @@ function ShootsStudioSection({ me }: { me: string }) {
               </Badge>
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              {s.clientLabel || s.clientHandle || "No client"} · {s.assetCount}{" "}
+              {s.clientLabel || s.clientHandle || "No client"} Â· {s.assetCount}{" "}
               files
             </div>
           </button>
@@ -492,7 +492,7 @@ function ShootOwnerDetail({
   const publish = useMutation({
     mutationFn: () => publishShoot(shoot.id),
     onSuccess: () => {
-      toast.success("Delivery published — clients can access");
+      toast.success("Delivery published â€” clients can access");
       onChange();
     },
     onError: (e) => toast.error(String(e)),
@@ -648,7 +648,7 @@ function ClientInboxSection({ me, isOwn }: { me: string; isOwn: boolean }) {
     queryKey: ["studio", "client-deliveries", me],
     queryFn: listClientDeliveries,
   });
-  // Also show paid public shoots the user might unlock — own studio paid packs
+  // Also show paid public shoots the user might unlock â€” own studio paid packs
   const { data: myShoots = [] } = useQuery({
     queryKey: ["studio", "my-shoots-browse", me],
     queryFn: listMyShoots,
@@ -693,7 +693,7 @@ function ClientInboxSection({ me, isOwn }: { me: string; isOwn: boolean }) {
           </p>
           {paidBrowse.map((s) => (
             <div key={s.id} className="text-xs border rounded p-2">
-              {s.title} · {s.priceWb} WB · {s.assetCount} files ·{" "}
+              {s.title} Â· {s.priceWb} WB Â· {s.assetCount} files Â·{" "}
               {s.accessCount} unlocks
             </div>
           ))}
@@ -728,7 +728,7 @@ function DeliveryCard({
       toast.success(
         r.alreadyHadAccess
           ? "You already have access"
-          : `Unlocked · ${r.paidWb} WB · all-in-one access`,
+          : `Unlocked Â· ${r.paidWb} WB Â· all-in-one access`,
       );
       onChanged();
     },
@@ -755,7 +755,7 @@ function DeliveryCard({
           )}
         </div>
         <div className="text-xs text-muted-foreground mt-1">
-          Studio @{shoot.ownerHandle} · {shoot.assetCount} files ·{" "}
+          Studio @{shoot.ownerHandle} Â· {shoot.assetCount} files Â·{" "}
           {shoot.accessMode === "paid" ? `${shoot.priceWb} WB` : "Free grant"}
         </div>
       </button>
@@ -832,7 +832,7 @@ function ClientShootView({
                 {a.kind}
               </Badge>
               {a.filename || a.mediaRef}
-              {a.caption ? ` · ${a.caption}` : ""}
+              {a.caption ? ` Â· ${a.caption}` : ""}
             </span>
             <span className="font-mono text-muted-foreground truncate max-w-[45%]">
               {a.mediaRef}

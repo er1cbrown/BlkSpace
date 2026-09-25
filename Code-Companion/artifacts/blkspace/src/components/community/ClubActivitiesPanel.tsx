@@ -92,7 +92,7 @@ function TemplatesSection({ communityId }: { communityId: string }) {
     mutationFn: (id: string) => applyClubTemplate(communityId, id),
     onSuccess: (r) => {
       toast.success(
-        `Applied ${r.name} · channels: ${(r.channelsCreated || []).join(", ") || "already present"}`,
+        `Applied ${r.name} Â· channels: ${(r.channelsCreated || []).join(", ") || "already present"}`,
       );
       qc.invalidateQueries({ queryKey: ["club", "applied", communityId] });
       qc.invalidateQueries({ queryKey: ["tauri", "channels", communityId] });
@@ -104,7 +104,7 @@ function TemplatesSection({ communityId }: { communityId: string }) {
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
         One-click club kits spin up channels for anime, chess, gaming, creators,
-        study hours, or faculty scholarships. Live stays link-out for now —
+        study hours, or faculty scholarships. Live stays link-out for now â€”
         identity + earn stay on BKSPC.
       </p>
       <div className="grid sm:grid-cols-2 gap-3">
@@ -145,7 +145,7 @@ function TemplatesSection({ communityId }: { communityId: string }) {
 
 function ReadingSection({ communityId }: { communityId: string }) {
   const qc = useQueryClient();
-  const handle = getCurrentHandle() || "demo_user";
+  const handle = getCurrentHandle();
   const { data: circles = [] } = useQuery({
     queryKey: ["club", "circles", communityId],
     queryFn: () => listReadingCircles(communityId),
@@ -179,7 +179,7 @@ function ReadingSection({ communityId }: { communityId: string }) {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <p className="text-xs text-muted-foreground">
-          Book groups · share anime/manga · publish your own pages
+          Book groups Â· share anime/manga Â· publish your own pages
         </p>
         <Button size="sm" onClick={() => setShowCreate(!showCreate)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> New circle
@@ -244,17 +244,17 @@ function ReadingSection({ communityId }: { communityId: string }) {
               </Badge>
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Now: {c.currentWork || "—"} {c.currentChapter}
+              Now: {c.currentWork || "â€”"} {c.currentChapter}
             </div>
             <div className="text-[10px] text-muted-foreground mt-1">
-              {c.memberCount} members · {c.entryCount} posts
+              {c.memberCount} members Â· {c.entryCount} posts
             </div>
           </button>
         ))}
       </div>
       {circles.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          No circles yet — start a weekly read for your anime club.
+          No circles yet â€” start a weekly read for your anime club.
         </p>
       )}
       {selected != null && (
@@ -365,7 +365,7 @@ function CircleDetail({
           </div>
         )}
         <div className="border rounded p-3 space-y-2 bg-muted/20">
-          <p className="text-xs font-medium">Share note · publish page · rec</p>
+          <p className="text-xs font-medium">Share note Â· publish page Â· rec</p>
           <div className="flex flex-wrap gap-1">
             {["note", "publish", "chapter", "rec"].map((t) => (
               <Button
@@ -425,7 +425,7 @@ function CircleDetail({
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                @{e.handle} · {e.body}
+                @{e.handle} Â· {e.body}
               </p>
               {e.mediaRef && (
                 <p className="text-[10px] font-mono">ref: {e.mediaRef}</p>
@@ -440,7 +440,7 @@ function CircleDetail({
 
 function TournamentsSection({ communityId }: { communityId: string }) {
   const qc = useQueryClient();
-  const handle = getCurrentHandle() || "demo_user";
+  const handle = getCurrentHandle();
   const { data: tours = [] } = useQuery({
     queryKey: ["club", "tours", communityId],
     queryFn: () => listTournaments(communityId),
@@ -483,7 +483,7 @@ function TournamentsSection({ communityId }: { communityId: string }) {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <p className="text-xs text-muted-foreground">
-          Brackets · 1v1 · scores · WB prizes · Lichess/OTB play link · live
+          Brackets Â· 1v1 Â· scores Â· WB prizes Â· Lichess/OTB play link Â· live
           link-out
         </p>
         <Button size="sm" onClick={() => setShowCreate(!showCreate)}>
@@ -499,7 +499,7 @@ function TournamentsSection({ communityId }: { communityId: string }) {
               onChange={(e) => setTitle(e.target.value)}
             />
             <Input
-              placeholder="Game (Chess, SF6, Smash, Valorant…)"
+              placeholder="Game (Chess, SF6, Smash, Valorantâ€¦)"
               value={game}
               onChange={(e) => setGame(e.target.value)}
             />
@@ -510,12 +510,12 @@ function TournamentsSection({ communityId }: { communityId: string }) {
               rows={2}
             />
             <Input
-              placeholder="Play board URL (optional) — lichess.org/tournament/… or arena"
+              placeholder="Play board URL (optional) â€” lichess.org/tournament/â€¦ or arena"
               value={playUrl}
               onChange={(e) => setPlayUrl(e.target.value)}
             />
             <Input
-              placeholder="Watch live URL (optional) — Twitch / YT / Discord stage"
+              placeholder="Watch live URL (optional) â€” Twitch / YT / Discord stage"
               value={liveUrl}
               onChange={(e) => setLiveUrl(e.target.value)}
             />
@@ -566,7 +566,7 @@ function TournamentsSection({ communityId }: { communityId: string }) {
               </Badge>
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              {t.gameTitle} · {t.entrantCount}/{t.maxPlayers} ·{" "}
+              {t.gameTitle} Â· {t.entrantCount}/{t.maxPlayers} Â·{" "}
               {t.prizeText || `${t.prizeWb} WB`}
             </div>
           </button>
@@ -619,7 +619,7 @@ function TournamentDetail({
   const bracket = useMutation({
     mutationFn: () => generateTournamentBracket(tour.id),
     onSuccess: () => {
-      toast.success("Bracket generated — check 1v1 pairings");
+      toast.success("Bracket generated â€” check 1v1 pairings");
       onChange();
     },
     onError: (e) => toast.error(String(e)),
@@ -628,7 +628,7 @@ function TournamentDetail({
     mutationFn: (args: { matchId: number; a: number; b: number }) =>
       reportTournamentMatch(args.matchId, args.a, args.b),
     onSuccess: (m) => {
-      toast.success(`Match complete · winner @${m.winner}`);
+      toast.success(`Match complete Â· winner @${m.winner}`);
       onChange();
     },
     onError: (e) => toast.error(String(e)),
@@ -681,7 +681,7 @@ function TournamentDetail({
         </div>
         {matches.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-medium">Matches · Round 1</p>
+            <p className="text-xs font-medium">Matches Â· Round 1</p>
             {matches.map((m) => (
               <div key={m.id} className="border rounded p-2 space-y-1">
                 <div className="flex justify-between text-xs">
@@ -748,7 +748,7 @@ function TournamentDetail({
                 )}
                 {m.status === "complete" && (
                   <p className="text-xs">
-                    {m.scoreA}-{m.scoreB} · winner @{m.winner}
+                    {m.scoreA}-{m.scoreB} Â· winner @{m.winner}
                   </p>
                 )}
               </div>

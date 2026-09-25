@@ -20,7 +20,7 @@
     "serve:tier0": "bun run build:tier0 && bun run serve",
     "serve:full": "bun run build:full && bun run serve",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit && eslint src --max-warnings=200",
     "test": "vitest",
     "test:run": "vitest run --config vitest.config.ts",
     "test:iroh": "cargo test --manifest-path src-tauri/Cargo.toml --features iroh iroh_",

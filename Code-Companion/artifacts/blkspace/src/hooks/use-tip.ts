@@ -42,7 +42,7 @@ function setTipStatus(
   const tip = getEconomicStore().tips.find((t) => t.id === id);
   if (!tip) return;
   if (tip.status !== status && !canTransitionTip(tip.status, status)) {
-    throw new Error(`Illegal tip transition '${tip.status}' → '${status}'`);
+    throw new Error(`Illegal tip transition '${tip.status}' â†’ '${status}'`);
   }
   const next: TipRecord = { ...tip, ...extra, status };
   upsertTip(next);
@@ -101,7 +101,7 @@ export function useTip(baseBalance: number) {
   const [phase, setPhase] = useState<EconomicPhase>("idle");
   const [lastError, setLastError] = useState<string | null>(null);
 
-  const fromHandle = getCurrentHandle() || "demo_user";
+  const fromHandle = getCurrentHandle();
   const balance = overlayBalance(fromHandle, baseBalance);
 
   const sendTip = useCallback(
@@ -171,7 +171,7 @@ export function useTip(baseBalance: number) {
             applyBalanceDelta(toHandle, -(amount - fee));
             setTipStatus(tip.id, "failed");
             setPhase("failed");
-            toast.error("Tip failed — balance restored");
+            toast.error("Tip failed â€” balance restored");
           },
         });
         return tip;
