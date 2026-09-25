@@ -22,6 +22,70 @@ function load(): WebUserPost[] {
   }
 }
 
+const REPLIES_KEY = "blkspace_web_replies_v1";
+
+export type WebReply = {
+  id: number;
+  replyUid?: string;
+  postId: number;
+  authorHandle: string;
+  authorDisplayName: string;
+  authorAvatarUrl: string;
+  content: string;
+  createdAt: string;
+};
+
+function loadReplies(): WebReply[] {
+  try {
+    const raw = localStorage.getItem(REPLIES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as WebReply[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveReplies(replies: WebReply[]) {
+  localStorage.setItem(REPLIES_KEY, JSON.stringify(replies.slice(-200)));
+}
+
+export function listWebReplies(postId: number): WebReply[] {
+  return loadReplies().filter((reply) => reply.postId === postId);
+}
+
+export function createWebReply(
+  postId: number,
+  content: string,
+  authorHandle = getCurrentHandle(),
+): WebReply {
+  const reply: WebReply = {
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    replyUid:
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `web-reply-${Date.now()}`,
+    postId,
+    authorHandle,
+    authorDisplayName: getCurrentDisplayName(),
+    authorAvatarUrl: "",
+    content: content.trim(),
+    createdAt: new Date().toISOString(),
+  };
+  saveReplies([...loadReplies(), reply]);
+
+  const posts = load();
+  const postIndex = posts.findIndex((post) => post.id === postId);
+  if (postIndex >= 0) {
+    posts[postIndex] = {
+      ...posts[postIndex],
+      repliesCount: (posts[postIndex].repliesCount || 0) + 1,
+    };
+    save(posts);
+  }
+  return reply;
+}
+
 function save(posts: WebUserPost[]) {
   localStorage.setItem(LS_KEY, JSON.stringify(posts.slice(0, 100)));
 }

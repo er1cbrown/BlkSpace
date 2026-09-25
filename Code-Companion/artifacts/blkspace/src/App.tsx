@@ -179,6 +179,7 @@ function Router() {
         <Route path="/communities" component={CommunitiesPage} />
         <Route path="/communities/:id" component={CommunityPage} />
         <Route path="/connect" component={ConnectPage} />
+        <Route path="/connect/me" component={ConnectPage} />
         <Route path="/connect/inbox" component={ConnectPage} />
         <Route path="/connect/orgs/:id" component={ConnectPage} />
         <Route path="/connect/opportunities/:id" component={ConnectPage} />

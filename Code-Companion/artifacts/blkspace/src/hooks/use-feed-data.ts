@@ -9,6 +9,7 @@ export {
   useAppSendWeixBucks,
   useTauriCombinedFeed,
   useTauriGetFollowing,
+  useTauriGetNotifications,
   useTauriRepostPost,
   useTauriFollowingReposts,
 } from "@/hooks/use-app-data";

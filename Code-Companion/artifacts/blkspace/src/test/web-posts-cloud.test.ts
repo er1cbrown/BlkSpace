@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  createWebReply,
   createWebUserPost,
+  listWebReplies,
   listWebUserPosts,
   refreshPortfolioFromTurso,
 } from "@/lib/web-posts";
@@ -56,6 +58,17 @@ describe("cloud post acknowledgement", () => {
       `${window.location.origin}/api/portfolio/post`,
     ]);
     expect(event.tags).toContainEqual(["method", "POST"]);
+  });
+
+  it("keeps browser replies durable and updates the post count", async () => {
+    hostedPost.mockResolvedValue(Response.json({ ok: true, storage: "cloud" }));
+    const post = await createWebUserPost({
+      content: "reply target",
+      townTag: "tsu",
+    });
+    const reply = createWebReply(post.id, "A browser reply", "alice");
+    expect(listWebReplies(post.id)).toEqual([reply]);
+    expect(listWebUserPosts()[0].repliesCount).toBe(1);
   });
 
   it("keeps hosted image arrays when refreshing the browser cache", async () => {

@@ -475,27 +475,18 @@ export default function ProfilePage() {
                       );
                       setIsFollowing(nowFollowing);
                     };
-                    if (isTauri()) {
-                      toggleFollowMut.mutate(
-                        { followedHandle: target },
-                        {
-                          onSuccess: (nowFollowing) => {
-                            syncLocalFollow(nowFollowing);
-                            toast.success(
-                              nowFollowing ? "Followed" : "Unfollowed",
-                            );
-                          },
-                          onError: (e) => toast.error(String(e)),
+                    toggleFollowMut.mutate(
+                      { followedHandle: target },
+                      {
+                        onSuccess: (nowFollowing) => {
+                          syncLocalFollow(nowFollowing);
+                          toast.success(
+                            nowFollowing ? "Followed" : "Unfollowed",
+                          );
                         },
-                      );
-                      return;
-                    }
-                    const saved =
-                      localStorage.getItem("blkspace_followed") || "[]";
-                    const f: string[] = JSON.parse(saved);
-                    const nowFollowing = !f.includes(target);
-                    syncLocalFollow(nowFollowing);
-                    toast.success(nowFollowing ? "Followed" : "Unfollowed");
+                        onError: (e) => toast.error(String(e)),
+                      },
+                    );
                   }}
                   disabled={toggleFollowMut.isPending}
                 >

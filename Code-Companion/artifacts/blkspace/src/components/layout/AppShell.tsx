@@ -30,7 +30,7 @@ import {
   TerminalSquare,
 } from "lucide-react";
 import { getCurrentHandle } from "@/lib/auth";
-import { useAppGetUser } from "@/hooks/use-app-data";
+import { useAppGetUser, useTauriGetNotifications } from "@/hooks/use-app-data";
 import { useGuestMode } from "@/lib/guest-mode";
 import { YardSidebar } from "@/components/layout/YardSidebar";
 import { cn } from "@/lib/utils";
@@ -141,6 +141,10 @@ export function AppShell({
   }, []);
 
   const { data: user } = useAppGetUser(handle, shellReady);
+  const { data: notifications = [] } = useTauriGetNotifications();
+  const unreadNotifications = notifications.filter(
+    (item) => item.unread,
+  ).length;
   const profileHref = `/profile/${handle}`;
 
   const [uiPrefs, setUiPrefs] = useState(() => loadUiPrefs());
@@ -244,6 +248,11 @@ export function AppShell({
               className="rounded-full relative"
             >
               <Bell className="h-5 w-5" />
+              {unreadNotifications > 0 && (
+                <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
+                  {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                </span>
+              )}
             </Button>
           </Link>
         </div>
@@ -325,6 +334,11 @@ export function AppShell({
               <span className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground cursor-pointer">
                 <Bell className="h-5 w-5" />
                 Notifications
+                {unreadNotifications > 0 && (
+                  <span className="ml-auto rounded-full bg-destructive px-1.5 py-0.5 text-[9px] font-bold text-destructive-foreground">
+                    {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                  </span>
+                )}
               </span>
             </Link>
             <button

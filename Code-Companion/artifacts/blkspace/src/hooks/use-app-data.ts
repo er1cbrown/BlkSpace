@@ -18,7 +18,6 @@ import {
   getGetUserQueryKey,
   useGetUserPosts,
   getGetUserPostsQueryKey,
-  useCreateReply,
   useListRelays,
   getListRelaysQueryKey,
   useGetNetworkStats,
@@ -29,7 +28,13 @@ import {
 import * as tauri from "@/lib/tauri-api";
 import { getSessionToken, getCurrentHandle } from "@/lib/auth";
 import { getSeedPosts } from "@/lib/seed-content";
-import { listWebUserPosts, refreshPortfolioFromTurso } from "@/lib/web-posts";
+import { listWebNotifications } from "@/lib/project-connect";
+import {
+  createWebReply,
+  listWebReplies,
+  listWebUserPosts,
+  refreshPortfolioFromTurso,
+} from "@/lib/web-posts";
 import {
   applyLikesToPosts,
   buildWebUser,
@@ -208,10 +213,17 @@ export function useAppGetTrendingFeed(currentUser: string, enabled = true) {
 }
 
 function getMockPost(id: number) {
-  return MOCK_POSTS.find((p) => p.id === id) || MOCK_POSTS[0];
+  return (
+    listWebUserPosts().find((post) => post.id === id) ||
+    MOCK_POSTS.find((post) => post.id === id) ||
+    MOCK_POSTS[0]
+  );
 }
 
 function getMockReplies(_postId: number) {
+  const localReplies = listWebReplies(_postId);
+  if (localReplies.length > 0) return localReplies;
+  if (listWebUserPosts().some((post) => post.id === _postId)) return [];
   return [
     {
       id: 101,
@@ -338,7 +350,8 @@ export function useAppListReplies(postId: number) {
     queryKey: ["web", "replies", postId],
     queryFn: () => Promise.resolve(getMockReplies(postId)),
     enabled: !IS_TAURI && !!postId,
-    staleTime: Infinity,
+    staleTime: 0,
+    refetchOnMount: true,
   });
   return IS_TAURI ? tauriResult : webResult;
 }
@@ -409,10 +422,6 @@ export function useTauriListPostsForChannel(channelId: string) {
 
 // ─── Mutations ───────────────────────────────────────────
 
-function isOffline(): boolean {
-  return typeof navigator !== "undefined" && !navigator.onLine;
-}
-
 export function useAppCreatePost() {
   const qc = useQueryClient();
   const web = useMutation({
@@ -442,28 +451,24 @@ export function useAppCreatePost() {
         input.channel_id,
         input.media_hashes,
       ),
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
       qc.invalidateQueries({ queryKey: ["tauri", "posts"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "replies"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "following"] });
+      qc.invalidateQueries({ queryKey: ["tauri", "notifications"] });
       const token = getSessionToken();
       if (token) {
-        void tauri
-          .tauriSyncPortfolioOnce(token)
-          .then(() =>
-            qc.invalidateQueries({ queryKey: ["tauri", "hosted-posts"] }),
-          )
-          .catch(() => undefined);
+        void (async () => {
+          await Promise.allSettled([
+            tauri.tauriSyncPortfolioOnce(token, variables.town_tag),
+            tauri.tauriSyncSocialOnce(token, variables.town_tag),
+          ]);
+          await qc.invalidateQueries({ queryKey: ["tauri", "hosted-posts"] });
+          await qc.invalidateQueries({ queryKey: ["tauri", "notifications"] });
+          await qc.invalidateQueries({ queryKey: ["tauri", "following"] });
+          await qc.invalidateQueries({ queryKey: ["tauri", "replies"] });
+        })();
       }
-    },
-  });
-  const queueMut = useMutation({
-    mutationFn: (payload: string) =>
-      tauri.tauriQueueOfflineAction(
-        getSessionToken() || "",
-        "create_post",
-        payload,
-      ),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tauri", "offlineQueue"] });
     },
   });
   return {
@@ -524,9 +529,7 @@ export function useAppCreatePost() {
             onError: (e) => opts?.onError?.(e),
           });
         },
-    isPending: IS_TAURI
-      ? tauriMut.isPending || queueMut.isPending
-      : web.isPending,
+    isPending: IS_TAURI ? tauriMut.isPending : web.isPending,
   };
 }
 
@@ -619,6 +622,7 @@ export function useTauriGetFollowing(enabled: boolean = true) {
     queryFn: () => tauri.tauriGetFollowing(token || ""),
     enabled: IS_TAURI && enabled && !!token,
     staleTime: 30_000,
+    refetchInterval: IS_TAURI && enabled ? 60_000 : false,
   });
   const webQ = useQuery({
     queryKey: ["web", "following"],
@@ -631,7 +635,24 @@ export function useTauriGetFollowing(enabled: boolean = true) {
 
 export function useAppCreateReply() {
   const qc = useQueryClient();
-  const web = useCreateReply();
+  const webMut = useMutation({
+    mutationFn: async ({
+      postId,
+      content,
+    }: {
+      postId: number;
+      content: string;
+    }) => {
+      const reply = createWebReply(postId, content);
+      return { reply };
+    },
+    onSuccess: (_result, variables) => {
+      qc.invalidateQueries({ queryKey: ["web", "replies", variables.postId] });
+      qc.invalidateQueries({ queryKey: ["web", "post", variables.postId] });
+      qc.invalidateQueries({ queryKey: ["web", "posts"] });
+      qc.invalidateQueries({ queryKey: ["web", "userPosts"] });
+    },
+  });
   const tauriMut = useMutation({
     mutationFn: ({ postId, content }: { postId: number; content: string }) =>
       tauri.tauriQueueSocialAction(getSessionToken() || "", "reply", {
@@ -648,15 +669,9 @@ export function useAppCreateReply() {
     mutate: IS_TAURI
       ? (input: { postId: number; content: string }, opts?: any) =>
           tauriMut.mutate(input, opts)
-      : (input: any, opts?: any) =>
-          web.mutate(
-            {
-              id: input.postId,
-              data: { content: input.content, authorHandle: "demo_user" },
-            },
-            opts,
-          ),
-    isPending: IS_TAURI ? tauriMut.isPending : web.isPending,
+      : (input: { postId: number; content: string }, opts?: any) =>
+          webMut.mutate(input, opts),
+    isPending: IS_TAURI ? tauriMut.isPending : webMut.isPending,
   };
 }
 
@@ -749,6 +764,18 @@ export function useTauriGetNotifications() {
   return useQuery({
     queryKey: ["tauri", "notifications", getCurrentHandle()],
     queryFn: async () => {
+      if (!IS_TAURI) {
+        return listWebNotifications().map((notification) => ({
+          id: notification.id,
+          userHandle: "",
+          notificationType: notification.notificationType,
+          fromHandle: notification.fromHandle,
+          fromDisplayName: notification.fromHandle,
+          message: notification.message,
+          unread: notification.unread,
+          createdAt: notification.createdAt,
+        }));
+      }
       const token = getSessionToken() || "";
       const [local, hosted] = await Promise.all([
         tauri.tauriGetNotifications(token),
@@ -766,9 +793,15 @@ export function useTauriGetNotifications() {
           unread: notification.unread,
           createdAt: notification.createdAt,
         })),
-      ];
+      ].sort(
+        (left, right) =>
+          new Date(right.createdAt).getTime() -
+          new Date(left.createdAt).getTime(),
+      );
     },
-    enabled: IS_TAURI,
+    enabled: true,
+    refetchInterval: IS_TAURI ? 30_000 : false,
+    refetchOnWindowFocus: true,
   });
 }
 

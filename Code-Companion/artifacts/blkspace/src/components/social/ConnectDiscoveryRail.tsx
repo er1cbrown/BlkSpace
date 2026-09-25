@@ -76,9 +76,11 @@ function orgIcon(t: string) {
 export function ConnectDiscoveryRail({
   yardId = "tsu",
   className,
+  compact = false,
 }: {
   yardId?: string;
   className?: string;
+  compact?: boolean;
 }) {
   const { isGuest } = useGuestMode();
   const handle = getCurrentHandle();
@@ -203,12 +205,16 @@ export function ConnectDiscoveryRail({
   });
 
   const loading = oLoading || pLoading;
-  const empty = !loading && rankedOrgs.length === 0 && rankedOpps.length === 0;
+  const displayOpps = compact ? rankedOpps.slice(0, 3) : rankedOpps;
+  const empty = compact
+    ? !loading && rankedOpps.length === 0
+    : !loading && rankedOrgs.length === 0 && rankedOpps.length === 0;
 
   return (
     <section
       className={cn(
-        "mb-5 rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 via-background to-background p-3 sm:p-4",
+        "mb-5 rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 via-background to-background",
+        compact ? "p-3" : "p-3 sm:p-4",
         className,
       )}
       aria-label="Orgs and opportunities on your yard"
@@ -218,30 +224,35 @@ export function ConnectDiscoveryRail({
           <div className="flex items-center gap-2 flex-wrap">
             <Handshake className="h-4 w-4 text-primary shrink-0" />
             <h2 className="text-sm font-bold tracking-tight">
-              Fellowship · orgs & opportunities
+              {compact
+                ? "Opportunities woven into your yard"
+                : "Fellowship · orgs & opportunities"}
             </h2>
             <Badge
               variant="outline"
               className="text-[10px] border-primary/30 text-primary"
             >
-              Connect
+              {compact ? "For you" : "Connect"}
             </Badge>
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-            Domain features + yard-local ranking (not global FYP flood). Same
-            rails for every persona — filters change weights, not the app.
+            {compact
+              ? "A small taste of ProjectConnect, matched to the people and yard you already follow."
+              : "Domain features + yard-local ranking (not global FYP flood). Same rails for every persona — filters change weights, not the app."}
           </p>
         </div>
         <div className="flex gap-1 shrink-0">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 w-8 p-0"
-            title="Yard scale metrics"
-            onClick={() => setShowMetrics((v) => !v)}
-          >
-            <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-          </Button>
+          {!compact && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0"
+              title="Yard scale metrics"
+              onClick={() => setShowMetrics((v) => !v)}
+            >
+              <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          )}
           <Link href="/connect">
             <Button
               size="sm"
@@ -255,7 +266,7 @@ export function ConnectDiscoveryRail({
         </div>
       </div>
 
-      {showMetrics && scaleMetrics && (
+      {!compact && showMetrics && scaleMetrics && (
         <div className="mb-2 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground">
           {formatYardScaleSummary(scaleMetrics)}
           <span className="block opacity-70 mt-0.5">
@@ -264,23 +275,25 @@ export function ConnectDiscoveryRail({
         </div>
       )}
 
-      <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFilter(f.id)}
-            className={cn(
-              "shrink-0 rounded-full px-3 py-1 text-[11px] font-medium border transition-colors",
-              filter === f.id
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-background/80 text-muted-foreground border-border hover:border-primary/40",
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      {!compact && (
+        <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide -mx-0.5 px-0.5">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFilter(f.id)}
+              className={cn(
+                "shrink-0 rounded-full px-3 py-1 text-[11px] font-medium border transition-colors",
+                filter === f.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background/80 text-muted-foreground border-border hover:border-primary/40",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {loading && (
         <p className="text-xs text-muted-foreground py-4 text-center">
@@ -313,13 +326,13 @@ export function ConnectDiscoveryRail({
 
       {!empty && (
         <div className="space-y-3">
-          {rankedOpps.length > 0 && (
+          {displayOpps.length > 0 && (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 px-0.5">
                 Open opportunities
               </p>
               <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-hide">
-                {rankedOpps.map((opp) => {
+                {displayOpps.map((opp) => {
                   const org = orgById.get(opp.orgId);
                   const tags = parseTags(opp.tagsJson || "[]").slice(0, 2);
                   const doms = domainsForOpportunity(opp, org).slice(0, 3);
@@ -327,7 +340,10 @@ export function ConnectDiscoveryRail({
                     <Link
                       key={opp.id}
                       href={`/connect/opportunities/${opp.id}`}
-                      className="shrink-0 w-[220px] sm:w-[240px] rounded-xl border border-border/70 bg-card p-3 hover:border-primary/40 hover:shadow-sm transition-all"
+                      className={cn(
+                        "shrink-0 rounded-xl border border-border/70 bg-card p-3 hover:border-primary/40 hover:shadow-sm transition-all",
+                        compact ? "w-[190px]" : "w-[220px] sm:w-[240px]",
+                      )}
                     >
                       <div className="flex items-start justify-between gap-1 mb-1.5">
                         <div className="flex flex-wrap gap-0.5">
@@ -377,7 +393,7 @@ export function ConnectDiscoveryRail({
             </div>
           )}
 
-          {rankedOrgs.length > 0 && (
+          {!compact && rankedOrgs.length > 0 && (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 px-0.5">
                 Orgs on campus

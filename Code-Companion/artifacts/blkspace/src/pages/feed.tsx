@@ -1,6 +1,7 @@
 import React, { useState, useMemo, Suspense, useEffect, useRef } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PostComposer } from "@/components/social/PostComposer";
+import { SocialLoopCard } from "@/components/social/SocialLoopCard";
 
 const StoryStrip = React.lazy(() =>
   import("@/components/social/StoryStrip").then((m) => ({
@@ -84,6 +85,7 @@ import {
   isTauri,
   tauriMarkTier0FeedInteractive,
   type TauriCrossTownEvent,
+  type TauriPost,
 } from "@/lib/tauri-api";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -140,7 +142,12 @@ export default function FeedPage() {
   }, []);
   const discipline = getDisciplineTrack(uiPrefs?.disciplineTrack);
   const [content, setContent] = useState("");
+  const [composerOpen, setComposerOpen] = useState(false);
   const [mediaHashes, setMediaHashes] = useState<string[]>([]);
+  const [justPosted, setJustPosted] = useState<Pick<
+    TauriPost,
+    "id" | "content" | "authorHandle"
+  > | null>(null);
   const [showFlagged] = useState(false);
   const [bridgeTownFilter, setBridgeTownFilter] = useState("all");
   const [localFollowed, setLocalFollowed] = useState<string[]>(() => {
@@ -162,7 +169,7 @@ export default function FeedPage() {
     activeTab === "following" || activeTab === "blog" || activeTab === "watch";
   const needsBridge = activeTab === "bridge" && BETA_FEATURES.showBridgeTab();
 
-  const { data: remoteFollowing = [] } = useTauriGetFollowing(needsFollowing);
+  const { data: remoteFollowing = [] } = useTauriGetFollowing(true);
   const followedHandles = Array.from(
     new Set([...(localFollowed || []), ...(remoteFollowing || [])]),
   );
@@ -280,8 +287,18 @@ export default function FeedPage() {
       },
       {
         onSuccess: (result: any) => {
+          if (result?.post?.id !== undefined) {
+            setJustPosted({
+              id: Number(result.post.id),
+              content: String(result.post.content || postContent),
+              authorHandle: String(
+                result.post.authorHandle || getCurrentHandle(),
+              ),
+            });
+          }
           setContent("");
           setMediaHashes([]);
+          setComposerOpen(false);
           markFirstPostDone();
           if (offline) {
             toast.success("Post queued — will sync when you're back online");
@@ -294,6 +311,11 @@ export default function FeedPage() {
           setActiveTab("local");
           queryClient.invalidateQueries({ queryKey: ["tauri", "user"] });
           queryClient.invalidateQueries({ queryKey: ["tauri", "posts"] });
+          queryClient.invalidateQueries({ queryKey: ["tauri", "replies"] });
+          queryClient.invalidateQueries({ queryKey: ["tauri", "following"] });
+          queryClient.invalidateQueries({
+            queryKey: ["tauri", "notifications"],
+          });
           queryClient.invalidateQueries({ queryKey: ["web", "posts"] });
           queryClient.invalidateQueries({
             queryKey: getListPostsQueryKey({ town: selectedTown }),
@@ -515,7 +537,7 @@ export default function FeedPage() {
             value="connect"
             className="text-xs sm:text-sm font-semibold"
           >
-            Connect
+            Discover
           </TabsTrigger>
         </TabsList>
 
@@ -566,11 +588,12 @@ export default function FeedPage() {
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-muted/20 px-2.5 py-2 text-xs">
             <Briefcase className="w-3.5 h-3.5 text-primary shrink-0" />
             <span className="text-muted-foreground flex-1 min-w-[12rem]">
-              {disciplineUpliftLine(discipline.id)}
+              {disciplineUpliftLine(discipline.id)} Opportunities also appear in
+              your social feed.
             </span>
             <Link href="/connect">
               <Button size="sm" className="h-7 text-[11px]">
-                ProjectConnect
+                Explore ProjectConnect
               </Button>
             </Link>
             <Link href="/faculty">
@@ -614,7 +637,7 @@ export default function FeedPage() {
                 />
               </div>
               {/* Mobile: FAB → modal composer */}
-              <Dialog>
+              <Dialog open={composerOpen} onOpenChange={setComposerOpen}>
                 <DialogTrigger asChild>
                   <button
                     type="button"
@@ -645,8 +668,22 @@ export default function FeedPage() {
                   />
                 </DialogContent>
               </Dialog>
+              <div className="mt-4">
+                <SocialLoopCard
+                  justPosted={justPosted}
+                  followingCount={followedHandles.length}
+                  selectedTown={selectedTown}
+                  onDismiss={() => setJustPosted(null)}
+                />
+              </div>
             </>
           ))}
+
+        {activeTab !== "bridge" && activeTab !== "connect" && (
+          <Suspense fallback={null}>
+            <ConnectDiscoveryRail yardId={selectedTown} compact />
+          </Suspense>
+        )}
 
         <TabsContent value="following" />
         <TabsContent value="local" />
