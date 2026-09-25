@@ -74,10 +74,19 @@ export function whenWebBlobsReady(): Promise<void> {
   return hydrated;
 }
 
+export interface WebStoreResult {
+  /** Local id used as the post's media hash. */
+  id: string;
+  /** Whether the hosted portfolio copy succeeded. */
+  synced: boolean;
+  /** Why it did not, when `synced` is false. */
+  syncError?: string;
+}
+
 export async function webStoreFile(
   file: File,
   dataUrl: string,
-): Promise<string> {
+): Promise<WebStoreResult> {
   const id = `web_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
   const rec: WebBlobRecord = {
     id,
@@ -88,12 +97,27 @@ export async function webStoreFile(
   };
   store.set(id, rec);
   await idbPut(rec);
-  void fetch("/api/portfolio/blob", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(rec),
-  }).catch(() => {});
-  return id;
+
+  // Best effort, but NOT silent. A browser-local blob is invisible to every other
+  // device, so a failed sync must be reported rather than swallowed — otherwise
+  // the UI claims a save that never propagated anywhere.
+  try {
+    const res = await fetch("/api/portfolio/blob", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(rec),
+    });
+    if (!res.ok) {
+      return { id, synced: false, syncError: `server returned ${res.status}` };
+    }
+    return { id, synced: true };
+  } catch (err) {
+    return {
+      id,
+      synced: false,
+      syncError: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 export function webGetBlob(id: string): WebBlobRecord | null {

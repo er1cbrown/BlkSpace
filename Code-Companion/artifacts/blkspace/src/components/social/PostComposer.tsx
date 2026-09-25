@@ -35,6 +35,7 @@ import {
   MEDIA_ACCEPT_VIDEO,
   MAX_VIDEOS_PER_POST,
   type PendingAttach,
+  checkWebLocalLimit,
   fileToBase64,
   formatBytes,
   isAllowedUpload,
@@ -259,15 +260,32 @@ export function PostComposer({
               r.onerror = () => reject(r.error);
               r.readAsDataURL(file);
             });
-            const id = await webStoreFile(file, dataUrl);
+            // The browser-local fallback base64-encodes into memory + IndexedDB,
+            // so it cannot carry a 50 MB video even though the transport ceiling
+            // allows one. Check at the point the path is actually chosen.
+            const local = checkWebLocalLimit(file);
+            if (!local.ok) throw new Error(local.reason);
+
+            const saved = await webStoreFile(file, dataUrl);
             setPending((prev) =>
               prev.map((p) =>
                 p.previewUrl === previewUrl
-                  ? { ...p, hash: id, status: "ready" as const }
+                  ? { ...p, hash: saved.id, status: "ready" as const }
                   : p,
               ),
             );
-            toast.success(`${file.name} saved on this browser`);
+            if (saved.synced) {
+              toast.success(`${file.name} saved and synced`);
+            } else {
+              // Browser-local only. Say so — it will not appear on any other
+              // device, and a plain success toast would imply it did.
+              toast.warning(
+                `${file.name} saved in this browser only (sync failed${
+                  saved.syncError ? `: ${saved.syncError}` : ""
+                }). It will not appear on your other devices.`,
+                { duration: 8000 },
+              );
+            }
           }
         }
       } catch (e) {

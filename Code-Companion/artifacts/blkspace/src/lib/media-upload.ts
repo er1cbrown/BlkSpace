@@ -18,6 +18,40 @@ export const MEDIA_SIZE_LIMITS: Record<MediaKind, number> = {
 /** Absolute ceiling (must match or stay under Rust MAX_UPLOAD_SIZE). */
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
+/**
+ * Ceiling for the browser-local fallback (base64 data URL → IndexedDB).
+ *
+ * The desktop and hosted paths stream the file and have no such limit. This one
+ * does, because base64 inflates by 4/3 and the entire string is held in memory
+ * *and* written to IndexedDB, so the 50 MB video ceiling is unreachable by
+ * roughly an order of magnitude. 8 MB matches the existing audio precedent in
+ * CustomizeStation.
+ */
+export const WEB_LOCAL_MAX_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Guard the browser-local fallback specifically.
+ *
+ * `isAllowedUpload` validates against the transport ceiling, but the fallback
+ * is only chosen *after* hosted upload is found unconfigured — so the
+ * path-specific check has to happen at the fallback, not up front.
+ */
+export function checkWebLocalLimit(
+  file: File,
+): { ok: true } | { ok: false; reason: string } {
+  if (file.size === 0) return { ok: false, reason: "Empty file" };
+  if (file.size > WEB_LOCAL_MAX_BYTES) {
+    return {
+      ok: false,
+      reason:
+        `${(file.size / (1024 * 1024)).toFixed(1)}MB is too large for browser-only ` +
+        `storage (max ${Math.round(WEB_LOCAL_MAX_BYTES / (1024 * 1024))}MB). ` +
+        "Use the desktop app, or connect hosted media to upload larger files.",
+    };
+  }
+  return { ok: true };
+}
+
 /** HTML accept attribute for composer + create page. */
 export const MEDIA_ACCEPT =
   "image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.md,.csv,.json,.zip,.rtf";
