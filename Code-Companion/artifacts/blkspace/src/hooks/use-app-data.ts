@@ -1498,6 +1498,18 @@ export function useTauriGetNostrOutboxStatus() {
   });
 }
 
+/// Which delivery regime the device is in: online (Nostr), local (Iroh LAN),
+/// mesh (Reticulum, not yet live), or offline. Refetched on an interval so the
+/// badge reflects current reality rather than state at mount.
+export function useTauriGetDeliveryTier() {
+  return useQuery({
+    queryKey: ["tauri", "deliveryTier"],
+    queryFn: () => tauri.tauriGetDeliveryTier(),
+    enabled: IS_TAURI,
+    refetchInterval: 30_000,
+  });
+}
+
 // ─── Cross-Device Sync Hooks ────────────────────────────
 
 export function useTauriGetUserAccountData() {

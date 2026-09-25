@@ -1613,6 +1613,53 @@ export function tauriGetNostrOutboxStatus(
   return invoke("get_nostr_outbox_status", { sessionToken });
 }
 
+// ─── Delivery Tiers ──────────────────────────────────────
+// Which delivery regime the device is in right now. See
+// docs/implementation/DELIVERY_TIER_CONCEPT.md.
+
+export type DeliveryTier = "online" | "local" | "mesh" | "offline";
+
+export interface TauriDeliveryTierStatus {
+  tier: DeliveryTier;
+  relaysConnected: number;
+  lanAvailable: boolean;
+  meshTransportAvailable: boolean;
+  meshPeerObserved: boolean;
+  canCarryMedia: boolean;
+  canPublishSocial: boolean;
+}
+
+export interface TauriMeshCapabilities {
+  announce: boolean;
+  packets: boolean;
+  transport: boolean;
+  resources: boolean;
+  receipts: boolean;
+  proofOfWork: boolean;
+}
+
+export interface TauriMeshProbe {
+  /** Whether the rns-t3 feature was compiled into this build. */
+  compiledIn: boolean;
+  rnsCoreVersion: string;
+  /** Library surface only. Null when the feature is absent. */
+  capabilities: TauriMeshCapabilities | null;
+  /** Always false until a real courier is implemented. */
+  courierAvailable: boolean;
+  /** Always false. Identity stays on Route A's Nostr key. */
+  lxmfIdentity: boolean;
+  reason: string;
+}
+
+export interface TauriDeliveryTier {
+  tier: TauriDeliveryTierStatus;
+  mesh: TauriMeshProbe;
+}
+
+export function tauriGetDeliveryTier(): Promise<TauriDeliveryTier> {
+  return invoke("get_delivery_tier");
+}
+
 // ─── Cross-Device Sync ────────────────────────────────
 
 export function tauriGetUserAccountData(

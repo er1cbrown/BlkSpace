@@ -148,8 +148,20 @@ real crates directly.
 
 LXMF is **not** part of `rns-core`, so the "courier, not identity system"
 property holds without adopting any LXMF identity store. `rns-core` is
-`no_std`-compatible and its only runtime dependencies are `libm`, `log`, and
-`rns-crypto` — a much smaller and more auditable tree than the Iroh dependency.
+`no_std`-compatible and declares only three direct runtime dependencies —
+`libm`, `log`, and `rns-crypto`.
+
+**But read the lockfile before calling that "tiny".** `rns-crypto 0.1.10` pulls a
+*parallel* crypto stack at different major versions from what the app already
+uses: a second `aes` (0.9.3 vs 0.8.4), `cipher` (0.5.2 vs 0.4.4), `cbc` (0.2.1 vs
+0.1.2), `sha2` (0.11.0 vs 0.10.7), `hmac` (0.13.0), `inout` (0.2.2 vs 0.1.4),
+and `block-padding` (0.4.2 vs 0.3.3), plus `cpubits`, `hybrid-array`,
+`ed25519-dalek 3`, `x25519-dalek 3`, and `curve25519-dalek 5`. So the direct tree
+is three crates and the transitive addition is roughly nine more, including
+duplicate implementations of primitives the app already has. Still far smaller
+than the Iroh dependency, but it is not the clean three-crate story the direct
+list suggests, and it should be reviewed as added crypto surface before the
+feature is enabled in any build that handles real keys.
 
 Interoperability is validated rather than assumed: Python-generated conformance
 vectors pinned to Reticulum 1.4.0, live Python/Rust interop tests, and 20 Docker
@@ -183,11 +195,53 @@ multi-node E2E suites covering chain, mesh, and star topologies.
    `FreeTAKTeam/LXMF-rs`) with differing licenses and scopes. Pin exactly and
    re-verify provenance on every bump.
 
+### Phase status
+
+| Phase | Status | Notes |
+|---|---|---|
+| 0 — Bound the spool | not started | Spool still grows without limit. Independent of licensing. |
+| 1 — Tier detector + honest UI | **implemented** | `src-tauri/src/delivery_tier.rs`, `get_delivery_tier`, `useTauriGetDeliveryTier`, `TauriDeliveryTier*`. 10 unit tests. |
+| 2 — Daemon lifecycle | blocked | Gated on licensing, and needs a Windows build proof. |
+| 3 — T3 courier | not started | `rns-t3` links `rns-core` and reports capability surface, but sends nothing. |
+
+### What Phase 1 does, and deliberately does not do
+
+`delivery_tier.rs` is a pure classifier over observed inputs, so the precedence
+rules are exhaustively testable without touching a socket:
+
+| Condition | Tier |
+|---|---|
+| any relay connected | `online` |
+| no relay, local transport initialized | `local` |
+| no relay, no LAN, courier available **and** a peer observed | `mesh` |
+| otherwise | `offline` |
+
+Three honesty properties are enforced by tests rather than by convention:
+
+1. **The mesh tier cannot be claimed from a linked library alone.** `mesh` needs
+   both a compiled transport *and* an observed peer, so a dark or idle mesh
+   reports `offline` rather than implying T3 works.
+2. **Capability shed is visible.** `can_carry_media` and `can_publish_social` are
+   reported, so a media post is never silently truncated into a text-only tier.
+3. **"Not in this build" stays distinguishable from "available but idle"** via
+   `meshAvailable`, instead of both collapsing into `offline`.
+
+`lanAvailable` means *a local Iroh transport is initialized* — this device's own
+transport exists. It deliberately does not claim a peer answered.
+
+`rns_t3.rs` sits behind the optional `rns-t3` feature (not in `default`), reports
+the `rns-core` capability surface, and always reports `courierAvailable: false`.
+It spawns nothing and sends nothing. One test asserts that linking the crate
+still cannot upgrade the reported tier, so the module cannot drift into implying
+a working transport.
+
+The dependency is pinned exactly (`=0.1.17`), optional, and feature-gated, so it
+never reaches a Yard build and deleting the feature deletes the dependency.
+
 ### Revised recommendation
 
-Phase 1 (tier detector + honest tier UI) is unaffected and should proceed — it
-needs no Reticulum code. Phase 2+ stays blocked on item 1. Treat the capability
-result as good news and the license result as the gate.
+Phase 1 is done and needs no licence. Phase 2+ stays blocked on item 1. Treat the
+capability result as good news and the licence result as the gate.
 
 ## Phases
 

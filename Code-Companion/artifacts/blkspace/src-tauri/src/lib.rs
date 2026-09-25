@@ -14,6 +14,8 @@ mod relay_manager;
 mod portfolio_sync;
 mod sendme_share;
 mod reticulum_bridge;
+mod delivery_tier;
+mod rns_t3;
 mod tier0_benchmark;
 
 #[cfg(feature = "iroh")]
@@ -3865,6 +3867,35 @@ fn get_nostr_outbox_status(
   })
 }
 
+/// Report which delivery regime the device is currently in, plus the mesh
+/// capability surface. See `docs/implementation/DELIVERY_TIER_CONCEPT.md`.
+///
+/// `lanAvailable` means a local Iroh transport is *initialized*, not that a peer
+/// answered — it describes this device's own transport, which is the honest
+/// reading of "a local path exists". `meshPeerObserved` is always false until a
+/// real courier exists, so the mesh tier can never be claimed from a linked
+/// library alone.
+#[tauri::command]
+fn get_delivery_tier(state: State<AppState>) -> serde_json::Value {
+  let relays_connected = state.relay_manager.lock().unwrap().relay_count();
+  #[cfg(feature = "iroh")]
+  let lan_available = state.iroh.lock().unwrap().is_some();
+  #[cfg(not(feature = "iroh"))]
+  let lan_available = false;
+
+  let status = delivery_tier::TierStatus::from_inputs(delivery_tier::TierInputs {
+    relays_connected,
+    lan_available,
+    mesh_transport_available: rns_t3::transport_compiled_in(),
+    mesh_peer_observed: false,
+  });
+
+  serde_json::json!({
+    "tier": status,
+    "mesh": rns_t3::probe(),
+  })
+}
+
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FlushOfflineResult {
@@ -6093,6 +6124,7 @@ pub fn run() {
       count_pending_offline_actions,
       flush_offline_queue,
       get_nostr_outbox_status,
+      get_delivery_tier,
       get_user_account_data,
       log_device_sync,
       run_tier0_benchmark,

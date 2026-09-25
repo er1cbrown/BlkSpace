@@ -39,7 +39,11 @@ Browser / native client
   local store; a CID alone is not durable public storage.
 - **Reticulum Route B:** current code is a native-binary probe plus local spool.
   There is no bundled daemon, drain/receive loop, acknowledgement, or live TCP
-  transport yet. See [`RETICULUM_PLAN.md`](RETICULUM_PLAN.md).
+  transport yet. A delivery tier detector reports which regime the device is in
+  (online / local / mesh / offline), and the mesh tier is deliberately
+  unreachable until a courier is proven. An optional `rns-t3` feature links the
+  `rns-core` library and reports its capability surface only — it sends nothing.
+  See [`DELIVERY_TIER_CONCEPT.md`](DELIVERY_TIER_CONCEPT.md).
 - **Offline queue:** the explicit `offline_queue` holds deliberately queued
   actions, while the `nostr_outbox` holds signed events for every native post.
   A queued `create_post` records the local row it produced, so a retried flush
