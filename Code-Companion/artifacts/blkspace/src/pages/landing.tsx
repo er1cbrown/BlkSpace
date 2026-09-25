@@ -75,7 +75,7 @@ export default function LandingPage() {
         <section className="container mx-auto px-4 pb-24">
           <div className="rounded-3xl overflow-hidden shadow-2xl border border-primary/20 animate-in fade-in zoom-in-95 duration-1000 delay-300">
             <img
-              src="/images/hero-yard.png"
+              src="/images/hero-yard.webp"
               alt="Vibrant college campus yard"
               className="w-full h-[400px] md:h-[600px] object-cover"
             />
@@ -160,7 +160,7 @@ export default function LandingPage() {
               </div>
               <div className="rounded-2xl overflow-hidden shadow-2xl">
                 <img
-                  src="/images/mesh-network.png"
+                  src="/images/mesh-network.webp"
                   alt="Decentralized relay network"
                   className="w-full h-[400px] object-cover"
                 />
@@ -174,7 +174,7 @@ export default function LandingPage() {
           <div className="container mx-auto px-4 text-center">
             <div className="inline-flex justify-center mb-8">
               <img
-                src="/images/weixbucks-coin.png"
+                src="/images/weixbucks-coin.webp"
                 alt="WeixBucks Coin"
                 className="w-32 h-32 animate-bounce"
                 style={{ animationDuration: "3s" }}

@@ -11,7 +11,7 @@ here, which added ~4.4 MB of byte-identical PNGs to the repository. If you need
 to show an app asset in a doc, link to the canonical file instead:
 
 ```markdown
-![Hero](../Code-Companion/artifacts/blkspace/public/images/hero-yard.png)
+![Hero](../Code-Companion/artifacts/blkspace/public/images/hero-yard.webp)
 ```
 
 When adding a genuinely new screenshot, prefer `.webp` over `.png` — a few of
