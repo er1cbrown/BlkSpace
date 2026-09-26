@@ -368,7 +368,6 @@ export async function getIdentity(): Promise<{
   displayName: string;
   hasKey: boolean;
 }> {
-  // eslint-disable-next-line honesty/no-demo-user-fallback -- ANONYMOUS_HANDLE, documented above
   const handle = localStorage.getItem(HANDLE_KEY) || ANONYMOUS_HANDLE;
   const displayName = localStorage.getItem(DISPLAY_KEY) || "Demo User";
 
@@ -386,7 +385,6 @@ export async function getIdentity(): Promise<{
 }
 
 export function getCurrentHandle(): string {
-  // eslint-disable-next-line honesty/no-demo-user-fallback -- ANONYMOUS_HANDLE, documented above
   return localStorage.getItem(HANDLE_KEY) || ANONYMOUS_HANDLE;
 }
 

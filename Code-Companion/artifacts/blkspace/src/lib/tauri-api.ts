@@ -1633,6 +1633,10 @@ export interface TauriMeshCapabilities {
   announce: boolean;
   packets: boolean;
   transport: boolean;
+  /** Link establishment. Required for any request/response exchange. */
+  links: boolean;
+  /** Reliable multiplexed streams over a link. */
+  channels: boolean;
   resources: boolean;
   receipts: boolean;
   proofOfWork: boolean;
@@ -1642,12 +1646,24 @@ export interface TauriMeshProbe {
   /** Whether the rns-t3 feature was compiled into this build. */
   compiledIn: boolean;
   rnsCoreVersion: string;
-  /** Library surface only. Null when the feature is absent. */
+  /**
+   * Library surface only, established by a compile-time link check against
+   * `rns-core`. Null when the feature is absent.
+   *
+   * These flags are NOT runtime observations: `true` means the build links a
+   * library exposing the API, not that a node was started or a packet moved.
+   */
   capabilities: TauriMeshCapabilities | null;
   /** Always false until a real courier is implemented. */
   courierAvailable: boolean;
   /** Always false. Identity stays on Route A's Nostr key. */
   lxmfIdentity: boolean;
+  /**
+   * How `capabilities` was established, in words the UI can render. Present so
+   * the compile-time/runtime distinction survives into the interface instead of
+   * being flattened into a bare list of `true` values.
+   */
+  verification: string;
   reason: string;
 }
 
