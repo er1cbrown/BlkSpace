@@ -1418,8 +1418,11 @@ mod tests {
 
   #[test]
   fn parses_hosted_social_notification_aliases() {
-    let notification: HostedNotification = serde_json::from_value(serde_json::json!({
-      "id": "notification-12345678",
+    // The hosted API has used both `id` and `notificationId` for the same
+    // field, and both are accepted aliases. They must be tested separately:
+    // serde rejects a payload carrying both at once ("duplicate field"), which
+    // is correct behaviour and not something to assert away.
+    let canonical: HostedNotification = serde_json::from_value(serde_json::json!({
       "notificationId": "notification-12345678",
       "actorHandle": "alice",
       "actorPubkey": "aa",
@@ -1429,9 +1432,39 @@ mod tests {
       "unread": true
     }))
     .unwrap();
-    assert_eq!(notification.notification_uid, "notification-12345678");
-    assert_eq!(notification.kind, "like");
-    assert!(notification.unread);
+    assert_eq!(canonical.notification_uid, "notification-12345678");
+    assert_eq!(canonical.kind, "like");
+    assert!(canonical.unread);
+
+    let legacy: HostedNotification = serde_json::from_value(serde_json::json!({
+      "id": "notification-12345678",
+      "actorHandle": "alice",
+      "actorPubkey": "aa",
+      "type": "like",
+      "message": "liked your post",
+      "createdAt": "2026-09-24T00:00:00Z",
+      "unread": true
+    }))
+    .unwrap();
+    assert_eq!(legacy.notification_uid, "notification-12345678");
+    assert_eq!(legacy.kind, "like");
+
+    // A payload with both aliases is malformed, not merely redundant. Pinning
+    // this documents the server contract: emit one key, not two.
+    let both = serde_json::from_value::<HostedNotification>(serde_json::json!({
+      "id": "notification-12345678",
+      "notificationId": "notification-12345678",
+      "actorHandle": "alice",
+      "actorPubkey": "aa",
+      "type": "like",
+      "message": "liked your post",
+      "createdAt": "2026-09-24T00:00:00Z",
+      "unread": true
+    }));
+    assert!(
+      both.is_err(),
+      "a payload with both aliases must be rejected, not silently resolved"
+    );
   }
 
   #[test]

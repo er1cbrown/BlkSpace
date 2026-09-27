@@ -423,12 +423,14 @@ mod tests {
     let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     let post_id = post.id;
     
-    // Like — author earns +1 WB
+    // Like — author earns +1 WB. Not boosted: the like's earn category is
+    // neither `create` nor `connect`, so the newcomer x1.25 does not apply.
     let liked = db.toggle_like(post_id, "liker").unwrap();
     assert!(liked.liked);
     assert_eq!(liked.author_earn.wb, 1);
     let author = db.get_user("author").unwrap().unwrap();
-    assert_eq!(author.weix_bucks, 106);
+    // 100 seeded, 7 for the boosted post, 1 for the like.
+    assert_eq!(author.weix_bucks, 108);
 
     // Unlike
     let unliked = db.toggle_like(post_id, "liker").unwrap();
@@ -703,8 +705,23 @@ mod tests {
     db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap();
     
     let after_post = db.get_user("author").unwrap().unwrap();
-    // Post creation should reward +5 WB * engagement_quality (1.0)
-    assert_eq!(after_post.weix_bucks, 105);
+    // Base reward is 5 WB * engagement_quality (1.0), but `create` is a boosted
+    // category and a brand-new author is inside the 14-day newcomer window, so
+    // grant_weix_bucks applies x1.25: ceil(5 * 1.25) = 7. See grant_weix_bucks.
+    assert_eq!(after_post.weix_bucks, 107);
+  }
+
+  #[test]
+  fn a_newcomers_create_grant_earns_the_boosted_amount() {
+    // Pins the newcomer multiplier directly, because four other assertions in
+    // this file depend on it and nothing else states it. Base 5 WB, category
+    // `create`, account inside the 14-day window: ceil(5 * 1.25) = 7.
+    let db = setup_test_db();
+    db.create_user("newcomer", "Newcomer", "").unwrap();
+    let granted = db
+      .grant_weix_bucks("newcomer", 5, "Post created")
+      .unwrap();
+    assert_eq!(granted, 7, "the x1.25 newcomer boost applies to `create`");
   }
 
   #[test]
@@ -733,15 +750,16 @@ mod tests {
     
     let post = db.create_post("author", "Test", "tsu", NO_CHANNEL, &[]).unwrap().post;
     
-    // Reset author balance (seeding gave 100, post creation gave +5)
+    // Reset author balance (seeding gave 100, post creation gave 7 — see
+    // test_post_rewards for why 5 becomes 7)
     let author = db.get_user("author").unwrap().unwrap();
-    assert_eq!(author.weix_bucks, 105);
+    assert_eq!(author.weix_bucks, 107);
     
     db.toggle_like(post.id, "liker").unwrap();
     
     let after_like = db.get_user("author").unwrap().unwrap();
-    // Like should reward +1 WB * engagement_quality (1.0)
-    assert_eq!(after_like.weix_bucks, 106);
+    // +1 WB for the like, unboosted (see test_toggle_like). 107 + 1.
+    assert_eq!(after_like.weix_bucks, 108);
   }
 
   #[test]
@@ -1859,10 +1877,11 @@ mod tests {
       // Like
       assert!(db.toggle_like(post_id, "campus_queen").unwrap().liked);
 
-      // Wallet transfer (author earned +5 post / +1 like rewards before sending)
+      // Wallet transfer (author earned 7 for the boosted post / 1 for the
+      // like before sending, so 108 - 25)
       let (sender_balance, receiver_balance) =
         db.send_weixbucks("yard_walker", "campus_queen", 25).unwrap();
-      assert_eq!(sender_balance, 81);
+      assert_eq!(sender_balance, 83);
       assert_eq!(receiver_balance, 125);
     }
 
@@ -1870,7 +1889,7 @@ mod tests {
     let db = Database::new_for_test(temp_dir).unwrap();
 
     let user = db.get_user("yard_walker").unwrap().unwrap();
-    assert_eq!(user.weix_bucks, 81);
+    assert_eq!(user.weix_bucks, 83);
 
     let queen = db.get_user("campus_queen").unwrap().unwrap();
     assert_eq!(queen.weix_bucks, 125);
