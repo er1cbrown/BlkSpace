@@ -17,6 +17,7 @@ mod reticulum_bridge;
 mod delivery_tier;
 mod rns_t3;
 mod rns_routing;
+mod rns_courier;
 mod tier0_benchmark;
 
 #[cfg(feature = "iroh")]
