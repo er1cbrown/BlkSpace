@@ -316,4 +316,102 @@ mod tests {
     });
     assert_eq!(tier, crate::delivery_tier::DeliveryTier::Offline);
   }
+
+  // ── The wire contract ────────────────────────────────────────────────────
+
+  /// The exact JSON the `get_delivery_tier` Tauri command returns.
+  ///
+  /// Rebuilt here rather than by invoking the command, because the command
+  /// needs `AppState` — a live relay manager and Iroh handle — which a unit
+  /// test has no business constructing. The three inputs that decide the T3
+  /// outcome are reproduced exactly as the command sets them.
+  fn delivery_tier_payload() -> serde_json::Value {
+    let status =
+      crate::delivery_tier::TierStatus::from_inputs(crate::delivery_tier::TierInputs {
+        relays_connected: 0,
+        lan_available: false,
+        mesh_transport_available: crate::rns_t3::transport_compiled_in(),
+        // The command hardcodes this false, and so does this.
+        mesh_peer_observed: false,
+      });
+    serde_json::json!({ "tier": status, "mesh": crate::rns_t3::probe() })
+  }
+
+  #[test]
+  fn the_t3_payload_the_ui_receives_is_honest() {
+    let payload = delivery_tier_payload();
+    let json = serde_json::to_string_pretty(&payload).expect("probe must serialize");
+    println!("get_delivery_tier ->\n{json}");
+
+    let mesh = &payload["mesh"];
+    assert_eq!(mesh["compiledIn"], serde_json::json!(true));
+    assert_eq!(mesh["courierAvailable"], serde_json::json!(false));
+    assert_eq!(mesh["lxmfIdentity"], serde_json::json!(false));
+    assert_eq!(mesh["capabilities"]["transport"], serde_json::json!(true));
+    assert_eq!(mesh["capabilities"]["links"], serde_json::json!(true));
+    assert_eq!(mesh["capabilities"]["channels"], serde_json::json!(true));
+    assert_eq!(mesh["capabilities"]["proofOfWork"], serde_json::json!(true));
+
+    let verification = mesh["verification"]
+      .as_str()
+      .expect("verification must be a string the UI can render");
+    assert!(
+      verification.contains("not a runtime observation"),
+      "the payload must not present a link check as an observation: {verification:?}"
+    );
+
+    // The property this whole module exists to protect: the transport is linked
+    // and the tier is still Offline. If these two ever disagree in the other
+    // direction, the UI would be claiming a mesh that cannot move a packet.
+    let tier = &payload["tier"];
+    assert_eq!(tier["meshTransportAvailable"], serde_json::json!(true));
+    assert_eq!(tier["tier"], serde_json::json!("offline"));
+    assert_eq!(tier["meshPeerObserved"], serde_json::json!(false));
+    assert_eq!(tier["canPublishSocial"], serde_json::json!(false));
+    assert_eq!(tier["canCarryMedia"], serde_json::json!(false));
+  }
+
+  #[test]
+  fn the_t3_payload_uses_camel_case_keys_only() {
+    // The frontend reads these fields by name. A snake_case key would arrive as
+    // `undefined` in TypeScript and fail silently — no type error, no test
+    // failure, just a capability that quietly reads as absent. Asserting on
+    // the struct would not catch that; only the serialized form can.
+    fn walk(value: &serde_json::Value, path: &str) {
+      match value {
+        serde_json::Value::Object(map) => {
+          for (key, child) in map {
+            assert!(
+              !key.contains('_'),
+              "snake_case key `{path}.{key}` would read as undefined in the UI"
+            );
+            walk(child, &format!("{path}.{key}"));
+          }
+        }
+        serde_json::Value::Array(items) => {
+          for (i, child) in items.iter().enumerate() {
+            walk(child, &format!("{path}[{i}]"));
+          }
+        }
+        _ => {}
+      }
+    }
+    walk(&delivery_tier_payload(), "$");
+  }
+
+  #[test]
+  fn an_unlinked_build_reports_a_null_capability_surface() {
+    // The other build shape: without the feature there is nothing to report,
+    // and `capabilities` must be null rather than an object full of `true`.
+    // This branch is compiled out under rns-t3, so assert the invariant on the
+    // probe's own contract instead of duplicating the struct.
+    let probe = crate::rns_t3::probe();
+    let payload = serde_json::to_value(&probe).expect("probe must serialize");
+    if !probe.compiled_in {
+      assert_eq!(payload["capabilities"], serde_json::Value::Null);
+      assert_eq!(payload["rnsCoreVersion"], serde_json::json!(""));
+    } else {
+      assert!(payload["capabilities"].is_object());
+    }
+  }
 }
