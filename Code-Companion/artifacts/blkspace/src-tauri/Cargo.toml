@@ -74,6 +74,14 @@ rns-core = { version = "=0.1.17", optional = true }
 # two copies of the crypto stack and a signature made by one will not verify in
 # the other. Keep them locked together.
 rns-crypto = { version = "=0.1.10", optional = true }
+# T3 socket layer, enabled only by the `rns-t3-net` feature. Linux and macOS
+# only — see the long note above for why this cannot be built on Windows.
+#
+# default-features = false with only the two interfaces that can be exercised
+# without special hardware. Every other interface is an independent feature
+# adding no dependencies, so this drops serial, KISS, AX.25, pipe, RNode,
+# backbone, i2p, weave, udp and auto. AGENTS.md rule 5: every byte counts.
+rns-net = { version = "=0.7.2", optional = true, default-features = false, features = ["iface-tcp", "iface-local"] }
 # rns-net is NOT a dependency, deliberately.
 #
 # rns-net 0.7.2 is the socket/interface layer (TCP, Local, serial, KISS) plus the
@@ -96,8 +104,9 @@ rns-crypto = { version = "=0.1.10", optional = true }
 #
 # The routing that T3 actually needs — `rns_core::transport::TransportEngine`,
 # path and rate tables, announce handling, links, channels — lives in rns-core,
-# which builds on Windows. Only the socket layer is blocked. Re-evaluate when
-# upstream adds a Windows target to ci.yml.
+# which builds on Windows. Only the socket layer is blocked, so rns-net sits
+# behind its own `rns-t3-net` feature and is probed from Linux CI. Re-evaluate
+# when upstream adds a Windows target to ci.yml.
 
 [features]
 default = ["iroh", "iroh-net"]
@@ -122,6 +131,20 @@ e2e-testing = ["dep:tauri-plugin-playwright"]
 # stays false until one has been observed. See DELIVERY_TIER_CONCEPT.md and the
 # rns-net note above for why no interface layer is linked yet.
 rns-t3 = ["dep:rns-core", "dep:rns-crypto"]
+
+# T3 socket layer. SEPARATE from `rns-t3` on purpose, because rns-net does not
+# compile on Windows — see the long note above. Keeping it in its own feature
+# means a Windows developer is never blocked by a crate they cannot build, while
+# Linux and macOS can opt in and CI can exercise it.
+#
+# This is the feature that answers "does the T3 socket layer actually work".
+# `.github/workflows/ci.yml` runs a non-blocking probe job on ubuntu-latest with
+# `--features rns-t3,rns-t3-net`; the answer arrives on the next push. Until that
+# job has passed at least once, treat the socket layer as unproven.
+#
+# If it fails on Linux too, rns-net is unusable in every configuration and the
+# dependency line below should be deleted, not retried.
+rns-t3-net = ["dep:rns-net", "rns-t3"]
 
 # Full: Iroh 1.x Endpoint + iroh-blobs 0.103 (sendme-compatible BlobTicket).
 # Yard: `--no-default-features` (no magicsock). Do not `cargo add sendme`.
