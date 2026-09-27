@@ -65,6 +65,30 @@ bs58 = { version = "0.5", optional = true }
 # break. Re-verify provenance and license on every bump: at least three
 # repositories circulate with differing terms.
 rns-core = { version = "=0.1.17", optional = true }
+# rns-net is NOT a dependency, deliberately.
+#
+# rns-net 0.7.2 is the socket/interface layer (TCP, Local, serial, KISS) plus the
+# node driver. It does not compile on Windows: 85 errors, of two kinds.
+#
+#   error[E0433]: cannot find `unix` in `os`   (std::os::unix does not exist)
+#   error[E0425]: cannot find value `B9600` in crate `libc`   (POSIX baud rates)
+#
+# Upstream gates some of this for `target_os = "linux"`, but the
+# `#[cfg(not(target_os = "linux"))]` fallback in `rns-net/src/interface/mod.rs`
+# still takes a `std::os::unix::io::RawFd`, and five further POSIX references
+# (lines 48, 90, 123, 208, 233) carry no cfg at all. The crate is therefore
+# Linux/Unix-only in practice. `rns-net`'s CI runs `ubuntu-latest` exclusively
+# and never mentions Windows, which is why this was never caught. Confirmed still
+# present on master at 2026-09-25, so there is no unreleased fix to pin.
+#
+# Setting `default-features = false` with only `iface-tcp` + `iface-local` does
+# NOT avoid it: the feature flags gate interface *registration*, not the module
+# bodies, so the POSIX code is still compiled.
+#
+# The routing that T3 actually needs — `rns_core::transport::TransportEngine`,
+# path and rate tables, announce handling, links, channels — lives in rns-core,
+# which builds on Windows. Only the socket layer is blocked. Re-evaluate when
+# upstream adds a Windows target to ci.yml.
 
 [features]
 default = ["iroh", "iroh-net"]
@@ -82,9 +106,12 @@ bkspc-devnet = [
 ]
 e2e-testing = ["dep:tauri-plugin-playwright"]
 # Route B / T3 degraded tier. Opt-in: not in `default`, so Yard and ordinary
-# Full builds are unaffected. Gates the Reticulum capability probe only — it is
-# not yet a working transport, and the UI reports it as unavailable until a
-# live courier is proven. See DELIVERY_TIER_CONCEPT.md.
+# Full builds are unaffected.
+#
+# Still not a working transport. rns-core supplies the routing engine; it does
+# not open a socket, spawn a node, or move a packet, and `courier_available`
+# stays false until one has been observed. See DELIVERY_TIER_CONCEPT.md and the
+# rns-net note above for why no interface layer is linked yet.
 rns-t3 = ["dep:rns-core"]
 
 # Full: Iroh 1.x Endpoint + iroh-blobs 0.103 (sendme-compatible BlobTicket).
