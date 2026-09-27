@@ -18,6 +18,7 @@ mod delivery_tier;
 mod rns_t3;
 mod rns_routing;
 mod rns_courier;
+mod instance_profile;
 mod tier0_benchmark;
 
 #[cfg(feature = "iroh")]
@@ -5778,9 +5779,18 @@ pub fn run() {
   // Cold-start clock: process start before DB open / mesh work.
   tier0_benchmark::mark_process_start();
 
-  let app_dir = dirs::data_local_dir()
+  let app_dir = instance_profile::app_dir_from_env();
+  if app_dir != dirs::data_local_dir()
     .unwrap_or_else(|| std::path::PathBuf::from("."))
-    .join("com.blkspace.app");
+    .join(instance_profile::APP_DIR_NAME)
+  {
+    // Worth saying out loud: a non-default data directory is how a second
+    // instance is run on one machine, and the other isolation the webview
+    // storage and session token need is NOT covered by this path. See
+    // instance_profile for the full list, and scripts/run-instances.mjs for a
+    // launcher that sets all of it.
+    eprintln!("[blkspace] instance data directory: {}", app_dir.display());
+  }
 
   let database = Database::new(app_dir.clone()).expect("Failed to initialize database");
   tier0_benchmark::mark_db_open_complete();
