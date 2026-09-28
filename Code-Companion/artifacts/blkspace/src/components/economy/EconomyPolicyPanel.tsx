@@ -23,6 +23,11 @@ const FALLBACK_POLICY = {
   bkspcTradableAfterCounsel: true,
   treasuryMintOnly: true,
   onChainReady: false,
+  cashOutAsset: "BKSPC",
+  cashOutNetwork: "solana-devnet",
+  separateAsset: "BI9",
+  separateAssetChain: "hyperevm",
+  wbConvertsToSeparateAsset: false,
   neverRules: [] as string[],
 };
 
@@ -74,10 +79,20 @@ export function EconomyPolicyPanel() {
           <span className="font-medium text-foreground tabular-nums text-right">
             score &gt; {p.midfThrottleThreshold}
           </span>
-          <span>Settlement ({p.bkspcSymbol})</span>
+          <span>Cash-out ({p.cashOutAsset})</span>
           <span className="font-medium text-foreground tabular-nums text-right">
             {p.wbToBkspcRatio.toLocaleString()} {p.softCurrencySymbol} = 1{" "}
             {p.bkspcSymbol}
+          </span>
+          <span>Cash-out network</span>
+          <span className="font-medium text-foreground text-right">
+            {p.cashOutNetwork}
+            {p.onChainReady ? "" : " · mint not funded"}
+          </span>
+          <span>{p.separateAsset}</span>
+          <span className="font-medium text-foreground text-right">
+            {p.separateAssetChain}
+            {p.wbConvertsToSeparateAsset ? "" : " · not a WB cash-out"}
           </span>
           <span>Treasury mint</span>
           <span className="font-medium text-foreground text-right">
@@ -98,7 +113,9 @@ export function EconomyPolicyPanel() {
         )}
         <p className="text-[10px]">
           {p.softCurrencyName} {p.wbPurchasable ? "purchasable" : "earn-only"} ·
-          On-chain {p.onChainReady ? "live" : "devnet until legal review"}
+          Cash-out is {p.cashOutAsset} on {p.cashOutNetwork}
+          {p.onChainReady ? "" : " until a funded mint exists"} · {p.separateAsset}{" "}
+          is separate and is not earned from {p.softCurrencySymbol}
         </p>
       </CardContent>
     </Card>

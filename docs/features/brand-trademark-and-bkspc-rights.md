@@ -1,6 +1,6 @@
 # BKSPC product mark · coin rights
 
-**Last updated:** 2026-08-13  
+**Last updated:** 2026-09-27  
 **Not legal advice.** File for product consistency + counsel handoff.
 
 ---
@@ -15,6 +15,17 @@
 | **Soft credits** | WeixBucks (**WB**) | Earn/spend, marketplace, escrow — **not** the product mark |
 
 The product is **HBCU campus social**. Yards are historically Black colleges and universities only — not SEC, NCAA, or PWI campuses.
+
+## Two assets (locked 2026-09-27)
+
+Both assets stay as they are.
+
+| Mark | Role | Not this |
+|------|------|----------|
+| **BKSPC** | The WeixBucks cash-out. Earned WeixBucks settle only into BKSPC, at 1,000 WeixBucks = 1 BKSPC, on Solana devnet until a funded mint exists. | Not a live mainnet payout. |
+| **BI9** | The separate HyperEVM coin. | Not paid out from WeixBucks. |
+
+The next proof is still one deployed devnet conversion. This note is product wording for counsel. It is not a filed trademark registration.
 
 GitHub repo path stays [`er1cbrown/BlkSpace`](https://github.com/er1cbrown/BlkSpace) for history. Chrome never says BlkSpace.
 

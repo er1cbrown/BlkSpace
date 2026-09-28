@@ -700,6 +700,14 @@ pub struct TokenomicsPolicy {
   pub bkspc_tradable_after_counsel: bool,
   pub treasury_mint_only: bool,
   pub on_chain_ready: bool,
+  /// Only asset earned WeixBucks can settle into.
+  pub cash_out_asset: String,
+  /// Cluster that cash-out is allowed to mint on. Mainnet stays closed until a funded mint exists.
+  pub cash_out_network: String,
+  /// Separate asset. Earning WeixBucks does not mint or convert into it.
+  pub separate_asset: String,
+  pub separate_asset_chain: String,
+  pub wb_converts_to_separate_asset: bool,
   pub never_rules: Vec<String>,
 }
 
@@ -725,11 +733,17 @@ impl TokenomicsPolicy {
       bkspc_tradable_after_counsel: true,
       treasury_mint_only: true,
       on_chain_ready: false,
+      cash_out_asset: BKSPC_SYMBOL.into(),
+      cash_out_network: "solana-devnet".into(),
+      separate_asset: "BI9".into(),
+      separate_asset_chain: "hyperevm".into(),
+      wb_converts_to_separate_asset: false,
       never_rules: vec![
         "WB is earn-only — not sold for USD".into(),
         "Creators sell in the marketplace for WB; platform fee applies".into(),
         "Karma is reputation only — never spendable".into(),
-        "BKSPC settles earned WB on-chain after eligibility; listings require legal review".into(),
+        "BKSPC is the only creator cash-out of earned WeixBucks, at the published ratio, on devnet until a funded mint exists.".into(),
+        "BI9 is a separate asset. Earning WeixBucks does not mint or convert into BI9.".into(),
         "Fees, caps, and throttle rules are always visible in wallet".into(),
       ],
     }

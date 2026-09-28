@@ -18,11 +18,14 @@ export function WalletDisclaimer() {
           investment advice and not purchasable with cash.{" "}
           <strong className="text-foreground">Yard Cred</strong> is reliability
           (ProjectConnect).{" "}
-          <strong className="text-foreground">On-chain (BI9)</strong> is
-          optional HyperEVM advanced mode — WeixBucks do not convert. Solana
-          BKSPC is wallet-reach only. You hold identity keys; the app never
-          holds settlement longer than escrow. Save your recovery phrase in
-          Settings before you care about balances.
+          <strong className="text-foreground">BKSPC</strong> is the only
+          creator cash-out of earned WeixBucks, at the published ratio, on
+          Solana devnet until a funded mint exists.{" "}
+          <strong className="text-foreground">BI9</strong> is a separate
+          HyperEVM asset — earning WeixBucks does not mint or convert into it.
+          You hold identity keys; the app never holds settlement longer than
+          escrow. Save your recovery phrase in Settings before you care about
+          balances.
         </span>
       </p>
       <p className="text-xs pl-6">

@@ -81,9 +81,10 @@ export function BkspcMainnetPanel({
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Soft {BRAND.softCurrency} stay in-app. {BRAND.symbol} on Solana is an
-          optional Token-2022 prototype after Cred gates — not the canonical
-          mint. Canonical on-chain token is BI9 (ERC-20) on HyperEVM.
+          {BRAND.symbol} is the only creator cash-out of earned{" "}
+          {BRAND.softCurrency}. One published ratio, on Solana devnet until a
+          funded mint exists. BI9 is a separate asset and is not paid out from
+          WeixBucks.
         </p>
 
         <div className="rounded-xl border bg-muted/30 p-3 space-y-1">

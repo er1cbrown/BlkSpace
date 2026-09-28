@@ -1,7 +1,7 @@
 # BlkSpace Roadmap (plain English)
 
 **Last updated:** August 2026 · **Repo:** [`er1cbrown/BlkSpace`](https://github.com/er1cbrown/BlkSpace)  
-**Product mark:** **BlkSpace** · Soft: **WeixBucks** · Canonical on-chain: **BI9** on HyperEVM ([`tokenomics.md`](tokenomics.md)) · Legacy Solana ticker: **BKSPC**
+**Product mark:** **BlkSpace** · Soft: **WeixBucks** · Cash-out: **BKSPC** on Solana devnet (1,000 WB = 1 BKSPC, until a funded mint exists) · Separate asset: **BI9** on HyperEVM (not paid out from WeixBucks)
 
 This doc answers: *what works today, multi-OS status, what “BlkSpace-Full” means, and what Tier C / Phase 5 are.*
 
@@ -115,22 +115,19 @@ Spec: [`features/project-connect-credibility-layer.md`](features/project-connect
 - ~~Bundle size budget in CI~~ ✅ — job `bundle-budget-tier0` → `check:bundle:tier0`
 - ~~`tauri:dev:tier0` without Iroh~~ ✅ — script in `artifacts/blkspace/package.json`
 
-### 4. Phase 4 marketplace / on-chain settlement (HyperEVM mainnet path — active)
+### 4. Phase 4 — two assets, one cash-out
 
-**User jump (2026-08-27):** mainnet deploy path + advanced `/wallet` panel. Mint stays **off** until a timelocked `setCap`. WeixBucks still do not convert.
+**Locked rule:** BKSPC is the cash-out. Earned WeixBucks settle only into BKSPC, at 1,000 WeixBucks = 1 BKSPC, on Solana devnet until a funded mint exists. BI9 stays a separate asset and is not paid out from WeixBucks.
 
-**Canonical chain (2026-08-26):** HyperEVM. Token: **BI9**. Specs: [`finance-l1-strategy.md`](finance-l1-strategy.md) · [`tokenomics.md`](tokenomics.md) · [`blkbridge.md`](blkbridge.md) · [`blkshi.md`](blkshi.md)
-
-- Keep WeixBucks as the live campus loop. **No automatic WB → BI9.**
-- Solidity skeleton: `Code-Companion/artifacts/hyperevm/` (ERC-20 + HYPE stake + timelock)
+- Cash-out tickets: [`bkspc-phase0-phase1-tickets.md`](bkspc-phase0-phase1-tickets.md). Next gap is deploying `convert_wb_to_bkspc` and recording one devnet signature.
+- BI9 stays on HyperEVM with the mint cap at 0: `Code-Companion/artifacts/hyperevm/`. Do not convert WeixBucks into it.
 - BlkBridge v1 is a kiosk over existing rails (not a custom L1 bridge)
 - BLKSHI is gated advanced mode only — not a public US event-contract launch
-- Solana BKSPC / Anchor remains optional wallet-reach scaffolding, not the mint home
 
-### 4b. Legacy Solana BKSPC scaffolding (not canonical)
+### 4b. BKSPC devnet (the cash-out)
 
 - Devnet mint / burn walkthrough: [`phase-4-devnet-demo.md`](phase-4-devnet-demo.md)
-- Historical policy: [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md)
+- Policy: [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md)
 
 ### DevOps milestones (CI reality)
 

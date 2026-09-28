@@ -604,6 +604,11 @@ mod tests {
     assert!(!policy.wb_purchasable);
     assert!(policy.bkspc_tradable_after_counsel);
     assert!(!policy.on_chain_ready);
+    assert_eq!(policy.cash_out_asset, "BKSPC");
+    assert_eq!(policy.cash_out_network, "solana-devnet");
+    assert_eq!(policy.separate_asset, "BI9");
+    assert_eq!(policy.separate_asset_chain, "hyperevm");
+    assert!(!policy.wb_converts_to_separate_asset);
     assert_eq!(policy.bkspc_symbol, "BKSPC");
     assert_eq!(policy.bkspc_name, "BlkSpace Settlement");
     assert!(!policy.never_rules.is_empty());

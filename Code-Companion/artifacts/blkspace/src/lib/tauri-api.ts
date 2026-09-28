@@ -166,6 +166,11 @@ export interface TauriTokenomicsPolicy {
   bkspcTradableAfterCounsel: boolean;
   treasuryMintOnly: boolean;
   onChainReady: boolean;
+  cashOutAsset: string;
+  cashOutNetwork: string;
+  separateAsset: string;
+  separateAssetChain: string;
+  wbConvertsToSeparateAsset: boolean;
   neverRules: string[];
 }
 
