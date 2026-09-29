@@ -312,16 +312,30 @@ function WithdrawDialog({ balance }: { balance: number }) {
     queryFn: tauriGetBkspcSettlementStatus,
     enabled: isTauri(),
   });
+  const settlementLive = settlementStatus?.wired === true;
+  const settlementRefusal =
+    settlementStatus?.reason ??
+    "Solana settlement is not available in this build. No WeixBucks were deducted.";
   const canSubmit =
+    settlementLive &&
     eligibility?.eligible &&
     solanaAddress.trim().length >= 32 &&
     amountForCheck !== undefined &&
-    amountForCheck >= (eligibility?.minAmountWb ?? 100) &&
+    amountForCheck >= (eligibility?.minAmountWb ?? 1000) &&
+    amountForCheck % (eligibility?.wbToBkspcRatio ?? 1000) === 0 &&
     amountForCheck <= balance;
 
   const handleWithdraw = async () => {
     const amt = parseInt(amount, 10);
-    if (!solanaAddress.trim() || isNaN(amt) || amt < 100 || amt > balance)
+    const minWb = eligibility?.minAmountWb ?? 1000;
+    const ratio = eligibility?.wbToBkspcRatio ?? 1000;
+    if (
+      !solanaAddress.trim() ||
+      isNaN(amt) ||
+      amt < minWb ||
+      amt % ratio !== 0 ||
+      amt > balance
+    )
       return;
 
     withdrawMut.mutate(
@@ -360,9 +374,9 @@ function WithdrawDialog({ balance }: { balance: number }) {
         <DialogHeader>
           <DialogTitle>Settlement (gated)</DialogTitle>
           <DialogDescription>
-            Optional settlement of <em>earned</em> practice credits after Yard
-            Cred and eligibility. Not investment advice — no promised returns.
-            Connect a wallet only when you understand the risk.
+            One option: 1,000 earned WeixBucks settles as 1 BKSPC after Yard
+            Cred. A smaller balance is rejected and stays spendable in the yard.
+            Not investment advice, and no coin moves until a funded mint exists.
           </DialogDescription>
         </DialogHeader>
 
@@ -402,30 +416,32 @@ function WithdrawDialog({ balance }: { balance: number }) {
               <Input
                 id="withdraw-amount"
                 type="number"
-                placeholder="Minimum 100 WB"
+                placeholder="1,000 WB = 1 BKSPC"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                min={100}
+                min={eligibility?.minAmountWb ?? 1000}
+                step={eligibility?.wbToBkspcRatio ?? 1000}
                 max={balance}
               />
             </div>
             <WithdrawEligibilityPanel eligibility={eligibility} />
-            {(() => {
-              const cfg = getBkspcConfig();
-              return (
-                <p className="text-[10px] text-muted-foreground">
-                  On-chain settlement ({cfg.cluster}):{" "}
-                  {settlementStatus?.wired
-                    ? `wired (mint ${(settlementStatus.mint || cfg.mint || "").slice(0, 8)}…)`
-                    : cfg.isMintConfigured
-                      ? `mint set on ${cfg.cluster} — Cred gates still apply`
-                      : (settlementStatus?.reason ??
-                        "simulated until mint is configured")}
-                </p>
-              );
-            })()}
+            {settlementLive ? (
+              <p className="text-[10px] text-muted-foreground">
+                On-chain settlement is wired on {getBkspcConfig().cluster}. Cred
+                gates still apply, and a mint under 1,000 WB is rejected.
+              </p>
+            ) : (
+              <p className="text-xs text-destructive">{settlementRefusal}</p>
+            )}
             <p className="text-xs text-muted-foreground">
-              Available balance: {balance.toLocaleString()} WB
+              Available: {balance.toLocaleString()} WB. Under{" "}
+              {(eligibility?.minAmountWb ?? 1000).toLocaleString()} WB the mint
+              is rejected. Those credits stay in the yard.
+              {amountForCheck !== undefined &&
+              amountForCheck >= (eligibility?.minAmountWb ?? 1000) &&
+              amountForCheck % (eligibility?.wbToBkspcRatio ?? 1000) === 0
+                ? ` This amount would settle ${amountForCheck / (eligibility?.wbToBkspcRatio ?? 1000)} ${eligibility?.bkspcSymbol ?? "BKSPC"}.`
+                : ""}
             </p>
             {withdrawMut.isError && (
               <p className="text-sm text-destructive">
@@ -453,9 +469,11 @@ function WithdrawDialog({ balance }: { balance: number }) {
               >
                 {withdrawMut.isPending
                   ? "Processing..."
-                  : eligibility?.eligible
-                    ? "Confirm withdrawal"
-                    : "Not eligible"}
+                  : !settlementLive
+                    ? "Settlement unavailable"
+                    : eligibility?.eligible
+                      ? "Confirm withdrawal"
+                      : "Not eligible"}
               </Button>
             </>
           )}
@@ -530,8 +548,10 @@ function WalletPageContent() {
         </div>
       ) : (
         <p id="hyperevm" className="mb-4 text-xs text-muted-foreground">
-          Canonical on-chain token is BI9 (ERC-20) on HyperEVM — advanced mode,
-          not in this Yard lite build.
+          In this app, BI9 and BKSPC are separate choices of equal standing.
+          Neither is paid from the other. WeixBucks cash out only to BKSPC, and
+          only after a funded mint. Blk Finance is the on-chain markets app,
+          and this Yard build does not open it.
         </p>
       )}
 

@@ -39,8 +39,8 @@ function injectedEthereum(): EthereumProvider | undefined {
 }
 
 /**
- * Canonical HyperEVM / BI9 ERC-20 panel. Collapsed by default.
- * Never converts WeixBucks.
+ * Read-only HyperEVM / BI9 review for students. Collapsed by default.
+ * Never converts WeixBucks. Not a trading desk.
  */
 export function HyperEvmPanel({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
@@ -146,10 +146,12 @@ export function HyperEvmPanel({ className }: { className?: string }) {
         <CollapsibleContent>
           <CardContent className="space-y-4 text-sm">
             <p className="text-muted-foreground text-xs leading-relaxed">
-              Canonical on-chain token is{" "}
-              <strong className="text-foreground">BI9</strong> (ERC-20) on
-              HyperEVM. Practice credits stay WeixBucks. There is no conversion
-              button.
+              Review{" "}
+              <strong className="text-foreground">BI9</strong> on HyperEVM the
+              way you would open a balance in Coinbase: address, network, and
+              amount. Practice credits stay WeixBucks. BKSPC is the other coin.
+              There is no buy, sell, or conversion button. This is for learning
+              the numbers, not for trading.
             </p>
 
             <ul className="space-y-1.5 text-xs text-muted-foreground">

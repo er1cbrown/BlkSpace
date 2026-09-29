@@ -1,413 +1,231 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   ArrowRight,
-  Network,
-  Shield,
-  Coins,
-  Globe,
-  Users,
-  Zap,
   GraduationCap,
+  HeartPulse,
   Briefcase,
-  TrendingUp,
-  Vote,
-  Music,
-  Store,
+  Users,
+  BookOpen,
 } from "lucide-react";
 import { BRAND } from "@/lib/brand";
-import { BrandMark } from "@/components/brand/BrandMark";
+import { enterGuestMode } from "@/lib/auth";
 
 export default function LandingPage() {
+  const [, navigate] = useLocation();
+
+  const browseYard = () => {
+    enterGuestMode();
+    navigate("/feed");
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground overflow-hidden">
       <Navbar />
       <main className="flex-1">
-        {/* HERO SECTION */}
-        <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden">
+        <section className="relative pt-28 pb-16 md:pt-40 md:pb-20 overflow-hidden">
           <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_top_right,var(--color-primary),transparent_50%)] opacity-10"></div>
           <div className="container relative z-10 mx-auto px-4 text-center">
-            <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
-              <h1 className="text-6xl md:text-9xl font-black tracking-tighter mb-4">
-                <span className="text-primary">BK</span>
-                <span className="text-foreground">SPC</span>
-              </h1>
-              <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-2 font-medium">
-                {BRAND.tagline}
-              </p>
-              <p className="text-sm text-muted-foreground/70 max-w-2xl mx-auto mb-10">
-                Scroll for free. Earn {BRAND.softCurrency}. Cash out to{" "}
-                {BRAND.symbol} ({BRAND.coinName}) on Solana when settlement is
-                gated-ready. Your account, your content, your earnings.
-              </p>
-              <div className="flex flex-col items-center gap-4">
-                <Link href="/feed">
-                  <Button
-                    size="lg"
-                    className="text-lg px-10 rounded-full h-14 font-bold shadow-lg"
-                  >
-                    Enter the Yard <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
-                </Link>
-                <p className="text-sm text-muted-foreground">
-                  <Link
-                    href="/welcome"
-                    className="text-primary font-medium hover:underline"
-                  >
-                    Create free account
-                  </Link>
-                  <span className="mx-2 opacity-40">·</span>
-                  <Link href="/login" className="hover:underline">
-                    Sign in
-                  </Link>
-                  <span className="mx-2 opacity-40">·</span>
-                  <Link href="/connect" className="hover:underline">
-                    ProjectConnect
-                  </Link>
-                </p>
-              </div>
+            <p className="text-sm font-medium text-primary mb-4">
+              The yard comes first
+            </p>
+            <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-4">
+              A page for your campus
+            </h1>
+            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-4 font-medium">
+              Read the wall, open someone’s page, and see the yard before you
+              make an account.
+            </p>
+            <p className="text-sm text-muted-foreground/80 max-w-2xl mx-auto mb-10">
+              {BRAND.name} is the campus app at bkspc.app, for schools across
+              the country, not one state. Posts, profiles, clubs, and notices
+              come first. The coins are listed below, in the open.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button
+                size="lg"
+                className="text-lg px-10 rounded-full h-14 font-bold shadow-lg"
+                onClick={browseYard}
+              >
+                Browse the yard <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+              <Link href="/welcome">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="text-lg px-8 rounded-full h-14 font-bold"
+                >
+                  Make a page
+                </Button>
+              </Link>
+              <Link href="/faculty">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="rounded-full h-14 font-bold"
+                >
+                  Faculty desk
+                </Button>
+              </Link>
             </div>
           </div>
         </section>
 
-        {/* VISUAL BREAK */}
-        <section className="container mx-auto px-4 pb-24">
-          <div className="rounded-3xl overflow-hidden shadow-2xl border border-primary/20 animate-in fade-in zoom-in-95 duration-1000 delay-300">
+        <section className="container mx-auto px-4 pb-20">
+          <div className="rounded-3xl overflow-hidden shadow-2xl border border-primary/20">
             <img
               src="/images/hero-yard.webp"
-              alt="Vibrant college campus yard"
-              className="w-full h-[400px] md:h-[600px] object-cover"
+              alt="Campus yard"
+              className="w-full h-[320px] md:h-[520px] object-cover"
             />
           </div>
         </section>
 
-        {/* MISSION */}
-        <section className="py-24 bg-card border-y">
-          <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto text-center space-y-8">
-              <h2 className="text-3xl md:text-5xl font-bold tracking-tight">
-                TikTok meets MyYard. <br />
-                With a paycheck.
-              </h2>
-              <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
-                Post on your yard, customize your profile, sell your art, and
-                earn WeixBucks for every contribution. No corporation owns your
-                account — and nobody can delete your content.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* HOW IT WORKS */}
-        <section className="py-24">
-          <div className="container mx-auto px-4">
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-center mb-16">
-              Why students switch
-            </h2>
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="bg-card p-8 rounded-2xl border shadow-sm hover:shadow-md transition-shadow">
-                <Coins className="w-12 h-12 text-primary mb-6" />
-                <h3 className="text-xl font-bold mb-4">Get paid to post</h3>
-                <p className="text-muted-foreground">
-                  Earn WeixBucks for posts, uploads, and yard activity. TikTok
-                  keeps 50–70%. {BRAND.name} keeps 85% with you.
-                </p>
-              </div>
-              <div className="bg-card p-8 rounded-2xl border shadow-sm hover:shadow-md transition-shadow">
-                <Shield className="w-12 h-12 text-primary mb-6" />
-                <h3 className="text-xl font-bold mb-4">Your content stays</h3>
-                <p className="text-muted-foreground">
-                  No platform can take your posts down. Your account belongs to
-                  you — not a corporation.
-                </p>
-              </div>
-              <div className="bg-card p-8 rounded-2xl border shadow-sm hover:shadow-md transition-shadow">
-                <Globe className="w-12 h-12 text-primary mb-6" />
-                <h3 className="text-xl font-bold mb-4">
-                  Your community, your feed
-                </h3>
-                <p className="text-muted-foreground">
-                  Join a yard — campus, creator crew, or local scene.
-                  Culture-first, not algorithm-first.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* MESH NETWORK VISUAL */}
-        <section className="py-24 bg-secondary text-secondary-foreground">
-          <div className="container mx-auto px-4">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div>
-                <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">
-                  Our Infrastructure, Our Rules.
-                </h2>
-                <p className="text-lg opacity-90 mb-8">
-                  {BRAND.name} runs on community-operated relays. When you host
-                  a node, you strengthen the network for everyone in your yard.
-                </p>
-                <Link href="/relays">
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    className="bg-background text-foreground hover:bg-background/90 rounded-full"
-                  >
-                    View Network Status <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </Link>
-              </div>
-              <div className="rounded-2xl overflow-hidden shadow-2xl">
-                <img
-                  src="/images/mesh-network.webp"
-                  alt="Decentralized relay network"
-                  className="w-full h-[400px] object-cover"
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ECONOMY SECTION */}
-        <section className="py-24">
-          <div className="container mx-auto px-4 text-center">
-            <div className="inline-flex justify-center mb-8">
-              <img
-                src="/images/weixbucks-coin.webp"
-                alt="WeixBucks Coin"
-                className="w-32 h-32 animate-bounce"
-                style={{ animationDuration: "3s" }}
-              />
-            </div>
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">
-              The WeixBucks Economy
-            </h2>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-              Value generated by the community should stay in the community.
-              Earn WeixBucks by running relays, creating viral content, and
-              contributing to the network's health.
-            </p>
-            <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto mt-12 text-left">
-              <div className="flex gap-4">
-                <div className="bg-primary/10 p-3 rounded-full h-fit">
-                  <Zap className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <h4 className="font-bold mb-2">Run a Relay</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Host infrastructure and earn block rewards.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="bg-primary/10 p-3 rounded-full h-fit">
-                  <Users className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <h4 className="font-bold mb-2">Create Value</h4>
-                  <p className="text-sm text-muted-foreground">
-                    High-engagement posts mint new tokens.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="bg-primary/10 p-3 rounded-full h-fit">
-                  <Coins className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <h4 className="font-bold mb-2">Tip Creators</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Directly support your favorite yard voices.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* USE CASES — STUDENTS + CREATORS */}
-        <section className="py-24">
+        <section className="py-20 bg-card border-y">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-center mb-4">
-              For everyone on the yard
+              What you get
             </h2>
-            <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
-              Whether you're a freshman scrolling between classes or a founder
-              recruiting talent, {BRAND.name} has a path for you.
-            </p>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-card p-6 rounded-2xl border shadow-sm">
-                <Users className="w-8 h-8 text-primary mb-4" />
-                <h3 className="font-bold mb-2">Students</h3>
-                <p className="text-sm text-muted-foreground">
-                  Post, upload, join your yard. Earn WeixBucks from every
-                  action. Customize your MyYard. Cash out when you&apos;re
-                  ready.
-                </p>
-              </div>
-              <div className="bg-card p-6 rounded-2xl border shadow-sm">
-                <Music className="w-8 h-8 text-primary mb-4" />
-                <h3 className="font-bold mb-2">Creators</h3>
-                <p className="text-sm text-muted-foreground">
-                  Sell mixes, videos, and art in the Yard Sale. Mint NFT
-                  tickets. Keep 85% of every sale. Build a subscriber-only yard
-                  with BKSPC gating.
-                </p>
-              </div>
-              <div className="bg-card p-6 rounded-2xl border shadow-sm">
-                <GraduationCap className="w-8 h-8 text-primary mb-4" />
-                <h3 className="font-bold mb-2">Alumni & Faculty</h3>
-                <p className="text-sm text-muted-foreground">
-                  Mentor students from your yard. Sponsor events. Post jobs. Get
-                  a verified alumni badge. Governance votes on yard rules.
-                </p>
-              </div>
-              <div className="bg-card p-6 rounded-2xl border shadow-sm">
-                <Briefcase className="w-8 h-8 text-primary mb-4" />
-                <h3 className="font-bold mb-2">Professionals</h3>
-                <p className="text-sm text-muted-foreground">
-                  Build a pro profile + portfolio. Recruit from campus yards.
-                  Post job listings to targeted communities. Verified badge with{" "}
-                  {BRAND.symbol}.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ECONOMY FLOW */}
-        <section className="py-24 bg-card border-y">
-          <div className="container mx-auto px-4 max-w-4xl">
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-center mb-4">
-              How the economy works
-            </h2>
-            <p className="text-center text-muted-foreground mb-12">
-              Three layers. Simple for users. Canonical on-chain token is BI9
-              (ERC-20) on HyperEVM.
+            <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
+              Same campus, three ways in. Nobody has to understand a coin to
+              use the yard.
             </p>
             <div className="grid md:grid-cols-3 gap-6">
-              <div className="text-center p-6 rounded-2xl border border-primary/20 bg-primary/5">
-                <Coins className="w-10 h-10 text-primary mx-auto mb-4" />
-                <h3 className="font-bold mb-2">WeixBucks (WB)</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Off-chain credits. Earn from posts, uploads, yard
-                  participation. Capped at 250/day.
+              <div className="bg-background p-6 rounded-2xl border">
+                <Users className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">Guest</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Walk the campus wall and open profiles. No password. Posting,
+                  messages, and the wallet wait until you make a page.
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  Never purchasable. Never a security.
-                </p>
+                <Button variant="link" className="px-0" onClick={browseYard}>
+                  Open the wall
+                </Button>
               </div>
-              <div className="text-center p-6 rounded-2xl border border-accent/20 bg-accent/5">
-                <Zap className="w-10 h-10 text-accent mx-auto mb-4" />
-                <h3 className="font-bold mb-2">Karma</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Reputation score from community engagement. Affects feed
-                  ranking and withdrawal eligibility.
+              <div className="bg-background p-6 rounded-2xl border">
+                <BookOpen className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">Student</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  A page with your name on it, a yard to post in, clubs, and
+                  ProjectConnect when you want a campus job or an org. Practice
+                  credits can be tipped or spent in the shop. They are not a
+                  paycheck.
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  Never spendable. Earned, not bought.
-                </p>
+                <Link href="/welcome" className="text-sm text-primary font-medium">
+                  Join a yard
+                </Link>
               </div>
-              <div className="text-center p-6 rounded-2xl border border-secondary/20 bg-secondary/5">
-                <TrendingUp className="w-10 h-10 text-secondary-foreground mx-auto mb-4" />
-                <h3 className="font-bold mb-2">BI9 (ERC-20)</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Canonical on-chain token on HyperEVM. ERC-20. Staking,
-                  governance, later BlkFinance. WeixBucks do not auto-convert.
+              <div className="bg-background p-6 rounded-2xl border">
+                <GraduationCap className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">Faculty</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  The faculty desk is for notices and the people you already
+                  teach. You are not asked to trade, stake, or cash anything
+                  out.
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  Mint off until a timelocked cap. No guaranteed price. Solana
-                  BKSPC is an optional prototype, not the mint home.
-                </p>
+                <Link href="/faculty" className="text-sm text-primary font-medium">
+                  Open the desk
+                </Link>
               </div>
-            </div>
-            <div className="mt-8 p-4 rounded-xl bg-muted/50 text-center text-sm text-muted-foreground">
-              <strong className="text-foreground">The flow:</strong> Post → earn
-              WB → spend in the marketplace. Canonical on-chain token is BI9
-              (ERC-20) on HyperEVM. WeixBucks do not auto-convert.
             </div>
           </div>
         </section>
 
-        {/* FOR INVESTORS */}
-        <section className="py-24">
-          <div className="container mx-auto px-4 max-w-4xl">
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-center mb-4">
-              For investors & reviewers
-            </h2>
-            <p className="text-center text-muted-foreground mb-12">
-              {BRAND.symbol} is a utility token, not a security. Here&apos;s the
-              thesis.
-            </p>
-            <div className="grid md:grid-cols-3 gap-6 mb-12">
-              <div className="bg-card p-6 rounded-2xl border shadow-sm">
-                <TrendingUp className="w-8 h-8 text-primary mb-4" />
-                <h3 className="font-bold mb-2">Growth thesis</h3>
-                <p className="text-sm text-muted-foreground">
-                  Campus yards, creator communities, and tight-knit groups —
-                  millions of users who post daily elsewhere. As adoption grows,{" "}
-                  {BRAND.symbol} utility demand increases. Burn shrinks supply.
-                </p>
-              </div>
-              <div className="bg-card p-6 rounded-2xl border shadow-sm">
-                <Vote className="w-8 h-8 text-primary mb-4" />
-                <h3 className="font-bold mb-2">Utility drives value</h3>
-                <p className="text-sm text-muted-foreground">
-                  BI9 is the canonical ERC-20 on HyperEVM — staking, protocol
-                  roles, later BlkFinance. WeixBucks stay in-app. Real demand,
-                  not a second Solana mint story.
-                </p>
-              </div>
-              <div className="bg-card p-6 rounded-2xl border shadow-sm">
-                <Shield className="w-8 h-8 text-primary mb-4" />
-                <h3 className="font-bold mb-2">Fair & defensible</h3>
-                <p className="text-sm text-muted-foreground">
-                  No presale. No insider allocation. Earn-only WB. Eligibility
-                  gates prevent farming. Published fees. Treasury multisig +
-                  timelock. Hard cap with mint authority revocation.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <a
-                href={BRAND.githubRepo}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button size="lg" variant="outline" className="rounded-full">
-                  View code & CI proof <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
-              </a>
-              <Link href="/architecture">
-                <Button size="lg" variant="outline" className="rounded-full">
-                  Read the architecture <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
-              </Link>
-              <Link href="/feed">
-                <Button size="lg" className="rounded-full">
-                  Try the app <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* CTA */}
-        <section className="py-24 bg-primary text-primary-foreground text-center">
+        <section className="py-20">
           <div className="container mx-auto px-4">
-            <h2 className="text-4xl md:text-6xl font-black mb-8">
-              Ready to step on the yard?
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-center mb-4">
+              Places on the yard
             </h2>
-            <Link href="/feed">
-              <Button
-                size="lg"
-                variant="secondary"
-                className="text-lg px-12 py-6 rounded-full font-bold shadow-xl"
-              >
-                Open {BRAND.name}
+            <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
+              These are the pages. Each one is a different reason to be here.
+            </p>
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              <Link href="/connect" className="bg-card p-6 rounded-2xl border block">
+                <Briefcase className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">ProjectConnect</h3>
+                <p className="text-sm text-muted-foreground">
+                  Campus jobs, orgs, and a way to raise your hand. A student
+                  uses it to find work. An office uses it to post the work.
+                </p>
+              </Link>
+              <Link href="/clinyard" className="bg-card p-6 rounded-2xl border block">
+                <HeartPulse className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">ClinYard</h3>
+                <p className="text-sm text-muted-foreground">
+                  The study desk for clinic and med students. The drill set is
+                  still being built, so the page tells you that instead of
+                  pretending the cases are ready.
+                </p>
+              </Link>
+              <Link href="/communities" className="bg-card p-6 rounded-2xl border block">
+                <Users className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">Clubs</h3>
+                <p className="text-sm text-muted-foreground">
+                  A school channel for the org you already belong to. The wall
+                  is the campus. The club is your people.
+                </p>
+              </Link>
+              <div className="bg-card p-6 rounded-2xl border">
+                <BookOpen className="w-8 h-8 text-primary mb-4" />
+                <h3 className="font-bold mb-2">Your page</h3>
+                <p className="text-sm text-muted-foreground">
+                  A profile is the MySpace part: your name, your yard, and what
+                  you posted. Guests can look. You customize it after you join.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-20 bg-card border-y">
+          <div className="container mx-auto px-4 max-w-3xl">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-center mb-4">
+              BK markets
+            </h2>
+            <p className="text-muted-foreground leading-relaxed mb-6">
+              The mark is BK, same as the logo and bkspc.app. A guest can read
+              this with no account. There is no hidden coin and no secret sale.
+              A student does not reach a coin until Yard Cred says they have
+              learned how these tokens work.
+            </p>
+            <ul className="text-sm text-muted-foreground space-y-3 mb-8 text-left">
+              <li>
+                <strong className="text-foreground">WeixBucks</strong> are
+                practice credits on the yard. Tip and shop. They are not cash,
+                not a paycheck, and not a coin you can buy.
+              </li>
+              <li>
+                <strong className="text-foreground">BKSPC</strong> is the only
+                cash-out of those credits, at 1,000 to 1, and only after a
+                funded mint. That mint is not live. Under 1,000 is rejected.
+              </li>
+              <li>
+                <strong className="text-foreground">BI9</strong> is a separate
+                coin on HyperEVM. It is not paid from WeixBucks. Its mint is
+                not issuing.
+              </li>
+              <li>
+                The finance desk is a later screen for reading prices and
+                balances. It is not a buy button, not open on the campus wall,
+                and not required to use the yard. Finance, econ, accounting,
+                and business students get the same gate as everyone else:
+                practice credits first, then the lesson, then a coin. The app
+                will not move a student’s credits into a new coin, including
+                one that is not BKSPC or BI9.
+              </li>
+            </ul>
+            <p className="text-muted-foreground leading-relaxed mb-8">
+              Next for a guest is still the wall. Next for a student is a page,
+              a club, or ProjectConnect. Next for faculty is the desk. The
+              markets are disclosed here so the yard and the coins are both
+              visible before anyone joins.
+            </p>
+            <div className="flex justify-center">
+              <Button className="rounded-full" onClick={browseYard}>
+                Browse the yard as a guest
               </Button>
-            </Link>
+            </div>
           </div>
         </section>
       </main>
@@ -416,9 +234,7 @@ export default function LandingPage() {
         <p className="font-bold text-xl mb-4 text-foreground tracking-tight">
           {BRAND.name}
         </p>
-        <p className="text-sm">
-          {BRAND.tagline} · {BRAND.siteUrl.replace("https://", "")}
-        </p>
+        <p className="text-sm">A campus yard. Browse first.</p>
       </footer>
     </div>
   );

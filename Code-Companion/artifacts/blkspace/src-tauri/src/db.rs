@@ -663,8 +663,8 @@ pub const MIDF_EARN_THROTTLE_THRESHOLD: f64 = 0.7;
 pub const MARKETPLACE_PLATFORM_FEE_BPS: i64 = 500;
 pub const WITHDRAW_SETTLEMENT_FEE_BPS: i64 = 100;
 
-/// Draft withdrawal rules — subject to legal counsel before mainnet (reward-formulas.md).
-pub const MIN_WITHDRAW_WB: i64 = 100;
+/// One whole BKSPC. A smaller balance stays WeixBucks and is rejected at the mint.
+pub const MIN_WITHDRAW_WB: i64 = 1000;
 pub const MIN_ACCOUNT_AGE_DAYS: i64 = 7;
 pub const MIN_WITHDRAW_KARMA: i64 = 10;
 pub const MIN_WITHDRAW_POSTS: i64 = 3;
@@ -4224,7 +4224,14 @@ impl Database {
       let settlement_fee = calc_platform_fee(amount, WITHDRAW_SETTLEMENT_FEE_BPS);
       let total_debit = amount + settlement_fee;
       if amount < MIN_WITHDRAW_WB {
-        reasons.push(format!("Minimum withdrawal is {MIN_WITHDRAW_WB} WB"));
+        reasons.push(format!(
+          "A BKSPC mint under {MIN_WITHDRAW_WB} WeixBucks is rejected. That balance stays spendable in the yard."
+        ));
+      }
+      if amount % WB_TO_BKSPC_RATIO != 0 {
+        reasons.push(format!(
+          "Settlement is whole coins only ({WB_TO_BKSPC_RATIO} WB = 1 {BKSPC_SYMBOL})"
+        ));
       }
       if total_debit > user.weix_bucks {
         if settlement_fee > 0 {

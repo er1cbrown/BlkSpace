@@ -13,7 +13,7 @@ const FALLBACK_POLICY = {
   marketplaceFeeBps: 500,
   withdrawSettlementFeeBps: 100,
   dailyEarnCapWb: 250,
-  minWithdrawWb: 100,
+  minWithdrawWb: 1000,
   weeklyWithdrawCapWb: 1000,
   wbToBkspcRatio: 1000,
   bkspcSymbol: "BKSPC",
@@ -78,6 +78,11 @@ export function EconomyPolicyPanel() {
           <span>MIDF earn pause</span>
           <span className="font-medium text-foreground tabular-nums text-right">
             score &gt; {p.midfThrottleThreshold}
+          </span>
+          <span>Mint floor</span>
+          <span className="font-medium text-foreground text-right">
+            Under {p.minWithdrawWb.toLocaleString()} {p.softCurrencySymbol} is
+            rejected
           </span>
           <span>Cash-out ({p.cashOutAsset})</span>
           <span className="font-medium text-foreground tabular-nums text-right">

@@ -511,7 +511,7 @@ mod tests {
     // Yard Cred needs enough karma (formula caps karma share at 25).
     db.grant_karma(handle, "tsu", 320, 0, "test yard cred").unwrap();
     // Set balance directly — progression caps don't apply to test balance seeding
-    db.test_set_weix_bucks(handle, 500).unwrap();
+    db.test_set_weix_bucks(handle, 1200).unwrap();
     let user = db.get_user(handle).unwrap().unwrap();
     assert!(user.post_karma >= MIN_WITHDRAW_KARMA);
     assert!(user.post_karma >= MIN_WITHDRAW_POSTS * 3);
