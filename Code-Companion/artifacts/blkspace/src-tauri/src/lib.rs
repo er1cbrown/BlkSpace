@@ -46,6 +46,9 @@ mod tests_iroh;
 #[cfg(test)]
 mod tests_nostr_relay;
 
+#[cfg(all(test, feature = "rns-t3-net"))]
+mod rns_local_hop;
+
 use blob_store::BlobStore;
 use key_store::KeyStore;
 use db::{

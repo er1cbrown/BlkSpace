@@ -49,8 +49,14 @@ struct RelayConnectionState {
   latency_ms: Option<u64>,
 }
 
+fn install_relay_tls() {
+  // One process-wide provider. A second call returns Err; that is fine.
+  let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+}
+
 impl RelayManager {
   pub fn new() -> Self {
+    install_relay_tls();
     let keys = Keys::generate();
     let client = Client::new(keys.clone());
     RelayManager {

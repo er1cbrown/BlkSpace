@@ -34,6 +34,10 @@ base64 = "0.22"
 bitcoin = { version = "0.32", default-features = false, features = ["rand"] }
 tokio = { version = "1", features = ["full"] }
 nostr-sdk = { version = "0.38", features = [] }
+# nostr-sdk talks to relays through rustls 0.23. Both aws-lc-rs and ring end up
+# linked, so rustls will not pick a process default on its own and the first
+# publish panics. Install aws-lc-rs once from RelayManager::new.
+rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "std"] }
 url = "2"
 reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls"] }
 async-trait = "0.1"
@@ -109,7 +113,7 @@ rns-net = { version = "=0.7.2", optional = true, default-features = false, featu
 # when upstream adds a Windows target to ci.yml.
 
 [features]
-default = ["iroh", "iroh-net"]
+default = ["iroh", "iroh-net", "rns-t3"]
 iroh = ["dep:iroh-blobs", "dep:iroh"]
 # Share-ticket P2P (`ticket_for_hash` / `download_ticket`). Yard omits both via --no-default-features.
 iroh-net = ["iroh"]
@@ -123,13 +127,14 @@ bkspc-devnet = [
   "dep:bs58",
 ]
 e2e-testing = ["dep:tauri-plugin-playwright"]
-# Route B / T3 degraded tier. Opt-in: not in `default`, so Yard and ordinary
-# Full builds are unaffected.
+# Route B / T3 degraded tier. In `default` as of the 2026-09-29 licence record
+# in docs/implementation/RNS_LICENSE_REVIEW.md. Yard still passes
+# `--no-default-features`, so the student installer does not link this.
 #
-# Still not a working transport. rns-core supplies the routing engine; it does
-# not open a socket, spawn a node, or move a packet, and `courier_available`
-# stays false until one has been observed. See DELIVERY_TIER_CONCEPT.md and the
-# rns-net note above for why no interface layer is linked yet.
+# Still not a working transport. rns-core and rns-crypto supply identity,
+# envelopes, and the routing engine. They do not open a socket. `rns-t3-net`
+# stays out of `default`, and `courier_available` stays false until a peer
+# has been observed.
 rns-t3 = ["dep:rns-core", "dep:rns-crypto"]
 
 # T3 socket layer. SEPARATE from `rns-t3` on purpose, because rns-net does not

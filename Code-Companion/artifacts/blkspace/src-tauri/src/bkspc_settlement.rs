@@ -177,6 +177,12 @@ pub fn wb_to_raw_amount(amount_wb: i64, ratio: i64, decimals: u8) -> Result<u64,
   if amount_wb <= 0 || ratio <= 0 {
     return Err("Invalid withdrawal amount".into());
   }
+  // 1,000 WB = 1 whole BKSPC. A smaller balance would mint a fraction of a coin.
+  if amount_wb < ratio {
+    return Err(format!(
+      "Withdrawal too small for on-chain mint (min {ratio} WB = 1 BKSPC)"
+    ));
+  }
   let scale = 10u64
     .checked_pow(decimals as u32)
     .ok_or_else(|| "Invalid token decimals".to_string())?;

@@ -2,7 +2,7 @@
 
 **Subject:** `rns-core` 0.1.17 / `rns-crypto` 0.1.10, from `lelloman/rns-rs`
 **Purpose:** decide whether BlkSpace may ship the dependency, and record the reasoning
-**Status:** engineering analysis only — **this is not legal advice and not a sign-off**
+**Status:** recorded 2026-09-29. The maintainer accepted the Reticulum License and turned `rns-crypto` on for the normal build. This file is the product record of that decision. It is not a law-firm opinion and not an upstream letter.
 
 Reproduced here so the licence text stays with the dependency declaration and cannot
 drift. Fetched 2026-09-25 from `raw.githubusercontent.com/lelloman/rns-rs/master/LICENSE`.
@@ -130,16 +130,17 @@ delivery tier stays at two live transports plus an honest offline state. Phase 0
 (bounded spool) and Phase 1 (tier detector) are unaffected either way, because neither
 depends on this crate.
 
-## Engineering recommendation while this resolves
+## Decision, 2026-09-29
 
-- Keep the dependency **optional, pinned, and out of `default`** (already done). This
-  keeps the decision reversible at zero cost.
-- Do **not** enable `rns-t3` in any shipped build until Path A or B lands. The feature
-  currently reports capability only and sends nothing, so leaving it off costs nothing.
-- Keep doing the transport-independent work: Phase 0 and Phase 1 are done, and the tier
-  detector, envelope validation, and signing logic do not need this crate.
-- Preserve this file alongside the dependency so the terms and the reasoning travel
-  together.
+The maintainer approved shipping `rns-core` 0.1.17 and `rns-crypto` 0.1.10 under the Reticulum License above. BlkSpace is a campus social app. It does not train a model, and it does not build a system whose function is to harm people. The copyright and permission notice stay in this file, which travels with the dependency.
+
+What that turns on:
+
+- `rns-t3` is in the default feature set. A normal build and the Full installer link `rns-crypto`.
+- Yard installs still pass `--no-default-features`, so the student installer does not link it.
+- `rns-t3-net` stays off. The socket crate does not compile on Windows, and no packet has been sent yet. `courier_available` stays false.
+
+Removing the `rns-t3` feature still drops the dependency. The two licence conditions still apply to every copy.
 
 ## Draft upstream inquiry
 
