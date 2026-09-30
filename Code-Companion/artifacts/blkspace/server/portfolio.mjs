@@ -1852,6 +1852,7 @@ export function createPortfolio(env) {
     },
     async posts({
       town = "",
+      channel = "",
       limit = DEFAULT_POSTS_PAGE,
       cursor = "",
       viewerPubkey = "",
@@ -1894,6 +1895,18 @@ export function createPortfolio(env) {
       if (town) {
         where.push("p.town_tag = ?");
         args.push(String(town));
+      }
+      if (channel) {
+        const channelId = String(channel).trim().toLowerCase().replace(/^#/, "");
+        if (channelId === "general") {
+          where.push(
+            "(p.channel_id = ? OR p.channel_id = '' OR p.channel_id IS NULL)",
+          );
+          args.push("general");
+        } else {
+          where.push("p.channel_id = ?");
+          args.push(channelId);
+        }
       }
       if (decoded) {
         where.push(

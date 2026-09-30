@@ -146,6 +146,7 @@ export function createApiHandler(env, { origins, development = false } = {}) {
           200,
           await portfolio.posts({
             town: url.searchParams.get("town") || "",
+            channel: url.searchParams.get("channel") || "",
             limit: url.searchParams.get("limit") || undefined,
             cursor: url.searchParams.get("cursor") || "",
             viewerPubkey,
@@ -155,6 +156,9 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (req.method === "GET" && followingListRoutes.has(path)) {
         const pubkey = authenticate(req, "", allowed);
         return json(res, 200, await portfolio.following(pubkey));
+      }
+      if (req.method === "GET" && path === "/api/yards/channels") {
+        return json(res, 200, await yards.channels(url.searchParams.get("yard") || ""));
       }
       if (req.method === "GET" && path === "/api/yards/counts") {
         return json(res, 200, await yards.counts());
@@ -279,6 +283,7 @@ export function createApiHandler(env, { origins, development = false } = {}) {
             "/api/connect/interest",
             "/api/connect/interest/status",
             "/api/yards/join",
+            "/api/yards/channels",
             "/api/yards/events",
             "/api/yards/rsvp",
             "/api/yards/rsvp/cancel",
@@ -336,6 +341,9 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         );
       }
 
+      if (path === "/api/yards/channels") {
+        return json(res, 200, await yards.createChannels(body, pubkey));
+      }
       if (path === "/api/yards/join") {
         return json(res, 200, await yards.join(body, pubkey));
       }

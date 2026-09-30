@@ -105,6 +105,14 @@ export function createYards(env) {
           created_at TEXT NOT NULL,
           PRIMARY KEY (event_id, handle)
         )`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_channels (
+          yard_id TEXT NOT NULL,
+          channel_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (yard_id, channel_id)
+        )`);
       })();
     }
     await ready;
@@ -157,6 +165,80 @@ export function createYards(env) {
       [who],
     );
     return { ok: true, yards: rows.map((row) => String(row.yard_id)) };
+  }
+
+  const defaultChannels = [
+    ["general", "#general"],
+    ["events", "#events"],
+    ["study-hall", "#study-hall"],
+  ];
+
+  function channelSlug(value) {
+    const id = String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/^#/, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 32);
+    if (!/^[a-z0-9][a-z0-9-]{1,31}$/.test(id)) {
+      throw new HttpError(400, "Channel name needs letters or numbers.");
+    }
+    return id;
+  }
+
+  async function channels(id) {
+    await ensure();
+    const yard = yardId(id);
+    const rows = await query(
+      `SELECT channel_id, name, created_by FROM yard_channels WHERE yard_id = ? ORDER BY created_at, channel_id`,
+      [yard],
+    );
+    const seen = new Set();
+    const list = [];
+    for (const [channelId, name] of defaultChannels) {
+      seen.add(channelId);
+      list.push({ id: channelId, name, createdBy: "" });
+    }
+    for (const row of rows) {
+      const channelId = String(row.channel_id);
+      if (seen.has(channelId)) continue;
+      seen.add(channelId);
+      list.push({
+        id: channelId,
+        name: String(row.name || `#${channelId}`),
+        createdBy: String(row.created_by || ""),
+      });
+    }
+    return { ok: true, yardId: yard, channels: list };
+  }
+
+  async function createChannels(body, pubkey) {
+    await ensure();
+    const who = await actor(pubkey);
+    const yard = yardId(body.yardId || body.yard_id || body.communityId);
+    const member = (
+      await query(
+        `SELECT 1 AS ok FROM yard_members WHERE yard_id = ? AND handle = ? LIMIT 1`,
+        [yard, who],
+      )
+    )[0];
+    if (!member) throw new HttpError(403, "Join the yard before adding a channel.");
+    const rawNames = Array.isArray(body.names)
+      ? body.names
+      : [body.name || body.channel || ""];
+    if (!rawNames.length) throw new HttpError(400, "Channel name is required.");
+    const created = [];
+    for (const raw of rawNames) {
+      const id = channelSlug(raw);
+      await query(
+        `INSERT OR IGNORE INTO yard_channels (yard_id, channel_id, name, created_by, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [yard, id, `#${id}`, who, new Date().toISOString()],
+      );
+      created.push(id);
+    }
+    return { ok: true, yardId: yard, channelsCreated: created };
   }
 
   async function join(body, pubkey) {
@@ -335,5 +417,17 @@ export function createYards(env) {
     };
   }
 
-  return { counts, members, mine, join, events, createEvent, rsvp, cancelRsvp, guests };
+  return {
+    counts,
+    members,
+    mine,
+    channels,
+    createChannels,
+    join,
+    events,
+    createEvent,
+    rsvp,
+    cancelRsvp,
+    guests,
+  };
 }

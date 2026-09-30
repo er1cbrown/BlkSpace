@@ -30,6 +30,7 @@ import {
   useTauriListPostsForChannel,
   useAppCreatePost,
   useAppListPosts,
+  useSharedYardChannels,
   useSharedYardCounts,
   useTauriJoinYard,
   useTauriIsYardMember,
@@ -59,6 +60,7 @@ import {
   type TauriPost,
 } from "@/lib/tauri-api";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
+import { createSharedYardChannels } from "@/lib/web-userspace";
 import { useRequiresWallet } from "@/hooks/use-requires-wallet";
 import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -127,6 +129,7 @@ export default function CommunityPage() {
   const routeYardKey = (id || "").trim().toLowerCase();
 
   const { data: tauriChannelsData } = useTauriListChannels(routeYardKey);
+  const { data: sharedChannels } = useSharedYardChannels(routeYardKey);
   const { data: tauriChannelPosts = [] } = useTauriListPostsForChannel(
     activeChannel.replace(/^#/, "").replace(/-hall$/, ""),
   ); // id e.g. "general" or "study" from channel name
@@ -144,8 +147,25 @@ export default function CommunityPage() {
   const qc = useQueryClient();
 
   const handleCreateChannel = async () => {
-    const nm = prompt("New channel name (e.g. #projects or projects)");
+    const nm = prompt("New channel name (e.g. #office-hours or announcements)");
     if (!nm || !nm.trim()) return;
+    if (!isTauri()) {
+      try {
+        const created = await createSharedYardChannels(yardId || id, [nm.trim()]);
+        qc.invalidateQueries({ queryKey: ["yard", "channels", yardId || id] });
+        const slug = created[0];
+        if (slug) setActiveChannel(`#${slug}`);
+        toast.success("Channel added to this yard");
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        toast.error(
+          message.includes("Sign in again")
+            ? "Sign in and join the yard to add a channel."
+            : message,
+        );
+      }
+      return;
+    }
     const token = getSessionToken();
     if (!token) {
       toast.error("Sign in required");
@@ -181,7 +201,9 @@ export default function CommunityPage() {
 
   const submitChannelPost = (text: string) => {
     if (!requireWallet("post in yard channels")) return;
-    const channelId = activeChannel.replace(/^#/, "").replace(/-hall$/, "");
+    const channelId = isTauri()
+      ? activeChannel.replace(/^#/, "").replace(/-hall$/, "")
+      : activeChannel.replace(/^#/, "").toLowerCase();
     createPost.mutate(
       {
         content: text.trim(),
@@ -277,14 +299,13 @@ export default function CommunityPage() {
   const channels =
     isTauri() && tauriChannelsData && tauriChannelsData.length > 0
       ? tauriChannelsData.map((c: any) => c.name)
-      : [
-          "#general",
-          "#events",
-          "#music",
-          "#study-hall",
-          "#networking",
-          "#market",
-        ];
+      : (
+          sharedChannels ?? [
+            { id: "general", name: "#general" },
+            { id: "events", name: "#events" },
+            { id: "study-hall", name: "#study-hall" },
+          ]
+        ).map((channel) => channel.name);
 
   if (!community) {
     return (
@@ -325,7 +346,14 @@ export default function CommunityPage() {
             : "now",
           reactions: p.likesCount || 0,
         }))
-      : (yardFeedPosts as any[]).map((p) => ({
+      : (yardFeedPosts as any[])
+          .filter((p) => {
+            const slug = String(p.channelId || p.channel_id || "general")
+              .replace(/^#/, "")
+              .toLowerCase();
+            return (slug || "general") === activeChannel.replace(/^#/, "").toLowerCase();
+          })
+          .map((p) => ({
           id: p.id,
           user: p.authorDisplayName || p.authorHandle,
           handle: p.authorHandle,
@@ -485,8 +513,8 @@ export default function CommunityPage() {
                 + Create channel
               </button>
               <div className="mt-6 pt-4 border-t text-xs text-muted-foreground">
-                This yard supports structured casual chat + professional
-                networking. Voice channels coming in future update.
+                Add a channel for a club, an org, or a faculty desk. Everyone
+                on this yard sees it. Voice and video stay on the Live tab.
               </div>
             </CardContent>
           </Card>
@@ -674,8 +702,7 @@ export default function CommunityPage() {
                     </Button>
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1.5">
-                    Messages saved to channel (channel_id persisted). In Tauri +
-                    relays: will also publish as kind 1 with town tag.
+                    Messages in this channel are saved with the yard on bkspc.
                   </p>
                 </div>
               </Card>

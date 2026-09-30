@@ -91,11 +91,15 @@ function TemplatesSection({ communityId }: { communityId: string }) {
   const apply = useMutation({
     mutationFn: (id: string) => applyClubTemplate(communityId, id),
     onSuccess: (r) => {
+      const names = (r.channelsCreated || []).join(", ") || "already present";
       toast.success(
-        `Applied ${r.name} Â· channels: ${(r.channelsCreated || []).join(", ") || "already present"}`,
+        r.shared === false
+          ? `Sign in and join the yard to share ${r.name} channels.`
+          : `Applied ${r.name} · channels: ${names}`,
       );
       qc.invalidateQueries({ queryKey: ["club", "applied", communityId] });
       qc.invalidateQueries({ queryKey: ["tauri", "channels", communityId] });
+      qc.invalidateQueries({ queryKey: ["yard", "channels", communityId] });
     },
     onError: (e) => toast.error(String(e)),
   });

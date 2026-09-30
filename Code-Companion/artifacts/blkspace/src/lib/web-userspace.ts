@@ -457,9 +457,37 @@ export function buildWebUser(handle: string) {
   };
 }
 
+export async function sharedYardChannels(
+  yardId: string,
+): Promise<{ id: string; name: string }[] | null> {
+  try {
+    const res = await fetch(
+      `/api/yards/channels?yard=${encodeURIComponent(yardId)}`,
+    );
+    if (!res.ok) return null;
+    const body = await res.json();
+    return Array.isArray(body.channels) ? body.channels : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function createSharedYardChannels(
+  yardId: string,
+  names: string[],
+): Promise<string[]> {
+  const res = await hostedPost("/api/yards/channels", { yardId, names });
+  const body = await res.json().catch(() => null);
+  if (!res.ok || body?.ok === false) {
+    throw new Error(body?.error || "Could not add that channel.");
+  }
+  return Array.isArray(body.channelsCreated) ? body.channelsCreated : [];
+}
+
 export async function createInteractivePost(input: {
   content: string;
   townTag: string;
+  channelId?: string;
   mediaHashes?: string[];
 }): Promise<WebUserPost> {
   const post = await createWebUserPost(input);

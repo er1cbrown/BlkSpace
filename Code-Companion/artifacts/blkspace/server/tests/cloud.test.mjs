@@ -289,6 +289,48 @@ describe("yards on the shared server", () => {
 
     const mine = await (await authorizedGet("/api/yards/mine")).json();
     expect(mine.yards).toContain("meharry");
+
+    const before = await (
+      await fetch(base + "/api/yards/channels?yard=meharry")
+    ).json();
+    expect(before.channels.map((channel) => channel.id)).toEqual([
+      "general",
+      "events",
+      "study-hall",
+    ]);
+
+    const blockedChannel = await post(
+      "/api/yards/channels",
+      { yardId: "howard", name: "office-hours" },
+      bob,
+    );
+    expect(blockedChannel.status).toBe(403);
+
+    const added = await post("/api/yards/channels", {
+      yardId: "meharry",
+      names: ["Office Hours", "announcements"],
+    });
+    expect(added.status).toBe(200);
+    expect((await added.json()).channelsCreated).toEqual([
+      "office-hours",
+      "announcements",
+    ]);
+
+    const after = await (
+      await fetch(base + "/api/yards/channels?yard=meharry")
+    ).json();
+    expect(after.channels.slice(0, 3).map((channel) => channel.id)).toEqual([
+      "general",
+      "events",
+      "study-hall",
+    ]);
+    expect(after.channels.map((channel) => channel.id).sort()).toEqual([
+      "announcements",
+      "events",
+      "general",
+      "office-hours",
+      "study-hall",
+    ]);
   });
 });
 

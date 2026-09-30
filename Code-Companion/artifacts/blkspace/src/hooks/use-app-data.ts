@@ -41,6 +41,8 @@ import {
   createInteractivePost,
   isWebYardMember,
   joinWebYard,
+  createSharedYardChannels,
+  sharedYardChannels,
   sharedYardCounts,
   sharedYardIds,
   sharedYardMembers,
@@ -445,11 +447,13 @@ export function useAppCreatePost() {
     mutationFn: (input: {
       content: string;
       town_tag: string;
+      channel_id?: string;
       media_hashes?: string[];
     }) =>
       createInteractivePost({
         content: input.content,
         townTag: input.town_tag,
+        channelId: input.channel_id,
         mediaHashes: input.media_hashes,
       }),
   });
@@ -1741,6 +1745,15 @@ export function useTauriIsYardMember(communityId: string) {
     },
     enabled: !!communityId,
     staleTime: 0,
+  });
+}
+
+export function useSharedYardChannels(yardId: string) {
+  return useQuery({
+    queryKey: ["yard", "channels", yardId],
+    queryFn: () => sharedYardChannels(yardId),
+    enabled: !IS_TAURI && !!yardId,
+    staleTime: 15_000,
   });
 }
 

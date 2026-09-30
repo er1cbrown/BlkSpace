@@ -121,6 +121,8 @@ type HostedPortfolioRow = {
   content: string;
   town_tag?: string;
   townTag?: string;
+  channel_id?: string;
+  channelId?: string;
   replies_count?: number;
   repliesCount?: number;
   reposts_count?: number;
@@ -182,6 +184,9 @@ export async function refreshPortfolioFromTurso(): Promise<void> {
       const authorHandle = row.authorHandle ?? row.author_handle ?? "";
       const authorPubkey = row.authorPubkey ?? row.author_pubkey;
       const townTag = row.townTag ?? row.town_tag ?? "";
+      const channelId = String(row.channelId ?? row.channel_id ?? "")
+        .replace(/^#/, "")
+        .toLowerCase();
       const repliesCount = row.repliesCount ?? row.replies_count ?? 0;
       const repostsCount = row.repostsCount ?? row.reposts_count ?? 0;
       const likesCount = row.likesCount ?? row.likes_count ?? 0;
@@ -199,6 +204,7 @@ export async function refreshPortfolioFromTurso(): Promise<void> {
         authorAvatarUrl: "",
         content: row.content,
         townTag,
+        channelId,
         repliesCount,
         repostsCount,
         likesCount,
@@ -222,6 +228,7 @@ export async function refreshPortfolioFromTurso(): Promise<void> {
           authorDisplayName: authorHandle,
           content: row.content,
           townTag,
+          channelId: channelId || existing.channelId,
           repliesCount,
           repostsCount,
           likesCount,
@@ -252,6 +259,7 @@ export function listWebUserPosts(town?: string): WebUserPost[] {
 export async function createWebUserPost(input: {
   content: string;
   townTag: string;
+  channelId?: string;
   mediaHashes?: string[];
 }): Promise<WebUserPost> {
   const handle = getCurrentHandle();
@@ -270,6 +278,7 @@ export async function createWebUserPost(input: {
     authorAvatarUrl: "",
     content: body,
     townTag: input.townTag,
+    channelId: (input.channelId || "general").replace(/^#/, "").toLowerCase(),
     repliesCount: 0,
     repostsCount: 0,
     likesCount: 0,

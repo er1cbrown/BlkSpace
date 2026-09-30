@@ -12,6 +12,7 @@ export type SeedPost = {
   authorAvatarUrl: string;
   content: string;
   townTag: string;
+  channelId?: string;
   repliesCount: number;
   repostsCount: number;
   likesCount: number;

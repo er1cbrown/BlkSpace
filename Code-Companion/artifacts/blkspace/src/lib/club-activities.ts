@@ -5,6 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "@/lib/tauri-api";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
+import { createSharedYardChannels } from "@/lib/web-userspace";
 
 export interface ClubTemplate {
   id: string;
@@ -309,7 +310,7 @@ export async function listClubTemplates(): Promise<ClubTemplate[]> {
 export async function applyClubTemplate(
   communityId: string,
   templateId: string,
-): Promise<{ channelsCreated: string[]; name: string }> {
+): Promise<{ channelsCreated: string[]; name: string; shared?: boolean }> {
   if (isTauri()) {
     return invoke("apply_club_template", {
       sessionToken: getSessionToken() || "",
@@ -325,9 +326,19 @@ export async function applyClubTemplate(
     save(d);
   }
   const t = TEMPLATES.find((x) => x.id === templateId);
+  const names = t?.channels || [];
+  let shared = false;
+  try {
+    await createSharedYardChannels(communityId, names);
+    shared = true;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (!message.includes("Sign in again")) throw err;
+  }
   return {
-    channelsCreated: t?.channels || [],
+    channelsCreated: names,
     name: t?.name || templateId,
+    shared,
   };
 }
 
