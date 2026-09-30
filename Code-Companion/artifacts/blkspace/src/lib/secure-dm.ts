@@ -10,7 +10,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "@/lib/tauri-api";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
+import { hostedPost } from "@/lib/hosted-api";
 import { hasEthicsAck, loadInstitutionalClaim } from "@/lib/identity-ethics";
+import { loadUiPrefs } from "@/lib/ui-prefs";
 
 export interface SecureDmMessage {
   id: string;
@@ -126,7 +128,47 @@ export function looksLikePhiRisk(text: string): boolean {
   return hits.some((h) => t.includes(h));
 }
 
-export async function listThreads(): Promise<SecureDmThread[]> {
+function homeYard(): string {
+  return (loadUiPrefs().homeYardId || "tsu").toLowerCase();
+}
+
+function signedOut(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : "";
+  return message.includes("Sign in again");
+}
+
+async function sharedThreads(yardId: string): Promise<SecureDmThread[] | null> {
+  try {
+    const path = `/api/yards/messages?yard=${encodeURIComponent(yardId)}`;
+    const { createHttpAuthHeader } = await import("@/lib/auth");
+    const authorization = createHttpAuthHeader(path, "GET", "");
+    const res = await fetch(path, { headers: { authorization } });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return Array.isArray(body.threads) ? body.threads : null;
+  } catch {
+    return null;
+  }
+}
+
+async function sharedMessages(
+  yardId: string,
+  peer: string,
+): Promise<SecureDmMessage[] | null> {
+  try {
+    const path = `/api/yards/messages?yard=${encodeURIComponent(yardId)}&peer=${encodeURIComponent(peer)}`;
+    const { createHttpAuthHeader } = await import("@/lib/auth");
+    const authorization = createHttpAuthHeader(path, "GET", "");
+    const res = await fetch(path, { headers: { authorization } });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return Array.isArray(body.messages) ? body.messages : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function listThreads(yardId = homeYard()): Promise<SecureDmThread[]> {
   const me = getCurrentHandle();
   if (!me) return [];
   if (isTauri()) {
@@ -138,6 +180,8 @@ export async function listThreads(): Promise<SecureDmThread[]> {
       /* fall through web */
     }
   }
+  const remote = await sharedThreads(yardId);
+  if (remote) return remote.filter((thread) => !isBlocked(thread.peerHandle));
   const s = load();
   const map = new Map<string, SecureDmThread>();
   for (const m of s.messages) {
@@ -163,6 +207,7 @@ export async function listThreads(): Promise<SecureDmThread[]> {
 
 export async function listThreadMessages(
   peerHandle: string,
+  yardId = homeYard(),
 ): Promise<SecureDmMessage[]> {
   const me = getCurrentHandle();
   if (!me) return [];
@@ -176,6 +221,8 @@ export async function listThreadMessages(
       /* fall through */
     }
   }
+  const remote = await sharedMessages(yardId, peerHandle);
+  if (remote) return remote;
   const tid = threadIdFor(me, peerHandle);
   return load()
     .messages.filter((m) => m.threadId === tid)
@@ -205,6 +252,21 @@ export async function sendSecureDm(input: {
     throw new Error(
       "Message blocked: looks like clinical/PHI-sensitive content. Use official hospital systems.",
     );
+  }
+
+  try {
+    const res = await hostedPost("/api/yards/messages", {
+      yardId: homeYard(),
+      toHandle: to,
+      body,
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || json?.ok === false) {
+      throw new Error(json?.error || "Could not send that message.");
+    }
+    if (json?.message) return json.message as SecureDmMessage;
+  } catch (err) {
+    if (!signedOut(err)) throw err;
   }
 
   if (isTauri()) {

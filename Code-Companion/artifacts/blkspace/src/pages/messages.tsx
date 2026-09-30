@@ -26,6 +26,7 @@ import {
   type SecureDmThread,
 } from "@/lib/secure-dm";
 import { getCurrentHandle } from "@/lib/auth";
+import { loadUiPrefs } from "@/lib/ui-prefs";
 import { useGuestMode } from "@/lib/guest-mode";
 import { GuestCTA } from "@/components/social/GuestCTA";
 import { ExperimentalMessagingWarning } from "@/components/ui/experimental-messaging-warning";
@@ -135,7 +136,7 @@ export default function MessagesPage() {
           )}
         </div>
         <p className="text-sm text-muted-foreground max-w-2xl">
-          Every user already has a{" "}
+          Messages stay inside {loadUiPrefs().homeYardId || "tsu"}. Every user already has a{" "}
           <strong className="text-foreground">@handle</strong>. Messaging is
           handle-to-handle with ethical security: No-PHI, consent, blocks, rate
           limits. Institutional tags are{" "}

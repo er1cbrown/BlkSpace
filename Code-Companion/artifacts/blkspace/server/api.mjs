@@ -3,6 +3,7 @@ import { HttpError, json, readJson } from "./http.mjs";
 import { uploadTarget } from "./media.mjs";
 import { createConnect } from "./connect.mjs";
 import { createYards } from "./yards.mjs";
+import { createYardDesk } from "./yard-desk.mjs";
 import { createPortfolio } from "./portfolio.mjs";
 
 const interactionRoutes = new Map([
@@ -115,10 +116,19 @@ export function createApiHandler(env, { origins, development = false } = {}) {
   const portfolio = createPortfolio(env);
   const connect = createConnect(env);
   const yards = createYards(env);
+  const desk = createYardDesk(env);
   const limit = createWriteLimiter();
   const uploadLimit = createWriteLimiter(10);
   return async (req, res) => {
     try {
+      res.setHeader("access-control-allow-origin", "*");
+      res.setHeader("access-control-allow-headers", "authorization, content-type");
+      res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+      if (req.method === "OPTIONS") {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
       const url = new URL(req.url, "http://internal");
       const path = withoutTrailingSlash(url.pathname);
       const allowed =
@@ -156,6 +166,32 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (req.method === "GET" && followingListRoutes.has(path)) {
         const pubkey = authenticate(req, "", allowed);
         return json(res, 200, await portfolio.following(pubkey));
+      }
+      if (req.method === "GET" && path === "/api/yards/rooms") {
+        return json(res, 200, await desk.rooms(url.searchParams.get("yard") || ""));
+      }
+      if (req.method === "GET" && path === "/api/yards/messages") {
+        const pubkey = authenticate(req, "", allowed);
+        return json(
+          res,
+          200,
+          await desk.messages(
+            pubkey,
+            url.searchParams.get("yard") || "",
+            url.searchParams.get("peer") || "",
+          ),
+        );
+      }
+      if (req.method === "GET" && path === "/api/yards/wb") {
+        const pubkey = authenticate(req, "", allowed);
+        return json(res, 200, await desk.wb(pubkey, url.searchParams.get("yard") || ""));
+      }
+      if (req.method === "GET" && path === "/api/yards/sale") {
+        return json(res, 200, await desk.listings(url.searchParams.get("yard") || ""));
+      }
+      if (req.method === "GET" && path === "/api/yards/sale/escrows") {
+        const pubkey = authenticate(req, "", allowed);
+        return json(res, 200, await desk.myEscrows(pubkey));
       }
       if (req.method === "GET" && path === "/api/yards/channels") {
         return json(res, 200, await yards.channels(url.searchParams.get("yard") || ""));
@@ -284,6 +320,13 @@ export function createApiHandler(env, { origins, development = false } = {}) {
             "/api/connect/interest/status",
             "/api/yards/join",
             "/api/yards/channels",
+            "/api/yards/rooms",
+            "/api/yards/rooms/close",
+            "/api/yards/messages",
+            "/api/yards/sale",
+            "/api/yards/sale/buy",
+            "/api/yards/sale/deliver",
+            "/api/yards/sale/release",
             "/api/yards/events",
             "/api/yards/rsvp",
             "/api/yards/rsvp/cancel",
@@ -345,7 +388,30 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         return json(res, 200, await yards.createChannels(body, pubkey));
       }
       if (path === "/api/yards/join") {
-        return json(res, 200, await yards.join(body, pubkey));
+        const joined = await yards.join(body, pubkey);
+        const wallet = await desk.grantJoin(joined.yardId, joined.handle);
+        return json(res, 200, { ...joined, balance: wallet.balance });
+      }
+      if (path === "/api/yards/rooms") {
+        return json(res, 200, await desk.createRoom(body, pubkey));
+      }
+      if (path === "/api/yards/rooms/close") {
+        return json(res, 200, await desk.closeRoom(body, pubkey));
+      }
+      if (path === "/api/yards/messages") {
+        return json(res, 200, await desk.sendMessage(body, pubkey));
+      }
+      if (path === "/api/yards/sale") {
+        return json(res, 200, await desk.createListing(body, pubkey));
+      }
+      if (path === "/api/yards/sale/buy") {
+        return json(res, 200, await desk.buy(body, pubkey));
+      }
+      if (path === "/api/yards/sale/deliver") {
+        return json(res, 200, await desk.deliver(body, pubkey));
+      }
+      if (path === "/api/yards/sale/release") {
+        return json(res, 200, await desk.release(body, pubkey));
       }
       if (path === "/api/yards/events") {
         return json(res, 200, await yards.createEvent(body, pubkey));

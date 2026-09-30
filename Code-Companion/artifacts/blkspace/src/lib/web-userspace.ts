@@ -459,14 +459,31 @@ export function buildWebUser(handle: string) {
 
 export async function sharedYardChannels(
   yardId: string,
+  origin = "",
 ): Promise<{ id: string; name: string }[] | null> {
+  const path = `/api/yards/channels?yard=${encodeURIComponent(yardId)}`;
+  const urls = origin ? [`${origin}${path}`, path] : [path];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const body = await res.json();
+      if (Array.isArray(body.channels)) return body.channels;
+    } catch {
+      /* try the next host */
+    }
+  }
+  return null;
+}
+
+export async function sharedYardWb(yardId: string): Promise<number | null> {
   try {
-    const res = await fetch(
-      `/api/yards/channels?yard=${encodeURIComponent(yardId)}`,
-    );
+    const path = `/api/yards/wb?yard=${encodeURIComponent(yardId)}`;
+    const authorization = createHttpAuthHeader(path, "GET", "");
+    const res = await fetch(path, { headers: { authorization } });
     if (!res.ok) return null;
     const body = await res.json();
-    return Array.isArray(body.channels) ? body.channels : null;
+    return typeof body.balance === "number" ? body.balance : null;
   } catch {
     return null;
   }
@@ -475,8 +492,9 @@ export async function sharedYardChannels(
 export async function createSharedYardChannels(
   yardId: string,
   names: string[],
+  origin = "",
 ): Promise<string[]> {
-  const res = await hostedPost("/api/yards/channels", { yardId, names });
+  const res = await hostedPost(`${origin}/api/yards/channels`, { yardId, names });
   const body = await res.json().catch(() => null);
   if (!res.ok || body?.ok === false) {
     throw new Error(body?.error || "Could not add that channel.");

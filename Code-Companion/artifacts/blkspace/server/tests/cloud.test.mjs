@@ -334,6 +334,80 @@ describe("yards on the shared server", () => {
   });
 });
 
+describe("yard desk on the shared server", () => {
+  test("a yard keeps its own room, message, balance, and sale", async () => {
+    await post("/api/portfolio/identity", { handle: "alice" });
+    await post("/api/portfolio/identity", { handle: "bob" }, bob);
+    expect((await post("/api/yards/join", { yardId: "desk" })).status).toBe(200);
+    expect((await post("/api/yards/join", { yardId: "desk" }, bob)).status).toBe(200);
+
+    const aliceWb = await (
+      await authorizedGet("/api/yards/wb?yard=desk")
+    ).json();
+    expect(aliceWb.balance).toBe(55);
+    const bobWb = await (
+      await authorizedGet("/api/yards/wb?yard=desk", bob)
+    ).json();
+    expect(bobWb.balance).toBe(55);
+
+    const room = await post("/api/yards/rooms", {
+      yardId: "desk",
+      title: "Office hours",
+      kind: "stage",
+    });
+    expect(room.status).toBe(200);
+    const listedRooms = await (
+      await fetch(base + "/api/yards/rooms?yard=desk")
+    ).json();
+    expect(listedRooms.rooms.some((row) => row.title === "Office hours")).toBe(true);
+
+    const sent = await post("/api/yards/messages", {
+      yardId: "desk",
+      toHandle: "bob",
+      body: "Faculty office hours are in this yard.",
+    });
+    expect(sent.status).toBe(200);
+    const phi = await post("/api/yards/messages", {
+      yardId: "desk",
+      toHandle: "bob",
+      body: "Patient name is on the chart.",
+    });
+    expect(phi.status).toBe(400);
+    const inbox = await (
+      await authorizedGet("/api/yards/messages?yard=desk&peer=alice", bob)
+    ).json();
+    expect(inbox.messages).toHaveLength(1);
+    expect((await fetch(base + "/api/yards/messages?yard=desk")).status).toBe(401);
+
+    const listing = await post("/api/yards/sale", {
+      yardId: "desk",
+      title: "Study notes",
+      description: "One week of review sheets.",
+      price: 20,
+      itemType: "notes",
+    });
+    expect(listing.status).toBe(200);
+    const listingId = (await listing.json()).id;
+    const bought = await post("/api/yards/sale/buy", { listingId }, bob);
+    expect(bought.status).toBe(200);
+    const escrowId = (await bought.json()).escrowId;
+    expect(
+      (await (await authorizedGet("/api/yards/wb?yard=desk", bob)).json()).balance,
+    ).toBe(35);
+    expect(
+      (await post("/api/yards/sale/deliver", { escrowId, deliveryRef: "https://example.edu/notes" })).status,
+    ).toBe(200);
+    expect(
+      (await post("/api/yards/sale/release", { escrowId }, bob)).status,
+    ).toBe(200);
+    expect(
+      (await (await authorizedGet("/api/yards/wb?yard=desk")).json()).balance,
+    ).toBe(74);
+    const board = await (await fetch(base + "/api/yards/sale?yard=desk")).json();
+    expect(board.listings.some((row) => row.id === listingId)).toBe(false);
+  });
+});
+
 describe("standalone cloud server", () => {
   test("serves deep links, health, and JSON API 404s", async () => {
     expect(await (await fetch(base + "/feed")).text()).toContain("BlkSpace");

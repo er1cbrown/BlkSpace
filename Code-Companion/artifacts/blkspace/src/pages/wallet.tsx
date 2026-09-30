@@ -491,8 +491,7 @@ function WalletPageContent() {
 
   const txHistory =
     isTauri() && Array.isArray(tauriTx) ? tauriTx.map(mapTx) : mockTxHistory;
-  const rawBalance =
-    isTauri() && user ? ((user as any).weixBucks ?? 1250) : 1250;
+  const rawBalance = (user as any)?.weixBucks ?? 1250;
   const balance = useOptimisticBalance(rawBalance);
   const yardCred = Number((user as any)?.yardCred ?? 0);
   const quality =

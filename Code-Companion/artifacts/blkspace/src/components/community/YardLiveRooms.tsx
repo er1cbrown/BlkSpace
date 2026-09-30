@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,11 +48,10 @@ export function YardLiveRooms({
   yardId: string;
   communityName: string;
 }) {
-  const [tick, setTick] = useState(0);
-  const rooms = useMemo(() => {
-    void tick;
-    return listLiveRooms(yardId);
-  }, [yardId, tick]);
+  const { data: rooms = [], refetch } = useQuery({
+    queryKey: ["yard", "rooms", yardId],
+    queryFn: () => listLiveRooms(yardId),
+  });
 
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<LiveRoomKind>("stage");
@@ -59,9 +59,11 @@ export function YardLiveRooms({
   const [active, setActive] = useState<YardLiveRoom | null>(null);
   const me = getCurrentHandle();
 
-  const refresh = () => setTick((t) => t + 1);
+  const refresh = () => {
+    void refetch();
+  };
 
-  const create = () => {
+  const create = async () => {
     if (
       kind === "external" &&
       externalUrl &&
@@ -72,12 +74,18 @@ export function YardLiveRooms({
       );
       return;
     }
-    const room = createLiveRoom({
-      yardId,
-      title: title || `${communityName} stage`,
-      kind,
-      externalUrl: kind === "external" ? externalUrl : undefined,
-    });
+    let room: YardLiveRoom;
+    try {
+      room = await createLiveRoom({
+        yardId,
+        title: title || `${communityName} stage`,
+        kind,
+        externalUrl: kind === "external" ? externalUrl : undefined,
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not open that room.");
+      return;
+    }
     setTitle("");
     setExternalUrl("");
     refresh();
@@ -97,9 +105,13 @@ export function YardLiveRooms({
     refresh();
   };
 
-  const remove = (id: string) => {
+  const remove = async (id: string) => {
     if (active?.id === id) closeActive();
-    deleteLiveRoom(id);
+    try {
+      await deleteLiveRoom(id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not close that room.");
+    }
     refresh();
   };
 

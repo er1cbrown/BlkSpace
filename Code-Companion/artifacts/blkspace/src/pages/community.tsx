@@ -173,7 +173,13 @@ export default function CommunityPage() {
     }
     try {
       await tauriCreateChannel(token, yardId || id, nm.trim());
+      try {
+        await createSharedYardChannels(yardId || id, [nm.trim()], "https://bkspc.app");
+      } catch {
+        /* The desktop database still has the channel when bkspc is unreachable. */
+      }
       qc.invalidateQueries({ queryKey: ["tauri", "channels", yardId || id] });
+      qc.invalidateQueries({ queryKey: ["yard", "channels", yardId || id] });
       toast.success("Channel created");
     } catch (e) {
       toast.error(String(e));
@@ -296,16 +302,20 @@ export default function CommunityPage() {
       : (community?.members ?? 0);
 
   // Real channels when in Tauri (from DB via list_channels); default set for every HBCU
-  const channels =
+  const sharedNames = (
+    sharedChannels ?? [
+      { id: "general", name: "#general" },
+      { id: "events", name: "#events" },
+      { id: "study-hall", name: "#study-hall" },
+    ]
+  ).map((channel) => channel.name);
+  const localNames =
     isTauri() && tauriChannelsData && tauriChannelsData.length > 0
       ? tauriChannelsData.map((c: any) => c.name)
-      : (
-          sharedChannels ?? [
-            { id: "general", name: "#general" },
-            { id: "events", name: "#events" },
-            { id: "study-hall", name: "#study-hall" },
-          ]
-        ).map((channel) => channel.name);
+      : [];
+  const channels = isTauri()
+    ? [...new Set([...sharedNames, ...localNames])]
+    : sharedNames;
 
   if (!community) {
     return (

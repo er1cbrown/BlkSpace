@@ -3,7 +3,8 @@
  * Tauri when available; localStorage demo store for web promo demos.
  */
 import { isTauri } from "@/lib/tauri-api";
-import { getCurrentHandle, getSessionToken } from "@/lib/auth";
+import { createHttpAuthHeader, getCurrentHandle, getSessionToken } from "@/lib/auth";
+import { hostedPost } from "@/lib/hosted-api";
 import { invoke } from "@tauri-apps/api/core";
 import { ESCROW_DEFAULT_TYPES } from "@/lib/myyard-catalog";
 import {
@@ -252,7 +253,36 @@ function recordEscrowHistory(e: EscrowTrade, amount: number, actor: string) {
 
 // â”€â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+function signedOut(err: unknown): boolean {
+  return err instanceof Error && err.message.includes("Sign in again");
+}
+
+async function saleGet(path: string, auth = false): Promise<Record<string, any> | null> {
+  try {
+    const headers: Record<string, string> = {};
+    if (auth) headers.authorization = createHttpAuthHeader(path, "GET", "");
+    const res = await fetch(path, { headers });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function salePost(path: string, body: unknown): Promise<Record<string, any>> {
+  const res = await hostedPost(path, body);
+  const json = await res.json().catch(() => null);
+  if (!res.ok || json?.ok === false) {
+    throw new Error(json?.error || "Yard Sale could not save that.");
+  }
+  return json;
+}
+
 export async function listMarketplace(): Promise<MarketplaceListing[]> {
+  if (!isTauri()) {
+    const remote = await saleGet("/api/yards/sale");
+    if (Array.isArray(remote?.listings)) return remote.listings;
+  }
   if (isTauri()) {
     const token = getSessionToken() || "";
     return invoke("list_marketplace", { sessionToken: token });
@@ -273,6 +303,20 @@ export async function createMarketplaceListing(args: {
   orgSplitBps?: number | null;
   deliveryHint?: string | null;
 }): Promise<number> {
+  if (!isTauri()) {
+    try {
+      const saved = await salePost("/api/yards/sale", {
+        yardId: args.townTag || "tsu",
+        title: args.title,
+        description: args.description,
+        price: args.price,
+        itemType: args.itemType,
+      });
+      return Number(saved.id);
+    } catch (err) {
+      if (!signedOut(err)) throw err;
+    }
+  }
   if (isTauri()) {
     return invoke("create_marketplace_listing", {
       sessionToken: getSessionToken() || "",
@@ -317,6 +361,13 @@ export async function createMarketplaceListing(args: {
 export async function buyMarketplaceListing(
   listingId: number,
 ): Promise<Record<string, unknown>> {
+  if (!isTauri()) {
+    try {
+      return await salePost("/api/yards/sale/buy", { listingId });
+    } catch (err) {
+      if (!signedOut(err)) throw err;
+    }
+  }
   if (isTauri()) {
     return invoke("buy_marketplace_listing", {
       sessionToken: getSessionToken() || "",
@@ -403,6 +454,10 @@ export async function buyMarketplaceListing(
 }
 
 export async function listMyEscrows(): Promise<EscrowTrade[]> {
+  if (!isTauri()) {
+    const remote = await saleGet("/api/yards/sale/escrows", true);
+    if (Array.isArray(remote?.escrows)) return remote.escrows;
+  }
   if (isTauri()) {
     return invoke("list_my_escrows", {
       sessionToken: getSessionToken() || "",
@@ -419,6 +474,16 @@ export async function escrowMarkDelivered(
   deliveryRef: string,
   deliveryNote?: string | null,
 ): Promise<Record<string, unknown>> {
+  if (!isTauri()) {
+    try {
+      return await salePost("/api/yards/sale/deliver", {
+        escrowId,
+        deliveryRef,
+      });
+    } catch (err) {
+      if (!signedOut(err)) throw err;
+    }
+  }
   if (isTauri()) {
     return invoke("escrow_mark_delivered", {
       sessionToken: getSessionToken() || "",
@@ -453,6 +518,13 @@ export async function escrowMarkDelivered(
 export async function escrowConfirmRelease(
   escrowId: number,
 ): Promise<Record<string, unknown>> {
+  if (!isTauri()) {
+    try {
+      return await salePost("/api/yards/sale/release", { escrowId });
+    } catch (err) {
+      if (!signedOut(err)) throw err;
+    }
+  }
   if (isTauri()) {
     return invoke("escrow_confirm_release", {
       sessionToken: getSessionToken() || "",

@@ -43,6 +43,7 @@ import {
   joinWebYard,
   createSharedYardChannels,
   sharedYardChannels,
+  sharedYardWb,
   sharedYardCounts,
   sharedYardIds,
   sharedYardMembers,
@@ -81,6 +82,10 @@ export function useAppGetUser(handle: string, enabled = true) {
     queryKey: ["web", "user", handle],
     queryFn: async () => {
       const user = getMockUser(handle);
+      if (handle.replace(/^@/, "") === getCurrentHandle()) {
+        const balance = await sharedYardWb(user.town || "tsu");
+        if (balance != null) user.weixBucks = balance;
+      }
       const summary = await fetchFollowSummary(handle);
       if (!summary) return user;
       return {
@@ -1751,8 +1756,9 @@ export function useTauriIsYardMember(communityId: string) {
 export function useSharedYardChannels(yardId: string) {
   return useQuery({
     queryKey: ["yard", "channels", yardId],
-    queryFn: () => sharedYardChannels(yardId),
-    enabled: !IS_TAURI && !!yardId,
+    queryFn: () =>
+      sharedYardChannels(yardId, IS_TAURI ? "https://bkspc.app" : ""),
+    enabled: !!yardId,
     staleTime: 15_000,
   });
 }

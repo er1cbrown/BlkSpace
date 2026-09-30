@@ -5,6 +5,7 @@
  */
 
 import { getCurrentHandle } from "@/lib/auth";
+import { hostedPost } from "@/lib/hosted-api";
 
 export type LiveRoomKind = "stage" | "voice" | "external";
 
@@ -40,7 +41,23 @@ function saveAll(rooms: YardLiveRoom[]) {
   localStorage.setItem(LS_KEY, JSON.stringify(rooms.slice(0, 200)));
 }
 
-export function listLiveRooms(yardId: string): YardLiveRoom[] {
+function signedOut(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : "";
+  return message.includes("Sign in again");
+}
+
+export async function listLiveRooms(yardId: string): Promise<YardLiveRoom[]> {
+  try {
+    const res = await fetch(
+      `/api/yards/rooms?yard=${encodeURIComponent(yardId)}`,
+    );
+    if (res.ok) {
+      const body = await res.json();
+      if (Array.isArray(body.rooms)) return body.rooms as YardLiveRoom[];
+    }
+  } catch {
+    /* this browser still has its own room list */
+  }
   return loadAll()
     .filter((r) => r.yardId === yardId)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -60,12 +77,27 @@ export function jitsiUrl(room: YardLiveRoom): string {
   return `https://meet.jit.si/${encodeURIComponent(room.jitsiSlug)}`;
 }
 
-export function createLiveRoom(input: {
+export async function createLiveRoom(input: {
   yardId: string;
   title: string;
   kind: LiveRoomKind;
   externalUrl?: string;
-}): YardLiveRoom {
+}): Promise<YardLiveRoom> {
+  try {
+    const res = await hostedPost("/api/yards/rooms", {
+      yardId: input.yardId,
+      title: input.title,
+      kind: input.kind,
+      externalUrl: input.externalUrl,
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || body?.ok === false) {
+      throw new Error(body?.error || "Could not open that room.");
+    }
+    if (body?.room) return body.room as YardLiveRoom;
+  } catch (err) {
+    if (!signedOut(err)) throw err;
+  }
   const title = input.title.trim() || "Yard stage";
   const id = `live_${Date.now().toString(36)}`;
   const handle = getCurrentHandle();
@@ -85,7 +117,19 @@ export function createLiveRoom(input: {
   return room;
 }
 
-export function deleteLiveRoom(roomId: string) {
+export async function deleteLiveRoom(roomId: string) {
+  if (/^live_\d+$/.test(roomId)) {
+    try {
+      const res = await hostedPost("/api/yards/rooms/close", { roomId });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || body?.ok === false) {
+        throw new Error(body?.error || "Could not close that room.");
+      }
+      return;
+    } catch (err) {
+      if (!signedOut(err)) throw err;
+    }
+  }
   saveAll(loadAll().filter((r) => r.id !== roomId));
 }
 
