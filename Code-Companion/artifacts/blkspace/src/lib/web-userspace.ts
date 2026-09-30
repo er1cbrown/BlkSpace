@@ -96,18 +96,70 @@ export function isWebYardMember(communityId: string): boolean {
   return yards.includes(id) || id === home;
 }
 
-export function joinWebYard(communityId: string): {
+export async function joinWebYard(communityId: string): Promise<{
   joined: boolean;
   wb: number;
-} {
+  memberCount?: number;
+}> {
   const id = communityId.toLowerCase();
   const yards = getJoinedYards();
-  if (yards.map((y) => y.toLowerCase()).includes(id)) {
-    return { joined: true, wb: 0 };
+  const already = yards.map((y) => y.toLowerCase()).includes(id);
+  if (!already) {
+    writeJson(YARDS_KEY, [...yards, id]);
+    grantWebWb(5, `Joined ${id} yard`);
   }
-  writeJson(YARDS_KEY, [...yards, id]);
-  grantWebWb(5, `Joined ${id} yard`);
-  return { joined: true, wb: 5 };
+  try {
+    const res = await hostedPost("/api/yards/join", { yardId: id });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || body?.ok === false) {
+      throw new Error(body?.error || "Could not join that yard.");
+    }
+    return { joined: true, wb: already ? 0 : 5, memberCount: body.memberCount };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("Sign in again")) {
+      return { joined: true, wb: already ? 0 : 5 };
+    }
+    throw err;
+  }
+}
+
+export async function sharedYardIds(): Promise<string[] | null> {
+  try {
+    const authorization = createHttpAuthHeader("/api/yards/mine", "GET", "");
+    const res = await fetch("/api/yards/mine", { headers: { authorization } });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return Array.isArray(body.yards) ? body.yards : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function sharedYardCounts(): Promise<Record<string, number> | null> {
+  try {
+    const res = await fetch("/api/yards/counts");
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body.counts && typeof body.counts === "object" ? body.counts : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function sharedYardMembers(
+  yardId: string,
+): Promise<{ handle: string }[] | null> {
+  try {
+    const res = await fetch(
+      `/api/yards/members?yard=${encodeURIComponent(yardId)}`,
+    );
+    if (!res.ok) return null;
+    const body = await res.json();
+    return Array.isArray(body.members) ? body.members : null;
+  } catch {
+    return null;
+  }
 }
 
 export function getFollowing(): string[] {

@@ -2,6 +2,7 @@ import { authenticate, createWriteLimiter } from "./auth.mjs";
 import { HttpError, json, readJson } from "./http.mjs";
 import { uploadTarget } from "./media.mjs";
 import { createConnect } from "./connect.mjs";
+import { createYards } from "./yards.mjs";
 import { createPortfolio } from "./portfolio.mjs";
 
 const interactionRoutes = new Map([
@@ -113,6 +114,7 @@ function notificationOptions(url, body = {}) {
 export function createApiHandler(env, { origins, development = false } = {}) {
   const portfolio = createPortfolio(env);
   const connect = createConnect(env);
+  const yards = createYards(env);
   const limit = createWriteLimiter();
   const uploadLimit = createWriteLimiter(10);
   return async (req, res) => {
@@ -153,6 +155,24 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (req.method === "GET" && followingListRoutes.has(path)) {
         const pubkey = authenticate(req, "", allowed);
         return json(res, 200, await portfolio.following(pubkey));
+      }
+      if (req.method === "GET" && path === "/api/yards/counts") {
+        return json(res, 200, await yards.counts());
+      }
+      if (req.method === "GET" && path === "/api/yards/members") {
+        return json(res, 200, await yards.members(url.searchParams.get("yard") || ""));
+      }
+      if (req.method === "GET" && path === "/api/yards/mine") {
+        const pubkey = authenticate(req, "", allowed);
+        return json(res, 200, await yards.mine(pubkey));
+      }
+      if (req.method === "GET" && path === "/api/yards/events") {
+        let viewer = "";
+        if (req.headers.authorization) viewer = authenticate(req, "", allowed);
+        return json(res, 200, await yards.events(url.searchParams.get("yard") || "", viewer));
+      }
+      if (req.method === "GET" && path === "/api/yards/guests") {
+        return json(res, 200, await yards.guests(url.searchParams.get("eventId") || ""));
       }
       if (req.method === "GET" && path === "/api/connect/orgs") {
         return json(
@@ -258,6 +278,10 @@ export function createApiHandler(env, { origins, development = false } = {}) {
             "/api/connect/opportunity",
             "/api/connect/interest",
             "/api/connect/interest/status",
+            "/api/yards/join",
+            "/api/yards/events",
+            "/api/yards/rsvp",
+            "/api/yards/rsvp/cancel",
           ].includes(path)
         ) {
           throw new HttpError(404, "API route not found.");
@@ -312,6 +336,18 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         );
       }
 
+      if (path === "/api/yards/join") {
+        return json(res, 200, await yards.join(body, pubkey));
+      }
+      if (path === "/api/yards/events") {
+        return json(res, 200, await yards.createEvent(body, pubkey));
+      }
+      if (path === "/api/yards/rsvp") {
+        return json(res, 200, await yards.rsvp(body, pubkey));
+      }
+      if (path === "/api/yards/rsvp/cancel") {
+        return json(res, 200, await yards.cancelRsvp(body, pubkey));
+      }
       if (path === "/api/connect/org") {
         return json(res, 200, await connect.createOrg(body, pubkey));
       }

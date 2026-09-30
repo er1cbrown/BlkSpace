@@ -27,7 +27,10 @@ import {
   Sparkles,
   Lock,
 } from "lucide-react";
-import { useTauriGetCommunities } from "@/hooks/use-app-data";
+import {
+  useSharedYardCounts,
+  useTauriGetCommunities,
+} from "@/hooks/use-app-data";
 import { isTauri, type TauriCommunity } from "@/lib/tauri-api";
 import { BETA_FEATURES } from "@/lib/beta-features";
 import { getYardTheme, resolveCommunityYardTheme } from "@/lib/yard-themes";
@@ -67,6 +70,7 @@ function mapCommunity(c: TauriCommunity) {
 
 export default function CommunitiesPage() {
   const { data: tauriData } = useTauriGetCommunities();
+  const { data: yardCounts } = useSharedYardCounts();
   const [query, setQuery] = useState("");
   const [state, setState] = useState("all");
   const [control, setControl] = useState<"all" | HbcuControl>("all");
@@ -133,7 +137,7 @@ export default function CommunitiesPage() {
         name: resolved.name,
         school: h.school,
         location: `${h.city}, ${h.state}`,
-        members: 0,
+        members: yardCounts?.[h.id] ?? 0,
         posts: 0,
         color: resolved.gradient,
         mascot: resolved.mascot,
@@ -143,7 +147,7 @@ export default function CommunitiesPage() {
         control: h.control,
       };
     });
-  }, [query, state, control, featuredOnly, homeYard, tauriMapped]);
+  }, [query, state, control, featuredOnly, homeYard, tauriMapped, yardCounts]);
 
   return (
     <AppShell wide hideRightRail>
@@ -153,7 +157,7 @@ export default function CommunitiesPage() {
         <Badge variant="outline" className="text-xs font-normal">
           {stats.total} campuses
         </Badge>
-        {!isTauri() && <SampleBadge>Web preview</SampleBadge>}
+        {!isTauri() && !yardCounts && <SampleBadge>Web preview</SampleBadge>}
       </div>
       <p className="text-muted-foreground text-base mb-2">
         A <strong className="text-foreground font-medium">yard</strong> is one
@@ -287,11 +291,17 @@ export default function CommunitiesPage() {
                   </p>
                 )}
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {c.location}
+                  <span className="flex items-center gap-3 min-w-0">
+                    <span className="flex items-center gap-1 min-w-0">
+                      <MapPin className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{c.location}</span>
+                    </span>
+                    <span className="flex items-center gap-1 shrink-0">
+                      <Users className="w-3.5 h-3.5" />
+                      {c.members.toLocaleString()}
+                    </span>
                   </span>
-                  <span className="flex items-center gap-1 text-primary font-medium">
+                  <span className="flex items-center gap-1 text-primary font-medium shrink-0">
                     Enter
                     <ArrowRight className="w-3.5 h-3.5" />
                   </span>

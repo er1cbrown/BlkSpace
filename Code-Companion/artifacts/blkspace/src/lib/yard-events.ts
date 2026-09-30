@@ -1,10 +1,16 @@
 /**
  * Yard events + ticketing client (RSVP, capacity, club exclusive, guest list).
- * Tauri when available; localStorage demo for web.
+ * Tauri uses the local database. The website saves joins, events, and RSVPs
+ * on the yard server, and keeps a browser copy only when nobody is signed in.
  */
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "@/lib/tauri-api";
-import { getCurrentHandle, getSessionToken } from "@/lib/auth";
+import {
+  createHttpAuthHeader,
+  getCurrentHandle,
+  getSessionToken,
+} from "@/lib/auth";
+import { hostedPost } from "@/lib/hosted-api";
 
 export interface YardEvent {
   id: number;
@@ -201,6 +207,46 @@ function save(s: DemoStore) {
   localStorage.setItem(STORE_KEY, JSON.stringify(s));
 }
 
+function signedOut(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : "";
+  return message.includes("Sign in again");
+}
+
+async function yardPost(
+  path: string,
+  body: unknown,
+): Promise<Record<string, any>> {
+  const res = await hostedPost(path, body);
+  const json = await res.json().catch(() => null);
+  if (!res.ok || json?.ok === false) {
+    throw new Error(json?.error || "Could not save that to the yard.");
+  }
+  return json;
+}
+
+async function yardGet(
+  path: string,
+  withAuth: boolean,
+): Promise<Record<string, any> | null> {
+  try {
+    const headers: Record<string, string> = {};
+    if (withAuth) {
+      try {
+        headers.authorization = createHttpAuthHeader(path, "GET", "");
+      } catch (err) {
+        if (!signedOut(err)) throw err;
+      }
+    }
+    const res = await fetch(path, { headers });
+    if (!res.ok) return null;
+    const body = await res.json();
+    if (!body || body.ok === false) return null;
+    return body;
+  } catch {
+    return null;
+  }
+}
+
 function ticketCode(eventId: number, handle: string): string {
   let h = 2166136261;
   for (let i = 0; i < handle.length; i++) {
@@ -242,6 +288,11 @@ export async function listYardEvents(
       currentUser: currentUser ?? null,
     });
   }
+  const remote = await yardGet(
+    `/api/yards/events?yard=${encodeURIComponent(communityId)}`,
+    true,
+  );
+  if (Array.isArray(remote?.events)) return remote.events as YardEvent[];
   const me = currentUser || getCurrentHandle();
   return load()
     .events.filter((e) => e.communityId === communityId)
@@ -276,6 +327,20 @@ export async function createYardEvent(args: {
       ticketPriceWb: args.ticketPriceWb ?? 0,
       eventKind: args.eventKind ?? "general",
     });
+  }
+  try {
+    const saved = await yardPost("/api/yards/events", {
+      communityId: args.communityId,
+      title: args.title,
+      description: args.description,
+      location: args.location,
+      startsAt: args.startsAt,
+      endsAt: args.endsAt ?? null,
+      capacity: args.capacity ?? null,
+    });
+    if (saved.event) return saved.event as YardEvent;
+  } catch (err) {
+    if (!signedOut(err)) throw err;
   }
   const me = getCurrentHandle();
   const s = load();
@@ -315,6 +380,16 @@ export async function rsvpYardEvent(
       eventId,
       status,
     });
+  }
+  try {
+    const saved = await yardPost("/api/yards/rsvp", { eventId, status });
+    return {
+      rsvped: true,
+      status: String(saved.status || status),
+      waitlisted: !!saved.waitlisted,
+    };
+  } catch (err) {
+    if (!signedOut(err)) throw err;
   }
   const me = getCurrentHandle();
   const s = load();
@@ -379,6 +454,12 @@ export async function cancelYardEventRsvp(eventId: number): Promise<boolean> {
       eventId,
     });
   }
+  try {
+    await yardPost("/api/yards/rsvp/cancel", { eventId });
+    return true;
+  } catch (err) {
+    if (!signedOut(err)) throw err;
+  }
   const me = getCurrentHandle();
   const s = load();
   const list = s.rsvps[String(eventId)] || [];
@@ -394,6 +475,11 @@ export async function listEventGuests(eventId: number): Promise<EventGuest[]> {
       eventId,
     });
   }
+  const remote = await yardGet(
+    `/api/yards/guests?eventId=${encodeURIComponent(String(eventId))}`,
+    false,
+  );
+  if (Array.isArray(remote?.guests)) return remote.guests as EventGuest[];
   const list = load().rsvps[String(eventId)] || [];
   return list.map((r) => ({
     handle: r.handle,

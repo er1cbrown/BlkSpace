@@ -30,6 +30,7 @@ import {
   useTauriListPostsForChannel,
   useAppCreatePost,
   useAppListPosts,
+  useSharedYardCounts,
   useTauriJoinYard,
   useTauriIsYardMember,
 } from "@/hooks/use-app-data";
@@ -121,6 +122,7 @@ export default function CommunityPage() {
   const [postReplies, setPostReplies] = useState<Record<number, any[]>>({});
 
   const { data: tauriCommunities } = useTauriGetCommunities();
+  const { data: yardCounts } = useSharedYardCounts();
   // Normalize route param early (albany-st, Albany%20State, etc.)
   const routeYardKey = (id || "").trim().toLowerCase();
 
@@ -266,6 +268,10 @@ export default function CommunityPage() {
 
   // Canonical id for membership / posts (catalog may fuzzy-match)
   const yardId = community?.id || id;
+  const memberTotal =
+    !isTauri() && yardCounts && yardId
+      ? (yardCounts[yardId] ?? 0)
+      : (community?.members ?? 0);
 
   // Real channels when in Tauri (from DB via list_channels); default set for every HBCU
   const channels =
@@ -398,7 +404,7 @@ export default function CommunityPage() {
                 </span>
                 <span className="flex items-center gap-1">
                   <Users className="w-4 h-4" />{" "}
-                  {community.members.toLocaleString()} members
+                  {memberTotal.toLocaleString()} members
                 </span>
               </div>
             </div>

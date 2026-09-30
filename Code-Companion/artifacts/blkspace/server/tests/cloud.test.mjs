@@ -92,7 +92,11 @@ beforeAll(async () => {
         .query(stmt.sql)
         .all(
           ...stmt.args.map((a) =>
-            a.type === "integer" ? Number(a.value) : a.value,
+            a.type === "integer"
+              ? Number(a.value)
+              : a.type === "null"
+                ? null
+                : a.value,
           ),
         );
       const names = rows.length ? Object.keys(rows[0]) : [];
@@ -205,6 +209,86 @@ describe("ProjectConnect on the shared yard", () => {
     ).json();
     expect(cred.cred.interests).toBeGreaterThanOrEqual(1);
     expect(cred.cred.score).toBeGreaterThan(12);
+  });
+});
+
+describe("yards on the shared server", () => {
+  test("a join, an event, and an RSVP are visible to someone else", async () => {
+    await post("/api/portfolio/identity", { handle: "alice" });
+    await post("/api/portfolio/identity", { handle: "bob" }, bob);
+
+    const unsigned = await fetch(base + "/api/yards/join", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    expect(unsigned.status).toBe(401);
+
+    const joined = await post("/api/yards/join", { yardId: "meharry" });
+    expect(joined.status).toBe(200);
+    expect((await joined.json()).memberCount).toBe(1);
+
+    const blocked = await post(
+      "/api/yards/events",
+      {
+        communityId: "meharry",
+        title: "Too early",
+        startsAt: "2026-10-01T18:00:00",
+      },
+      bob,
+    );
+    expect(blocked.status).toBe(403);
+
+    const created = await post("/api/yards/events", {
+      communityId: "meharry",
+      title: "ClinYard study hour",
+      description: "Practice the handoff drill.",
+      location: "SACS lab",
+      startsAt: "2026-10-01T18:00:00",
+      capacity: 20,
+    });
+    expect(created.status).toBe(200);
+    const eventId = (await created.json()).event.id;
+    expect(eventId).toBeGreaterThan(0);
+
+    const early = await post(
+      "/api/yards/rsvp",
+      { eventId, status: "going" },
+      bob,
+    );
+    expect(early.status).toBe(403);
+
+    expect(
+      (await post("/api/yards/join", { yardId: "meharry" }, bob)).status,
+    ).toBe(200);
+    const rsvp = await post(
+      "/api/yards/rsvp",
+      { eventId, status: "going" },
+      bob,
+    );
+    expect(rsvp.status).toBe(200);
+    expect((await rsvp.json()).status).toBe("going");
+
+    const listed = await (
+      await fetch(base + "/api/yards/events?yard=meharry")
+    ).json();
+    const row = listed.events.find((event) => event.id === eventId);
+    expect(row.rsvpCount).toBe(1);
+    expect(row.goingCount).toBe(1);
+
+    const counts = await (await fetch(base + "/api/yards/counts")).json();
+    expect(counts.counts.meharry).toBe(2);
+
+    const members = await (
+      await fetch(base + "/api/yards/members?yard=meharry")
+    ).json();
+    expect(members.members.map((member) => member.handle).sort()).toEqual([
+      "alice",
+      "bob",
+    ]);
+
+    const mine = await (await authorizedGet("/api/yards/mine")).json();
+    expect(mine.yards).toContain("meharry");
   });
 });
 

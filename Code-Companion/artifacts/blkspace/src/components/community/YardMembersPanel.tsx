@@ -229,7 +229,7 @@ export function YardMembersPanel({
   }, [roleEntries]);
 
   const members: MemberRow[] = useMemo(() => {
-    if (isTauri() && yardMemberHandles.length > 0) {
+    if (!isTauri() || yardMemberHandles.length > 0) {
       const userByHandle = new Map(
         (allUsers as TauriUser[]).map((u) => [u.handle, u]),
       );
@@ -261,6 +261,7 @@ export function YardMembersPanel({
 
   return (
     <div className="space-y-4">
+      {isTauri() && (
       <Card className="border-primary/10 bg-primary/5">
         <CardContent className="p-4 text-sm space-y-2">
           <div className="flex items-center gap-2 font-medium">
@@ -288,6 +289,7 @@ export function YardMembersPanel({
           )}
         </CardContent>
       </Card>
+      )}
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium">
@@ -307,7 +309,8 @@ export function YardMembersPanel({
                 <div className="min-w-0">
                   <div className="font-medium truncate">{m.displayName}</div>
                   <div className="text-xs text-muted-foreground truncate">
-                    @{m.handle} · {m.weixBucks} WB
+                    @{m.handle}
+                    {isTauri() ? ` · ${m.weixBucks} WB` : ""}
                   </div>
                   <div className="mt-1.5">
                     <RoleBadge role={m.role} />
@@ -334,8 +337,9 @@ export function YardMembersPanel({
       {members.length === 0 && (
         <Card>
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            No yard members yet. Join the yard or create bot accounts on this
-            device for Device B testing.
+            {isTauri()
+              ? "No yard members yet. Join the yard or create bot accounts on this device for Device B testing."
+              : `No one has joined ${communityName} yet.`}
           </CardContent>
         </Card>
       )}

@@ -41,6 +41,9 @@ import {
   createInteractivePost,
   isWebYardMember,
   joinWebYard,
+  sharedYardCounts,
+  sharedYardIds,
+  sharedYardMembers,
   listInteractiveFeed,
   listInteractiveUserPosts,
   fetchFollowSummary,
@@ -1692,10 +1695,10 @@ export function useTauriRecalculateAllMaliciousIntentScores() {
 export function useTauriJoinYard() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (communityId: string) => {
+    mutationFn: async (communityId: string) => {
       if (!IS_TAURI) {
-        const r = joinWebYard(communityId);
-        return Promise.resolve({
+        const r = await joinWebYard(communityId);
+        return {
           joined: r.joined,
           earn: {
             wb: r.wb,
@@ -1704,7 +1707,7 @@ export function useTauriJoinYard() {
             karmaComment: 0,
             throttled: false,
           },
-        });
+        };
       }
       const token = getSessionToken();
       if (!token) throw new Error("Not signed in");
@@ -1715,6 +1718,8 @@ export function useTauriJoinYard() {
       qc.invalidateQueries({ queryKey: ["tauri", "earnSummary"] });
       qc.invalidateQueries({ queryKey: ["web", "user"] });
       qc.invalidateQueries({ queryKey: ["web", "yardMember"] });
+      qc.invalidateQueries({ queryKey: ["yards", "counts"] });
+      qc.invalidateQueries({ queryKey: ["yard", "members"] });
     },
   });
 }
@@ -1724,8 +1729,12 @@ export function useTauriIsYardMember(communityId: string) {
     queryKey: IS_TAURI
       ? ["tauri", "yardMember", communityId]
       : ["web", "yardMember", communityId],
-    queryFn: () => {
-      if (!IS_TAURI) return Promise.resolve(isWebYardMember(communityId));
+    queryFn: async () => {
+      if (!IS_TAURI) {
+        const shared = await sharedYardIds();
+        if (shared) return shared.includes(communityId.toLowerCase());
+        return isWebYardMember(communityId);
+      }
       const token = getSessionToken();
       if (!token) return false;
       return tauri.tauriIsYardMember(token, communityId);
@@ -1735,11 +1744,24 @@ export function useTauriIsYardMember(communityId: string) {
   });
 }
 
+export function useSharedYardCounts() {
+  return useQuery({
+    queryKey: ["yards", "counts"],
+    queryFn: () => sharedYardCounts(),
+    enabled: !IS_TAURI,
+    staleTime: 15_000,
+  });
+}
+
 export function useTauriListYardMembers(communityId: string) {
   return useQuery({
-    queryKey: ["tauri", "yardMembers", communityId],
-    queryFn: () => tauri.tauriListYardMembers(communityId),
-    enabled: IS_TAURI && !!communityId,
+    queryKey: ["yard", "members", communityId],
+    queryFn: async () => {
+      if (IS_TAURI) return tauri.tauriListYardMembers(communityId);
+      const rows = await sharedYardMembers(communityId);
+      return (rows || []).map((row) => row.handle);
+    },
+    enabled: !!communityId,
   });
 }
 
