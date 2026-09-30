@@ -153,9 +153,8 @@ export default function LandingPage() {
                 <HeartPulse className="w-8 h-8 text-primary mb-4" />
                 <h3 className="font-bold mb-2">ClinYard</h3>
                 <p className="text-sm text-muted-foreground">
-                  The study desk for clinic and med students. The drill set is
-                  still being built, so the page tells you that instead of
-                  pretending the cases are ready.
+                  A short study desk for clinic and med students. Four practice
+                  drills run in the browser. It is not a hospital chart.
                 </p>
               </Link>
               <Link href="/communities" className="bg-card p-6 rounded-2xl border block">

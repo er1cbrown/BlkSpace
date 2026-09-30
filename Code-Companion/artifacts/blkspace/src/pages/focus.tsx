@@ -151,6 +151,12 @@ export default function FocusPage() {
             have five minutes â€” not when you&apos;re in clinic.
           </p>
           <div className="flex flex-wrap gap-2">
+            <Link href="/clinyard">
+              <Button size="sm" variant="secondary" className="gap-1">
+                <HeartPulse className="w-3 h-3" />
+                ClinYard drills
+              </Button>
+            </Link>
             <Badge variant="outline">{prefs.campusLabel}</Badge>
             <Badge variant="secondary">Yard Â· {prefs.yardId}</Badge>
             {cred && (
