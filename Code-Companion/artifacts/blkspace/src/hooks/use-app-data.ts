@@ -39,13 +39,14 @@ import {
   applyLikesToPosts,
   buildWebUser,
   createInteractivePost,
-  getFollowing,
   isWebYardMember,
   joinWebYard,
   listInteractiveFeed,
   listInteractiveUserPosts,
-  toggleWebFollow,
-  toggleWebLike,
+  fetchFollowSummary,
+  followHostedHandle,
+  likeHostedPost,
+  refreshHostedFollowing,
   toggleWebRepost,
 } from "@/lib/web-userspace";
 
@@ -73,9 +74,18 @@ export function useAppGetUser(handle: string, enabled = true) {
   });
   const webResult = useQuery({
     queryKey: ["web", "user", handle],
-    queryFn: () => Promise.resolve(getMockUser(handle)),
+    queryFn: async () => {
+      const user = getMockUser(handle);
+      const summary = await fetchFollowSummary(handle);
+      if (!summary) return user;
+      return {
+        ...user,
+        followersCount: summary.followersCount,
+        followingCount: summary.followingCount,
+      };
+    },
     enabled: !IS_TAURI && !!handle && enabled,
-    staleTime: Infinity,
+    staleTime: 5_000,
   });
   return IS_TAURI ? tauriResult : webResult;
 }
@@ -539,6 +549,20 @@ export function useAppCreatePost() {
 
 export function useAppToggleLike() {
   const qc = useQueryClient();
+  const webMut = useMutation({
+    mutationFn: ({
+      postId,
+      desiredState,
+    }: {
+      postId: number;
+      desiredState?: boolean;
+    }) => likeHostedPost(postId, desiredState),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["web", "posts"] });
+      qc.invalidateQueries({ queryKey: ["web", "userPosts"] });
+      qc.invalidateQueries({ queryKey: ["web", "user"] });
+    },
+  });
   const tauriMut = useMutation({
     mutationFn: ({
       postId,
@@ -561,30 +585,25 @@ export function useAppToggleLike() {
     mutate: IS_TAURI
       ? (args: { postId: number; desiredState?: boolean }, opts?: any) =>
           tauriMut.mutate(args, opts)
-      : (args: { postId: number; liked?: boolean }, opts?: any) => {
-          try {
-            const { liked, likesDelta } = toggleWebLike(args.postId);
-            qc.invalidateQueries({ queryKey: ["web", "posts"] });
-            qc.invalidateQueries({ queryKey: ["web", "userPosts"] });
-            qc.invalidateQueries({ queryKey: ["web", "user"] });
-            opts?.onSuccess?.({
-              liked,
-              likesDelta,
-              authorEarn: liked
-                ? {
-                    wb: 0.5,
-                    wbNominal: 0.5,
-                    karmaPost: 0,
-                    karmaComment: 0,
-                    throttled: false,
-                  }
-                : undefined,
-            });
-          } catch (e) {
-            opts?.onError?.(e);
-          }
-        },
-    isPending: IS_TAURI ? tauriMut.isPending : false,
+      : (
+          args: { postId: number; desiredState?: boolean; liked?: boolean },
+          opts?: any,
+        ) =>
+          webMut.mutate(
+            {
+              postId: args.postId,
+              desiredState: args.desiredState ?? args.liked,
+            },
+            {
+              onSuccess: (result) =>
+                opts?.onSuccess?.({
+                  liked: result.liked,
+                  likesDelta: result.liked ? 1 : -1,
+                }),
+              onError: (error) => opts?.onError?.(error),
+            },
+          ),
+    isPending: IS_TAURI ? tauriMut.isPending : webMut.isPending,
   };
 }
 
@@ -599,8 +618,7 @@ export function useTauriToggleFollow() {
       desiredState?: boolean;
     }) => {
       if (!IS_TAURI) {
-        const now = toggleWebFollow(followedHandle);
-        return Promise.resolve(now);
+        return followHostedHandle(followedHandle, desiredState);
       }
       return tauri
         .tauriQueueSocialAction(getSessionToken() || "", "follow", {
@@ -630,7 +648,7 @@ export function useTauriGetFollowing(enabled: boolean = true) {
   });
   const webQ = useQuery({
     queryKey: ["web", "following"],
-    queryFn: () => Promise.resolve(getFollowing()),
+    queryFn: () => refreshHostedFollowing(),
     enabled: !IS_TAURI && enabled,
     staleTime: 0,
   });

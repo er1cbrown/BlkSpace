@@ -696,6 +696,14 @@ describe("standalone cloud server", () => {
       await authorizedGet("/api/portfolio/interactions/following", alice)
     ).json();
     expect(followingList.rows.some((row) => row.handle === "bob")).toBe(true);
+    const publicFollows = await (
+      await fetch(base + "/api/portfolio/follows?handle=bob")
+    ).json();
+    expect(publicFollows.ok).toBe(true);
+    expect(publicFollows.followersCount).toBeGreaterThanOrEqual(1);
+    expect(
+      publicFollows.followers.some((row) => row.handle === "alice"),
+    ).toBe(true);
     expect(
       (
         await post(

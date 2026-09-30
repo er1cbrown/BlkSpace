@@ -1510,6 +1510,49 @@ export function createPortfolio(env) {
     });
   }
 
+  async function followSummary(handle) {
+    await ensure();
+    const normalized = normalizeHandle(handle || "", "handle");
+    const identity = await identityForHandle(normalized);
+    if (!identity?.pubkey) {
+      throw new HttpError(404, "The account does not exist.");
+    }
+    const pubkey = String(identity.pubkey).toLowerCase();
+    const mapRow = (row) => ({
+      handle: row.handle || "",
+      pubkey: String(row.pubkey).toLowerCase(),
+    });
+    const followers = (
+      await query(
+        `SELECT COALESCE(i.handle, '') AS handle, f.follower_pubkey AS pubkey
+           FROM portfolio_follows f
+           LEFT JOIN portfolio_identities i ON i.pubkey = f.follower_pubkey
+          WHERE f.target_pubkey = ? AND f.desired_state = 1
+          ORDER BY COALESCE(i.handle, f.follower_pubkey), f.follower_pubkey`,
+        [pubkey],
+      )
+    ).map(mapRow);
+    const following = (
+      await query(
+        `SELECT COALESCE(i.handle, '') AS handle, f.target_pubkey AS pubkey
+           FROM portfolio_follows f
+           LEFT JOIN portfolio_identities i ON i.pubkey = f.target_pubkey
+          WHERE f.follower_pubkey = ? AND f.desired_state = 1
+          ORDER BY COALESCE(i.handle, f.target_pubkey), f.target_pubkey`,
+        [pubkey],
+      )
+    ).map(mapRow);
+    return {
+      ok: true,
+      handle: normalized,
+      pubkey,
+      followersCount: followers.length,
+      followingCount: following.length,
+      followers,
+      following,
+    };
+  }
+
   async function listFollowing(pubkey) {
     const followerPubkey = normalizePubkey(pubkey);
     await ensure();
@@ -1794,6 +1837,9 @@ export function createPortfolio(env) {
     },
     async following(pubkey) {
       return listFollowing(pubkey);
+    },
+    async followSummary(handle) {
+      return followSummary(handle);
     },
     async replies(postUid, options = {}) {
       return listReplies(postUid, options);

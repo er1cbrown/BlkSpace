@@ -4,7 +4,7 @@
  */
 
 import type { SeedPost } from "@/lib/seed-content";
-import { getCurrentDisplayName, getCurrentHandle } from "@/lib/auth";
+import { createHttpAuthHeader, getCurrentDisplayName, getCurrentHandle } from "@/lib/auth";
 import { hostedPost } from "@/lib/hosted-api";
 
 const LS_KEY = "blkspace_web_user_posts_v1";
@@ -158,7 +158,17 @@ function parseHostedMedia(value: unknown): string[] {
 /** Pull posts saved on Turso into this browser. No-op until the database is configured. */
 export async function refreshPortfolioFromTurso(): Promise<void> {
   try {
-    const res = await fetch("/api/portfolio/posts");
+    const headers: Record<string, string> = {};
+    try {
+      headers.authorization = createHttpAuthHeader(
+        "/api/portfolio/posts",
+        "GET",
+        "",
+      );
+    } catch {
+      // Guests still see public like counts. Their own heart needs a sign-in.
+    }
+    const res = await fetch("/api/portfolio/posts", { headers });
     if (!res.ok) return;
     const body = (await res.json()) as { rows?: HostedPortfolioRow[] };
     if (!body.rows?.length) return;
@@ -251,6 +261,10 @@ export async function createWebUserPost(input: {
     (input.mediaHashes && input.mediaHashes.length > 0 ? "📎" : "");
   const post: WebUserPost = {
     id: Date.now(),
+    postUid:
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `web-post-${Date.now()}`,
     authorHandle: handle,
     authorDisplayName: display || handle,
     authorAvatarUrl: "",

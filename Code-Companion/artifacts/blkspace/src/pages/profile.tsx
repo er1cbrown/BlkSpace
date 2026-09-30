@@ -126,9 +126,7 @@ export default function ProfilePage() {
   const createWallPost = useTauriCreateWallPost();
   const approveWallPost = useTauriApproveWallPost();
   const updateProfileLayout = useTauriUpdateProfileLayout();
-  const { data: remoteFollowing = [] } = useTauriGetFollowing(
-    isTauri() && !isOwnProfile,
-  );
+  const { data: remoteFollowing = [] } = useTauriGetFollowing(!isOwnProfile);
 
   const [profileTheme, setProfileTheme] = useState<ThemeKey>("classic");
   const [profileSong, setProfileSong] = useState<string | null>(null);

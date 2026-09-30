@@ -3,7 +3,12 @@
  * Web preview has no Tauri DB; this makes buttons feel real on localhost.
  */
 
-import { getCurrentDisplayName, getCurrentHandle } from "@/lib/auth";
+import {
+  createHttpAuthHeader,
+  getCurrentDisplayName,
+  getCurrentHandle,
+} from "@/lib/auth";
+import { hostedPost } from "@/lib/hosted-api";
 import { loadUiPrefs } from "@/lib/ui-prefs";
 import { getYardTheme } from "@/lib/yard-themes";
 import {
@@ -155,12 +160,157 @@ export function saveWebProfilePatch(patch: WebProfilePatch) {
   writeJson(PROFILE_KEY, { ...getWebProfilePatch(), ...patch });
 }
 
+async function readHosted(res: Response): Promise<Record<string, unknown>> {
+  const body = (await res.json().catch(() => null)) as
+    | (Record<string, unknown> & { ok?: boolean; error?: string })
+    | null;
+  if (!res.ok || body?.ok === false) {
+    throw new Error(body?.error || "Could not save that to the yard.");
+  }
+  return body || {};
+}
+
+function actionUid(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `web-action-${Date.now()}`;
+}
+
+/** Like or unlike a post that was saved on the yard. Other browsers see the count. */
+export async function likeHostedPost(
+  postId: number,
+  desiredState?: boolean,
+): Promise<{ liked: boolean; likesCount: number }> {
+  const stored = listWebUserPosts().find((post) => post.id === postId);
+  if (!stored) {
+    const local = toggleWebLike(postId);
+    return {
+      liked: local.liked,
+      likesCount: Math.max(0, local.likesDelta),
+    };
+  }
+  const currently = stored?.liked ?? isPostLiked(postId);
+  const next = desiredState ?? !currently;
+  const body = await readHosted(
+    await hostedPost("/api/portfolio/interactions/like", {
+      postUid: stored?.postUid || String(postId),
+      desiredState: next,
+      actionUid: actionUid(),
+    }),
+  );
+  const counts = body.counts as { likes?: number } | undefined;
+  const liked = Boolean(body.liked);
+  const likesCount = Number(body.likesCount ?? counts?.likes ?? 0);
+  const map = getLikedMap();
+  const key = String(postId);
+  if (liked) map[key] = true;
+  else delete map[key];
+  writeJson(LIKES_KEY, map);
+  patchImportedLike(postId, liked, likesCount);
+  return { liked, likesCount };
+}
+
+function patchImportedLike(postId: number, liked: boolean, likesCount: number) {
+  const posts = listWebUserPosts();
+  const index = posts.findIndex((post) => post.id === postId);
+  if (index < 0) return;
+  posts[index] = { ...posts[index], liked, likesCount };
+  localStorage.setItem(
+    "blkspace_web_user_posts_v1",
+    JSON.stringify(posts.slice(0, 100)),
+  );
+}
+
+/** Follow or unfollow a handle that exists on the yard. */
+export async function followHostedHandle(
+  handle: string,
+  desiredState?: boolean,
+): Promise<boolean> {
+  const cleaned = handle.replace(/^@/, "");
+  const next = desiredState ?? !isWebFollowing(cleaned);
+  const body = await readHosted(
+    await hostedPost("/api/portfolio/interactions/follow", {
+      targetHandle: cleaned,
+      desiredState: next,
+      actionUid: actionUid(),
+    }),
+  );
+  const following = Boolean(body.following ?? body.desiredState);
+  let list = getFollowing().filter((item) => item !== cleaned);
+  if (following) list = [...list, cleaned];
+  writeJson(FOLLOWING_KEY, list);
+  try {
+    localStorage.setItem("blkspace_followed", JSON.stringify(list));
+  } catch {
+    /* ignore */
+  }
+  return following;
+}
+
+export async function refreshHostedFollowing(): Promise<string[]> {
+  try {
+    const authorization = createHttpAuthHeader(
+      "/api/portfolio/following",
+      "GET",
+      "",
+    );
+    const res = await fetch("/api/portfolio/following", {
+      headers: { authorization },
+    });
+    if (!res.ok) return getFollowing();
+    const body = (await res.json()) as {
+      following?: { handle?: string }[];
+      rows?: { handle?: string }[];
+    };
+    const handles = (body.following || body.rows || [])
+      .map((row) => (row.handle || "").replace(/^@/, ""))
+      .filter(Boolean);
+    writeJson(FOLLOWING_KEY, handles);
+    try {
+      localStorage.setItem("blkspace_followed", JSON.stringify(handles));
+    } catch {
+      /* ignore */
+    }
+    return handles;
+  } catch {
+    return getFollowing();
+  }
+}
+
+export async function fetchFollowSummary(handle: string): Promise<{
+  followersCount: number;
+  followingCount: number;
+} | null> {
+  const cleaned = handle.replace(/^@/, "");
+  if (!cleaned) return null;
+  try {
+    const res = await fetch(
+      `/api/portfolio/follows?handle=${encodeURIComponent(cleaned)}`,
+    );
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      ok?: boolean;
+      followersCount?: number;
+      followingCount?: number;
+    };
+    if (body.ok !== true) return null;
+    return {
+      followersCount: Number(body.followersCount || 0),
+      followingCount: Number(body.followingCount || 0),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Apply like state onto a post list for the current browser user. */
 export function applyLikesToPosts<
-  T extends { id: number; likesCount: number; liked: boolean },
+  T extends { id: number; likesCount: number; liked: boolean; postUid?: string },
 >(posts: T[]): T[] {
   const map = getLikedMap();
   return posts.map((p) => {
+    // A cloud post already carries the shared count and this viewer's heart.
+    if (p.postUid) return p;
     const k = String(p.id);
     if (!Object.prototype.hasOwnProperty.call(map, k)) return p;
     const liked = !!map[k];

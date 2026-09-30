@@ -152,6 +152,13 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         const pubkey = authenticate(req, "", allowed);
         return json(res, 200, await portfolio.following(pubkey));
       }
+      if (req.method === "GET" && path === "/api/portfolio/follows") {
+        return json(
+          res,
+          200,
+          await portfolio.followSummary(url.searchParams.get("handle") || ""),
+        );
+      }
       if (req.method === "GET" && replyListRoutes.has(path)) {
         return json(
           res,
