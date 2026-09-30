@@ -146,6 +146,68 @@ afterAll(async () => {
   await rm(dir, { recursive: true });
 });
 
+describe("ProjectConnect on the shared yard", () => {
+  test("an organization and a raised hand are visible to someone else", async () => {
+    await post("/api/portfolio/identity", { handle: "alice" });
+    await post("/api/portfolio/identity", { handle: "bob" }, bob);
+    const board = await (await fetch(base + "/api/connect/orgs")).json();
+    expect(board.ok).toBe(true);
+    expect(board.orgs.some((org) => org.id === "org_meharry_research")).toBe(
+      true,
+    );
+
+    const created = await post("/api/connect/org", {
+      name: "SACS Study Circle",
+      orgType: "peer",
+      yardId: "meharry",
+      description: "Computer science students practicing clinical tasks.",
+    });
+    expect(created.status).toBe(200);
+    const org = (await created.json()).org;
+    expect(org.createdBy).toBe("alice");
+
+    const seen = await (await fetch(base + "/api/connect/orgs")).json();
+    expect(seen.orgs.some((row) => row.id === org.id)).toBe(true);
+
+    const opening = await post("/api/connect/opportunity", {
+      orgId: org.id,
+      title: "Read one ClinYard drill",
+      description: "Finish the handoff drill and write what the order was.",
+      durationText: "15 min",
+      tagsJson: "[]",
+    });
+    expect(opening.status).toBe(200);
+    const opportunityId = (await opening.json()).opportunity.id;
+
+    const hand = await post(
+      "/api/connect/interest",
+      {
+        opportunityId,
+        message: "I can do the handoff drill tonight.",
+        skillsSnapshot: "SBAR",
+        classification: "nursing",
+        gpaShared: false,
+      },
+      bob,
+    );
+    expect(hand.status).toBe(200);
+
+    const publicOpps = await (
+      await fetch(base + "/api/connect/opportunities")
+    ).json();
+    const listed = publicOpps.opportunities.find(
+      (row) => row.id === opportunityId,
+    );
+    expect(listed.interestCount).toBe(1);
+
+    const cred = await (
+      await fetch(base + "/api/connect/cred?handle=bob")
+    ).json();
+    expect(cred.cred.interests).toBeGreaterThanOrEqual(1);
+    expect(cred.cred.score).toBeGreaterThan(12);
+  });
+});
+
 describe("standalone cloud server", () => {
   test("serves deep links, health, and JSON API 404s", async () => {
     expect(await (await fetch(base + "/feed")).text()).toContain("BlkSpace");

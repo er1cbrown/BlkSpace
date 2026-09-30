@@ -1,6 +1,7 @@
 import { authenticate, createWriteLimiter } from "./auth.mjs";
 import { HttpError, json, readJson } from "./http.mjs";
 import { uploadTarget } from "./media.mjs";
+import { createConnect } from "./connect.mjs";
 import { createPortfolio } from "./portfolio.mjs";
 
 const interactionRoutes = new Map([
@@ -111,6 +112,7 @@ function notificationOptions(url, body = {}) {
 
 export function createApiHandler(env, { origins, development = false } = {}) {
   const portfolio = createPortfolio(env);
+  const connect = createConnect(env);
   const limit = createWriteLimiter();
   const uploadLimit = createWriteLimiter(10);
   return async (req, res) => {
@@ -151,6 +153,55 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (req.method === "GET" && followingListRoutes.has(path)) {
         const pubkey = authenticate(req, "", allowed);
         return json(res, 200, await portfolio.following(pubkey));
+      }
+      if (req.method === "GET" && path === "/api/connect/orgs") {
+        return json(
+          res,
+          200,
+          await connect.orgs(url.searchParams.get("type") || ""),
+        );
+      }
+      if (req.method === "GET" && path === "/api/connect/org") {
+        return json(res, 200, await connect.org(url.searchParams.get("id") || ""));
+      }
+      if (req.method === "GET" && path === "/api/connect/opportunities") {
+        return json(
+          res,
+          200,
+          await connect.opportunities({
+            orgId: url.searchParams.get("orgId") || "",
+            orgType: url.searchParams.get("type") || "",
+          }),
+        );
+      }
+      if (req.method === "GET" && path === "/api/connect/opportunity") {
+        return json(
+          res,
+          200,
+          await connect.opportunity(url.searchParams.get("id") || ""),
+        );
+      }
+      if (req.method === "GET" && path === "/api/connect/cred") {
+        return json(
+          res,
+          200,
+          await connect.cred(url.searchParams.get("handle") || ""),
+        );
+      }
+      if (req.method === "GET" && path === "/api/connect/interests") {
+        return json(
+          res,
+          200,
+          await connect.interests(url.searchParams.get("opportunityId") || ""),
+        );
+      }
+      if (req.method === "GET" && path === "/api/connect/inbox") {
+        const pubkey = authenticate(req, "", allowed);
+        return json(res, 200, await connect.inbox(pubkey));
+      }
+      if (req.method === "GET" && path === "/api/connect/my-interests") {
+        const pubkey = authenticate(req, "", allowed);
+        return json(res, 200, await connect.mine(pubkey));
       }
       if (req.method === "GET" && path === "/api/portfolio/follows") {
         return json(
@@ -200,7 +251,14 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (!isWriteMethod || !isSocialMutation) {
         if (
           req.method !== "POST" ||
-          !["/api/portfolio/post", "/api/media/upload-target"].includes(path)
+          ![
+            "/api/portfolio/post",
+            "/api/media/upload-target",
+            "/api/connect/org",
+            "/api/connect/opportunity",
+            "/api/connect/interest",
+            "/api/connect/interest/status",
+          ].includes(path)
         ) {
           throw new HttpError(404, "API route not found.");
         }
@@ -254,6 +312,18 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         );
       }
 
+      if (path === "/api/connect/org") {
+        return json(res, 200, await connect.createOrg(body, pubkey));
+      }
+      if (path === "/api/connect/opportunity") {
+        return json(res, 200, await connect.createOpportunity(body, pubkey));
+      }
+      if (path === "/api/connect/interest") {
+        return json(res, 200, await connect.expressInterest(body, pubkey));
+      }
+      if (path === "/api/connect/interest/status") {
+        return json(res, 200, await connect.setStatus(body, pubkey));
+      }
       if (path === "/api/portfolio/post")
         return json(res, 200, await portfolio.savePost(body, pubkey));
       uploadLimit(pubkey);

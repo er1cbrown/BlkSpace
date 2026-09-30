@@ -4,7 +4,8 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "@/lib/tauri-api";
-import { getCurrentHandle, getSessionToken } from "@/lib/auth";
+import { createHttpAuthHeader, getCurrentHandle, getSessionToken } from "@/lib/auth";
+import { hostedPost } from "@/lib/hosted-api";
 
 export type OrgType = "research" | "professional" | "club" | "service" | "peer";
 
@@ -926,6 +927,45 @@ function loadWeb(): WebState {
   };
 }
 
+async function connectGet(path: string): Promise<Record<string, any> | null> {
+  try {
+    const res = await fetch(path);
+    if (!res.ok) return null;
+    const body = await res.json();
+    if (!body || body.ok === false) return null;
+    return body;
+  } catch {
+    return null;
+  }
+}
+
+async function connectPost(path: string, body: unknown): Promise<Record<string, any>> {
+  const res = await hostedPost(path, body);
+  const json = await res.json().catch(() => null);
+  if (!res.ok || json?.ok === false) {
+    throw new Error(json?.error || "Could not save that to the yard.");
+  }
+  return json;
+}
+
+function signedOut(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : "";
+  return message.includes("Sign in again");
+}
+
+async function connectGetSigned(path: string): Promise<Record<string, any> | null> {
+  try {
+    const authorization = createHttpAuthHeader(path, "GET", "");
+    const res = await fetch(path, { headers: { authorization } });
+    if (!res.ok) return null;
+    const body = await res.json();
+    if (!body || body.ok === false) return null;
+    return body;
+  } catch {
+    return null;
+  }
+}
+
 function saveWeb(s: WebState) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(s));
@@ -964,6 +1004,12 @@ export async function listOrgs(orgType?: string): Promise<ConnectOrg[]> {
       orgType: orgType && orgType !== "all" ? orgType : null,
     });
   }
+  const query =
+    orgType && orgType !== "all"
+      ? `?type=${encodeURIComponent(orgType)}`
+      : "";
+  const remote = await connectGet(`/api/connect/orgs${query}`);
+  if (Array.isArray(remote?.orgs)) return remote.orgs as ConnectOrg[];
   const s = loadWeb();
   if (!orgType || orgType === "all") return s.orgs;
   return s.orgs.filter((o) => o.orgType === orgType);
@@ -973,6 +1019,10 @@ export async function getOrg(id: string): Promise<ConnectOrg | null> {
   if (isTauri()) {
     return invoke("connect_get_org", { id });
   }
+  const remote = await connectGet(
+    `/api/connect/org?id=${encodeURIComponent(id)}`,
+  );
+  if (remote?.org) return remote.org as ConnectOrg;
   const s = loadWeb();
   return s.orgs.find((o) => o.id === id || o.slug === id) ?? null;
 }
@@ -987,6 +1037,12 @@ export async function createOrg(input: {
     const sessionToken = getSessionToken();
     if (!sessionToken) throw new Error("Sign in to create an org");
     return invoke("connect_create_org", { sessionToken, ...input });
+  }
+  try {
+    const saved = await connectPost("/api/connect/org", input);
+    return saved.org as ConnectOrg;
+  } catch (err) {
+    if (!signedOut(err)) throw err;
   }
   const s = loadWeb();
   const handle = getCurrentHandle();
@@ -1025,6 +1081,16 @@ export async function listOpportunities(opts?: {
       orgType: opts?.orgType && opts.orgType !== "all" ? opts.orgType : null,
     });
   }
+  const params = new URLSearchParams();
+  if (opts?.orgId) params.set("orgId", opts.orgId);
+  if (opts?.orgType && opts.orgType !== "all") params.set("type", opts.orgType);
+  const query = params.toString();
+  const remote = await connectGet(
+    `/api/connect/opportunities${query ? `?${query}` : ""}`,
+  );
+  if (Array.isArray(remote?.opportunities)) {
+    return remote.opportunities as ConnectOpportunity[];
+  }
   let list = loadWeb().opps.filter((o) => o.status === "open");
   if (opts?.orgId) list = list.filter((o) => o.orgId === opts.orgId);
   if (opts?.orgType && opts.orgType !== "all") {
@@ -1061,6 +1127,10 @@ export async function getOpportunity(
   if (isTauri()) {
     return invoke("connect_get_opportunity", { id });
   }
+  const remote = await connectGet(
+    `/api/connect/opportunity?id=${encodeURIComponent(String(id))}`,
+  );
+  if (remote?.opportunity) return remote.opportunity as ConnectOpportunity;
   return loadWeb().opps.find((o) => o.id === id) ?? null;
 }
 
@@ -1145,6 +1215,12 @@ export async function createOpportunity(input: {
     if (!sessionToken) throw new Error("Sign in required");
     return invoke("connect_create_opportunity", { sessionToken, ...input });
   }
+  try {
+    const saved = await connectPost("/api/connect/opportunity", input);
+    return saved.opportunity as ConnectOpportunity;
+  } catch (err) {
+    if (!signedOut(err)) throw err;
+  }
   const s = loadWeb();
   const org = s.orgs.find((o) => o.id === input.orgId);
   if (!org) throw new Error("Org not found");
@@ -1197,6 +1273,16 @@ export async function expressInterest(input: {
       gpa: gpaVal,
       gpaShared: share,
     });
+  }
+  try {
+    const saved = await connectPost("/api/connect/interest", {
+      ...input,
+      gpa: gpaVal,
+      gpaShared: share,
+    });
+    return saved.interest as ConnectInterest;
+  } catch (err) {
+    if (!signedOut(err)) throw err;
   }
   const s = loadWeb();
   const opp = s.opps.find((o) => o.id === input.opportunityId);
@@ -1256,6 +1342,10 @@ export async function listInterests(
   if (isTauri()) {
     return invoke("connect_list_interests", { opportunityId });
   }
+  const remote = await connectGet(
+    `/api/connect/interests?opportunityId=${encodeURIComponent(String(opportunityId))}`,
+  );
+  if (Array.isArray(remote?.interests)) return remote.interests as ConnectInterest[];
   return loadWeb().interests.filter((i) => i.opportunityId === opportunityId);
 }
 
@@ -1265,6 +1355,8 @@ export async function listInbox(): Promise<ConnectInterest[]> {
     if (!sessionToken) return [];
     return invoke("connect_inbox", { sessionToken });
   }
+  const remote = await connectGetSigned("/api/connect/inbox");
+  if (Array.isArray(remote?.interests)) return remote.interests as ConnectInterest[];
   const handle = getCurrentHandle();
   const s = loadWeb();
   // Match Tauri: opp creator OR org owner (createdBy on org)
@@ -1286,6 +1378,8 @@ export async function listMyInterests(): Promise<ConnectInterest[]> {
     if (!sessionToken) return [];
     return invoke("connect_my_interests", { sessionToken });
   }
+  const remote = await connectGetSigned("/api/connect/my-interests");
+  if (Array.isArray(remote?.interests)) return remote.interests as ConnectInterest[];
   const handle = getCurrentHandle();
   return loadWeb().interests.filter((i) => i.handle === handle);
 }
@@ -1303,6 +1397,12 @@ export async function setInterestStatus(
       status,
     });
     return;
+  }
+  try {
+    await connectPost("/api/connect/interest/status", { interestId, status });
+    return;
+  } catch (err) {
+    if (!signedOut(err)) throw err;
   }
   const s = loadWeb();
   const row = s.interests.find((i) => i.id === interestId);
@@ -1331,6 +1431,15 @@ export async function completeInterest(
     });
     return;
   }
+  try {
+    await connectPost("/api/connect/interest/status", {
+      interestId,
+      status: "completed",
+    });
+    return;
+  } catch (err) {
+    if (!signedOut(err)) throw err;
+  }
   const s = loadWeb();
   const row = s.interests.find((i) => i.id === interestId);
   if (row) row.status = "completed";
@@ -1341,6 +1450,10 @@ export async function getYardCred(handle: string): Promise<YardCred> {
   if (isTauri()) {
     return invoke("connect_yard_cred", { handle });
   }
+  const remote = await connectGet(
+    `/api/connect/cred?handle=${encodeURIComponent(handle)}`,
+  );
+  if (remote?.cred) return remote.cred as YardCred;
   return webCred(handle);
 }
 
