@@ -5,6 +5,7 @@ import { createConnect } from "./connect.mjs";
 import { createYards } from "./yards.mjs";
 import { createYardDesk } from "./yard-desk.mjs";
 import { createPortfolio } from "./portfolio.mjs";
+import { readYardFile, readYardManifest } from "./yard-photos.mjs";
 
 const interactionRoutes = new Map([
   // Canonical interaction routes.
@@ -141,6 +142,23 @@ export function createApiHandler(env, { origins, development = false } = {}) {
           version: env.BLKSPACE_REVISION || "development",
           storage: "cloud",
         });
+      }
+
+      // Local digiKam publishes. Files stay on this machine until the pic post
+      // path stores them in the browser blob store or hosted media.
+      if (req.method === "GET" && path === "/api/yard-photos/manifest") {
+        return json(res, 200, readYardManifest());
+      }
+      if (req.method === "GET" && path === "/api/yard-photos/file") {
+        const file = readYardFile(url.searchParams.get("name"));
+        if (!file) return json(res, 404, { ok: false, error: "Not found" });
+        res.writeHead(200, {
+          "content-type": file.mime,
+          "content-length": file.size,
+          "cache-control": "no-store",
+        });
+        res.end(file.body);
+        return;
       }
 
       if (req.method === "GET" && path === "/api/portfolio/posts") {

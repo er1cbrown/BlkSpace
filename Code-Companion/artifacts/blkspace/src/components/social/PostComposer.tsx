@@ -47,6 +47,7 @@ import {
   webDeleteBlob,
   webStoreFile,
 } from "@/lib/media-web-store";
+import { fitImageForUpload } from "@/lib/fit-image";
 import { uploadHostedMedia } from "@/lib/remote-media";
 import { cn } from "@/lib/utils";
 
@@ -204,7 +205,8 @@ export function PostComposer({
     }
 
     setUploading(true);
-    for (const file of batch) {
+    for (const raw of batch) {
+      const file = await fitImageForUpload(raw);
       const check = isAllowedUpload(file);
       if (!check.ok) {
         toast.error(`${file.name}: ${check.reason}`);
@@ -484,7 +486,7 @@ export function PostComposer({
                     e.stopPropagation();
                     openPicker(false);
                   }}
-                  title="Photo, audio, PDF, docs"
+                  title="Photos are resized to 1600px before upload. Audio, PDF, and docs stay as they are."
                 >
                   {uploading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

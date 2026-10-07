@@ -33,6 +33,22 @@ describe("cloud post acknowledgement", () => {
     expect(listWebUserPosts()).toHaveLength(0);
   });
 
+  it("keeps the local pic when shared storage is not configured", async () => {
+    hostedPost.mockResolvedValue(
+      Response.json(
+        { ok: false, error: "Shared post storage is not configured." },
+        { status: 503 },
+      ),
+    );
+    const post = await createWebUserPost({
+      content: "library pic",
+      townTag: "tsu",
+      mediaHashes: ["web_abc"],
+    });
+    expect(post.mediaBlobs).toEqual(["web_abc"]);
+    expect(listWebUserPosts()[0].content).toBe("library pic");
+  });
+
   it("waits for the server before storing the post locally", async () => {
     let complete!: (value: Response) => void;
     hostedPost.mockReturnValue(

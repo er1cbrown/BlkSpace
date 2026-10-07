@@ -103,6 +103,15 @@ async function mirrorPost(post: WebUserPost) {
     ok?: boolean;
     error?: string;
   } | null;
+  // Tier 0 laptops run the API with no Turso URL. The pic still lives in
+  // this browser, and hosted sync happens once storage is configured.
+  if (
+    import.meta.env.DEV &&
+    res.status === 503 &&
+    body?.error === "Shared post storage is not configured."
+  ) {
+    return;
+  }
   if (!res.ok || body?.ok !== true) {
     throw new Error(
       body?.error || "Post was not saved to the cloud. Please retry.",

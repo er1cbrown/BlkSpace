@@ -34,6 +34,7 @@ const SearchPage = React.lazy(() => import("@/pages/search"));
 const WalletPage = React.lazy(() => import("@/pages/wallet"));
 const MediaPage = React.lazy(() => import("@/pages/media"));
 const CreatePage = React.lazy(() => import("@/pages/create"));
+const LibraryPage = React.lazy(() => import("@/pages/library"));
 const LeaderboardPage = React.lazy(() => import("@/pages/leaderboard"));
 const MeshTestPage = React.lazy(() => import("@/pages/mesh-test"));
 const ConnectPage = React.lazy(() => import("@/pages/connect"));
@@ -191,6 +192,10 @@ function Router() {
         <Route
           path="/create"
           component={() => <GuestRoute component={CreatePage} />}
+        />
+        <Route
+          path="/library"
+          component={() => <GuestRoute component={LibraryPage} />}
         />
         <Route path="/leaderboard" component={LeaderboardPage} />
         <Route path="/media" component={MediaPage} />

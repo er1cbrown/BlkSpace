@@ -3,7 +3,12 @@
 ## How it works
 
 ```text
-User picks files (composer / Create)
+User picks files (composer / Create) on Windows, Mac, or Linux
+        │
+        ▼
+  Photos are resized in the app (fit-image.ts): 1600px JPEG,
+  then smaller passes until under the 8 MB browser cap.
+  Audio, PDF, and documents are not resized.
         │
         ▼
   Validate type + size (media-upload.ts)
@@ -51,6 +56,7 @@ Absolute ceiling: **50 MB** (`MAX_UPLOAD_SIZE` in Rust).
 
 | File | Role |
 |------|------|
+| `src/lib/fit-image.ts` | In-app photo resize before upload (all platforms) |
 | `src/lib/media-upload.ts` | Types, limits, validation |
 | `src/components/social/PostComposer.tsx` | Attach UI |
 | `src/components/ui/media-display.tsx` | Render image/video/audio/pdf/file |

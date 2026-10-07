@@ -155,6 +155,23 @@ export default function CreatePage() {
         }
       />
 
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-sm">From the photo library</CardTitle>
+        </CardHeader>
+        <CardContent className="text-xs text-muted-foreground space-y-2">
+          <p>
+            A photo attached above is resized in the app to 1600px on Windows,
+            Mac, and Linux. Rated and tagged photos in digiKam on this computer
+            can still be prepared with pyvips and posted from Library. RAWs
+            wait for a Darktable JPEG or TIFF.
+          </p>
+          <Link href="/library" className="text-primary hover:underline">
+            Open Library
+          </Link>
+        </CardContent>
+      </Card>
+
       <Card className="mt-6 border-primary/15">
         <CardHeader>
           <CardTitle className="text-sm">

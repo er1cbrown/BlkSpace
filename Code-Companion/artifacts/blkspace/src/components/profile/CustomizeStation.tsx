@@ -28,6 +28,7 @@ import {
 } from "@/lib/myyard-layout";
 import { MYARD_PROFILE_THEMES } from "@/lib/myyard-catalog";
 import { MYYARD_PAGE_TEMPLATES } from "@/lib/myyard-page-templates";
+import { fitImageForUpload } from "@/lib/fit-image";
 import type { TauriBlobInfo } from "@/lib/tauri-api";
 import { isTauri, tauriOpenMyYardCss } from "@/lib/tauri-api";
 import {
@@ -155,11 +156,12 @@ export function CustomizeStation({
     });
 
   const addGalleryFromFile = async (file: File) => {
-    if (!file.type.startsWith("image/")) return;
     if (a.galleryHashes.length + Object.keys(a.galleryDataUrls).length >= 8)
       return;
-    const dataUrl = await readFileAsDataUrl(file);
-    const id = `web_${Date.now()}_${file.name.slice(0, 12)}`;
+    const fitted = await fitImageForUpload(file);
+    if (!fitted.type.startsWith("image/")) return;
+    const dataUrl = await readFileAsDataUrl(fitted);
+    const id = `web_${Date.now()}_${fitted.name.slice(0, 12)}`;
     patchA({
       galleryDataUrls: { ...a.galleryDataUrls, [id]: dataUrl },
       galleryHashes: [...a.galleryHashes, id].slice(0, 8),
@@ -167,8 +169,9 @@ export function CustomizeStation({
   };
 
   const addBannerFromFile = async (file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    const dataUrl = await readFileAsDataUrl(file);
+    const fitted = await fitImageForUpload(file);
+    if (!fitted.type.startsWith("image/")) return;
+    const dataUrl = await readFileAsDataUrl(fitted);
     patchA({
       bannerMode: "image",
       bannerImageDataUrl: dataUrl,
