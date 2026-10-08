@@ -3,7 +3,7 @@
  * Cash-out and trades stay closed. A reachable RPC is not a mint.
  */
 import { spawn } from "node:child_process";
-import { access } from "node:fs/promises";
+import { access, readdir, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { probeWeixnetRelays } from "../src/lib/weixnet-relays.ts";
@@ -307,6 +307,30 @@ async function runSendme(args, opts, deps) {
       }
     });
   });
+}
+
+export async function listOutboxFiles(deps = {}) {
+  const outbox = deps.outbox ?? weixnetOutbox();
+  let names = [];
+  try {
+    names = await readdir(outbox);
+  } catch (err) {
+    if (err && err.code === "ENOENT") return { ok: true, files: [] };
+    throw err;
+  }
+  const files = [];
+  for (const name of names) {
+    if (!FILE_NAME.test(name) || name.includes("..")) continue;
+    try {
+      const info = await stat(insideDir(outbox, name));
+      if (!info.isFile()) continue;
+      files.push({ name, bytes: info.size });
+    } catch {
+      /* skip names that disappear while listing */
+    }
+  }
+  files.sort((a, b) => a.name.localeCompare(b.name));
+  return { ok: true, files };
 }
 
 export async function shareOutboxFile(input, deps = {}) {

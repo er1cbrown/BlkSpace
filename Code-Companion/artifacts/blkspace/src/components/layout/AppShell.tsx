@@ -24,6 +24,7 @@ import {
   Building2,
   MoreHorizontal,
   Settings,
+  Share2,
   Shield,
   Trophy,
   Joystick,
@@ -174,6 +175,7 @@ export function AppShell({
 
   // Connect is primary nav; More holds secondary destinations
   const moreItems = [
+    { href: "/blkshi", label: "BLKSHI", icon: Share2, show: true },
     { href: "/messages", label: "Messages", icon: MessageCircle, show: true },
     { href: "/hub", label: "Hub", icon: Layers, show: true },
     { href: "/arcade", label: "Arcade", icon: Joystick, show: true },

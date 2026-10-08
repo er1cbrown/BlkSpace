@@ -13,6 +13,7 @@ import {
   BKSPC_RPC_URL,
   resetWeixnetStatusCache,
   parseRnsStatus,
+  listOutboxFiles,
   receiveTicket,
   shareOutboxFile,
   ticketFromSendmeOutput,
@@ -185,6 +186,18 @@ describe("weixnet lanes", () => {
     await expect(receiveTicket({ ticket: "ticket with spaces" })).rejects.toThrow(
       /not a sendme ticket/,
     );
+  });
+
+  test("outbox list keeps plain files and skips hidden names", async () => {
+    await mkdir("/tmp/weixnet-outbox", { recursive: true });
+    await writeFile("/tmp/weixnet-outbox/note.txt", "yard\n");
+    await writeFile("/tmp/weixnet-outbox/.hidden", "no\n");
+    const listed = await listOutboxFiles({ outbox: "/tmp/weixnet-outbox" });
+    const names = listed.files.map((file) => file.name);
+    expect(names).toContain("note.txt");
+    expect(names.some((name) => name.startsWith("."))).toBe(false);
+    const note = listed.files.find((file) => file.name === "note.txt");
+    expect(note.bytes).toBe(5);
   });
 
   test("sharing an outbox file returns the sendme ticket", async () => {

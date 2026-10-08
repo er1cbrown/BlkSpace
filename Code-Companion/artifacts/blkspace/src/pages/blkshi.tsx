@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SendmeLaneCard } from "@/components/weixnet/SendmeLaneCard";
 
 type LaneStatus = {
   chainSocket: string;
@@ -102,6 +103,7 @@ export default function BlkshiPage() {
             </Button>
           </CardContent>
         </Card>
+        <SendmeLaneCard fileLane={status?.lane?.file} />
       </div>
     </AppShell>
   );

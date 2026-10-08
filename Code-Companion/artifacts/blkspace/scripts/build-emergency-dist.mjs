@@ -164,18 +164,38 @@ if (js.includes("import.meta.env")) {
 }
 
 // ── JSX factory holes (blank white screen in Tauri WebView) ─────────────────
-// Bun often emits `Y=void 0` (or Q=void 0) for the automatic JSX runtime while
-// still calling Y(type, props, key, …) thousands of times. createRoot runs, then
-// TypeError: Y is not a function → empty #root.
+// Bun often emits `FACTORY=void 0` for the automatic JSX runtime while still
+// calling FACTORY(type, props, key, …) thousands of times. The minified name
+// changes every build (Y, Q, o, …). createRoot runs, then
+// TypeError: FACTORY is not a function → boot error / empty #root.
 //
-// Pattern A (current): var yS0,B1,Y=void 0;var n=T(()=>{…fragment only…})
-// Patch n() to install a self-contained jsx factory (same shape as bun's `ll`).
-const jsxVoidInit =
-  /var yS0,B1,Y=void 0;var n=T\(\(\)=>\{yS0=Symbol\.for\("react\.fragment"\);B1=yS0\}\)/;
+// Pattern A: var frag,alias,FACTORY=void 0;var init=wrap(()=>{…fragment only…})
+// Patch init() to install a self-contained jsx factory (same shape as bun's `ll`).
 // NOTE: String.replace treats $$ as a single $ — never put $$typeof in a
 // replacement *string*; use a function replacer so $$typeof stays intact.
-const jsxFactoryBody =
-  'Y=function(J,X,Z){var $=null;if(X==null)X={};if(Z!==void 0&&Z!==null)$=""+Z;if(X.key!==void 0)$=""+X.key;var props;if("key"in X){props={};for(var z in X)z!=="key"&&(props[z]=X[z])}else props=X;var ref=props.ref;return{$$typeof:__el,type:J,key:$,ref:ref!==void 0?ref:null,props:props}}';
+function jsxFactoryAssign(name) {
+  return (
+    name +
+    '=function(J,X,Z){var $=null;if(X==null)X={};if(Z!==void 0&&Z!==null)$=""+Z;if(X.key!==void 0)$=""+X.key;var props;if("key"in X){props={};for(var z in X)z!=="key"&&(props[z]=X[z])}else props=X;var ref=props.ref;return{$$typeof:__el,type:J,key:$,ref:ref!==void 0?ref:null,props:props}}'
+  );
+}
+const jsxFactoryBody = jsxFactoryAssign("Y");
+const jsxHole =
+  /var (\w+),(\w+),(\w+)=void 0;var (\w+)=(\w+)\(\(\)=>\{\1=Symbol\.for\("react\.fragment"\);\2=\1\}\)/g;
+let jsxHoleCount = 0;
+js = js.replace(jsxHole, (_full, frag, fragAlias, factory, init, wrap) => {
+  jsxHoleCount += 1;
+  return (
+    `var ${frag},${fragAlias},${factory}=void 0;var ${init}=${wrap}(()=>{${frag}=Symbol.for("react.fragment");${fragAlias}=${frag};var __el=Symbol.for("react.transitional.element");` +
+    jsxFactoryAssign(factory) +
+    "})"
+  );
+});
+if (jsxHoleCount > 0) {
+  log(`patched JSX factory hole ×${jsxHoleCount} → inline jsx`);
+}
+const jsxVoidInit =
+  /var yS0,B1,Y=void 0;var n=T\(\(\)=>\{yS0=Symbol\.for\("react\.fragment"\);B1=yS0\}\)/;
 if (jsxVoidInit.test(js)) {
   js = js.replace(jsxVoidInit, () => {
     return (
@@ -246,6 +266,29 @@ if (
     "[emergency-dist] WARN: JSX factory Y still void after patch — expect blank white screen",
   );
 }
+// Name-agnostic boot guard: the render() callee must be a function even when
+// bun picks a new identifier (current bundle uses `o`).
+const bootRender =
+  /([A-Za-z_$][\w$]*)\.createRoot\(document\.getElementById\("root"\)\)\.render\(([A-Za-z_$][\w$]*)\(/;
+const bootMatch = js.match(bootRender);
+if (bootMatch && !new RegExp(`\\b${bootMatch[2]}=function\\b`).test(js)) {
+  const factory = bootMatch[2];
+  js = js.replace(bootRender, (full) => {
+    return (
+      `if(typeof ${factory}!=="function"){var __el=Symbol.for("react.transitional.element");` +
+      jsxFactoryAssign(factory) +
+      "}" +
+      full
+    );
+  });
+  log(`patched createRoot render: ${factory} was not a function`);
+}
+const bootLeft = js.match(bootRender);
+if (bootLeft && !new RegExp(`\\b${bootLeft[2]}=function\\b`).test(js)) {
+  console.warn(
+    `[emergency-dist] WARN: JSX factory ${bootLeft[2]} still not a function — expect boot TypeError`,
+  );
+}
 fs.writeFileSync(jsSrc, js);
 
 fs.mkdirSync(liveDist, { recursive: true });
@@ -296,7 +339,12 @@ const indexHtml = `<!doctype html>
         function hide() {
           if (splash) splash.classList.add("is-hidden");
         }
+        var booted = false;
         function showErr(msg) {
+          if (booted) {
+            console.error(msg);
+            return;
+          }
           if (splash) splash.style.display = "none";
           if (errBox) {
             errBox.style.display = "block";
@@ -314,6 +362,7 @@ const indexHtml = `<!doctype html>
         var t = setInterval(function () {
           n++;
           if (root && root.childNodes.length > 0) {
+            booted = true;
             hide();
             clearInterval(t);
           } else if (n > 80) {

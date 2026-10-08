@@ -62,12 +62,16 @@ export default function LibraryPage() {
 
   const load = useCallback(async () => {
     setError("");
-    const res = await fetch("/api/yard-photos/manifest");
-    if (!res.ok) {
+    try {
+      const res = await fetch("/api/yard-photos/manifest");
+      if (!res.ok) {
+        setError("The prepare list could not be loaded.");
+        return;
+      }
+      setManifest((await res.json()) as YardPhotoManifest);
+    } catch {
       setError("The prepare list could not be loaded.");
-      return;
     }
-    setManifest((await res.json()) as YardPhotoManifest);
   }, []);
 
   useEffect(() => {
