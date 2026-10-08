@@ -22,4 +22,4 @@ export function looksLikeExternalSendmeTicket(s: string): boolean {
 }
 
 export const SENDME_DOCS = "https://github.com/n0-computer/sendme";
-export const SENDME_INSTALL = "cargo install sendme";
+export const SENDME_INSTALL = "Put prebuilt sendme 0.36.0 on PATH (~/.local/bin/sendme). Do not cargo install.";

@@ -320,8 +320,8 @@ export default function RelaysPage() {
                     Damus / cross-client visibility
                   </CardTitle>
                   <CardDescription>
-                    Publish a signed test note to relay.damus.io, then verify on
-                    Damus or nostr.band.
+                    Publish a signed test note through the connected public
+                    relay, then read it back.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

@@ -71,10 +71,13 @@ Payload (v2):
 
 Operators / Device B:
 
+On a 4 GB machine, use the prebuilt 0.36.0 binary. Do not `cargo install sendme`.
+
 ```bash
-cargo install sendme
+# linux x86_64 tarball, sha256 2ca000662b59108b7604cd115ec7feddd6097451770ca58e957f46decb3af907
+# https://github.com/n0-computer/sendme/releases/download/v0.36.0/sendme-v0.36.0-linux-x86_64.tar.gz
 sendme send ./project.zip
-# peer:
+# peer, while the sender is still running:
 sendme receive <ticket>
 ```
 

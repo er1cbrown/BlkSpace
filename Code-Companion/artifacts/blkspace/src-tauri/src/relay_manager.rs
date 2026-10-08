@@ -4,11 +4,15 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 pub const DEFAULT_RELAYS: &[&str] = &[
-    "wss://relay.damus.io",
-    "wss://relay.nostr.band",
+    // First hop is the one Tier 0 keeps. On 2026-10-07 from the Yard laptop,
+    // nos.lol and relay.snort.social completed a Nostr websocket and a kind-1
+    // round trip. relay.damus.io and nostr.wine opened TCP and then failed the
+    // websocket. relay.nostr.band timed out, so it stays last.
     "wss://nos.lol",
     "wss://relay.snort.social",
+    "wss://relay.damus.io",
     "wss://nostr.wine",
+    "wss://relay.nostr.band",
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,11 +79,9 @@ impl RelayManager {
   pub async fn connect_startup_relays(&mut self, full_mesh: bool) -> Result<Vec<String>, String> {
     use tokio::time::{timeout, Duration};
 
-    let urls: Vec<&str> = if full_mesh {
-      DEFAULT_RELAYS.to_vec()
-    } else {
-      vec![DEFAULT_RELAYS[0]]
-    };
+    // Tier 0 keeps the first relay that answers. Full mesh connects all of them.
+    // The list is ordered so a dead hop is not the one this machine waits on.
+    let urls: Vec<&str> = DEFAULT_RELAYS.to_vec();
 
     const RELAY_TIMEOUT: Duration = Duration::from_secs(6);
 
@@ -137,6 +139,9 @@ impl RelayManager {
           let latency = self.check_health(url).await.ok();
           self.register_connection(url.to_string(), latency);
           connected.push(url.to_string());
+          if !full_mesh {
+            break;
+          }
         }
         Ok(Err(e)) => log::warn!("Failed to connect to {url}: {e}"),
         Err(_) => log::warn!("Relay connect timed out: {url}"),

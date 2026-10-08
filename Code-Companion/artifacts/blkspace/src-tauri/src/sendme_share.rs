@@ -12,8 +12,8 @@
 //! 2. **Local / Iroh materialize** — receiver pulls from local blob_store or Iroh fs-store when present.
 //! 3. **CLI bridge** — detect `sendme` on PATH and expose exact shell commands for true P2P hole-punch.
 //!
-//! Do not depend on the `sendme` crate (pulls iroh 1.0). Students use tickets in-app; operators install
-//! `cargo install sendme` for campus LAN / relay P2P file drops.
+//! Do not depend on the `sendme` crate (pulls iroh 1.0). Students use tickets in-app; operators put the
+//! prebuilt sendme 0.36.0 binary on PATH. Do not `cargo install sendme` on a 4 GB machine.
 
 use base64::Engine;
 use bitcoin::secp256k1::{Message, Secp256k1, XOnlyPublicKey};
@@ -235,7 +235,7 @@ pub fn looks_like_external_blob_ticket(s: &str) -> bool {
 }
 
 pub fn detect_sendme_cli() -> SendmeCliInfo {
-  let install_hint = "cargo install sendme".to_string();
+  let install_hint = "Put prebuilt sendme 0.36.0 on PATH (~/.local/bin/sendme). Do not cargo install.".to_string();
   let send_example = "sendme send ./photo.jpg".to_string();
   let receive_example = "sendme receive <ticket>".to_string();
   let note = "sendme (n0) uses iroh 1.x for hole-punch P2P. BlkSpace Yard uses content tickets + local/Iroh store; install sendme for live endpoint tickets."

@@ -69,7 +69,7 @@ mod nostr_relay_smoke {
   #[tokio::test]
   async fn test_nostr_publish_roundtrip_damus_relay() {
     let mut manager = RelayManager::new();
-    let damus = DEFAULT_RELAYS[0];
+    let damus = "wss://relay.damus.io";
     manager.add_relay(damus).await.expect("add damus");
     manager.connect_relay(damus).await.expect("connect damus");
     manager.register_connection(damus.to_string(), None);

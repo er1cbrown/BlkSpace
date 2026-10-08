@@ -4207,7 +4207,14 @@ fn publish_nostr_visibility_test(
     nevent,
     npub,
     content,
-    relay_url: relay_manager::DEFAULT_RELAYS[0].to_string(),
+    relay_url: state
+      .relay_manager
+      .lock()
+      .unwrap()
+      .get_statuses()
+      .first()
+      .map(|status| status.url.clone())
+      .unwrap_or_else(|| relay_manager::DEFAULT_RELAYS[0].to_string()),
     fetched_back,
   })
 }
@@ -4931,7 +4938,7 @@ fn receive_blob_share_ticket(
     if cli.installed {
       "sendme is installed on PATH."
     } else {
-      "Install: cargo install sendme"
+      "Install: prebuilt sendme 0.36.0 on PATH (~/.local/bin/sendme). Do not cargo install."
     }
   ))
 }
@@ -4972,7 +4979,7 @@ fn get_sendme_cli_commands(path: Option<String>, ticket: Option<String>) -> serd
   serde_json::json!({
     "send": path.map(|p| sendme_share::sendme_send_command(&p)),
     "receive": ticket.map(|t| sendme_share::sendme_receive_command(&t)),
-    "install": "cargo install sendme",
+    "install": "Put prebuilt sendme 0.36.0 on PATH (~/.local/bin/sendme). Do not cargo install.",
     "docs": "https://github.com/n0-computer/sendme",
   })
 }
