@@ -676,6 +676,8 @@ pub const BKSPC_SYMBOL: &str = "BKSPC";
 pub const BKSPC_NAME: &str = "BlkSpace Settlement";
 pub const WB_TO_BKSPC_RATIO: i64 = 1000;
 const WITHDRAW_TX_PREFIX: &str = "Withdrawn to Solana";
+/// Marks a `wallet_tx` earn row that returns credits after a failed on-chain settlement.
+const VOID_REFUND_PREFIX: &str = "Settlement failed refund";
 
 /// Published economy policy — see docs/economy-uniform-model.md.
 #[derive(Debug, Serialize, Clone)]
@@ -822,7 +824,7 @@ pub struct Database {
 }
 
 /// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
-const SCHEMA_VERSION: i32 = 12;
+const SCHEMA_VERSION: i32 = 13;
 
 /// Tier 0 page cache in KiB (negative PRAGMA cache_size = KiB).
 /// Default 8 MiB — was 64 MiB which is too heavy for 4 GB laptops.
@@ -1350,6 +1352,10 @@ impl Database {
         description TEXT DEFAULT '',
         balance_after INTEGER NOT NULL,
         created_at TEXT DEFAULT (datetime('now')),
+        -- 1 when the credits behind this row were returned after a failed on-chain
+        -- settlement. Voided rows stay for audit but must not count toward the weekly
+        -- withdrawal cap or the cooldown.
+        voided INTEGER DEFAULT 0,
         FOREIGN KEY (user_handle) REFERENCES users(handle)
       );
 
@@ -2566,23 +2572,28 @@ impl Database {
     let xp_gain = ((amount as f64) * Self::category_xp_weight(category)).round() as i64;
     let xp_gain = xp_gain.max(1);
 
-    conn.execute(
+    // One transaction: a crash between the balance update and the `wallet_tx` insert would
+    // credit the balance without recording the earn, permanently inflating the daily-cap
+    // denominator that the query above recomputes from `wallet_tx`.
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(
       "UPDATE users SET weix_bucks = weix_bucks + ?1,
                         contribution_xp = COALESCE(contribution_xp, 0) + ?2
        WHERE handle = ?3",
       params![grant, xp_gain, handle],
     )?;
-    conn.execute(
+    tx.execute(
       "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
        SELECT ?1, 'earn', ?2, ?3, weix_bucks FROM users WHERE handle = ?1",
       params![handle, grant, description],
     )?;
-    conn.execute(
+    tx.execute(
       "INSERT INTO earn_category_day (handle, day, category, count)
        VALUES (?1, ?2, ?3, 1)
        ON CONFLICT(handle, day, category) DO UPDATE SET count = count + 1",
       params![handle, day, category],
     )?;
+    tx.commit()?;
     Ok(grant)
   }
 
@@ -4163,6 +4174,7 @@ impl Database {
       "SELECT COALESCE(SUM(ABS(amount)), 0) FROM wallet_tx
        WHERE user_handle = ?1
          AND description LIKE ?2
+         AND voided = 0
          AND datetime(created_at) >= datetime('now', '-7 days')",
       params![handle, format!("{WITHDRAW_TX_PREFIX}%")],
       |r| r.get(0),
@@ -4173,7 +4185,7 @@ impl Database {
     let days_until_next_withdraw: i64 = conn
       .query_row(
         "SELECT created_at FROM wallet_tx
-         WHERE user_handle = ?1 AND description LIKE ?2
+         WHERE user_handle = ?1 AND description LIKE ?2 AND voided = 0
          ORDER BY datetime(created_at) DESC LIMIT 1",
         params![handle, format!("{WITHDRAW_TX_PREFIX}%")],
         |r| r.get::<_, String>(0),
@@ -4306,7 +4318,7 @@ impl Database {
     Ok(())
   }
 
-  pub fn deduct_weix_bucks(&self, handle: &str, amount: i64, description: &str) -> Result<i64> {
+  pub fn deduct_weix_bucks(&self, handle: &str, amount: i64, description: &str) -> Result<(i64, i64)> {
     if amount <= 0 {
       return Err(crate::sqlite::Error::InvalidParameterName("Amount must be positive".into()));
     }
@@ -4331,6 +4343,55 @@ impl Database {
       "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
        SELECT ?1, 'spend', -?2, ?3, weix_bucks FROM users WHERE handle = ?1",
       params![handle, amount, description],
+    )?;
+
+    let balance_new: i64 = tx.query_row(
+      "SELECT weix_bucks FROM users WHERE handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+
+    let row_id = tx.last_insert_rowid();
+
+    tx.commit()?;
+    Ok((balance_new, row_id))
+  }
+
+  /// Reverse a `deduct_weix_bucks` after the off-chain work it funded failed.
+  ///
+  /// Credits the full amount back with no earn caps, XP, or diminishing returns — this is
+  /// a return of the student's own credits, not a reward — marks the original debit
+  /// `voided_tx` so it stops counting toward the weekly cap and cooldown, and writes the
+  /// compensating `wallet_tx` row. All three writes share one transaction.
+  pub fn refund_weix_bucks(&self, handle: &str, amount: i64, void_tx_id: i64) -> Result<i64> {
+    if amount <= 0 {
+      return Err(crate::sqlite::Error::InvalidParameterName("Amount must be positive".into()));
+    }
+    let conn = self.conn.lock().unwrap();
+    let tx = conn.unchecked_transaction()?;
+
+    let debited: bool = tx.query_row(
+      "SELECT EXISTS(SELECT 1 FROM wallet_tx WHERE id = ?1 AND user_handle = ?2 AND voided = 0)",
+      params![void_tx_id, handle],
+      |r| r.get(0),
+    )?;
+    if !debited {
+      return Err(crate::sqlite::Error::InvalidParameterName(
+        "No matching unvoided debit to refund".into(),
+      ));
+    }
+
+    tx.execute(
+      "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
+      params![amount, handle],
+    )?;
+
+    tx.execute("UPDATE wallet_tx SET voided = 1 WHERE id = ?1", params![void_tx_id])?;
+
+    tx.execute(
+      "INSERT INTO wallet_tx (user_handle, tx_type, amount, description, balance_after)
+       SELECT ?1, 'earn', ?2, ?3, weix_bucks FROM users WHERE handle = ?1",
+      params![handle, amount, format!("{VOID_REFUND_PREFIX} ledger row {}", void_tx_id)],
     )?;
 
     let balance_new: i64 = tx.query_row(

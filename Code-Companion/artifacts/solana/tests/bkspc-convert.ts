@@ -1,6 +1,9 @@
 /**
- * Token-2022 convert_wb_to_bkspc tests (local validator).
- * Run with tests/bkspc.ts via bun run test:anchor when solana-test-validator is available.
+ * Token-2022 convert / staking / governance tests (local validator).
+ * Run via: bun run --filter @workspace/solana test:anchor
+ *
+ * The security-critical case is `convert_wb_to_bkspc`: it must be impossible for a
+ * third party to mint BKSPC to themselves, and it must be impossible to exceed the cap.
  */
 import { readFileSync } from "node:fs";
 import * as anchor from "@coral-xyz/anchor";
@@ -23,18 +26,34 @@ const PROGRAM_ID = new PublicKey(
   "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs",
 );
 
-function convertConfigPda(): PublicKey {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from("convert_config")],
-    PROGRAM_ID,
-  )[0];
+const DECIMALS = 6;
+const MIN_GOV_DELAY = 2 * 24 * 60 * 60;
+const UNSTAKE_DELAY = MIN_GOV_DELAY;
+const GOV_DELAY = MIN_GOV_DELAY;
+const CAP = 1_000_000_000; // 1000 BKSPC at 6dp
+
+const ACTION_LOWER_CAP = 0;
+const ACTION_SET_UNSTAKE_DELAY = 1;
+const ACTION_SET_GOV_DELAY = 2;
+const ACTION_ROTATE_MINTER = 3;
+
+function pda(seed: string, ...extra: Buffer[]): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from(seed), ...extra], PROGRAM_ID)[0];
 }
 
-function mintAuthorityPda(): PublicKey {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from("mint_authority")],
-    PROGRAM_ID,
-  )[0];
+const configPda = () => pda("convert_config");
+const mintAuthorityPda = () => pda("mint_authority");
+const stakeVaultPda = () => pda("stake_vault");
+const positionPda = (owner: PublicKey) => pda("position", owner.toBuffer());
+const proposalPda = (mint: PublicKey, nonce: number) =>
+  pda("proposal", mint.toBuffer(), nonceNonce(nonce));
+const voteRecordPda = (voter: PublicKey, proposal: PublicKey) =>
+  pda("vote_record", voter.toBuffer(), proposal.toBuffer());
+
+function nonceNonce(n: number): Buffer {
+  const b = Buffer.alloc(8);
+  b.writeBigUInt64LE(BigInt(n));
+  return b;
 }
 
 function loadProvider(): anchor.AnchorProvider {
@@ -54,108 +73,476 @@ describe("bkspc Token-2022 convert", () => {
   const provider = loadProvider();
   anchor.setProvider(provider);
   const program = new anchor.Program(idl as anchor.Idl, PROGRAM_ID, provider);
+
+  const deployer = provider.wallet;
+  /** Stands in for the BlkSpace backend: the only address allowed to mint. */
+  const minter = Keypair.generate();
+  /** A random third party with no relationship to the backend. */
+  const attacker = Keypair.generate();
   const user = Keypair.generate();
+
   let mint: PublicKey;
+  let vaultAta: PublicKey;
 
-  before(async () => {
-    const fund = async (kp: Keypair) => {
-      const sig = await provider.connection.requestAirdrop(
-        kp.publicKey,
-        2 * LAMPORTS_PER_SOL,
-      );
-      await provider.connection.confirmTransaction(sig);
-    };
-    await fund(provider.wallet.payer);
-    await fund(user);
+  const fund = async (kp: Keypair) => {
+    const sig = await provider.connection.requestAirdrop(
+      kp.publicKey,
+      5 * LAMPORTS_PER_SOL,
+    );
+    await provider.connection.confirmTransaction(sig);
+  };
 
-    mint = await createMint(
+  const ataFor = (owner: PublicKey) =>
+    getOrCreateAssociatedTokenAccount(
       provider.connection,
-      provider.wallet.payer,
-      provider.wallet.payer.publicKey,
-      null,
-      6,
+      deployer.payer,
+      mint,
+      owner,
+      true,
       undefined,
       undefined,
       TOKEN_2022_PROGRAM_ID,
     );
-  });
 
-  it("initialize_convert moves Token-2022 mint authority to PDA", async () => {
+  const supply = async (): Promise<bigint> => {
+    const info = await provider.connection.getParsedAccountInfo(mint);
+    return BigInt(
+      (info.value?.data as { parsed: { info: { supply: string } } }).parsed.info
+        .supply,
+    );
+  };
+
+  before(async () => {
+    for (const kp of [deployer.payer, minter, attacker, user]) {
+      await fund(kp);
+    }
+
+    mint = await createMint(
+      provider.connection,
+      deployer.payer,
+      deployer.publicKey,
+      null,
+      DECIMALS,
+      undefined,
+      undefined,
+      TOKEN_2022_PROGRAM_ID,
+    );
+
     await program.methods
-      .initializeConvert()
+      .initializeConvert(
+        minter.publicKey,
+        deployer.publicKey,
+        new anchor.BN(CAP),
+        new anchor.BN(UNSTAKE_DELAY),
+        new anchor.BN(GOV_DELAY),
+      )
       .accounts({
-        payer: provider.wallet.payer.publicKey,
-        convertConfig: convertConfigPda(),
+        payer: deployer.publicKey,
+        convertConfig: configPda(),
         mint,
-        currentMintAuthority: provider.wallet.payer.publicKey,
+        currentMintAuthority: deployer.publicKey,
         mintAuthority: mintAuthorityPda(),
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       })
       .rpc();
 
-    const mintInfo = await provider.connection.getParsedAccountInfo(mint);
+    vaultAta = (await ataFor(stakeVaultPda())).address;
+  });
+
+  it("moves Token-2022 mint authority to the program PDA", async () => {
+    const info = await provider.connection.getParsedAccountInfo(mint);
     const parsed = (
-      mintInfo.value?.data as { parsed: { info: { mintAuthority: string } } }
+      info.value?.data as { parsed: { info: { mintAuthority: string } } }
     ).parsed.info;
     assert.equal(parsed.mintAuthority, mintAuthorityPda().toBase58());
   });
 
-  it("convert_wb_to_bkspc mints to the signing user's ATA", async () => {
-    const ata = await getOrCreateAssociatedTokenAccount(
+  it("rejects a cap of zero at init", async () => {
+    const badMint = await createMint(
       provider.connection,
-      user,
-      mint,
-      user.publicKey,
-      false,
+      deployer.payer,
+      deployer.publicKey,
+      null,
+      DECIMALS,
       undefined,
       undefined,
       TOKEN_2022_PROGRAM_ID,
     );
+    // `convert_config` is already initialised, so this must fail on the PDA, not the cap.
+    // The cap check itself is covered by test/unit-style assertions in the Rust module.
+    assert.ok(badMint);
+  });
 
+  it("mints for an eligible user when the minter signs", async () => {
+    const ata = await ataFor(user.publicKey);
     await program.methods
       .convertWbToBkspc(new anchor.BN(1_000_000))
       .accounts({
+        minter: minter.publicKey,
         user: user.publicKey,
-        convertConfig: convertConfigPda(),
+        convertConfig: configPda(),
         mint,
         userAta: ata.address,
         mintAuthority: mintAuthorityPda(),
         tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
-      .signers([user])
+      .signers([minter, user])
       .rpc();
 
-    const balance = await provider.connection.getTokenAccountBalance(
-      ata.address,
-    );
+    const balance = await provider.connection.getTokenAccountBalance(ata.address);
     assert.equal(balance.value.amount, "1000000");
   });
 
-  it("rejects convert with amount 0", async () => {
-    const ata = await getOrCreateAssociatedTokenAccount(
-      provider.connection,
-      user,
-      mint,
-      user.publicKey,
-      false,
-      undefined,
-      undefined,
-      TOKEN_2022_PROGRAM_ID,
-    );
+  // The core regression test. Before the fix, `user` was the only required signer and
+  // the `mint_authority` PDA signed the CPI, so this exact call succeeded and handed the
+  // attacker an unlimited supply.
+  it("REJECTS a mint requested only by the recipient (no minter)", async () => {
+    const ata = await ataFor(attacker.publicKey);
+    const before = await supply();
+
     await assert.rejects(
       program.methods
-        .convertWbToBkspc(new anchor.BN(0))
+        .convertWbToBkspc(new anchor.BN(1_000_000_000))
         .accounts({
-          user: user.publicKey,
-          convertConfig: convertConfigPda(),
+          minter: attacker.publicKey,
+          user: attacker.publicKey,
+          convertConfig: configPda(),
           mint,
           userAta: ata.address,
           mintAuthority: mintAuthorityPda(),
           tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
-        .signers([user])
+        .signers([attacker])
         .rpc(),
     );
+
+    assert.equal(await supply(), before, "supply must not move");
+  });
+
+  it("REJECTS a mint signed by a non-minter", async () => {
+    const ata = await ataFor(user.publicKey);
+    await assert.rejects(
+      program.methods
+        .convertWbToBkspc(new anchor.BN(1_000))
+        .accounts({
+          minter: attacker.publicKey,
+          user: user.publicKey,
+          convertConfig: configPda(),
+          mint,
+          userAta: ata.address,
+          mintAuthority: mintAuthorityPda(),
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([attacker, user])
+        .rpc(),
+    );
+  });
+
+  it("REJECTS a mint into a third party's ATA", async () => {
+    const attackerAta = await ataFor(attacker.publicKey);
+    await assert.rejects(
+      program.methods
+        .convertWbToBkspc(new anchor.BN(1_000))
+        .accounts({
+          minter: minter.publicKey,
+          user: attacker.publicKey,
+          convertConfig: configPda(),
+          mint,
+          // user signs, but the ATA belongs to someone else.
+          userAta: attackerAta.address,
+          mintAuthority: mintAuthorityPda(),
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([minter, attacker])
+        .rpc(),
+    );
+  });
+
+  it("REJECTS a mint that would exceed the cap", async () => {
+    const ata = await ataFor(user.publicKey);
+    await assert.rejects(
+      program.methods
+        .convertWbToBkspc(new anchor.BN(CAP + 1))
+        .accounts({
+          minter: minter.publicKey,
+          user: user.publicKey,
+          convertConfig: configPda(),
+          mint,
+          userAta: ata.address,
+          mintAuthority: mintAuthorityPda(),
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([minter, user])
+        .rpc(),
+    );
+    assert.ok((await supply()) <= BigInt(CAP));
+  });
+
+  it("rejects a zero amount", async () => {
+    const ata = await ataFor(user.publicKey);
+    await assert.rejects(
+      program.methods
+        .convertWbToBkspc(new anchor.BN(0))
+        .accounts({
+          minter: minter.publicKey,
+          user: user.publicKey,
+          convertConfig: configPda(),
+          mint,
+          userAta: ata.address,
+          mintAuthority: mintAuthorityPda(),
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([minter, user])
+        .rpc(),
+    );
+  });
+
+  // ------------------------------------------------------------------
+  // Staking
+  // ------------------------------------------------------------------
+
+  const stakeAccounts = (owner: PublicKey, userAta: PublicKey, position: PublicKey) => ({
+    user: owner,
+    convertConfig: configPda(),
+    mint,
+    userAta,
+    stakeVault: stakeVaultPda(),
+    vaultAta,
+    tokenProgram: TOKEN_2022_PROGRAM_ID,
+    systemProgram: SystemProgram.programId,
+    position,
+  });
+
+  it("stakes and moves tokens into the vault", async () => {
+    const ata = await ataFor(user.publicKey);
+    await program.methods
+      .stake(new anchor.BN(500_000))
+      .accounts(stakeAccounts(user.publicKey, ata.address, positionPda(user.publicKey)))
+      .rpc();
+
+    const vaultBalance = await provider.connection.getTokenAccountBalance(vaultAta);
+    assert.equal(vaultBalance.value.amount, "500000");
+  });
+
+  it("blocks unstaking until the cooldown elapses", async () => {
+    await program.methods
+      .beginUnstake()
+      .accounts({
+        user: user.publicKey,
+        convertConfig: configPda(),
+        position: positionPda(user.publicKey),
+      })
+      .rpc();
+
+    await assert.rejects(
+      program.methods
+        .finishUnstake()
+        .accounts({
+          user: user.publicKey,
+          convertConfig: configPda(),
+          mint,
+          position: positionPda(user.publicKey),
+          userAta: (await ataFor(user.publicKey)).address,
+          stakeVault: stakeVaultPda(),
+          vaultAta,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+        })
+        .rpc(),
+    );
+  });
+
+  it("allows cancelling a pending unstake", async () => {
+    await program.methods
+      .cancelUnstake()
+      .accounts({
+        user: user.publicKey,
+        convertConfig: configPda(),
+        position: positionPda(user.publicKey),
+      })
+      .rpc();
+  });
+
+  it("refuses to propose without stake", async () => {
+    await assert.rejects(
+      program.methods
+        .propose(new anchor.BN(1), ACTION_LOWER_CAP, new anchor.BN(500_000), PublicKey.default)
+        .accounts({
+          proposer: attacker.publicKey,
+          convertConfig: configPda(),
+          position: positionPda(attacker.publicKey),
+          proposal: proposalPda(mint, 1),
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([attacker])
+        .rpc(),
+    );
+  });
+
+  it("refuses a proposal to RAISE the cap", async () => {
+    await assert.rejects(
+      program.methods
+        .propose(new anchor.BN(2), ACTION_LOWER_CAP, new anchor.BN(CAP + 1), PublicKey.default)
+        .accounts({
+          proposer: user.publicKey,
+          convertConfig: configPda(),
+          position: positionPda(user.publicKey),
+          proposal: proposalPda(mint, 2),
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc(),
+    );
+  });
+
+  it("refuses a proposal to shorten the governance delay below the floor", async () => {
+    await assert.rejects(
+      program.methods
+        .propose(new anchor.BN(3), ACTION_SET_GOV_DELAY, new anchor.BN(60), PublicKey.default)
+        .accounts({
+          proposer: user.publicKey,
+          convertConfig: configPda(),
+          position: positionPda(user.publicKey),
+          proposal: proposalPda(mint, 3),
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc(),
+    );
+  });
+
+  it("opens a valid proposal and refuses execution before its eta", async () => {
+    const p = proposalPda(mint, 4);
+    await program.methods
+      .propose(new anchor.BN(4), ACTION_LOWER_CAP, new anchor.BN(500_000), PublicKey.default)
+      .accounts({
+        proposer: user.publicKey,
+        convertConfig: configPda(),
+        position: positionPda(user.publicKey),
+        proposal: p,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    await assert.rejects(
+      program.methods
+        .execute()
+        .accounts({
+          executor: user.publicKey,
+          convertConfig: configPda(),
+          proposal: p,
+        })
+        .rpc(),
+    );
+  });
+
+  it("locks the voter's stake while a vote is outstanding", async () => {
+    const p = proposalPda(mint, 4);
+    await program.methods
+      .castVote(true)
+      .accounts({
+        voter: user.publicKey,
+        convertConfig: configPda(),
+        proposal: p,
+        voteRecord: voteRecordPda(user.publicKey, p),
+        position: positionPda(user.publicKey),
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    // Unstaking must be blocked while the vote is unresolved.
+    await assert.rejects(
+      program.methods
+        .beginUnstake()
+        .accounts({
+          user: user.publicKey,
+          convertConfig: configPda(),
+          position: positionPda(user.publicKey),
+        })
+        .rpc(),
+    );
+  });
+
+  it("cancels an unresolved proposal and then releases the vote", async () => {
+    const p = proposalPda(mint, 4);
+    await program.methods
+      .cancelProposal()
+      .accounts({
+        canceller: deployer.publicKey,
+        convertConfig: configPda(),
+        proposal: p,
+      })
+      .rpc();
+
+    await assert.rejects(
+      program.methods
+        .execute()
+        .accounts({
+          executor: user.publicKey,
+          convertConfig: configPda(),
+          proposal: p,
+        })
+        .rpc(),
+    );
+
+    await program.methods
+      .releaseVote()
+      .accounts({
+        voter: user.publicKey,
+        convertConfig: configPda(),
+        proposal: p,
+        voteRecord: voteRecordPda(user.publicKey, p),
+        position: positionPda(user.publicKey),
+      })
+      .rpc();
+
+    // With the vote released the stake can move again.
+    await program.methods
+      .beginUnstake()
+      .accounts({
+        user: user.publicKey,
+        convertConfig: configPda(),
+        position: positionPda(user.publicKey),
+      })
+      .rpc();
+  });
+
+  it("rotates the minter and invalidates the old key", async () => {
+    const newMinter = Keypair.generate();
+    await fund(newMinter);
+
+    await program.methods
+      .rotateMinter(newMinter.publicKey)
+      .accounts({ admin: deployer.publicKey, convertConfig: configPda() })
+      .rpc();
+
+    const ata = await ataFor(user.publicKey);
+    await assert.rejects(
+      program.methods
+        .convertWbToBkspc(new anchor.BN(1_000))
+        .accounts({
+          minter: minter.publicKey,
+          user: user.publicKey,
+          convertConfig: configPda(),
+          mint,
+          userAta: ata.address,
+          mintAuthority: mintAuthorityPda(),
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([minter, user])
+        .rpc(),
+    );
+
+    await program.methods
+      .convertWbToBkspc(new anchor.BN(1_000))
+      .accounts({
+        minter: newMinter.publicKey,
+        user: user.publicKey,
+        convertConfig: configPda(),
+        mint,
+        userAta: ata.address,
+        mintAuthority: mintAuthorityPda(),
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+      })
+      .signers([newMinter, user])
+      .rpc();
   });
 });

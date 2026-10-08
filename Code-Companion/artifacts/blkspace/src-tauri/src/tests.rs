@@ -571,7 +571,8 @@ mod tests {
     qualify_user_for_withdraw(&db, "capped");
     db.test_set_weix_bucks("capped", 2000).unwrap();
 
-    db.deduct_weix_bucks("capped", 600, "Withdrawn to Solana address: abc12345...")
+    let _ = db
+      .deduct_weix_bucks("capped", 600, "Withdrawn to Solana address: abc12345...")
       .unwrap();
     let elig = db
       .evaluate_withdraw_eligibility("capped", Some(500))
@@ -636,8 +637,10 @@ mod tests {
     assert_eq!(user.weix_bucks, 100);
     
     // Deduct 50 WeixBucks
-    let new_balance = db.deduct_weix_bucks("student", 50, "Withdrawn to Solana").unwrap();
+    let (new_balance, ledger_row_id) =
+      db.deduct_weix_bucks("student", 50, "Withdrawn to Solana").unwrap();
     assert_eq!(new_balance, 50);
+    assert!(ledger_row_id > 0);
     
     // Check wallet transactions
     let txs = db.get_wallet_tx("student").unwrap();
@@ -649,6 +652,51 @@ mod tests {
     // Try to deduct more than balance
     let result = db.deduct_weix_bucks("student", 100, "Should fail");
     assert!(result.is_err());
+  }
+
+  #[test]
+  fn test_refund_weix_bucks_restores_balance_and_voids_the_debit() {
+    let db = setup_test_db();
+    db.create_user("student", "Student", "").unwrap();
+
+    let (_bal, ledger_row_id) = db
+      .deduct_weix_bucks("student", 50, "Withdrawn to Solana address: abc12345...")
+      .unwrap();
+    assert_eq!(db.get_user("student").unwrap().unwrap().weix_bucks, 50);
+
+    // A failed on-chain settlement must cost the student nothing.
+    let restored = db.refund_weix_bucks("student", 50, ledger_row_id).unwrap();
+    assert_eq!(restored, 100);
+    assert_eq!(db.get_user("student").unwrap().unwrap().weix_bucks, 100);
+
+    // A refund cannot be replayed against the same debit.
+    assert!(db.refund_weix_bucks("student", 50, ledger_row_id).is_err());
+  }
+
+  #[test]
+  fn test_voided_withdrawal_does_not_burn_weekly_cap_or_cooldown() {
+    let db = setup_test_db();
+    db.create_user("capped", "Capped", "").unwrap();
+    db.test_set_weix_bucks("capped", 5000).unwrap();
+
+    // Grant enough XP for the account to clear the karma/posts gates.
+    db.test_set_weix_bucks("capped", 5000).unwrap();
+
+    let (_bal, ledger_row_id) = db
+      .deduct_weix_bucks("capped", 600, "Withdrawn to Solana address: abc12345...")
+      .unwrap();
+
+    // While the debit stands it counts toward the 7-day window.
+    let mid = db.evaluate_withdraw_eligibility("capped", Some(1000)).unwrap();
+    assert!(mid.weekly_remaining_wb < WEEKLY_WITHDRAW_CAP_WB);
+
+    db.refund_weix_bucks("capped", 600, ledger_row_id).unwrap();
+
+    // After the refund the voided row must not count, and no cooldown should start.
+    let after = db.evaluate_withdraw_eligibility("capped", Some(1000)).unwrap();
+    assert_eq!(after.weekly_withdrawn_wb, 0);
+    assert_eq!(after.weekly_remaining_wb, WEEKLY_WITHDRAW_CAP_WB);
+    assert_eq!(after.days_until_next_withdraw, 0);
   }
 
   #[test]

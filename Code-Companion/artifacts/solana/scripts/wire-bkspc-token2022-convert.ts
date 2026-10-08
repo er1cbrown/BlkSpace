@@ -1,14 +1,18 @@
 /**
- * Ticket 0.2 — initialize_convert on Devnet.
- * Moves Token-2022 mint authority from deployer → program PDA.
+ * initialize_convert on Devnet.
  *
- * Requires the upgraded program (convert_wb_to_bkspc) to already be deployed.
+ * Moves the Token-2022 mint authority from the deployer to the program PDA and pins the
+ * two values that make settlement safe:
+ *   - `minter`: the only signer permitted to call `convert_wb_to_bkspc`
+ *   - `cap`:    a hard supply ceiling that governance may only lower
+ *
+ * Requires the program to already be deployed.
  */
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import * as anchor from "@coral-xyz/anchor";
-import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { TOKEN_2022_PROGRAM_ID, getMint } from "@solana/spl-token";
 import idl from "../idl/bkspc.json" with { type: "json" };
 import {
@@ -16,6 +20,7 @@ import {
   assertDevnetRpc,
   devnetRpc,
   loadDeployerKeypair,
+  loadKeypairFile,
 } from "./lib/devnet-guards.js";
 
 const PROGRAM_ID = new PublicKey(
@@ -36,6 +41,10 @@ function mintAuthorityPda(): PublicKey {
   )[0];
 }
 
+/** Raw (6-decimal) units of the whole-token supply ceiling. */
+const CAP_WHOLE_TOKENS = 100_000_000;
+const DECIMALS = 6;
+
 async function main(): Promise<void> {
   const rpc = devnetRpc();
   assertDevnetRpc(rpc);
@@ -50,12 +59,15 @@ async function main(): Promise<void> {
         mint: string;
         mintAuthority?: string;
         mintAuthorityType?: string;
+        minter?: string;
+        supplyCap?: number;
       })
     : null;
   const local = existsSync(localManifestPath)
     ? (JSON.parse(readFileSync(localManifestPath, "utf8")) as {
         mint: string;
         mintAuthorityType?: string;
+        [key: string]: unknown;
       })
     : null;
   const mintStr = local?.mint ?? publicRecord?.mint;
@@ -85,13 +97,46 @@ async function main(): Promise<void> {
     );
   }
 
+  // The `minter` is the BlkSpace backend key allowed to sign `convert_wb_to_bkspc`.
+  // Without it, nobody can mint. Keep it separate from the deployer so a leaked deployer
+  // key cannot mint supply.
+  const minterPath = process.env.BKSPC_MINTER_KEYPAIR
+    ? resolve(process.env.BKSPC_MINTER_KEYPAIR)
+    : join(ROOT, "devnet", "minter.json");
+  if (!existsSync(minterPath)) {
+    const kp = Keypair.generate();
+    writeFileSync(minterPath, `${JSON.stringify(Array.from(kp.secretKey))}\n`, { mode: 0o600 });
+    console.log(`  Created minter keypair: ${minterPath}`);
+    console.log("  BACK THIS UP — losing it means settlement cannot mint.");
+  }
+  const minter = loadKeypairFile(minterPath);
+
+  const capWhole = Number(process.env.BKSPC_SUPPLY_CAP ?? CAP_WHOLE_TOKENS);
+  if (!Number.isSafeInteger(capWhole) || capWhole <= 0) {
+    throw new Error("BKSPC_SUPPLY_CAP must be a positive whole-token count");
+  }
+  const capRaw = BigInt(capWhole) * 10n ** BigInt(DECIMALS);
+
+  const unstakeDelay = Number(process.env.BKSPC_UNSTAKE_DELAY_SECONDS ?? 2 * 24 * 60 * 60);
+  const govDelay = Number(process.env.BKSPC_GOV_DELAY_SECONDS ?? 2 * 24 * 60 * 60);
+
   console.log("initialize_convert — Token-2022 mint authority → PDA");
   console.log("  Mint:", mint.toBase58());
   console.log("  Current authority:", deployer.publicKey.toBase58());
   console.log("  PDA:", pda.toBase58());
+  console.log("  Minter (settlement signer):", minter.publicKey.toBase58());
+  console.log(`  Supply cap: ${capWhole} BKSPC (${capRaw} raw)`);
+  console.log("  Governance may LOWER this cap. No instruction can raise it.");
+  console.log(`  Unstake delay: ${unstakeDelay}s · Governance delay: ${govDelay}s`);
 
   await program.methods
-    .initializeConvert()
+    .initializeConvert(
+      minter.publicKey,
+      deployer.publicKey,
+      capRaw,
+      new anchor.BN(unstakeDelay),
+      new anchor.BN(govDelay),
+    )
     .accounts({
       payer: deployer.publicKey,
       convertConfig: cfg,
@@ -118,6 +163,8 @@ async function main(): Promise<void> {
   if (publicRecord) {
     publicRecord.mintAuthority = pda.toBase58();
     publicRecord.mintAuthorityType = "program-pda";
+    publicRecord.minter = minter.publicKey.toBase58();
+    publicRecord.supplyCap = capWhole;
     writeFileSync(publicPath, `${JSON.stringify(publicRecord, null, 2)}\n`);
   }
   if (local) {
@@ -127,11 +174,15 @@ async function main(): Promise<void> {
       mintAuthorityType: "program-pda",
       convertConfig: cfg.toBase58(),
       configInitialized: true,
+      minter: minter.publicKey.toBase58(),
+      supplyCap: capWhole,
+      minterKeypairPath: minterPath,
     };
     writeFileSync(localManifestPath, `${JSON.stringify(next, null, 2)}\n`);
   }
 
   console.log("Mint authority is now the program PDA.");
+  console.log("  Only the minter keypair can now mint BKSPC, up to the cap.");
   console.log(
     "  Explorer:",
     `https://explorer.solana.com/address/${mint.toBase58()}?cluster=devnet`,

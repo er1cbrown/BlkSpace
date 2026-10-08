@@ -1727,73 +1727,54 @@ fn mint_mix_nft(
     }
   };
 
+  // Refuse rather than fabricate. This build cannot mint an SPL NFT, and the previous
+  // behaviour invented an 88-character base58 signature, wrote it to `nft_mints`, pointed
+  // the listing at a `SimNFT…` address, and published a Nostr kind 30080 "Minted NFT"
+  // event. Every one of those reads downstream as proof a transfer happened. An NFT
+  // receipt that is not a transaction is a false receipt.
   #[cfg(not(feature = "bkspc-devnet"))]
-  let result = {
-    let simulated_sig: String = (0..88)
-      .map(|i| {
-        let chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-        let idx = ((uuid::Uuid::new_v4().as_u128() >> (i % 8)) % 58) as usize;
-        chars.chars().nth(idx).unwrap_or('1')
-      })
-      .collect();
-    let mint_address = format!("SimNFT{}", &simulated_sig[..32]);
-    state
-      .db
-      .record_nft_mint(
-        &seller,
-        &mint_address,
-        None,
-        &item_type,
-        Some(&cid),
-        &title,
-        &simulated_sig,
-        Some("blkspace://nft/simulated"),
-      )
-      .map_err(|e| e.to_string())?;
-    if let Some(lid) = listing_id {
-      let _ = state
-        .db
-        .set_listing_nft_mint(lid, &mint_address)
-        .map_err(|e| e.to_string())?;
-    }
-    NftMintResponse {
-      mint_address,
-      metadata_address: String::new(),
-      tx_signature: simulated_sig,
-      metadata_uri: "blkspace://nft/simulated".into(),
-      recipient: recipient_solana_address,
-      simulated: true,
-    }
-  };
-
-  // Nostr 30080 NFT mint event
-  if state.relay_manager.lock().unwrap().relay_count() > 0 {
-    if let Some(keys) = user_nostr_keys_for_publish(&state, &seller, "NFT mint publish") {
-      let content = format!("Minted NFT: {}", title);
-      let tags: Vec<Vec<String>> = vec![
-        vec!["t".to_string(), "blkspace".to_string()],
-        vec!["mint".to_string(), result.mint_address.clone()],
-        vec!["cid".to_string(), cid],
-        vec!["item_type".to_string(), item_type],
-      ];
-      let client = state.relay_manager.lock().unwrap().client().clone();
-      if let Ok(rt) = tokio::runtime::Runtime::new() {
-        let _ = rt.block_on(async {
-          use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
-          let ntags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
-          let event = EventBuilder::new(Kind::Custom(30080), &content)
-            .tags(ntags)
-            .sign(&keys)
-            .await
-            .map_err(|e| format!("Nostr sign: {}", e))?;
-          let _ = client.send_event(event).await;
-          Ok::<_, String>(())
-        });
-      }
-    }
+  {
+    let _ = (&seller, &recipient_solana_address, &cid, &title, &item_type, &listing_id);
+    return Err(
+      "On-chain NFT minting is not available in this build. Nothing was minted and no \
+       listing was changed."
+        .into(),
+    );
   }
 
-  Ok(result)
+  // Nostr 30080 NFT mint event. Gated with the rest of the mint body because `result`
+  // only exists on the `bkspc-devnet` path; a `return` above would still leave the
+  // reference to typecheck when the feature is off.
+  #[cfg(feature = "bkspc-devnet")]
+  {
+    if state.relay_manager.lock().unwrap().relay_count() > 0 {
+      if let Some(keys) = user_nostr_keys_for_publish(&state, &seller, "NFT mint publish") {
+        let content = format!("Minted NFT: {}", title);
+        let tags: Vec<Vec<String>> = vec![
+          vec!["t".to_string(), "blkspace".to_string()],
+          vec!["mint".to_string(), result.mint_address.clone()],
+          vec!["cid".to_string(), cid.clone()],
+          vec!["item_type".to_string(), item_type.clone()],
+        ];
+        let client = state.relay_manager.lock().unwrap().client().clone();
+        if let Ok(rt) = tokio::runtime::Runtime::new() {
+          let _ = rt.block_on(async {
+            use nostr_sdk::prelude::{Tag, EventBuilder, Kind};
+            let ntags: Vec<Tag> = tags.iter().filter_map(|t| Tag::parse(t.clone()).ok()).collect();
+            let event = EventBuilder::new(Kind::Custom(30080), &content)
+              .tags(ntags)
+              .sign(&keys)
+              .await
+              .map_err(|e| format!("Nostr sign: {}", e))?;
+            let _ = client.send_event(event).await;
+            Ok::<_, String>(())
+          });
+        }
+      }
+    }
+
+    Ok(result)
+  }
 }
 
 #[tauri::command]
@@ -2684,8 +2665,9 @@ fn withdraw_to_solana(
       );
     }
 
-    // Debit principal + published fee, then mint on devnet. If the mint fails the
-    // credits are already gone, so the error says so and points at the appeal.
+    // Debit principal + published fee, then mint on devnet. If the mint fails the debit
+    // is voided and every credit is returned, so a failed settlement never costs the
+    // student anything and does not burn a weekly-cap slot or start the cooldown.
     let settlement_fee = calc_platform_fee(amount_wb, WITHDRAW_SETTLEMENT_FEE_BPS);
     let total_debit = amount_wb + settlement_fee;
     let desc = format!(
@@ -2694,16 +2676,25 @@ fn withdraw_to_solana(
       amount_wb,
       settlement_fee,
     );
-    let _new_balance = state
+    let (_new_balance, ledger_row_id) = state
       .db
       .deduct_weix_bucks(&user_handle, total_debit, &desc)
       .map_err(|e| e.to_string())?;
 
-    bkspc_settlement::mint_settlement_to_recipient(&student_solana_address, amount_wb).map_err(
-      |e| {
-        format!("WB debited off-chain but devnet BKSPC mint failed: {e}. File an economy appeal.")
-      },
-    )
+    match bkspc_settlement::mint_settlement_to_recipient(&student_solana_address, amount_wb) {
+      Ok(signature) => Ok(signature),
+      Err(mint_error) => {
+        let refund = state.db.refund_weix_bucks(&user_handle, total_debit, ledger_row_id);
+        match refund {
+          Ok(balance) => Err(format!(
+            "Devnet BKSPC mint failed ({mint_error}). All {total_debit} WeixBucks were returned;              your balance is back to {balance} and no cooldown was started."
+          )),
+          Err(refund_error) => Err(format!(
+            "Devnet BKSPC mint failed ({mint_error}) and the automatic refund also failed              ({refund_error}). Ledger row {ledger_row_id} still holds your {total_debit}              WeixBucks — file an economy appeal quoting that row."
+          )),
+        }
+      }
+    }
   }
 }
 

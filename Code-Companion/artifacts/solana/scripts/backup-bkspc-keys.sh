@@ -51,6 +51,11 @@ add_if_exists "$DEVNET_DIR/treasury-signer-a.json"
 add_if_exists "$DEVNET_DIR/treasury-signer-b.json"
 add_if_exists "$DEVNET_DIR/treasury-manifest.json"
 add_if_exists "$DEVNET_DIR/bkspc-mint.json"
+add_if_exists "$DEVNET_DIR/deployer.json"
+add_if_exists "$DEVNET_DIR/bkspc-token2022-mint.json"
+# minter.json holds the only key permitted to mint BKSPC. Losing it means settlement
+# cannot mint and governance must rotate to a replacement.
+add_if_exists "$DEVNET_DIR/minter.json"
 
 if [[ ${#FILES[@]} -eq 0 ]]; then
   echo ""

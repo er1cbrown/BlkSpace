@@ -2,4 +2,7 @@ devnet/bkspc-mint.json
 devnet/treasury-manifest.json
 devnet/treasury-signer-a.json
 devnet/treasury-signer-b.json
+devnet/bkspc-token2022-mint.json
+devnet/deployer.json
+devnet/minter.json
 target/
