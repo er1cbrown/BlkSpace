@@ -13,6 +13,7 @@ import { GuestModeProvider, useGuestMode } from "@/lib/guest-mode";
 import { GuestCTA } from "@/components/social/GuestCTA";
 import { UiPrefsProvider } from "@/components/ui-prefs/UiPrefsProvider";
 import { BLoader } from "@/components/brand/BLoader";
+import { LabLocked, useLabUnlocked } from "@/components/lab/LabGate";
 import React, { useEffect } from "react";
 
 // Lazy load non-initial pages so a bad import/module in one of them
@@ -46,6 +47,15 @@ const MessagesPage = React.lazy(() => import("@/pages/messages"));
 const PlayPage = React.lazy(() => import("@/pages/play"));
 const ArcadePage = React.lazy(() => import("@/pages/arcade"));
 const RollbackPage = React.lazy(() => import("@/pages/rollback"));
+const TermsPage = React.lazy(() => import("@/pages/terms"));
+const BlkshiPage = React.lazy(() => import("@/pages/blkshi"));
+const HubDoorPage = React.lazy(() => import("@/pages/hub-door"));
+
+function LabOnly({ component: Page }: { component: React.ComponentType }) {
+  const open = useLabUnlocked();
+  if (!open) return <LabLocked />;
+  return <Page />;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -167,8 +177,10 @@ function Router() {
         <Route path="/mod" component={ModPage} />
         <Route path="/posts/:id" component={PostPage} />
         <Route path="/profile/:handle" component={ProfilePage} />
-        <Route path="/relays" component={RelaysPage} />
-        <Route path="/architecture" component={ArchitecturePage} />
+        <Route path="/relays" component={() => <LabOnly component={RelaysPage} />} />
+        <Route path="/architecture" component={() => <LabOnly component={ArchitecturePage} />} />
+        <Route path="/terms" component={TermsPage} />
+        <Route path="/blkshi" component={BlkshiPage} />
         <Route path="/login" component={LoginPage} />
         <Route path="/signup" component={SignupPage} />
         <Route
@@ -199,10 +211,12 @@ function Router() {
         />
         <Route path="/leaderboard" component={LeaderboardPage} />
         <Route path="/media" component={MediaPage} />
+        <Route path="/hub/:handle/:slug" component={HubDoorPage} />
+        <Route path="/hub/:handle" component={HubDoorPage} />
         <Route path="/hub" component={HubPage} />
         <Route path="/arcade" component={ArcadePage} />
         <Route path="/play" component={PlayPage} />
-        <Route path="/rollback" component={RollbackPage} />
+        <Route path="/rollback" component={() => <LabOnly component={RollbackPage} />} />
         <Route path="/focus" component={FocusPage} />
         <Route path="/clinyard" component={ClinyardPage} />
         {/* Aliases — people search "yard clinic" / medtech drills */}
@@ -215,7 +229,7 @@ function Router() {
         />
         <Route
           path="/mesh-test"
-          component={() => <GuestRoute component={MeshTestPage} />}
+          component={() => <LabOnly component={MeshTestPage} />}
         />
         <Route component={NotFound} />
       </Switch>

@@ -132,15 +132,31 @@ export async function probeThreeRoutes(): Promise<ThreeRouteSnapshot> {
   const routeA = ((): RouteStatusSnapshot => {
     const def = routeDef("A");
     if (!desktop) {
+      if (social?.connected) {
+        return {
+          id: "A",
+          def,
+          status: "partial" as const,
+          label: "Relays up",
+          detail: `Web client reached ${social.relayCount} Nostr relay(s). Hosted posts can carry that event id. Turso is the cache.`,
+          metrics: {
+            desktop: false,
+            relayCount: social.relayCount,
+            model: social.model,
+          },
+        };
+      }
       return {
         id: "A",
         def,
         status: "web_only" as const,
-        label: "Web preview",
+        label: "Relays down",
         detail:
-          "Social mesh is full on desktop (Nostr + Turso). Web uses preview userspace — not multi-device truth.",
+          social?.description ||
+          "No WeixNet relay answered from this browser.",
         metrics: {
           desktop: false,
+          relayCount: 0,
           model: social?.model || "web_preview",
         },
       };

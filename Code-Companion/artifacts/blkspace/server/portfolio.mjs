@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
+import { verifyEvent } from "nostr-tools/pure";
 import { HttpError } from "./http.mjs";
 import { isAllowedHostedMediaUrl } from "./media.mjs";
+import { WEIXNET_RELAYS } from "../src/lib/weixnet-relays.ts";
 
 const MAX_POSTS_PAGE = 100;
 const DEFAULT_POSTS_PAGE = 100;
@@ -257,6 +259,36 @@ function canonicalPostUid(row) {
   return row.post_uid || `legacy:${row.id}`;
 }
 
+function attachedNote(body, pubkey, content) {
+  const event = body?.nostrEvent;
+  const relayUrl = typeof body?.relayUrl === "string" ? body.relayUrl.trim() : "";
+  if (!event && !relayUrl) return { id: "", relay: "" };
+  if (!event || typeof event !== "object" || Array.isArray(event) || !relayUrl) {
+    throw new HttpError(
+      400,
+      "A relay note needs the signed event and a WeixNet relay.",
+    );
+  }
+  if (!WEIXNET_RELAYS.includes(relayUrl)) {
+    throw new HttpError(400, "Relay is not in the WeixNet set.");
+  }
+  let signed = false;
+  try {
+    signed = verifyEvent(event);
+  } catch {
+    signed = false;
+  }
+  if (
+    !signed ||
+    event.kind !== 1 ||
+    String(event.pubkey || "").toLowerCase() !== String(pubkey).toLowerCase() ||
+    event.content !== content
+  ) {
+    throw new HttpError(400, "Relay note does not match this post.");
+  }
+  return { id: String(event.id), relay: relayUrl };
+}
+
 function boundedPage(value, fallback, maximum) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
@@ -304,6 +336,8 @@ function publicPost(row, viewerPubkey = "") {
     replies_count: repliesCount,
     liked: viewerPubkey ? booleanValue(row.liked) : false,
     reposted: viewerPubkey ? booleanValue(row.reposted) : false,
+    nostrEventId: row.nostr_event_id || "",
+    relayUrl: row.relay_url || "",
   };
   if (viewerPubkey) {
     result.viewerState = {
@@ -447,7 +481,9 @@ export function createPortfolio(env) {
           media_blobs TEXT,
           created_at TEXT,
           updated_at TEXT,
-          revision INTEGER DEFAULT 1
+          revision INTEGER DEFAULT 1,
+          nostr_event_id TEXT DEFAULT '',
+          relay_url TEXT DEFAULT ''
         )`);
         await query(`CREATE TABLE IF NOT EXISTS portfolio_identities (
           handle TEXT PRIMARY KEY COLLATE NOCASE, pubkey TEXT NOT NULL)`);
@@ -550,6 +586,12 @@ export function createPortfolio(env) {
         );
         await optionalQuery(
           "ALTER TABLE portfolio_posts ADD COLUMN revision INTEGER DEFAULT 1",
+        );
+        await optionalQuery(
+          "ALTER TABLE portfolio_posts ADD COLUMN nostr_event_id TEXT DEFAULT ''",
+        );
+        await optionalQuery(
+          "ALTER TABLE portfolio_posts ADD COLUMN relay_url TEXT DEFAULT ''",
         );
         await optionalQuery(
           "CREATE INDEX IF NOT EXISTS idx_portfolio_posts_town_time ON portfolio_posts(town_tag, updated_at DESC, id DESC)",
@@ -909,6 +951,7 @@ export function createPortfolio(env) {
     if (!legacyId && !requestedPostUid) {
       throw new HttpError(400, "postUid is required for native posts.");
     }
+    const note = attachedNote(body, pubkey, content);
 
     await ensure();
 
@@ -944,7 +987,8 @@ export function createPortfolio(env) {
       ? (
           await query(
             `SELECT id, post_uid, author_pubkey, author_handle, content, town_tag,
-                    channel_id, media_blobs, created_at, updated_at, revision
+                    channel_id, media_blobs, created_at, updated_at, revision,
+                    nostr_event_id, relay_url
                FROM portfolio_posts WHERE post_uid = ? LIMIT 1`,
             [postUid],
           )
@@ -952,7 +996,8 @@ export function createPortfolio(env) {
       : (
           await query(
             `SELECT id, post_uid, author_pubkey, author_handle, content, town_tag,
-                    channel_id, media_blobs, created_at, updated_at, revision
+                    channel_id, media_blobs, created_at, updated_at, revision,
+                    nostr_event_id, relay_url
                FROM portfolio_posts WHERE id = ? LIMIT 1`,
             [legacyId],
           )
@@ -978,6 +1023,21 @@ export function createPortfolio(env) {
           "postUid already belongs to different content.",
         );
       }
+      if (
+        note.id &&
+        existing.nostr_event_id &&
+        existing.nostr_event_id !== note.id
+      ) {
+        throw new HttpError(409, "This post already has a different relay note.");
+      }
+      if (note.id && !existing.nostr_event_id) {
+        await query(
+          `UPDATE portfolio_posts
+              SET nostr_event_id = ?, relay_url = ?, updated_at = ?
+            WHERE id = ?`,
+          [note.id, note.relay, new Date().toISOString(), existing.id],
+        );
+      }
       return {
         ok: true,
         storage: "cloud",
@@ -985,6 +1045,8 @@ export function createPortfolio(env) {
         postUid,
         remoteId: String(existing.id),
         revision: Number(existing.revision || 1),
+        nostrEventId: note.id || existing.nostr_event_id || "",
+        relayUrl: note.id ? note.relay : existing.relay_url || "",
       };
     }
 
@@ -1012,8 +1074,9 @@ export function createPortfolio(env) {
     await query(
       `INSERT INTO portfolio_posts
        (id, post_uid, author_pubkey, author_handle, content, town_tag,
-        channel_id, media_blobs, created_at, updated_at, revision)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        channel_id, media_blobs, created_at, updated_at, revision,
+        nostr_event_id, relay_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
       [
         remoteId,
         postUid,
@@ -1025,6 +1088,8 @@ export function createPortfolio(env) {
         JSON.stringify(media),
         now,
         now,
+        note.id,
+        note.relay,
       ],
     );
     await query(
@@ -1039,6 +1104,8 @@ export function createPortfolio(env) {
       postUid,
       remoteId: String(remoteId),
       revision: 1,
+      nostrEventId: note.id,
+      relayUrl: note.relay,
     };
   }
 
@@ -1874,6 +1941,7 @@ export function createPortfolio(env) {
       let select = `SELECT p.id, p.post_uid, p.author_pubkey, p.author_handle,
                              p.content, p.town_tag, p.channel_id, p.media_blobs,
                              p.created_at, p.updated_at, p.revision,
+                             p.nostr_event_id, p.relay_url,
                              (SELECT COUNT(*) FROM portfolio_likes l
                                WHERE l.post_uid = COALESCE(NULLIF(p.post_uid, ''), 'legacy:' || p.id)
                                  AND l.desired_state = 1) AS likes_count,

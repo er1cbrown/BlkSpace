@@ -344,11 +344,13 @@ describe("yard desk on the shared server", () => {
     const aliceWb = await (
       await authorizedGet("/api/yards/wb?yard=desk")
     ).json();
-    expect(aliceWb.balance).toBe(55);
+    expect(aliceWb.balance).toBe(50);
+    expect(aliceWb.cred).toBe(0);
+    expect(aliceWb.mark).toBeNull();
     const bobWb = await (
       await authorizedGet("/api/yards/wb?yard=desk", bob)
     ).json();
-    expect(bobWb.balance).toBe(55);
+    expect(bobWb.balance).toBe(50);
 
     const room = await post("/api/yards/rooms", {
       yardId: "desk",
@@ -393,16 +395,18 @@ describe("yard desk on the shared server", () => {
     const escrowId = (await bought.json()).escrowId;
     expect(
       (await (await authorizedGet("/api/yards/wb?yard=desk", bob)).json()).balance,
-    ).toBe(35);
+    ).toBe(30);
     expect(
       (await post("/api/yards/sale/deliver", { escrowId, deliveryRef: "https://example.edu/notes" })).status,
     ).toBe(200);
     expect(
       (await post("/api/yards/sale/release", { escrowId }, bob)).status,
     ).toBe(200);
-    expect(
-      (await (await authorizedGet("/api/yards/wb?yard=desk")).json()).balance,
-    ).toBe(74);
+    const aliceAfter = await (await authorizedGet("/api/yards/wb?yard=desk")).json();
+    expect(aliceAfter.balance).toBe(69);
+    expect(aliceAfter.cred).toBeGreaterThanOrEqual(15);
+    expect(aliceAfter.mark.yardId).toBe("desk");
+    expect(aliceAfter.mark.school).toBe("");
     const board = await (await fetch(base + "/api/yards/sale?yard=desk")).json();
     expect(board.listings.some((row) => row.id === listingId)).toBe(false);
   });
@@ -1063,5 +1067,198 @@ describe("standalone cloud server", () => {
     expect(afterRead.rows.find((row) => row.id === notificationId).read).toBe(
       true,
     );
+  });
+});
+
+describe("public hub and practice ledger", () => {
+  test("a hub has several public pages and does not mint WeixBucks", async () => {
+    const terms = await (await fetch(base + "/api/terms")).json();
+    expect(terms.version).toBe("2026-10-07");
+    expect(terms.genesisWb).toBe(0);
+    expect(terms.joinGrantWb).toBe(50);
+    expect(terms.yardCredGate).toBe(15);
+    expect(terms.chainSocket).toBe("not-connected");
+    expect(terms.blkshiTrades).toBe(false);
+    expect(terms.tipFeeBps).toBe(200);
+
+    await post("/api/portfolio/identity", { handle: "alice" });
+    await post("/api/portfolio/identity", { handle: "bob" }, bob);
+
+    const door = await post("/api/portfolio/hub", {
+      headline: "Transfer notes and a resume",
+      kind: "transfer",
+    });
+    expect(door.status).toBe(200);
+
+    for (const page of [
+      { slug: "home", title: "Door", body: "Start here.", kind: "home", position: 0 },
+      { slug: "resume", title: "Resume", body: "Studio and research.", kind: "resume", position: 1 },
+      { slug: "transfer", title: "Transfer", body: "How to move yards.", kind: "transfer", position: 2, linkUrl: "https://example.edu/transfer" },
+    ]) {
+      expect((await post("/api/portfolio/hub/page", page)).status).toBe(200);
+    }
+
+    const stolen = await post("/api/portfolio/hub/page", {
+      handle: "alice",
+      slug: "resume",
+      title: "Stolen",
+      body: "Not yours.",
+      kind: "resume",
+    }, bob);
+    expect(stolen.status).toBe(403);
+
+    const badLink = await post("/api/portfolio/hub/page", {
+      slug: "links",
+      title: "Links",
+      body: "Only https.",
+      kind: "links",
+      linkUrl: "http://example.edu",
+    });
+    expect(badLink.status).toBe(400);
+
+    const pub = await (await fetch(base + "/api/portfolio/hub/alice")).json();
+    expect(pub.pages.map((row) => row.slug)).toEqual(["home", "resume", "transfer"]);
+    const one = await (await fetch(base + "/api/portfolio/hub/alice/resume")).json();
+    expect(one.page.title).toBe("Resume");
+    const floor = await (await fetch(base + "/api/portfolio/hubs")).json();
+    expect(floor.hubs.some((row) => row.handle === "alice")).toBe(true);
+
+    const minted = await post("/api/ledger/earn", {});
+    expect(minted.status).toBe(400);
+
+    const early = await post("/api/ledger/tip", { toHandle: "bob", yardId: "desk", amount: 10 });
+    expect(early.status).toBe(403);
+
+    expect((await post("/api/portfolio/terms", { version: "2026-10-07" })).status).toBe(200);
+    expect((await post("/api/portfolio/terms", { version: "2026-10-07" }, bob)).status).toBe(200);
+    const broke = await post("/api/ledger/tip", { toHandle: "alice", yardId: "desk", amount: 10 }, bob);
+    expect(broke.status).toBe(400);
+
+    db.run(
+      "INSERT INTO ledger_accounts (handle, yard_id, balance) VALUES ('bob', 'desk', 100)",
+    );
+    const tipped = await post("/api/ledger/tip", { toHandle: "alice", yardId: "desk", amount: 50 }, bob);
+    expect(tipped.status).toBe(200);
+    const moved = await tipped.json();
+    expect(moved.fee).toBe(1);
+    expect(moved.fromBalance).toBe(50);
+    expect(moved.toBalance).toBe(49);
+    expect(moved.pool).toBe(1);
+
+    const payout = await post("/api/ledger/payout", { yardId: "desk" }, bob);
+    expect((await payout.json()).paid).toBe(0);
+
+    const gate = await (await fetch(base + "/api/portfolio/gate?handle=alice")).json();
+    expect(gate.walletEnabled).toBe(true);
+    expect(gate.devTools).toBe(true);
+    const stranger = await (await fetch(base + "/api/portfolio/gate?handle=bob")).json();
+    expect(stranger.walletEnabled).toBe(true);
+  });
+
+  test("yard cred grants that university's mark and no extra WeixBucks", async () => {
+    const cara = generateSecretKey();
+    const dana = generateSecretKey();
+    expect((await post("/api/portfolio/identity", { handle: "cara" }, cara)).status).toBe(200);
+    expect((await post("/api/portfolio/identity", { handle: "dana" }, dana)).status).toBe(200);
+    expect((await post("/api/yards/join", { yardId: "meharry" }, cara)).status).toBe(200);
+    expect((await post("/api/yards/join", { yardId: "meharry" }, dana)).status).toBe(200);
+    const joined = await (await authorizedGet("/api/yards/wb?yard=meharry", cara)).json();
+    expect(joined.balance).toBe(50);
+    expect(joined.cred).toBe(0);
+    expect(joined.mark).toBeNull();
+
+    expect((await post("/api/yards/rooms", { yardId: "meharry", title: "Lab", kind: "stage" }, cara)).status).toBe(200);
+    expect((await post("/api/yards/messages", { yardId: "meharry", toHandle: "dana", body: "See you in lab." }, cara)).status).toBe(200);
+    expect((await post("/api/yards/sale", { yardId: "meharry", title: "Notes", price: 10 }, cara)).status).toBe(200);
+
+    const marked = await (await authorizedGet("/api/yards/wb?yard=meharry", cara)).json();
+    expect(marked.balance).toBe(50);
+    expect(marked.cred).toBeGreaterThanOrEqual(15);
+    expect(marked.mark.school).toBe("Meharry Medical College");
+    expect(marked.mark.shortName).toBe("Meharry Medical");
+
+    const howard = await (await authorizedGet("/api/yards/wb?yard=howard", cara)).json();
+    expect(howard.balance).toBe(0);
+    expect(howard.mark).toBeNull();
+
+    const again = await (await authorizedGet("/api/yards/wb?yard=meharry", cara)).json();
+    expect(again.balance).toBe(50);
+    expect(again.mark.createdAt).toBe(marked.mark.createdAt);
+  });
+});
+
+describe("weixnet relay notes", () => {
+  test("stores a signed kind-1 note and refuses a mismatched one", async () => {
+    const key = generateSecretKey();
+    const content = "relay note hello";
+    const event = finalizeEvent(
+      {
+        kind: 1,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [["t", "blkspace"]],
+        content,
+      },
+      key,
+    );
+    const saved = await post(
+      "/api/portfolio/post",
+      {
+        postUid: "relay-note-12345678",
+        authorHandle: "relaynote",
+        content,
+        townTag: "tsu",
+        mediaBlobs: [],
+        nostrEvent: event,
+        relayUrl: "wss://nos.lol",
+      },
+      key,
+    );
+    expect(saved.status).toBe(200);
+    expect((await saved.json()).nostrEventId).toBe(event.id);
+    const page = await (
+      await fetch(base + "/api/portfolio/posts?town=tsu&limit=20")
+    ).json();
+    const row = page.rows.find((item) => item.postUid === "relay-note-12345678");
+    expect(row.nostrEventId).toBe(event.id);
+    expect(row.relayUrl).toBe("wss://nos.lol");
+
+    const forged = await post(
+      "/api/portfolio/post",
+      {
+        postUid: "relay-note-forged-1",
+        authorHandle: "relaynote",
+        content,
+        townTag: "tsu",
+        mediaBlobs: [],
+        nostrEvent: { ...event, content: "other words" },
+        relayUrl: "wss://nos.lol",
+      },
+      key,
+    );
+    expect(forged.status).toBe(400);
+
+    const offRelay = await post(
+      "/api/portfolio/post",
+      {
+        postUid: "relay-note-offrelay1",
+        authorHandle: "relaynote",
+        content: "off relay",
+        townTag: "tsu",
+        mediaBlobs: [],
+        nostrEvent: finalizeEvent(
+          {
+            kind: 1,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [],
+            content: "off relay",
+          },
+          key,
+        ),
+        relayUrl: "wss://relay.example.invalid",
+      },
+      key,
+    );
+    expect(offRelay.status).toBe(400);
+    db.run("DELETE FROM portfolio_posts WHERE author_handle = ?", ["relaynote"]);
   });
 });

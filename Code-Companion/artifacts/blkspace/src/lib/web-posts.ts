@@ -4,8 +4,9 @@
  */
 
 import type { SeedPost } from "@/lib/seed-content";
-import { createHttpAuthHeader, getCurrentDisplayName, getCurrentHandle } from "@/lib/auth";
+import { createHttpAuthHeader, getCurrentDisplayName, getCurrentHandle, signWebNote } from "@/lib/auth";
 import { hostedPost } from "@/lib/hosted-api";
+import { publishToRelays } from "@/lib/weixnet-relays";
 
 const LS_KEY = "blkspace_web_user_posts_v1";
 
@@ -90,8 +91,11 @@ function save(posts: WebUserPost[]) {
   localStorage.setItem(LS_KEY, JSON.stringify(posts.slice(0, 100)));
 }
 
-async function mirrorPost(post: WebUserPost) {
-  const res = await hostedPost("/api/portfolio/post", post);
+async function mirrorPost(post: WebUserPost, nostrEvent?: unknown) {
+  const res = await hostedPost(
+    "/api/portfolio/post",
+    nostrEvent ? { ...post, nostrEvent } : post,
+  );
   // Static-only previews retain their explicitly local userspace.
   if (
     import.meta.env.DEV &&
@@ -144,6 +148,10 @@ type HostedPortfolioRow = {
   mediaBlobs?: unknown;
   created_at?: string;
   createdAt?: string;
+  nostr_event_id?: string;
+  nostrEventId?: string;
+  relay_url?: string;
+  relayUrl?: string;
 };
 
 function parseHostedMedia(value: unknown): string[] {
@@ -220,8 +228,8 @@ export async function refreshPortfolioFromTurso(): Promise<void> {
         liked,
         reposted,
         mediaBlobs,
-        nostrEventId: "",
-        relayUrl: "",
+        nostrEventId: row.nostrEventId || row.nostr_event_id || "",
+        relayUrl: row.relayUrl || row.relay_url || "",
         createdAt,
         engagementQuality: 1,
         maliciousScore: 0,
@@ -244,6 +252,9 @@ export async function refreshPortfolioFromTurso(): Promise<void> {
           liked,
           reposted,
           mediaBlobs: mediaBlobs.length ? mediaBlobs : existing.mediaBlobs,
+          nostrEventId:
+            row.nostrEventId || row.nostr_event_id || existing.nostrEventId,
+          relayUrl: row.relayUrl || row.relay_url || existing.relayUrl,
           createdAt: existing.createdAt || createdAt,
         };
       } else {
@@ -276,6 +287,26 @@ export async function createWebUserPost(input: {
   const body =
     input.content.trim() ||
     (input.mediaHashes && input.mediaHashes.length > 0 ? "📎" : "");
+  let nostrEventId = "";
+  let relayUrl = "";
+  let nostrEvent: unknown;
+  const note = signWebNote(body, [
+    ["t", "hbcu-intranet"],
+    ["t", "blkspace"],
+    ["t", input.townTag],
+  ]);
+  if (note) {
+    try {
+      const published = await publishToRelays(note);
+      if (published.ok) {
+        nostrEventId = note.id;
+        relayUrl = published.relayUrl;
+        nostrEvent = note;
+      }
+    } catch {
+      // The hosted post still saves when every relay refuses the socket.
+    }
+  }
   const post: WebUserPost = {
     id: Date.now(),
     postUid:
@@ -293,15 +324,15 @@ export async function createWebUserPost(input: {
     likesCount: 0,
     liked: false,
     mediaBlobs: input.mediaHashes ?? [],
-    nostrEventId: "",
-    relayUrl: "",
+    nostrEventId,
+    relayUrl,
     createdAt: new Date().toISOString(),
     engagementQuality: 1,
     maliciousScore: 0,
     riskLevel: "low",
   };
   // Await acknowledgement before showing success or granting local demo rewards.
-  await mirrorPost(post);
+  await mirrorPost(post, nostrEvent);
   const next = [post, ...load()];
   save(next);
   return post;

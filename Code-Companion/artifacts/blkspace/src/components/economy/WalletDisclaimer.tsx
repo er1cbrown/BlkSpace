@@ -14,15 +14,14 @@ export function WalletDisclaimer() {
           <strong className="text-foreground">
             Practice credits (WeixBucks)
           </strong>{" "}
-          are earn-only soft currency for the yard and creator shop — not
-          investment advice and not purchasable with cash.{" "}
+          move only from a balance someone already holds. Posting does not
+          mint them, and they are not purchasable with cash.{" "}
           <strong className="text-foreground">Yard Cred</strong> is reliability
-          (ProjectConnect).{" "}
-          <strong className="text-foreground">BKSPC</strong> is the only
-          creator cash-out of earned WeixBucks, at the published ratio, on
-          Solana devnet until a funded mint exists.{" "}
+          (ProjectConnect), not spendable credit.{" "}
+          <strong className="text-foreground">Cash-out</strong> is not offered.
+          The chain socket is not connected.{" "}
           <strong className="text-foreground">BI9</strong> is a separate
-          HyperEVM asset — earning WeixBucks does not mint or convert into it.
+          asset — holding WeixBucks does not mint or convert into it.
           You hold identity keys; the app never holds settlement longer than
           escrow. Save your recovery phrase in Settings before you care about
           balances.

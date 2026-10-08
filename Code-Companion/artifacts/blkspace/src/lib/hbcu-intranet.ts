@@ -24,6 +24,7 @@ import { isTauri } from "@/lib/tauri-api";
 import { getSessionToken } from "@/lib/auth";
 import { catalogStats, HBCU_CATALOG } from "@/lib/hbcu-catalog";
 import { loadUiPrefs } from "@/lib/ui-prefs";
+import { probeWeixnetRelays } from "@/lib/weixnet-relays";
 
 /** Platform tags every BlkSpace note should carry. */
 export const INTRANET_PLATFORM_TAGS = ["hbcu-intranet", "blkspace"] as const;
@@ -76,24 +77,42 @@ export function intranetTopologySummary() {
   };
 }
 
+function webRelayStatus(
+  homeYard: string | undefined,
+  relayCount: number,
+): IntranetStatus {
+  const yard = homeYard?.trim();
+  return {
+    connected: relayCount > 0,
+    relayCount,
+    hasIntranetTag: true,
+    subscriptions: [...INTRANET_PLATFORM_TAGS],
+    yardSubscriptions: yard ? [townTagForYard(yard)] : [],
+    platformTags: [...INTRANET_PLATFORM_TAGS],
+    model: "shared-relay-intranet",
+    description:
+      relayCount > 0
+        ? `Web client reached ${relayCount} Nostr relay(s).`
+        : "No WeixNet relay answered from this browser.",
+  };
+}
+
 /** Connect default relays (if Tauri) and join intranet + home yard. */
 export async function ensureIntranetConnected(
   homeYard?: string,
 ): Promise<{ ok: boolean; status?: IntranetStatus; error?: string }> {
   if (!isTauri()) {
-    return {
-      ok: true,
-      status: {
-        connected: false,
-        relayCount: 0,
-        hasIntranetTag: true,
-        subscriptions: [...INTRANET_PLATFORM_TAGS],
-        yardSubscriptions: homeYard ? [townTagForYard(homeYard)] : [],
-        platformTags: [...INTRANET_PLATFORM_TAGS],
-        model: "shared-relay-intranet",
-        description: "Web preview — mesh active only in Tauri desktop.",
-      },
-    };
+    try {
+      const relays = await probeWeixnetRelays();
+      const relayCount = relays.filter((row) => row.ok).length;
+      return { ok: true, status: webRelayStatus(homeYard, relayCount) };
+    } catch (error) {
+      return {
+        ok: true,
+        status: webRelayStatus(homeYard, 0),
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   const token = getSessionToken();
@@ -149,7 +168,17 @@ export async function ensureIntranetConnected(
 }
 
 export async function getIntranetStatus(): Promise<IntranetStatus | null> {
-  if (!isTauri()) return null;
+  if (!isTauri()) {
+    try {
+      const relays = await probeWeixnetRelays();
+      return webRelayStatus(
+        undefined,
+        relays.filter((row) => row.ok).length,
+      );
+    } catch {
+      return webRelayStatus(undefined, 0);
+    }
+  }
   try {
     return await invoke<IntranetStatus>("get_hbcu_intranet_status");
   } catch {

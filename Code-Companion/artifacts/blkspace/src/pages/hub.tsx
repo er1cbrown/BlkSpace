@@ -42,6 +42,7 @@ import {
 } from "@/lib/discipline-track";
 import { ShareCardButton } from "@/components/social/ShareCardButton";
 import { playShellPath } from "@/lib/share-card";
+import { hostedPost } from "@/lib/hosted-api";
 
 /**
  * Content Hub — amalgamation media shelf (chess lessons, live links, fashion,
@@ -58,6 +59,7 @@ export default function HubPage() {
   const [pubTopic, setPubTopic] = useState<HubTopic>("chess");
   const [kind, setKind] = useState<HubItemKind>("post");
   const [tick, setTick] = useState(0);
+  const [publicHubs, setPublicHubs] = useState<{ handle: string; headline: string }[]>([]);
   const [prefsTick, setPrefsTick] = useState(0);
 
   const uiPrefs = useMemo(() => {
@@ -82,6 +84,19 @@ export default function HubPage() {
 
   // Live-update when settings save discipline track
   useEffect(() => {
+    let stop = false;
+    fetch("/api/portfolio/hubs")
+      .then((res) => res.json())
+      .then((body) => {
+        if (!stop && Array.isArray(body.hubs)) setPublicHubs(body.hubs);
+      })
+      .catch(() => {});
+    return () => {
+      stop = true;
+    };
+  }, [tick]);
+
+  useEffect(() => {
     const onPrefs = () => setPrefsTick((n) => n + 1);
     window.addEventListener("blkspace-ui-prefs", onPrefs);
     return () => window.removeEventListener("blkspace-ui-prefs", onPrefs);
@@ -99,23 +114,54 @@ export default function HubPage() {
       });
       return;
     }
-    try {
-      publishHubItem({
-        topic: pubTopic,
-        kind,
-        title,
-        body,
-        mediaUrl,
-      });
-      toast.success("Published to Content Hub");
-      setTitle("");
-      setBody("");
-      setMediaUrl("");
-      setShowPublish(false);
-      setTick((n) => n + 1);
-    } catch (e) {
-      toast.error(String(e));
-    }
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 40);
+    const page = {
+      slug: slug || "page",
+      title,
+      body,
+      kind: "board" as const,
+      linkUrl: mediaUrl,
+      position: 0,
+    };
+    void (async () => {
+      try {
+        publishHubItem({
+          topic: pubTopic,
+          kind,
+          title,
+          body,
+          mediaUrl,
+        });
+        let saved = await hostedPost("/api/portfolio/hub/page", page);
+        if (saved.status === 404) {
+          const door = await hostedPost("/api/portfolio/hub", {
+            headline: title,
+            kind: "blkspace",
+          });
+          if (!door.ok) {
+            const err = await door.json().catch(() => ({}));
+            throw new Error(err.error || "Create the hub door while signed in.");
+          }
+          saved = await hostedPost("/api/portfolio/hub/page", page);
+        }
+        if (!saved.ok) {
+          const err = await saved.json().catch(() => ({}));
+          throw new Error(err.error || "The page stayed on this browser only.");
+        }
+        toast.success("Published to your public hub");
+        setTitle("");
+        setBody("");
+        setMediaUrl("");
+        setShowPublish(false);
+        setTick((n) => n + 1);
+      } catch (e) {
+        toast.error(String(e));
+      }
+    })();
   };
 
   return (
@@ -141,6 +187,16 @@ export default function HubPage() {
             {disciplineUpliftLine(discipline.id)}
           </p>
           <div className="flex flex-wrap gap-2">
+            <Link href="/terms">
+              <Button size="sm" variant="outline">
+                Terms
+              </Button>
+            </Link>
+            <Link href="/blkshi">
+              <Button size="sm" variant="outline">
+                BLKSHI
+              </Button>
+            </Link>
             <Link href="/wallet">
               <Button size="sm" variant="outline" className="gap-1">
                 <GraduationCap className="w-3.5 h-3.5" />
@@ -175,6 +231,17 @@ export default function HubPage() {
           </div>
         </div>
 
+        {publicHubs.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {publicHubs.map((hub) => (
+              <Link key={hub.handle} href={`/hub/${hub.handle}`}>
+                <span className="rounded-full border px-3 py-1 text-sm">
+                  @{hub.handle}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
           {orderedTopics.map((t) => (
             <button

@@ -17,6 +17,7 @@ import {
 import { getCurrentHandle } from "@/lib/auth";
 import { useAppGetUser, useAppGetTrendingFeed } from "@/hooks/use-app-data";
 import { townGradient, townLabel } from "@/lib/towns";
+import { useLabUnlocked } from "@/components/lab/LabGate";
 import { BETA_FEATURES } from "@/lib/beta-features";
 
 import { SEED_SUGGESTED_PEOPLE } from "@/lib/seed-content";
@@ -24,6 +25,7 @@ import { SampleBadge } from "@/components/ui/sample-badge";
 
 export function YardSidebar() {
   const handle = getCurrentHandle();
+  const lab = useLabUnlocked();
   const { data: user } = useAppGetUser(handle);
   const { data: trending = [] } = useAppGetTrendingFeed(
     handle,
@@ -220,7 +222,7 @@ export function YardSidebar() {
           <Settings className="w-3.5 h-3.5" />
           Settings
         </Link>
-        {BETA_FEATURES.showDevTools && (
+        {lab && (
           <>
             <Link
               href="/architecture"

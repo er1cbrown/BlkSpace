@@ -1,4 +1,8 @@
 import { HttpError } from "./http.mjs";
+import { getHbcu } from "../src/lib/hbcu-catalog.ts";
+
+export const JOIN_GRANT_WB = 50;
+export const YARD_CRED_GATE = 15;
 
 const YARD_RE = /^[a-z0-9-]{2,40}$/;
 const HANDLE_RE = /^[a-z0-9_-]{3,30}$/i;
@@ -150,6 +154,10 @@ export function createYardDesk(env) {
           buyer_handle TEXT NOT NULL, seller_handle TEXT NOT NULL, amount INTEGER NOT NULL,
           seller_net INTEGER NOT NULL, platform_fee INTEGER NOT NULL, status TEXT NOT NULL,
           delivery_ref TEXT, title TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_marks (
+          yard_id TEXT NOT NULL, handle TEXT NOT NULL, school TEXT NOT NULL DEFAULT '',
+          short_name TEXT NOT NULL, created_at TEXT NOT NULL,
+          PRIMARY KEY (yard_id, handle))`);
       })();
     }
     await ready;
@@ -210,9 +218,72 @@ export function createYardDesk(env) {
     return balanceOf(yard, handle);
   }
 
+  function universityFor(yard) {
+    const hit = getHbcu(yard);
+    if (!hit) return { school: "", shortName: yard, yardLabel: `${yard} yard` };
+    return { school: hit.school, shortName: hit.shortName, yardLabel: hit.yardLabel };
+  }
+
+  async function yardCred(yard, handle) {
+    const count = async (sql) =>
+      num((await query(sql, [yard, handle]))[0]?.n);
+    const messages = await count(
+      "SELECT COUNT(*) AS n FROM yard_messages WHERE yard_id = ? AND from_handle = ?",
+    );
+    const rooms = await count(
+      "SELECT COUNT(*) AS n FROM yard_rooms WHERE yard_id = ? AND created_by = ?",
+    );
+    const listings = await count(
+      "SELECT COUNT(*) AS n FROM yard_listings WHERE yard_id = ? AND seller_handle = ?",
+    );
+    const sales = num(
+      (
+        await query(
+          `SELECT COUNT(*) AS n FROM yard_escrow
+            WHERE yard_id = ? AND status = 'released'
+              AND (buyer_handle = ? OR seller_handle = ?)`,
+          [yard, handle, handle],
+        )
+      )[0]?.n,
+    );
+    return Math.min(100, messages * 4 + rooms * 6 + listings * 6 + sales * 8);
+  }
+
+  async function markFor(yard, handle) {
+    const row = (
+      await query(
+        "SELECT school, short_name, created_at FROM yard_marks WHERE yard_id = ? AND handle = ? LIMIT 1",
+        [yard, handle],
+      )
+    )[0];
+    if (!row) return null;
+    const uni = universityFor(yard);
+    return {
+      yardId: yard,
+      school: String(row.school || ""),
+      shortName: String(row.short_name || uni.shortName),
+      yardLabel: uni.yardLabel,
+      createdAt: String(row.created_at),
+    };
+  }
+
+  async function maybeGrantMark(yard, handle) {
+    if ((await yardCred(yard, handle)) < YARD_CRED_GATE) return null;
+    const existing = await markFor(yard, handle);
+    if (existing) return existing;
+    const uni = universityFor(yard);
+    await query(
+      `INSERT INTO yard_marks (yard_id, handle, school, short_name, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [yard, handle, uni.school, uni.shortName, new Date().toISOString()],
+    );
+    return markFor(yard, handle);
+  }
+
   async function openBalance(yard, handle) {
-    await credit(yard, handle, 50, "Opening yard balance", "open");
-    return credit(yard, handle, 5, "Joined the yard", "join");
+    // One disclosed grant for joining this yard. It does not refill, and it
+    // is not the university mark. That mark waits for cred inside this yard.
+    return credit(yard, handle, JOIN_GRANT_WB, "Joining this yard", "join");
   }
 
   function mapRoom(row) {
@@ -262,6 +333,7 @@ export function createYardDesk(env) {
     const row = (
       await query("SELECT * FROM yard_rooms WHERE id = ?", [id])
     )[0];
+    await maybeGrantMark(yard, who);
     return { ok: true, room: mapRoom(row) };
   }
 
@@ -346,7 +418,7 @@ export function createYardDesk(env) {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [id, yard, who, to, message, createdAt],
     );
-    return {
+    const sent = {
       ok: true,
       message: {
         id: `dm_${id}`,
@@ -359,13 +431,24 @@ export function createYardDesk(env) {
         createdAt,
       },
     };
+    await maybeGrantMark(yard, who);
+    return sent;
   }
 
   async function wb(pubkey, yardRaw) {
     await ensure();
     const who = await actor(pubkey);
     const yard = yardId(yardRaw);
-    return { ok: true, yardId: yard, handle: who, balance: await balanceOf(yard, who) };
+    const cred = await yardCred(yard, who);
+    return {
+      ok: true,
+      yardId: yard,
+      handle: who,
+      balance: await balanceOf(yard, who),
+      cred,
+      credGate: YARD_CRED_GATE,
+      mark: await markFor(yard, who),
+    };
   }
 
   async function grantJoin(yardRaw, handleRaw) {
@@ -430,6 +513,7 @@ export function createYardDesk(env) {
         new Date().toISOString(),
       ],
     );
+    await maybeGrantMark(yard, who);
     return { ok: true, id };
   }
 
@@ -477,7 +561,7 @@ export function createYardDesk(env) {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [debitId, yard, who, -price, `Yard Sale: ${listing.title}`, `escrow:${escrowId}`, now],
     );
-    return {
+    const bought = {
       ok: true,
       escrowId,
       listingId: num(listing.id),
@@ -488,6 +572,8 @@ export function createYardDesk(env) {
       sellerNet,
       title: String(listing.title),
     };
+    await maybeGrantMark(yard, who);
+    return bought;
   }
 
   async function escrowRow(id) {
@@ -524,6 +610,8 @@ export function createYardDesk(env) {
       "UPDATE yard_escrow SET status = 'released', updated_at = ? WHERE id = ?",
       [new Date().toISOString(), num(row.id)],
     );
+    await maybeGrantMark(yard, seller);
+    await maybeGrantMark(yard, who);
     return { ok: true, escrowId: num(row.id), status: "released", sellerNet: net };
   }
 

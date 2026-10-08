@@ -14,6 +14,13 @@ import {
 
 const hostedPost = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/hosted-api", () => ({ hostedPost }));
+vi.mock("@/lib/weixnet-relays", () => ({
+  publishToRelays: vi.fn(async () => ({
+    ok: false,
+    relayUrl: "",
+    reason: "skipped",
+  })),
+}));
 
 beforeEach(async () => {
   localStorage.clear();

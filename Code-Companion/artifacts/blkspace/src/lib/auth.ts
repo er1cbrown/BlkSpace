@@ -84,6 +84,21 @@ export function createHttpAuthHeader(
   return `Nostr ${btoa(JSON.stringify(event))}`;
 }
 
+/** Sign a public kind-1 note with the browser session key. Returns null signed-out. */
+export function signWebNote(content: string, tags: string[][]) {
+  const secret = webSecretStorage().getItem(SECRET_KEY);
+  if (!secret || !content.trim()) return null;
+  return finalizeEvent(
+    {
+      kind: 1,
+      created_at: Math.floor(Date.now() / 1000),
+      content,
+      tags,
+    },
+    hexToBytes(secret),
+  );
+}
+
 // ─── First Run Check ─────────────────────────────────────
 
 export function isFirstRun(): boolean {

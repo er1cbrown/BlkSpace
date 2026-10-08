@@ -6,15 +6,18 @@ import { useState } from "react";
 import { getCurrentHandle } from "@/lib/auth";
 import { isYardMod } from "@/lib/yard-mod";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { useLabUnlocked } from "@/components/lab/LabGate";
 
 export function Navbar() {
   const [location] = useLocation();
   const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const lab = useLabUnlocked();
 
   const navItems = [
     { href: "/feed", label: "Feed" },
     { href: "/hub", label: "Hub" },
+    { href: "/blkshi", label: "BLKSHI" },
     { href: "/arcade", label: "Arcade" },
     { href: "/focus", label: "Focus" },
     { href: "/faculty", label: "Faculty" },
@@ -23,9 +26,13 @@ export function Navbar() {
     { href: "/media", label: "Media" },
     { href: "/communities", label: "Communities" },
     ...(isYardMod(getCurrentHandle()) ? [{ href: "/mod", label: "Mod" }] : []),
-    { href: "/relays", label: "Network" },
-    { href: "/mesh-test", label: "Sync Test" },
-    { href: "/architecture", label: "Stack" },
+    ...(lab
+      ? [
+          { href: "/relays", label: "Network" },
+          { href: "/mesh-test", label: "Sync Test" },
+          { href: "/architecture", label: "Stack" },
+        ]
+      : []),
   ];
 
   return (

@@ -5,7 +5,9 @@ import { createConnect } from "./connect.mjs";
 import { createYards } from "./yards.mjs";
 import { createYardDesk } from "./yard-desk.mjs";
 import { createPortfolio } from "./portfolio.mjs";
+import { createHubs, termsDocument } from "./hubs.mjs";
 import { readYardFile, readYardManifest } from "./yard-photos.mjs";
+import { weixnetStatus } from "./weixnet.mjs";
 
 const interactionRoutes = new Map([
   // Canonical interaction routes.
@@ -115,6 +117,7 @@ function notificationOptions(url, body = {}) {
 
 export function createApiHandler(env, { origins, development = false } = {}) {
   const portfolio = createPortfolio(env);
+  const hubs = createHubs(env);
   const connect = createConnect(env);
   const yards = createYards(env);
   const desk = createYardDesk(env);
@@ -259,6 +262,29 @@ export function createApiHandler(env, { origins, development = false } = {}) {
           await connect.opportunity(url.searchParams.get("id") || ""),
         );
       }
+      if (req.method === "GET" && path === "/api/terms") {
+        return json(res, 200, termsDocument());
+      }
+      if (req.method === "GET" && path === "/api/weixnet/status") {
+        return json(res, 200, await weixnetStatus());
+      }
+      if (req.method === "GET" && path === "/api/portfolio/hubs") {
+        return json(res, 200, await hubs.list());
+      }
+      if (req.method === "GET" && path === "/api/portfolio/gate") {
+        return json(res, 200, await hubs.gate(url.searchParams.get("handle") || ""));
+      }
+      const hubRead = path.match(/^\/api\/portfolio\/hub\/([^/]+)(?:\/([^/]+))?$/);
+      if (req.method === "GET" && hubRead) {
+        const handle = decodeURIComponent(hubRead[1]);
+        return json(
+          res,
+          200,
+          hubRead[2]
+            ? await hubs.page(handle, decodeURIComponent(hubRead[2]))
+            : await hubs.door(handle),
+        );
+      }
       if (req.method === "GET" && path === "/api/connect/cred") {
         return json(
           res,
@@ -348,6 +374,13 @@ export function createApiHandler(env, { origins, development = false } = {}) {
             "/api/yards/events",
             "/api/yards/rsvp",
             "/api/yards/rsvp/cancel",
+            "/api/portfolio/hub",
+            "/api/portfolio/hub/page",
+            "/api/portfolio/hub/page/delete",
+            "/api/portfolio/terms",
+            "/api/ledger/tip",
+            "/api/ledger/earn",
+            "/api/ledger/payout",
           ].includes(path)
         ) {
           throw new HttpError(404, "API route not found.");
@@ -451,6 +484,27 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       }
       if (path === "/api/connect/interest/status") {
         return json(res, 200, await connect.setStatus(body, pubkey));
+      }
+      if (path === "/api/portfolio/hub") {
+        return json(res, 200, await hubs.saveDoor(body, pubkey));
+      }
+      if (path === "/api/portfolio/hub/page") {
+        return json(res, 200, await hubs.savePage(body, pubkey));
+      }
+      if (path === "/api/portfolio/hub/page/delete") {
+        return json(res, 200, await hubs.deletePage(body, pubkey));
+      }
+      if (path === "/api/portfolio/terms") {
+        return json(res, 200, await hubs.acceptTerms(body, pubkey));
+      }
+      if (path === "/api/ledger/tip") {
+        return json(res, 200, await hubs.tip(body, pubkey));
+      }
+      if (path === "/api/ledger/earn") {
+        return json(res, 200, await hubs.earn());
+      }
+      if (path === "/api/ledger/payout") {
+        return json(res, 200, await hubs.payout(body));
       }
       if (path === "/api/portfolio/post")
         return json(res, 200, await portfolio.savePost(body, pubkey));

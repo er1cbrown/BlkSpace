@@ -112,6 +112,10 @@ const build = spawnSync(
     '--define:import.meta.env.VITE_SOLANA_CLUSTER="devnet"',
     '--define:import.meta.env.VITE_BKSPC_MINT=""',
     '--define:import.meta.env.VITE_BKSPC_PUMPFUN=""',
+    '--define:import.meta.env.VITE_BI9_ADDRESS=""',
+    '--define:import.meta.env.VITE_STAKE_VAULT=""',
+    '--define:import.meta.env.VITE_TIMELOCK=""',
+    '--define:import.meta.env.VITE_HYPEREVM_NETWORK=""',
   ],
   { cwd: buildRoot, encoding: "utf8", env: { ...process.env, NODE_ENV: "production" } },
 );
@@ -145,6 +149,10 @@ const envReplacements = {
   "import.meta.env.VITE_SOLANA_CLUSTER": '"devnet"',
   "import.meta.env.VITE_BKSPC_MINT": '""',
   "import.meta.env.VITE_BKSPC_PUMPFUN": '""',
+  "import.meta.env.VITE_BI9_ADDRESS": '""',
+  "import.meta.env.VITE_STAKE_VAULT": '""',
+  "import.meta.env.VITE_TIMELOCK": '""',
+  "import.meta.env.VITE_HYPEREVM_NETWORK": '""',
 };
 for (const key of Object.keys(envReplacements).sort((a, b) => b.length - a.length)) {
   js = js.split(key).join(envReplacements[key]);

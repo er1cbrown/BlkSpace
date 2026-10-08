@@ -10,7 +10,11 @@ import { createHttpAuthHeader, storeIdentity } from "@/lib/auth";
 import { verifyEvent } from "nostr-tools/pure";
 
 const hostedPost = vi.hoisted(() => vi.fn());
+const publishToRelays = vi.hoisted(() =>
+  vi.fn(async () => ({ ok: false, relayUrl: "", reason: "skipped" })),
+);
 vi.mock("@/lib/hosted-api", () => ({ hostedPost }));
+vi.mock("@/lib/weixnet-relays", () => ({ publishToRelays }));
 
 beforeEach(() => {
   localStorage.clear();
@@ -61,6 +65,24 @@ describe("cloud post acknowledgement", () => {
     complete(Response.json({ ok: true, storage: "cloud" }));
     await pending;
     expect(listWebUserPosts()[0].content).toBe("shared");
+  });
+
+  it("sends the signed relay note when a WeixNet relay accepts it", async () => {
+    await storeIdentity("web_session_token", "alice", "ab".repeat(32), "Alice");
+    publishToRelays.mockImplementation(async (event: { id: string }) => ({
+      ok: true,
+      relayUrl: "wss://nos.lol",
+      reason: "",
+      id: event.id,
+    }));
+    hostedPost.mockResolvedValue(Response.json({ ok: true, storage: "cloud" }));
+    const post = await createWebUserPost({ content: "on the relay", townTag: "tsu" });
+    expect(post.relayUrl).toBe("wss://nos.lol");
+    expect(post.nostrEventId).toMatch(/^[0-9a-f]{64}$/);
+    const body = hostedPost.mock.calls[0][1];
+    expect(body.nostrEvent.kind).toBe(1);
+    expect(body.nostrEvent.content).toBe("on the relay");
+    expect(verifyEvent(body.nostrEvent)).toBe(true);
   });
 
   it("signs a verifiable HTTP proof with the existing browser identity", async () => {
