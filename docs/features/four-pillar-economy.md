@@ -2,9 +2,9 @@
 
 **Status:** Product architecture — implemented in UX + progression v2 (2026-08)  
 **Audience:** Faculty, counsel, students, IEEE-style reviewers  
-**Related:** [`wb-progression-v2.md`](wb-progression-v2.md) · [`project-connect-credibility-layer.md`](project-connect-credibility-layer.md) · [`../tokenomics.md`](../tokenomics.md) (canonical: **BI9 ERC-20 on HyperEVM**) · [`../tokenomics-policy.md`](../tokenomics-policy.md) · [`../economy-student-terms.md`](../economy-student-terms.md)
+**Related:** [`wb-progression-v2.md`](wb-progression-v2.md) · [`project-connect-credibility-layer.md`](project-connect-credibility-layer.md) · [`../tokenomics.md`](../tokenomics.md) (older BI9 write-up; settlement lock is BKSPC in `FOCUS.md`) · [`../tokenomics-policy.md`](../tokenomics-policy.md) · [`../economy-student-terms.md`](../economy-student-terms.md)
 
-> **Settlement chain:** canonical on-chain asset is **BI9 ERC-20 on HyperEVM**. No WB → BI9. Solana BKSPC is an optional prototype. See [`../finance-l1-strategy.md`](../finance-l1-strategy.md).
+> **Settlement chain:** earned WeixBucks settle only into **BKSPC** on Solana, at 1,000 WB = 1 BKSPC, and only after a funded mint exists. **BI9** on HyperEVM is a separate asset. No WB → BI9. BI9 mint cap stays 0. See [`../../FOCUS.md`](../../FOCUS.md).
 
 ---
 
@@ -19,9 +19,9 @@ It teaches value, trust, fees, and settlement—**not** day trading, brokerage a
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│  4 · SETTLEMENT (BI9 ERC-20 on HyperEVM)                     │
-│  Canonical on-chain asset. No WB → BI9.                      │
-│  Cap 0 until timelocked governance · not student advice      │
+│  4 · SETTLEMENT (BKSPC on Solana)                            │
+│  Earned WB only, 1,000 WB = 1 BKSPC, after a funded mint.    │
+│  BI9 is separate. No WB → BI9. BI9 mint cap stays 0.         │
 └────────────────────────────▲────────────────────────────────┘
                              │ only after 2 + 3
 ┌────────────────────────────┴────────────────────────────────┐
@@ -60,7 +60,7 @@ Credibility without finance remains **useful** (matching, research, collaboratio
 | 1 Fair earn | **Practice credits (WeixBucks)** | Soft game money for create/help/buy creator work |
 | 2 Credibility | **Reliability (Yard Cred)** | Can people trust me for research / delivery? |
 | 3 Literacy | **Learn markets** | How brokerages & risk work *outside* this app |
-| 4 Settlement | **On-chain (BI9 ERC-20)** | Canonical HyperEVM token after Cred — not a casino |
+| 4 Settlement | **BKSPC (Solana)** | Earned-WB receipt after Cred. Closed until the mint is funded. BI9 is not this receipt. |
 
 ---
 
