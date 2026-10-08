@@ -1,3 +1,4 @@
+import { mkdir, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 import { HYPEREVM_MAINNET } from "../../src/lib/hyperevm.ts";
 import { solanaRpcUrl } from "../../src/lib/bkspc-config.ts";
@@ -11,6 +12,10 @@ import {
   BI9_RPC_URL,
   BKSPC_RPC_URL,
   resetWeixnetStatusCache,
+  parseRnsStatus,
+  receiveTicket,
+  shareOutboxFile,
+  ticketFromSendmeOutput,
   weixnetStatus,
 } from "../weixnet.mjs";
 
@@ -129,6 +134,7 @@ describe("weixnet lanes", () => {
         { url: "wss://relay.damus.io", ok: false, ms: 10, error: "socket error" },
         { url: "wss://nos.lol", ok: true, ms: 20 },
       ],
+      localRns: async () => ({ up: true, clients: 1, listen: "127.0.0.1:4242" }),
       fetchFn: async (url, init) => {
         if (String(url).includes("hyperliquid")) {
           return {
@@ -154,5 +160,52 @@ describe("weixnet lanes", () => {
     expect(status.bkspc.cashOut).toBe(false);
     expect(status.iroh.relayHttp).toBe(true);
     expect(status.iroh.localNode).toBe(false);
+    expect(status.lane.social).toBe("nostr");
+    expect(status.rns.localTcp).toBe(true);
+    expect(status.rns.pythonSidecar).toBe(false);
+    expect(status.rns.listen).toBe("127.0.0.1:4242");
+  });
+
+  test("a local reticulum status line is not treated as delivery", () => {
+    const parsed = parseRnsStatus(`
+ TCPServerInterface[TCP Server/127.0.0.1:4242]
+    Status    : Up
+    Clients   : 1
+`);
+    expect(parsed).toEqual({ up: true, clients: 1, listen: "127.0.0.1:4242" });
+  });
+
+  test("sendme output yields the ticket and a bad name is refused", async () => {
+    expect(ticketFromSendmeOutput("to get this data, use\nsendme receive blobabc")).toBe(
+      "blobabc",
+    );
+    await expect(shareOutboxFile({ file: "../note.txt" })).rejects.toThrow(
+      /plain file name/,
+    );
+    await expect(receiveTicket({ ticket: "ticket with spaces" })).rejects.toThrow(
+      /not a sendme ticket/,
+    );
+  });
+
+  test("sharing an outbox file returns the sendme ticket", async () => {
+    await mkdir("/tmp/weixnet-outbox", { recursive: true });
+    await writeFile("/tmp/weixnet-outbox/note.txt", "yard\n");
+    const shared = await shareOutboxFile(
+      { file: "note.txt" },
+      {
+        outbox: "/tmp/weixnet-outbox",
+        timeoutMs: 1000,
+        async run() {
+          return { pid: 42, output: "sendme receive blobticketvalueok" };
+        },
+      },
+    );
+    expect(shared).toEqual({
+      ok: true,
+      lane: "sendme",
+      file: "note.txt",
+      ticket: "blobticketvalueok",
+      pid: 42,
+    });
   });
 });

@@ -11,7 +11,8 @@ type LaneStatus = {
   bkspc?: { reachable?: boolean; health?: string; cluster?: string; mint?: string };
   iroh?: { relayHttp?: boolean; localNode?: boolean; detail?: string };
   sendme?: { installed?: boolean; detail?: string };
-  rns?: { installed?: boolean; detail?: string };
+  rns?: { installed?: boolean; localTcp?: boolean; listen?: string; detail?: string };
+  lane?: { social?: string; file?: string; detail?: string };
 };
 
 export default function BlkshiPage() {
@@ -70,7 +71,9 @@ export default function BlkshiPage() {
             {status ? (
               <ul className="space-y-1">
                 <li>
-                  WeixNet relays: {relayUp} of {relayTotal} answered.
+                  WeixNet relays: {relayUp} of {relayTotal} answered. Text lane:{" "}
+                  {status.lane?.social || "unknown"}. File lane:{" "}
+                  {status.lane?.file || "unknown"}.
                 </li>
                 <li>
                   BI9: HyperEVM{" "}

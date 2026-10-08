@@ -7,7 +7,7 @@ import { createYardDesk } from "./yard-desk.mjs";
 import { createPortfolio } from "./portfolio.mjs";
 import { createHubs, termsDocument } from "./hubs.mjs";
 import { readYardFile, readYardManifest } from "./yard-photos.mjs";
-import { weixnetStatus } from "./weixnet.mjs";
+import { receiveTicket, shareOutboxFile, weixnetStatus } from "./weixnet.mjs";
 
 const interactionRoutes = new Map([
   // Canonical interaction routes.
@@ -267,6 +267,14 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       }
       if (req.method === "GET" && path === "/api/weixnet/status") {
         return json(res, 200, await weixnetStatus());
+      }
+      if (req.method === "POST" && path === "/api/weixnet/sendme") {
+        const { body } = await readJson(req);
+        return json(res, 200, await shareOutboxFile(body));
+      }
+      if (req.method === "POST" && path === "/api/weixnet/receive") {
+        const { body } = await readJson(req);
+        return json(res, 200, await receiveTicket(body));
       }
       if (req.method === "GET" && path === "/api/portfolio/hubs") {
         return json(res, 200, await hubs.list());
