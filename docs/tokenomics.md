@@ -7,7 +7,7 @@
 **In-app points:** **WeixBucks (WB)** — off-chain, live now  
 **Decision record:** [`finance-l1-strategy.md`](finance-l1-strategy.md)
 
-This file is the **canonical** tokenomics overview. Live WeixBucks constants still live in [`tokenomics-policy.md`](tokenomics-policy.md) and `TokenomicsPolicy::published()`. Solana **BKSPC** is an optional Token-2022 prototype; it is **not** the home of BI9.
+This file is the **canonical** tokenomics overview. Live WeixBucks constants still live in [`tokenomics-policy.md`](tokenomics-policy.md) and `TokenomicsPolicy::published()`. Solana **BKSPC** is the Token-2022 settlement and governance token; it is **not** the home of BI9.
 
 We **are** doing ERC-20. BI9 on HyperEVM is the canonical mint.
 

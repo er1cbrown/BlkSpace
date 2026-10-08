@@ -2,7 +2,7 @@
 
 ## Project Overview
 BlkSpace (weixblack.net) — amalgamation social platform.
-Tauri 2 + React + TypeScript. BlkCore is off-chain (Nostr + Iroh + WeixBucks). Canonical on-chain token is **BI9 ERC-20 on HyperEVM**. Solana/Anchor BKSPC is an optional high-throughput prototype — not the mint home. Never auto-convert WeixBucks to BI9.
+Tauri 2 + React + TypeScript. BlkCore is off-chain (Nostr + Iroh + WeixBucks). Canonical ERC-20 mint is **BI9 on HyperEVM**. Solana/Anchor **BKSPC** is the settlement and governance token: earned WeixBucks settle into it, and it carries non-rewarding staking plus allowlisted timelocked governance. Never auto-convert WeixBucks to BI9.
 Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 
 ## Dev Environment
@@ -57,7 +57,7 @@ BlkSpace/ (cloned root)
 │   │   ├── blkspace/       ← React frontend (src/) + Rust backend (src-tauri/)
 │   │   ├── api-server/     ← Express API server (alternative deployment)
 │   │   ├── mockup-sandbox/ ← UI component showcase
-│   │   ├── solana/         ← Anchor: optional BKSPC Token-2022 prototype
+│   │   ├── solana/         ← Anchor: BKSPC settlement + staking + governance
 │   │   └── hyperevm/       ← Solidity: BI9 ERC-20 + stake + timelock (canonical)
 │   ├── lib/                ← workspace packages (api-client-react, api-spec, api-zod, db)
 │   ├── scripts/            ← utility scripts
@@ -73,7 +73,9 @@ BlkSpace/ (cloned root)
 3. Push to GitHub to trigger CI — don't build Tauri locally unless necessary
 4. Write tests for new features (Vitest for frontend, Rust tests for Tauri)
 5. Keep dependencies minimal — every byte counts on low-end machines
-6. Blockchain: BlkCore stays off-chain. Canonical mint is **BI9 ERC-20 on HyperEVM** (`Code-Companion/artifacts/hyperevm/`). Do not put BI9 on Solana. Existing Anchor programs under `artifacts/solana/` are optional Token-2022 scaffolding — do not extend them as the canonical mint. Never auto-convert WeixBucks to BI9.
+6. Blockchain: BlkCore stays off-chain. Canonical ERC-20 mint is **BI9 on HyperEVM** (`Code-Companion/artifacts/hyperevm/`). Do not put BI9 on Solana. The Anchor program under `artifacts/solana/` is the **BKSPC settlement and governance** program, not a BI9 prototype — it holds a program-PDA mint authority, requires an on-chain `minter` signer, and enforces a hard supply `cap` that governance may only lower. Never auto-convert WeixBucks to BI9.
+6a. **BKSPC minting is not permissionless.** `convert_wb_to_bkspc` requires `convert_config.minter` to sign and rejects any mint above `cap`. Do not weaken this — it was an exploitable hole until 2026-10-08. Staking pays **no reward**, and governance has **no arbitrary-CPI instruction**. See [`docs/bkspc-settlement-hardening.md`](docs/bkspc-settlement-hardening.md).
+6b. The `bkspc-devnet` Cargo feature gates the entire WB→BKSPC settlement path and is **not** a default feature. `check-tauri-bkspc` compiles it on three OSes; `build-tauri-bkspc` ships one Linux installer. Builds without it must refuse settlement rather than fabricate a transaction signature.
 7. Use **Bun** only (`bun install`, `bun run …`). Do not use pnpm/npm/yarn.
 8. Reticulum Route B: bundled native `rns`/`rnsd` only. No Python sidecar, no LXMF identity store, no RNode serial/BLE, no destination hashes next to Nostr keys. [`docs/implementation/RETICULUM_INTEGRATION.md`](docs/implementation/RETICULUM_INTEGRATION.md)
 9. Yard room watch: Jellyfin HTTPS, Iroh media tickets, or Syncplay only. Do not wire ani-cli / HiAnime / Megaplay / third-party HLS into rooms. Spec: [`docs/features/yard-room-watch.md`](docs/features/yard-room-watch.md). Hostinger VPS compose: [`docs/implementation/jellyfin-hostinger/README.md`](docs/implementation/jellyfin-hostinger/README.md). Docker is for the VPS, not the Tier 0 laptop.
