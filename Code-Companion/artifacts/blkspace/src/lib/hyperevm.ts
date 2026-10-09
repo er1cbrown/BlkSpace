@@ -238,9 +238,9 @@ export async function fetchHyperevmBalances(
 }
 
 export const HYPEREVM_GATES_COPY = [
-  "Canonical on-chain token is BI9 (ERC-20) on HyperEVM.",
-  "WeixBucks stay in the app. They do not convert to BI9.",
-  "BI9 lives on HyperEVM (chain 999). Mint is off until a timelocked cap is set.",
-  "HYPE is gas. Staking HYPE is a sleeve, not yield.",
-  "BlkFinance is advanced mode — not the student home screen.",
+  "BI9 is retained reference code. It is not the canonical asset and is not deployable.",
+  "The canonical on-chain asset is BKSPC on Solana.",
+  "Hyperliquid geo-restricts the US, so BI9 was never deployed here.",
+  "No BI9 address is configured, so there is no balance to read.",
+  "WeixBucks never auto-convert to any token.",
 ] as const;

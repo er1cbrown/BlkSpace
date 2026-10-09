@@ -157,3 +157,7 @@ Code-Companion/artifacts/solana/devnet/*.json
 *.msi
 *.deb
 *.rpm
+
+# Python bytecode — build artifact, never commit
+__pycache__/
+*.pyc

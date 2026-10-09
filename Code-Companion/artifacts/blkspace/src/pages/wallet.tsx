@@ -547,10 +547,10 @@ function WalletPageContent() {
         </div>
       ) : (
         <p id="hyperevm" className="mb-4 text-xs text-muted-foreground">
-          In this app, BI9 and BKSPC are separate choices of equal standing.
-          Neither is paid from the other. WeixBucks cash out only to BKSPC, and
-          only after a funded mint. Blk Finance is the on-chain markets app,
-          and this Yard build does not open it.
+          BKSPC on Solana is the canonical on-chain asset — settlement, staking,
+          and governance. BI9 on HyperEVM is retained reference code: it was
+          never deployed, because Hyperliquid geo-restricts the US. WeixBucks
+          reach BKSPC only by explicit withdrawal, never automatically.
         </p>
       )}
 

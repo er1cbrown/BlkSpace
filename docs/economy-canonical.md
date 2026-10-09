@@ -1,3 +1,10 @@
+> **AMENDED (2026-10-08).** Sections 2 and 8 named BI9 on HyperEVM as the canonical
+> mint. That is no longer accurate: Hyperliquid geo-restricts the US, so BI9 is not
+> deployable by this operator. **BKSPC on Solana is canonical** — settlement,
+> non-rewarding staking, allowlisted timelocked governance. The WB -> BI9 "never"
+> invariants still hold, and are now partly moot. See
+> [`canonical-chain-decision.md`](canonical-chain-decision.md).
+
 # Canonical economy model
 
 **Status:** **canonical.** Supersedes the eleven economy documents listed in §11

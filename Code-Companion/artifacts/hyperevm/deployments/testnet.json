@@ -10,5 +10,9 @@
   "minDelay": 172800,
   "cap": 0,
   "mintDisabled": true,
-  "weixBucksConvertible": false
+  "weixBucksConvertible": false,
+  "status": "NEVER DEPLOYED \u2014 not deployable by this operator (US geo-restriction). Reference only.",
+  "canonical": false,
+  "supersededBy": "solana/bkspc",
+  "decisionRecord": "../../../docs/canonical-chain-decision.md"
 }

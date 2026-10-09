@@ -81,10 +81,11 @@ export function BkspcMainnetPanel({
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <p className="text-muted-foreground text-xs leading-relaxed">
-          {BRAND.symbol} is the only creator cash-out of earned{" "}
-          {BRAND.softCurrency}. One published ratio, on Solana devnet until a
-          funded mint exists. BI9 is a separate asset and is not paid out from
-          WeixBucks.
+          {BRAND.symbol} on Solana is the canonical on-chain asset and the only
+          creator cash-out of earned {BRAND.softCurrency}. One published ratio, on
+          devnet until a funded mint exists. Staking pays no reward — it is
+          governance weight. BI9 on HyperEVM is retained reference code and was
+          never deployed.
         </p>
 
         <div className="rounded-xl border bg-muted/30 p-3 space-y-1">

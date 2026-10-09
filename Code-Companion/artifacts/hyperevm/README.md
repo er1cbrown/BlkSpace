@@ -1,6 +1,16 @@
-# BlkSpace HyperEVM (BI9)
+# BlkSpace HyperEVM (BI9) — RETAINED, NOT DEPLOYABLE
 
-Solidity for the canonical on-chain asset. Decision: [`docs/finance-l1-strategy.md`](../../../docs/finance-l1-strategy.md) · rules: [`docs/tokenomics.md`](../../../docs/tokenomics.md).
+> **Do not deploy this.** Hyperliquid geo-restricts the United States and this operator is
+> in Tennessee, so chain 999 and 998 are both unavailable here. `DeployMainnet.s.sol` accepts
+> no other chain id, so there is no valid deploy path.
+>
+> **BKSPC on Solana is the canonical on-chain asset.** See
+> [`docs/canonical-chain-decision.md`](../../../docs/canonical-chain-decision.md).
+>
+> These contracts are kept as reference and as an audit artifact. They are still tested —
+> 38 `forge test` cases pass and `test-forge-hyperevm` runs them in CI — but `cap` stays `0`
+> and `minter` stays `address(0)`, and nothing in this repo can change that without a queued
+> proposal on a timelock that was never deployed. Retain, do not extend.
 
 | Contract | Job |
 |---|---|

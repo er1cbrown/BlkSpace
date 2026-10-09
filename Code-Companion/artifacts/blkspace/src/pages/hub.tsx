@@ -90,7 +90,8 @@ export default function HubPage() {
       .then((body) => {
         if (!stop && Array.isArray(body.hubs)) setPublicHubs(body.hubs);
       })
-      .catch(() => {});
+      // Live hubs are supplementary; a failed fetch just leaves the cached list.
+      .catch(() => undefined);
     return () => {
       stop = true;
     };

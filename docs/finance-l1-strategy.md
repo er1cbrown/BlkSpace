@@ -1,3 +1,11 @@
+> **SUPERSEDED IN PART (2026-10-08).** This document plans BI9 on HyperEVM as the
+> canonical asset. Hyperliquid geo-restricts the United States and this operator is
+> in Tennessee, so chain 999 is not deployable here — `DeployMainnet.s.sol` accepts
+> no other chain id, so this plan was never executable. BKSPC on Solana is now
+> canonical. See [`canonical-chain-decision.md`](canonical-chain-decision.md).
+> Retained for the BlkBridge and BLKSHI design work, which is still valid and is
+> chain-agnostic. Do not treat section 3 (token placement) as current.
+
 # BlkSpace Finance Layer Strategy
 
 **Document:** `docs/finance-l1-strategy.md`  

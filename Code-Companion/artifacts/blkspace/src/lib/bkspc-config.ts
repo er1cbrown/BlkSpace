@@ -130,7 +130,10 @@ export function formatWbToBkspc(wb: number, ratio = WB_TO_BKSPC_RATIO): string {
 export const BKSPC_GATES_COPY = [
   "Earn WeixBucks (WB) in-app — not sold for USD",
   "Yard Cred + account age + posts gate withdraw",
-  "1,000 WB ≈ 1 BKSPC on this Solana prototype (not the canonical mint)",
-  "Canonical on-chain token is BI9 ERC-20 on HyperEVM — not minted from WB",
-  "Mainnet mint only after launch + counsel gates",
+  "1,000 WB = 1 BKSPC, at the published ratio",
+  "BKSPC on Solana is the canonical on-chain asset",
+  "Staking pays no reward — it is governance weight only",
+  "Supply cap activates once, then can only go down",
+  "No presale, no preferential access, buy at market price if you want it",
+  "Mainnet only after audit + counsel sign-off",
 ] as const;

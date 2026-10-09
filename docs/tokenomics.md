@@ -1,15 +1,18 @@
 # BlkSpace Tokenomics (Canonical)
 
-**Status:** Product decision (2026-08-26)  
-**Canonical on-chain home:** Hyperliquid **HyperEVM**  
-**On-chain token:** **BLACKINCCOIN (BI9)** — **ERC-20**  
-**Gas:** **HYPE**  
+**Status:** Product decision, amended 2026-10-08  
+**Canonical on-chain home:** **Solana**  
+**On-chain token:** **BKSPC** — Token-2022, settlement + non-rewarding staking + timelocked governance  
+**Gas:** **SOL**  
 **In-app points:** **WeixBucks (WB)** — off-chain, live now  
-**Decision record:** [`finance-l1-strategy.md`](finance-l1-strategy.md)
+**Decision record:** [`canonical-chain-decision.md`](canonical-chain-decision.md)  
+**Prior position (superseded):** BI9 / BLACKINCCOIN on HyperEVM — retained, not deployable from the US
 
-This file is the **canonical** tokenomics overview. Live WeixBucks constants still live in [`tokenomics-policy.md`](tokenomics-policy.md) and `TokenomicsPolicy::published()`. Solana **BKSPC** is the Token-2022 settlement and governance token; it is **not** the home of BI9.
+This file is the **canonical** tokenomics overview. Live WeixBucks constants still live in [`tokenomics-policy.md`](tokenomics-policy.md) and `TokenomicsPolicy::published()`.
 
-We **are** doing ERC-20. BI9 on HyperEVM is the canonical mint.
+**BKSPC on Solana is the canonical on-chain asset** — Token-2022, settlement plus non-rewarding staking plus allowlisted timelocked governance. Decision record: [`canonical-chain-decision.md`](canonical-chain-decision.md).
+
+BI9 on HyperEVM is **retained but not deployable by this operator** (Hyperliquid geo-restricts the US). Its contracts stay in `artifacts/hyperevm/` as reference only and are not canonical.
 
 ---
 
