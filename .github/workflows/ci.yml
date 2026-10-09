@@ -263,14 +263,20 @@ jobs:
       - name: Install OpenSSL (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
-        # GITHUB_PATH / GITHUB_ENV are file commands: each needs `NAME=VALUE`, which is
-        # why the earlier attempt with bare paths failed to process.
+        # solana-client -> openssl-sys needs a real OpenSSL with import libraries.
+        # Chocolatey's `openssl` package is a bare source tree with no .lib files, so
+        # openssl-sys panics with "does not contain the required files to either
+        # statically or dynamically link". The vcpkg `openssl:x64-windows-static`
+        # triplet ships libcrypto.lib / libssl.lib and works.
         run: |
-          choco install openssl --no-progress -y
-          "C:\Program Files\OpenSSL\bin" >> $env:GITHUB_PATH
-          "OPENSSL_DIR=C:\Program Files\OpenSSL" >> $env:GITHUB_ENV
-          "OPENSSL_LIB_DIR=C:\Program Files\OpenSSL\lib" >> $env:GITHUB_ENV
-          "OPENSSL_INCLUDE_DIR=C:\Program Files\OpenSSL\include" >> $env:GITHUB_ENV
+          choco install vcpkg --no-progress -y
+          "C:\vcpkg" >> $env:GITHUB_PATH
+          vcpkg install openssl:x64-windows-static
+          $ssl = "C:\vcpkg\installed\x64-windows-static"
+          "OPENSSL_DIR=$ssl" >> $env:GITHUB_ENV
+          "OPENSSL_LIB_DIR=$ssl\lib" >> $env:GITHUB_ENV
+          "OPENSSL_INCLUDE_DIR=$ssl\include" >> $env:GITHUB_ENV
+          "OPENSSL_STATIC=1" >> $env:GITHUB_ENV
       - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
       - run: bun run build:full

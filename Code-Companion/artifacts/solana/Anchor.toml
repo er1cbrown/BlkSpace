@@ -4,18 +4,24 @@
 seeds = false
 skip-lint = false
 
+# Anchor resolves the program id from these tables when building clients, and the IDL
+# carries the same address in metadata.address. All three must agree or instruction
+# encoding fails with InstructionDidNotDeserialize.
 [programs.localnet]
 bkspc = "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs"
 
 [programs.devnet]
 bkspc = "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs"
 
+[programs.test]
+bkspc = "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs"
+
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "bunx ts-mocha -p ./tsconfig.json -t 1000000 tests/bkspc.ts tests/bkspc-convert.ts"
