@@ -104,7 +104,30 @@ the earn, permanently inflating the daily-cap denominator — which is recompute
   sponsors is a materially larger problem than the missing feature.
 - BI9 remains `cap == 0` on HyperEVM with an unset minter. Nothing in this change touches it.
 
-## Verification performed
+## Verification performed — final
+
+**Anchor integration suite: 22/22 passing** on a real Solana validator in CI. This is the
+security-critical suite; every mint-exploit regression is green:
+
+```
+REJECTS a mint requested only by the recipient (no minter)
+REJECTS a mint signed by a non-minter
+cannot mint into an ATA the recipient does not own
+REJECTS a mint that would exceed the cap
+refuses a proposal to RAISE the cap
+refuses a proposal to shorten the governance delay below the floor
+opens a valid proposal and refuses execution before its eta
+locks the voter's stake while a vote is outstanding
+```
+
+Getting there surfaced real defects in this work, all fixed: governance instructions
+declared `#[instruction(nonce: u64)]` without the handler accepting `nonce`, so they could
+not decode their own arguments; and the suite ran without an IDL program address, without
+`bn.js`, and without signers on any instruction that pays rent. None were visible until a
+validator actually executed them.
+
+Local runs of this suite are impossible on the development machine — `solana-test-validator`
+aborts because the CPU lacks AVX. CI is the only place it can run.
 
 BI9 Solidity (`artifacts/hyperevm/`) — **22 tests pass**, run for the first time. These
 had never been executed because no CI job ran `forge test`:
