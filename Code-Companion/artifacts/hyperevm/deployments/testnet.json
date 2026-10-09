@@ -1,8 +1,8 @@
 {
-  "network": "hyperevm-testnet",
-  "chainId": 998,
-  "rpc": "https://rpc.hyperliquid-testnet.xyz/evm",
-  "explorer": "https://testnet.hyperevmscan.io",
+  "network": "sepolia-testnet",
+  "chainId": 11155111,
+  "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
+  "explorer": "https://sepolia.etherscan.io",
   "timelock": "",
   "bi9": "",
   "stakeVault": "",
@@ -11,8 +11,7 @@
   "cap": 0,
   "mintDisabled": true,
   "weixBucksConvertible": false,
-  "status": "NEVER DEPLOYED \u2014 not deployable by this operator (US geo-restriction). Reference only.",
-  "canonical": false,
-  "supersededBy": "solana/bkspc",
-  "decisionRecord": "../../../docs/canonical-chain-decision.md"
+  "status": "NEVER DEPLOYED. Use script/Deploy.s.sol as a rehearsal; it has no chain guard by design.",
+  "notes": "Rehearsal only. Do not publish addresses from a rehearsal run.",
+  "gasToken": "ETH"
 }

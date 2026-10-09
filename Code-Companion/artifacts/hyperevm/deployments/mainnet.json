@@ -1,8 +1,8 @@
 {
-  "network": "hyperevm-mainnet",
-  "chainId": 999,
-  "rpc": "https://rpc.hyperliquid.xyz/evm",
-  "explorer": "https://hyperevmscan.io",
+  "network": "ethereum-mainnet",
+  "chainId": 1,
+  "rpc": "https://eth.llamarpc.com",
+  "explorer": "https://etherscan.io",
   "timelock": "",
   "bi9": "",
   "stakeVault": "",
@@ -11,9 +11,7 @@
   "cap": 0,
   "mintDisabled": true,
   "weixBucksConvertible": false,
-  "notes": "Empty until DeployMainnet is broadcast with TIMELOCK_ADMIN and HYPE for gas. Cap stays 0. Copy last-run.json here after a real 999 deploy.",
-  "status": "NEVER DEPLOYED \u2014 not deployable by this operator (US geo-restriction). Reference only.",
-  "canonical": false,
-  "supersededBy": "solana/bkspc",
-  "decisionRecord": "../../../docs/canonical-chain-decision.md"
+  "status": "NEVER DEPLOYED. DeployMainnet.s.sol now targets chain 1 and refuses every other chain. Cap stays 0 and minter stays address(0); activate only via a delayed timelock proposal.",
+  "notes": "Copy deployments/last-run.json here after a real chain-1 deploy. Do not setCap or setMinter without a reviewed, delayed propose.",
+  "gasToken": "ETH"
 }

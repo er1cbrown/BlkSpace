@@ -6,11 +6,18 @@ import {BI9} from "../src/BI9.sol";
 import {StakeVault} from "../src/StakeVault.sol";
 import {TimelockAdmin} from "../src/TimelockAdmin.sol";
 
-/// @notice HyperEVM **mainnet** (chain id 999) deploy. Mint stays off.
+/// @notice Ethereum **mainnet** (chain id 1) deploy. Mint stays off.
 /// @dev Requires TIMELOCK_ADMIN. Refuses any other chain. Cap is always 0.
 ///      Does not convert WeixBucks. Does not set a minter.
+///
+///      Repointed from HyperEVM (chain 999) on 2026-10-08. Hyperliquid geo-restricts the
+///      United States, so chain 999 was never deployable by this operator. The contracts are
+///      chain-agnostic EVM and compile unchanged at evm_version = cancun, which Ethereum
+///      has supported since March 2024. The chain guard and the cap-0 / unset-minter
+///      post-deploy asserts are kept deliberately: they are what make the deployment
+///      auditable, and both still hold on chain 1.
 contract DeployMainnet is Script {
-    uint256 internal constant HYPEREVM_MAINNET = 999;
+    uint256 internal constant ETHEREUM_MAINNET = 1;
 
     error WrongChain(uint256 got);
     error AdminRequired();
@@ -18,7 +25,7 @@ contract DeployMainnet is Script {
     error CapMustStayZero();
 
     function run() external {
-        if (block.chainid != HYPEREVM_MAINNET) revert WrongChain(block.chainid);
+        if (block.chainid != ETHEREUM_MAINNET) revert WrongChain(block.chainid);
 
         uint256 delay = vm.envOr("TIMELOCK_DELAY", uint256(2 days));
         if (delay < 2 days) revert DelayTooShort(delay);
@@ -34,7 +41,7 @@ contract DeployMainnet is Script {
         StakeVault vault = new StakeVault(address(tl), token);
         vm.stopBroadcast();
 
-        console2.log("HyperEVM MAINNET deploy");
+        console2.log("Ethereum MAINNET deploy");
         console2.log("chainId", block.chainid);
         console2.log("TimelockAdmin", address(tl));
         console2.log("BI9", address(token));
@@ -49,10 +56,10 @@ contract DeployMainnet is Script {
 
         string memory json = string.concat(
             "{\n",
-            '  "network": "hyperevm-mainnet",\n',
-            '  "chainId": 999,\n',
-            '  "rpc": "https://rpc.hyperliquid.xyz/evm",\n',
-            '  "explorer": "https://hyperevmscan.io",\n',
+            '  "network": "ethereum-mainnet",\n',
+            '  "chainId": 1,\n',
+            '  "rpc": "https://eth.llamarpc.com",\n',
+            '  "explorer": "https://etherscan.io",\n',
             '  "timelock": "',
             vm.toString(address(tl)),
             '",\n',

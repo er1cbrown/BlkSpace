@@ -2,7 +2,9 @@
 pragma solidity ^0.8.24;
 
 /// @title BLACKINCCOIN (BI9)
-/// @notice Canonical BlkSpace on-chain asset (ERC-20) on Hyperliquid HyperEVM.
+/// @notice A BlkSpace ERC-20, chain-agnostic. Deployed to Ethereum (chain 1); retained
+///         as a secondary asset. The canonical on-chain asset is BKSPC on Solana --
+///         see docs/canonical-chain-decision.md.
 /// @dev No public mint. No WeixBucks conversion. Cap of 0 keeps minting disabled.
 ///      Admin is expected to be a TimelockAdmin, not an EOA, on any live deploy.
 contract BI9 {
@@ -58,7 +60,7 @@ contract BI9 {
         admin = admin_;
         pauser = admin_;
         cap = cap_;
-        // Live HyperEVM deploys pass cap 0 and TimelockAdmin as admin_.
+        // Live deploys pass cap 0 and TimelockAdmin as admin_.
         // There is no WeixBucks parameter and never will be.
     }
 

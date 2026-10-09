@@ -1,21 +1,22 @@
-# BlkSpace HyperEVM (BI9) — RETAINED, NOT DEPLOYABLE
+# BlkSpace BI9 (ERC-20) — targets Ethereum, not deployed
 
-> **Do not deploy this.** Hyperliquid geo-restricts the United States and this operator is
-> in Tennessee, so chain 999 and 998 are both unavailable here. `DeployMainnet.s.sol` accepts
-> no other chain id, so there is no valid deploy path.
+> **Repointed from HyperEVM to Ethereum on 2026-10-08.** Hyperliquid geo-restricts the United
+> States, so chains 999 and 998 were never deployable by this operator. The contracts are
+> chain-agnostic EVM at `evm_version = cancun` and compile unchanged for Ethereum, so
+> `DeployMainnet.s.sol` now targets **chain 1** and refuses every other chain id.
 >
-> **BKSPC on Solana is the canonical on-chain asset.** See
+> **BKSPC on Solana is still the canonical on-chain asset** — this is a secondary ERC-20 if
+> a second asset is ever wanted. See
 > [`docs/canonical-chain-decision.md`](../../../docs/canonical-chain-decision.md).
 >
-> These contracts are kept as reference and as an audit artifact. They are still tested —
-> 38 `forge test` cases pass and `test-forge-hyperevm` runs them in CI — but `cap` stays `0`
-> and `minter` stays `address(0)`, and nothing in this repo can change that without a queued
-> proposal on a timelock that was never deployed. Retain, do not extend.
+> Nothing is deployed yet: `cap` is `0`, `minter` is `address(0)`, and both manifests are
+> empty. 38 `forge test` cases pass and `test-forge-hyperevm` runs them in CI. If you do
+> deploy, keep cap at 0 and activate it only through a delayed timelock proposal.
 
 | Contract | Job |
 |---|---|
 | `BI9.sol` | BLACKINCCOIN ERC-20. Cap `0` = mint disabled. No WeixBucks hook. |
-| `StakeVault.sol` | Native HYPE + BI9 sleeves. Fee-tier view. **No rewards.** 7-day unstake cooldown. |
+| `StakeVault.sol` | Native + BI9 staking sleeves. Fee-tier view. **No rewards.** 7-day unstake cooldown. *Symbol names still say `Hype*` from the HyperEVM era — rename to `Eth*` if you keep it.* |
 | `TimelockAdmin.sol` | Delayed admin. Owner of BI9 + vault. Delay floor **2 days**; `setMinDelay` / `transferAdmin` only via the timelock itself. |
 
 This is **not** an Anchor program. **BI9 is the canonical ERC-20.** Solana Token-2022 is optional scaffolding, not the mint home.
@@ -24,8 +25,8 @@ This is **not** an Anchor program. **BI9 is the canonical ERC-20.** Solana Token
 
 | Network | Chain ID | RPC | Explorer |
 |---|---|---|---|
-| HyperEVM mainnet | 999 | `https://rpc.hyperliquid.xyz/evm` | https://hyperevmscan.io |
-| HyperEVM testnet | 998 | `https://rpc.hyperliquid-testnet.xyz/evm` | https://testnet.hyperevmscan.io |
+| Ethereum mainnet | 1 | `https://eth.llamarpc.com` | https://etherscan.io |
+| Sepolia | 11155111 | `https://ethereum-sepolia-rpc.publicnode.com` | https://sepolia.etherscan.io |
 
 Gas token is **HYPE** (`msg.value` in `StakeVault.stakeHype`). Addresses after a broadcast live in `deployments/`. Empty `bi9` means **not deployed yet**.
 
@@ -84,14 +85,14 @@ Never set `VITE_BI9_ADDRESS` to a simulated address. `forge script` without `--b
 prints real-looking addresses that do not exist on chain, and the app will then issue
 `eth_call`s against empty accounts.
 
-## Deploy (mainnet, chain 999)
+## Deploy (Ethereum mainnet, chain 1)
 
-You need HYPE on HyperEVM for gas. The script **reverts on any other chain id**.
+You need ETH for gas. The script **reverts on any other chain id** (verified: it reverts `WrongChain(11155111)` against Sepolia).
 
 ```bash
 export TIMELOCK_ADMIN=0xYourAdmin   # required; proposer EOA, not the token minter
 export TIMELOCK_DELAY=172800        # must be >= 2 days
-forge script script/DeployMainnet.s.sol:DeployMainnet --rpc-url hyperevm --broadcast --private-key $PRIVATE_KEY
+forge script script/DeployMainnet.s.sol:DeployMainnet --rpc-url ethereum --broadcast --private-key $PRIVATE_KEY
 ```
 
 After a successful 999 broadcast:

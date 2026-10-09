@@ -9,8 +9,13 @@
 **BKSPC on Solana is the canonical on-chain asset.** It carries earned WeixBucks
 settlement, staking, and governance.
 
-**BI9 on HyperEVM is retained as code but is not deployable by this operator.** It is not
-the canonical mint, not a fallback, and not on the roadmap.
+**BI9 is retained as a deployable secondary ERC-20, repointed to Ethereum (chain 1).** It is
+not the canonical asset and not a fallback. It has never been deployed: `cap` is `0`,
+`minter` is `address(0)`, and both manifests are empty. Deploying it requires real ETH for
+gas. If a second asset is ever wanted, this is the path — the contracts are chain-agnostic
+EVM at `evm_version = cancun` and compile unchanged, so only the config and the RPC
+endpoint changed. If a second asset is *not* wanted, `Code-Companion/artifacts/hyperevm/`
+can simply be deleted; nothing else in the repo imports it.
 
 ## Why
 
@@ -25,6 +30,10 @@ alike.
 plan was never executable by this operator. Continuing to describe HyperEVM as canonical
 would have sent every future agent and every reader down a path that cannot succeed.
 
+The script now targets chain 1 instead. The guard and the post-deploy assertions (`cap == 0`,
+`minter == address(0)`) were kept deliberately — they are what make a deployment auditable,
+and they hold on Ethereum exactly as they did on HyperEVM.
+
 ## What was already built
 
 The Solana tree is further along than the HyperEVM tree was, which makes this a change of
@@ -37,7 +46,7 @@ direction rather than a restart:
 | Non-rewarding staking | Done, tested |
 | Allowlisted timelocked governance | Done, tested |
 | Settlement with refund-on-failure | Done, 195 Rust tests pass |
-| BI9 Solidity suite | 38 forge tests pass, code retained |
+| BI9 Solidity suite | 38 forge tests pass, repointed to Ethereum chain 1 |
 
 ## Why not rewrite on another chain
 
@@ -75,7 +84,9 @@ not a choice available to this operator.
 - **No presale, no DEX integration, no market-maker arrangement, no investor-return
   framing.** People may buy BKSPC freely at market price with no preferential access.
 - **BI9's `cap` stays 0 and `minter` stays `address(0)`.** Nothing in this repo can change
-  that without a queued proposal on a timelock that has never been deployed.
+  that without a queued proposal on a timelock that has never been deployed. If BI9 is ever
+  deployed, activate the cap as a separate, later decision — never in the same session as the
+  deployment.
 
 ## Open items
 
