@@ -4,68 +4,732 @@
   "instructions": [
     {
       "name": "initializeConfig",
+      "docs": [
+        "One-time: store treasury signers and move SPL mint authority to the program PDA."
+      ],
       "accounts": [
-        { "name": "payer", "isMut": true, "isSigner": true },
-        { "name": "config", "isMut": true, "isSigner": false },
-        { "name": "mint", "isMut": true, "isSigner": false },
-        { "name": "currentMintAuthority", "isMut": false, "isSigner": true },
-        { "name": "mintAuthority", "isMut": false, "isSigner": false },
-        { "name": "tokenProgram", "isMut": false, "isSigner": false },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "config",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "currentMintAuthority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": ["Current SPL mint authority (deployer before handoff)."]
+        },
+        {
+          "name": "mintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
       "args": [
-        { "name": "treasurySignerA", "type": "publicKey" },
-        { "name": "treasurySignerB", "type": "publicKey" }
+        {
+          "name": "treasurySignerA",
+          "type": "publicKey"
+        },
+        {
+          "name": "treasurySignerB",
+          "type": "publicKey"
+        }
       ]
     },
     {
       "name": "mintRewards",
+      "docs": ["Mint BKSPC to a student ATA. Requires both treasury signers."],
       "accounts": [
-        { "name": "treasurySignerA", "isMut": false, "isSigner": true },
-        { "name": "treasurySignerB", "isMut": false, "isSigner": true },
-        { "name": "config", "isMut": false, "isSigner": false },
-        { "name": "mint", "isMut": true, "isSigner": false },
-        { "name": "recipientAta", "isMut": true, "isSigner": false },
-        { "name": "mintAuthority", "isMut": false, "isSigner": false },
-        { "name": "tokenProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "treasurySignerA",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "treasurySignerB",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "config",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "recipientAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
-      "args": [{ "name": "amount", "type": "u64" }]
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "burnTokens",
+      "docs": ["Burn BKSPC from a student ATA (marketplace payment sink)."],
       "accounts": [
-        { "name": "studentAuthority", "isMut": false, "isSigner": true },
-        { "name": "config", "isMut": false, "isSigner": false },
-        { "name": "mint", "isMut": true, "isSigner": false },
-        { "name": "studentAta", "isMut": true, "isSigner": false },
-        { "name": "tokenProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "studentAuthority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "config",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "studentAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
       ],
-      "args": [{ "name": "amount", "type": "u64" }]
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "initializeConvert",
+      "docs": [
+        "One-time Token-2022 setup. Moves mint authority to the program PDA and pins the",
+        "`minter` allowed to sign `convert_wb_to_bkspc`, plus the hard supply `cap`.",
+        "",
+        "A `cap` of 0 is rejected: it would brick settlement, and because governance may",
+        "only lower the cap there would be no way to recover."
+      ],
       "accounts": [
-        { "name": "payer", "isMut": true, "isSigner": true },
-        { "name": "convertConfig", "isMut": true, "isSigner": false },
-        { "name": "mint", "isMut": true, "isSigner": false },
-        { "name": "currentMintAuthority", "isMut": false, "isSigner": true },
-        { "name": "mintAuthority", "isMut": false, "isSigner": false },
-        { "name": "tokenProgram", "isMut": false, "isSigner": false },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "currentMintAuthority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Current Token-2022 mint authority (deployer before handoff)."
+          ]
+        },
+        {
+          "name": "mintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "minter",
+          "type": "publicKey"
+        },
+        {
+          "name": "admin",
+          "type": "publicKey"
+        },
+        {
+          "name": "cap",
+          "type": "u64"
+        },
+        {
+          "name": "unstakeDelay",
+          "type": "i64"
+        },
+        {
+          "name": "govDelay",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "convertWbToBkspc",
+      "docs": [
+        "Mint fee-adjusted BKSPC for a recipient who cleared the off-chain WeixBucks gates.",
+        "",
+        "Both `minter` (proves eligibility) and `user` (the recipient) must sign, and total",
+        "supply is checked against the hard `cap`."
+      ],
+      "accounts": [
+        {
+          "name": "minter",
+          "isMut": false,
+          "isSigner": true,
+          "docs": ["Backend signer. Must equal `convert_config.minter`."]
+        },
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Recipient. Must sign so the mint cannot be redirected to a third party."
+          ]
+        },
+        {
+          "name": "convertConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mintAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amountBkspc",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "rotateMinter",
+      "docs": [
+        "Admin-only: rotate the backend `minter`. Rotating `admin` itself requires governance."
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "newMinter",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "stake",
+      "docs": [
+        "Open a stake position and move BKSPC into the vault. Pays no reward."
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "position",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "stakeVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "vaultAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "stakeMore",
+      "docs": [
+        "Add to an existing position. Blocked while an unstake is pending."
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "position",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "stakeVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "vaultAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "beginUnstake",
+      "docs": [
+        "Start the unstake cooldown. Requires no unresolved vote commitments."
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "position",
+          "isMut": true,
+          "isSigner": false
+        }
       ],
       "args": []
     },
     {
-      "name": "convertWbToBkspc",
+      "name": "cancelUnstake",
+      "docs": ["Abort a pending unstake and unlock the stake."],
       "accounts": [
-        { "name": "user", "isMut": false, "isSigner": true },
-        { "name": "convertConfig", "isMut": false, "isSigner": false },
-        { "name": "mint", "isMut": true, "isSigner": false },
-        { "name": "userAta", "isMut": true, "isSigner": false },
-        { "name": "mintAuthority", "isMut": false, "isSigner": false },
-        { "name": "tokenProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "position",
+          "isMut": true,
+          "isSigner": false
+        }
       ],
-      "args": [{ "name": "amountBkspc", "type": "u64" }]
+      "args": []
+    },
+    {
+      "name": "finishUnstake",
+      "docs": ["After the cooldown, return staked BKSPC to the owner."],
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "position",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "stakeVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "vaultAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "closePosition",
+      "docs": ["Close an empty position and reclaim rent."],
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "position",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "propose",
+      "docs": [
+        "Open a proposal. Proposer must have stake. `action` is an allowlisted opcode."
+      ],
+      "accounts": [
+        {
+          "name": "proposer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "position",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "proposal",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "nonce",
+          "type": "u64"
+        },
+        {
+          "name": "action",
+          "type": "u8"
+        },
+        {
+          "name": "arg",
+          "type": "u64"
+        },
+        {
+          "name": "target",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "castVote",
+      "docs": [
+        "Cast an initial vote. Weight is snapshotted from current stake into a `VoteRecord`",
+        "and locks the position until the proposal resolves and the voter releases."
+      ],
+      "accounts": [
+        {
+          "name": "voter",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "proposal",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "voteRecord",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "position",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "support",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "changeVote",
+      "docs": [
+        "Switch an existing vote's direction. Weight is unchanged, so stake cannot be",
+        "topped up mid-proposal to inflate a changed ballot."
+      ],
+      "accounts": [
+        {
+          "name": "voter",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "proposal",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "voteRecord",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "position",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "support",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "execute",
+      "docs": [
+        "Execute an allowlisted action once its `eta` has passed and it has passed."
+      ],
+      "accounts": [
+        {
+          "name": "executor",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "proposal",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancelProposal",
+      "docs": ["Cancel an unresolved proposal. Proposer or admin only."],
+      "accounts": [
+        {
+          "name": "canceller",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "proposal",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "releaseVote",
+      "docs": [
+        "Release a resolved proposal's vote commitment so the stake can be unstaked."
+      ],
+      "accounts": [
+        {
+          "name": "voter",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "convertConfig",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "proposal",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "voteRecord",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "position",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -74,22 +738,200 @@
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "mint", "type": "publicKey" },
-          { "name": "treasurySignerA", "type": "publicKey" },
-          { "name": "treasurySignerB", "type": "publicKey" },
-          { "name": "bump", "type": "u8" },
-          { "name": "mintAuthorityBump", "type": "u8" }
+          {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "treasurySignerA",
+            "type": "publicKey"
+          },
+          {
+            "name": "treasurySignerB",
+            "type": "publicKey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "mintAuthorityBump",
+            "type": "u8"
+          }
         ]
       }
     },
     {
       "name": "ConvertConfig",
+      "docs": ["Token-2022 settlement + staking + governance config."],
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "mint", "type": "publicKey" },
-          { "name": "bump", "type": "u8" },
-          { "name": "mintAuthorityBump", "type": "u8" }
+          {
+            "name": "mint",
+            "docs": ["Token-2022 mint whose authority this program holds."],
+            "type": "publicKey"
+          },
+          {
+            "name": "minter",
+            "docs": [
+              "Backend signer permitted to mint via `convert_wb_to_bkspc`."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "admin",
+            "docs": [
+              "May rotate `minter`. Rotating `admin` requires governance."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "cap",
+            "docs": [
+              "Hard supply ceiling in raw units. Governance may only lower it."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "unstakeDelay",
+            "docs": ["Unstake cooldown, seconds."],
+            "type": "i64"
+          },
+          {
+            "name": "govDelay",
+            "docs": [
+              "Proposal timelock, seconds. Never below `MIN_GOV_DELAY`."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "mintAuthorityBump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Position",
+      "docs": [
+        "A user's stake. Pays no reward; confers governance weight only."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "staked",
+            "type": "u64"
+          },
+          {
+            "name": "unlockAt",
+            "docs": ["0 when idle. Otherwise the unix time the cooldown ends."],
+            "type": "i64"
+          },
+          {
+            "name": "activeVotes",
+            "docs": [
+              "Unresolved proposals this stake is committed to. Blocks unstake while > 0."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Proposal",
+      "docs": [
+        "A governance proposal. Executes one allowlisted action after `eta`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "proposer",
+            "type": "publicKey"
+          },
+          {
+            "name": "action",
+            "type": "u8"
+          },
+          {
+            "name": "arg",
+            "type": "u64"
+          },
+          {
+            "name": "target",
+            "type": "publicKey"
+          },
+          {
+            "name": "votesFor",
+            "type": "u64"
+          },
+          {
+            "name": "votesAgainst",
+            "type": "u64"
+          },
+          {
+            "name": "eta",
+            "type": "i64"
+          },
+          {
+            "name": "executed",
+            "type": "bool"
+          },
+          {
+            "name": "canceled",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VoteRecord",
+      "docs": ["A voter's snapshotted weight on one proposal."],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "voter",
+            "type": "publicKey"
+          },
+          {
+            "name": "proposal",
+            "type": "publicKey"
+          },
+          {
+            "name": "weight",
+            "type": "u64"
+          },
+          {
+            "name": "support",
+            "type": "bool"
+          },
+          {
+            "name": "released",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
         ]
       }
     }
@@ -98,9 +940,226 @@
     {
       "name": "BkspcConverted",
       "fields": [
-        { "name": "user", "type": "publicKey", "index": false },
-        { "name": "amount", "type": "u64", "index": false },
-        { "name": "mint", "type": "publicKey", "index": false }
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "minter",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "mint",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "supplyAfter",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "MintAuthorityWired",
+      "fields": [
+        {
+          "name": "mint",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "mintAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "minter",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "admin",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "cap",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "MinterRotated",
+      "fields": [
+        {
+          "name": "previous",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "newMinter",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "Staked",
+      "fields": [
+        {
+          "name": "owner",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "totalStaked",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "UnstakeStarted",
+      "fields": [
+        {
+          "name": "owner",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "unlockAt",
+          "type": "i64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "UnstakeCompleted",
+      "fields": [
+        {
+          "name": "owner",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "ProposalCreated",
+      "fields": [
+        {
+          "name": "proposal",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "proposer",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "action",
+          "type": "u8",
+          "index": false
+        },
+        {
+          "name": "arg",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "target",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "eta",
+          "type": "i64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "VoteCast",
+      "fields": [
+        {
+          "name": "proposal",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "voter",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "weight",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "support",
+          "type": "bool",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "ProposalExecuted",
+      "fields": [
+        {
+          "name": "proposal",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "action",
+          "type": "u8",
+          "index": false
+        },
+        {
+          "name": "arg",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "target",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "ProposalCanceled",
+      "fields": [
+        {
+          "name": "proposal",
+          "type": "publicKey",
+          "index": false
+        }
       ]
     }
   ],
@@ -129,10 +1188,131 @@
       "code": 6004,
       "name": "InvalidAtaOwner",
       "msg": "ATA owner must be the signing user"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidMinter",
+      "msg": "Minter pubkey cannot be the default address"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidAdmin",
+      "msg": "Admin pubkey cannot be the default address"
+    },
+    {
+      "code": 6007,
+      "name": "UnauthorizedMinter",
+      "msg": "Caller is not the authorized minter"
+    },
+    {
+      "code": 6008,
+      "name": "UnauthorizedAdmin",
+      "msg": "Caller is not the authorized admin"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidCap",
+      "msg": "Supply cap must be greater than zero at init"
+    },
+    {
+      "code": 6010,
+      "name": "CapExceeded",
+      "msg": "Mint would exceed the supply cap"
+    },
+    {
+      "code": 6011,
+      "name": "NotPositionOwner",
+      "msg": "Position owner mismatch"
+    },
+    {
+      "code": 6012,
+      "name": "NothingStaked",
+      "msg": "Position has nothing staked"
+    },
+    {
+      "code": 6013,
+      "name": "UnstakePending",
+      "msg": "An unstake is already pending"
+    },
+    {
+      "code": 6014,
+      "name": "NoPendingUnstake",
+      "msg": "No unstake is pending"
+    },
+    {
+      "code": 6015,
+      "name": "UnlockNotReady",
+      "msg": "Unstake cooldown has not elapsed"
+    },
+    {
+      "code": 6016,
+      "name": "ActiveVotesOutstanding",
+      "msg": "Outstanding votes must be released before unstaking"
+    },
+    {
+      "code": 6017,
+      "name": "PositionNotEmpty",
+      "msg": "Position must be empty before closing"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidAction",
+      "msg": "Unknown governance action"
+    },
+    {
+      "code": 6019,
+      "name": "DelayOutOfRange",
+      "msg": "Delay outside the permitted range"
+    },
+    {
+      "code": 6020,
+      "name": "DelayTooShort",
+      "msg": "Delay may not be shorter than the governance floor"
+    },
+    {
+      "code": 6021,
+      "name": "CapCannotIncrease",
+      "msg": "Governance may only lower the supply cap"
+    },
+    {
+      "code": 6022,
+      "name": "ProposalAlreadyResolved",
+      "msg": "Proposal is already resolved"
+    },
+    {
+      "code": 6023,
+      "name": "NotReady",
+      "msg": "Proposal has not reached its eta"
+    },
+    {
+      "code": 6024,
+      "name": "ProposalRejected",
+      "msg": "Proposal did not pass"
+    },
+    {
+      "code": 6025,
+      "name": "VotingClosed",
+      "msg": "Voting is closed for this proposal"
+    },
+    {
+      "code": 6026,
+      "name": "ProposalNotResolved",
+      "msg": "Proposal is not resolved yet"
+    },
+    {
+      "code": 6027,
+      "name": "AlreadyReleased",
+      "msg": "Vote was already released"
+    },
+    {
+      "code": 6028,
+      "name": "VoteUnchanged",
+      "msg": "Vote is already in that direction"
     }
   ],
-  "types": [],
+  "spec": "0.1.0",
+  "description": "BKSPC \u2014 settlement, non-rewarding staking, and allowlisted timelocked governance",
   "metadata": {
-    "address": "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs"
+    "address": null
   }
 }
