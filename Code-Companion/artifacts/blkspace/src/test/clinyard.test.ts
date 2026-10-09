@@ -28,7 +28,10 @@ describe("ClinYard drills", () => {
     expect(scoreSteps(steps, steps.steps!)).toBe(true);
     expect(scoreSteps(steps, [...steps.steps!].reverse())).toBe(false);
     expect(
-      scoreReport(report, "The heart size is normal and there is no pleural effusion."),
+      scoreReport(
+        report,
+        "The heart size is normal and there is no pleural effusion.",
+      ),
     ).toBe(true);
     expect(scoreReport(report, "Looks fine.")).toBe(false);
   });

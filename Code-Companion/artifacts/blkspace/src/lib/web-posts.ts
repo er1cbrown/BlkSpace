@@ -4,7 +4,12 @@
  */
 
 import type { SeedPost } from "@/lib/seed-content";
-import { createHttpAuthHeader, getCurrentDisplayName, getCurrentHandle, signWebNote } from "@/lib/auth";
+import {
+  createHttpAuthHeader,
+  getCurrentDisplayName,
+  getCurrentHandle,
+  signWebNote,
+} from "@/lib/auth";
 import { hostedPost } from "@/lib/hosted-api";
 import { publishToRelays } from "@/lib/weixnet-relays";
 

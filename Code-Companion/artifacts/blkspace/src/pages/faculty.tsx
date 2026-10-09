@@ -233,8 +233,8 @@ export default function FacultyPage() {
             â€” decentralized amalgamation social (feed + yards + Connect + soft
             economy). You want LinkedIn / Handshake / Discord / Workday-lite
             presence without abandoning underrepresented community. Post
-            opportunities, review interest, build Cred â€” provide pipeline, reap
-            partnership legitimacy.
+            opportunities, review interest, build Cred â€” provide pipeline,
+            reap partnership legitimacy.
           </p>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{prefs.institution}</Badge>
@@ -332,7 +332,8 @@ export default function FacultyPage() {
           <Card className="border-primary/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">
-                Host a yard event (office hours Â· info session Â· pipeline night)
+                Host a yard event (office hours Â· info session Â· pipeline
+                night)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -651,8 +652,8 @@ export default function FacultyPage() {
             Open to research (student signals)
           </h2>
           <p className="text-xs text-muted-foreground">
-            Like Handshake interest flags â€” students toggle Open to research on
-            Pro Profile.
+            Like Handshake interest flags â€” students toggle Open to research
+            on Pro Profile.
           </p>
           <div className="grid sm:grid-cols-2 gap-2">
             {(openResearch || []).slice(0, 4).map((c: any) => (

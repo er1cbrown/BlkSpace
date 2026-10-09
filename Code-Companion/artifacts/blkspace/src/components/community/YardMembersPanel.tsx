@@ -262,33 +262,35 @@ export function YardMembersPanel({
   return (
     <div className="space-y-4">
       {isTauri() && (
-      <Card className="border-primary/10 bg-primary/5">
-        <CardContent className="p-4 text-sm space-y-2">
-          <div className="flex items-center gap-2 font-medium">
-            <Shield className="w-4 h-4 text-primary" />
-            Yard moderation (pilot)
-          </div>
-          <p className="text-muted-foreground text-xs leading-relaxed">
-            Joined members can assign roles on this device — use Device B bot
-            accounts to test mod badges before a live pilot. Roles persist in
-            local SQLite per install (not relay-synced yet).
-          </p>
-          {currentHandle && isMember && (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-xs text-muted-foreground">Your role:</span>
-              <RoleBadge role={myRole || "Student"} />
-              <span className="text-xs text-muted-foreground">
-                · {modCount} mod{modCount === 1 ? "" : "s"} in yard
-              </span>
+        <Card className="border-primary/10 bg-primary/5">
+          <CardContent className="p-4 text-sm space-y-2">
+            <div className="flex items-center gap-2 font-medium">
+              <Shield className="w-4 h-4 text-primary" />
+              Yard moderation (pilot)
             </div>
-          )}
-          {!isMember && isTauri() && (
-            <p className="text-xs text-amber-600">
-              Join {communityName} to assign roles to members and bots.
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              Joined members can assign roles on this device — use Device B bot
+              accounts to test mod badges before a live pilot. Roles persist in
+              local SQLite per install (not relay-synced yet).
             </p>
-          )}
-        </CardContent>
-      </Card>
+            {currentHandle && isMember && (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-xs text-muted-foreground">
+                  Your role:
+                </span>
+                <RoleBadge role={myRole || "Student"} />
+                <span className="text-xs text-muted-foreground">
+                  · {modCount} mod{modCount === 1 ? "" : "s"} in yard
+                </span>
+              </div>
+            )}
+            {!isMember && isTauri() && (
+              <p className="text-xs text-amber-600">
+                Join {communityName} to assign roles to members and bots.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <div className="flex items-center justify-between gap-2">

@@ -152,8 +152,7 @@ export async function probeThreeRoutes(): Promise<ThreeRouteSnapshot> {
         status: "web_only" as const,
         label: "Relays down",
         detail:
-          social?.description ||
-          "No WeixNet relay answered from this browser.",
+          social?.description || "No WeixNet relay answered from this browser.",
         metrics: {
           desktop: false,
           relayCount: 0,

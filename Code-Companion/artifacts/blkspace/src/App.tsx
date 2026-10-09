@@ -177,8 +177,14 @@ function Router() {
         <Route path="/mod" component={ModPage} />
         <Route path="/posts/:id" component={PostPage} />
         <Route path="/profile/:handle" component={ProfilePage} />
-        <Route path="/relays" component={() => <LabOnly component={RelaysPage} />} />
-        <Route path="/architecture" component={() => <LabOnly component={ArchitecturePage} />} />
+        <Route
+          path="/relays"
+          component={() => <LabOnly component={RelaysPage} />}
+        />
+        <Route
+          path="/architecture"
+          component={() => <LabOnly component={ArchitecturePage} />}
+        />
         <Route path="/terms" component={TermsPage} />
         <Route path="/blkshi" component={BlkshiPage} />
         <Route path="/login" component={LoginPage} />
@@ -216,7 +222,10 @@ function Router() {
         <Route path="/hub" component={HubPage} />
         <Route path="/arcade" component={ArcadePage} />
         <Route path="/play" component={PlayPage} />
-        <Route path="/rollback" component={() => <LabOnly component={RollbackPage} />} />
+        <Route
+          path="/rollback"
+          component={() => <LabOnly component={RollbackPage} />}
+        />
         <Route path="/focus" component={FocusPage} />
         <Route path="/clinyard" component={ClinyardPage} />
         {/* Aliases — people search "yard clinic" / medtech drills */}

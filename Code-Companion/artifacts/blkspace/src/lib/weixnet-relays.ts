@@ -237,8 +237,9 @@ export function publishToRelays(
             ok: false,
             relayUrl: "",
             reason:
-              failed.map((item) => `${item.relayUrl}: ${item.reason}`).join("; ") ||
-              "no relay accepted the note",
+              failed
+                .map((item) => `${item.relayUrl}: ${item.reason}`)
+                .join("; ") || "no relay accepted the note",
           });
         }
       });

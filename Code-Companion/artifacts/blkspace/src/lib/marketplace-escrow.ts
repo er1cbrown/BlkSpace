@@ -3,7 +3,11 @@
  * Tauri when available; localStorage demo store for web promo demos.
  */
 import { isTauri } from "@/lib/tauri-api";
-import { createHttpAuthHeader, getCurrentHandle, getSessionToken } from "@/lib/auth";
+import {
+  createHttpAuthHeader,
+  getCurrentHandle,
+  getSessionToken,
+} from "@/lib/auth";
 import { hostedPost } from "@/lib/hosted-api";
 import { invoke } from "@tauri-apps/api/core";
 import { ESCROW_DEFAULT_TYPES } from "@/lib/myyard-catalog";
@@ -257,7 +261,10 @@ function signedOut(err: unknown): boolean {
   return err instanceof Error && err.message.includes("Sign in again");
 }
 
-async function saleGet(path: string, auth = false): Promise<Record<string, any> | null> {
+async function saleGet(
+  path: string,
+  auth = false,
+): Promise<Record<string, any> | null> {
   try {
     const headers: Record<string, string> = {};
     if (auth) headers.authorization = createHttpAuthHeader(path, "GET", "");
@@ -269,7 +276,10 @@ async function saleGet(path: string, auth = false): Promise<Record<string, any> 
   }
 }
 
-async function salePost(path: string, body: unknown): Promise<Record<string, any>> {
+async function salePost(
+  path: string,
+  body: unknown,
+): Promise<Record<string, any>> {
   const res = await hostedPost(path, body);
   const json = await res.json().catch(() => null);
   if (!res.ok || json?.ok === false) {

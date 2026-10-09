@@ -147,7 +147,8 @@ export default function ClinyardPage() {
                           size="sm"
                           variant="outline"
                           onClick={() =>
-                            checked === null && setPicked((list) => [...list, step])
+                            checked === null &&
+                            setPicked((list) => [...list, step])
                           }
                         >
                           {step}
@@ -165,8 +166,13 @@ export default function ClinyardPage() {
                 />
               )}
               {checked !== null && (
-                <p className={checked ? "text-sm text-teal-600" : "text-sm text-amber-700"}>
-                  {checked ? "That matches the drill." : "Not yet."} {item.modelAnswer}
+                <p
+                  className={
+                    checked ? "text-sm text-teal-600" : "text-sm text-amber-700"
+                  }
+                >
+                  {checked ? "That matches the drill." : "Not yet."}{" "}
+                  {item.modelAnswer}
                 </p>
               )}
               <div className="flex gap-2">

@@ -105,7 +105,9 @@ async function main(): Promise<void> {
     : join(ROOT, "devnet", "minter.json");
   if (!existsSync(minterPath)) {
     const kp = Keypair.generate();
-    writeFileSync(minterPath, `${JSON.stringify(Array.from(kp.secretKey))}\n`, { mode: 0o600 });
+    writeFileSync(minterPath, `${JSON.stringify(Array.from(kp.secretKey))}\n`, {
+      mode: 0o600,
+    });
     console.log(`  Created minter keypair: ${minterPath}`);
     console.log("  BACK THIS UP — losing it means settlement cannot mint.");
   }
@@ -117,8 +119,12 @@ async function main(): Promise<void> {
   }
   const capRaw = BigInt(capWhole) * 10n ** BigInt(DECIMALS);
 
-  const unstakeDelay = Number(process.env.BKSPC_UNSTAKE_DELAY_SECONDS ?? 2 * 24 * 60 * 60);
-  const govDelay = Number(process.env.BKSPC_GOV_DELAY_SECONDS ?? 2 * 24 * 60 * 60);
+  const unstakeDelay = Number(
+    process.env.BKSPC_UNSTAKE_DELAY_SECONDS ?? 2 * 24 * 60 * 60,
+  );
+  const govDelay = Number(
+    process.env.BKSPC_GOV_DELAY_SECONDS ?? 2 * 24 * 60 * 60,
+  );
 
   console.log("initialize_convert — Token-2022 mint authority → PDA");
   console.log("  Mint:", mint.toBase58());
@@ -127,7 +133,9 @@ async function main(): Promise<void> {
   console.log("  Minter (settlement signer):", minter.publicKey.toBase58());
   console.log(`  Supply cap: ${capWhole} BKSPC (${capRaw} raw)`);
   console.log("  Governance may LOWER this cap. No instruction can raise it.");
-  console.log(`  Unstake delay: ${unstakeDelay}s · Governance delay: ${govDelay}s`);
+  console.log(
+    `  Unstake delay: ${unstakeDelay}s · Governance delay: ${govDelay}s`,
+  );
 
   await program.methods
     .initializeConvert(

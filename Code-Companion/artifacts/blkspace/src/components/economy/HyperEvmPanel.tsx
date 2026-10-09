@@ -146,12 +146,11 @@ export function HyperEvmPanel({ className }: { className?: string }) {
         <CollapsibleContent>
           <CardContent className="space-y-4 text-sm">
             <p className="text-muted-foreground text-xs leading-relaxed">
-              Review{" "}
-              <strong className="text-foreground">BI9</strong> on HyperEVM the
-              way you would open a balance in Coinbase: address, network, and
-              amount. Practice credits stay WeixBucks. BKSPC is the other coin.
-              There is no buy, sell, or conversion button. This is for learning
-              the numbers, not for trading.
+              Review <strong className="text-foreground">BI9</strong> on
+              HyperEVM the way you would open a balance in Coinbase: address,
+              network, and amount. Practice credits stay WeixBucks. BKSPC is the
+              other coin. There is no buy, sell, or conversion button. This is
+              for learning the numbers, not for trading.
             </p>
 
             <ul className="space-y-1.5 text-xs text-muted-foreground">

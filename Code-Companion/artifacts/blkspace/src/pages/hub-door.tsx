@@ -62,7 +62,9 @@ export default function HubDoorPage() {
             <div className="flex flex-wrap gap-2">
               {door.pages.map((item) => (
                 <Link key={item.slug} href={`/hub/${door.handle}/${item.slug}`}>
-                  <span className="rounded-full border px-3 py-1 text-sm">{item.title}</span>
+                  <span className="rounded-full border px-3 py-1 text-sm">
+                    {item.title}
+                  </span>
                 </Link>
               ))}
             </div>

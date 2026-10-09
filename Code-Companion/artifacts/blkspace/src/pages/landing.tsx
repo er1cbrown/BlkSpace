@@ -88,8 +88,8 @@ export default function LandingPage() {
               What you get
             </h2>
             <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-              Same campus, three ways in. Nobody has to understand a coin to
-              use the yard.
+              Same campus, three ways in. Nobody has to understand a coin to use
+              the yard.
             </p>
             <div className="grid md:grid-cols-3 gap-6">
               <div className="bg-background p-6 rounded-2xl border">
@@ -112,7 +112,10 @@ export default function LandingPage() {
                   credits can be tipped or spent in the shop. They are not a
                   paycheck.
                 </p>
-                <Link href="/welcome" className="text-sm text-primary font-medium">
+                <Link
+                  href="/welcome"
+                  className="text-sm text-primary font-medium"
+                >
                   Join a yard
                 </Link>
               </div>
@@ -124,7 +127,10 @@ export default function LandingPage() {
                   teach. You are not asked to trade, stake, or cash anything
                   out.
                 </p>
-                <Link href="/faculty" className="text-sm text-primary font-medium">
+                <Link
+                  href="/faculty"
+                  className="text-sm text-primary font-medium"
+                >
                   Open the desk
                 </Link>
               </div>
@@ -141,7 +147,10 @@ export default function LandingPage() {
               These are the pages. Each one is a different reason to be here.
             </p>
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              <Link href="/connect" className="bg-card p-6 rounded-2xl border block">
+              <Link
+                href="/connect"
+                className="bg-card p-6 rounded-2xl border block"
+              >
                 <Briefcase className="w-8 h-8 text-primary mb-4" />
                 <h3 className="font-bold mb-2">ProjectConnect</h3>
                 <p className="text-sm text-muted-foreground">
@@ -149,7 +158,10 @@ export default function LandingPage() {
                   uses it to find work. An office uses it to post the work.
                 </p>
               </Link>
-              <Link href="/clinyard" className="bg-card p-6 rounded-2xl border block">
+              <Link
+                href="/clinyard"
+                className="bg-card p-6 rounded-2xl border block"
+              >
                 <HeartPulse className="w-8 h-8 text-primary mb-4" />
                 <h3 className="font-bold mb-2">ClinYard</h3>
                 <p className="text-sm text-muted-foreground">
@@ -157,7 +169,10 @@ export default function LandingPage() {
                   drills run in the browser. It is not a hospital chart.
                 </p>
               </Link>
-              <Link href="/communities" className="bg-card p-6 rounded-2xl border block">
+              <Link
+                href="/communities"
+                className="bg-card p-6 rounded-2xl border block"
+              >
                 <Users className="w-8 h-8 text-primary mb-4" />
                 <h3 className="font-bold mb-2">Clubs</h3>
                 <p className="text-sm text-muted-foreground">
@@ -201,17 +216,17 @@ export default function LandingPage() {
               </li>
               <li>
                 <strong className="text-foreground">BI9</strong> is a separate
-                coin on HyperEVM. It is not paid from WeixBucks. Its mint is
-                not issuing.
+                coin on HyperEVM. It is not paid from WeixBucks. Its mint is not
+                issuing.
               </li>
               <li>
                 The finance desk is a later screen for reading prices and
                 balances. It is not a buy button, not open on the campus wall,
-                and not required to use the yard. Finance, econ, accounting,
-                and business students get the same gate as everyone else:
-                practice credits first, then the lesson, then a coin. The app
-                will not move a student’s credits into a new coin, including
-                one that is not BKSPC or BI9.
+                and not required to use the yard. Finance, econ, accounting, and
+                business students get the same gate as everyone else: practice
+                credits first, then the lesson, then a coin. The app will not
+                move a student’s credits into a new coin, including one that is
+                not BKSPC or BI9.
               </li>
             </ul>
             <p className="text-muted-foreground leading-relaxed mb-8">

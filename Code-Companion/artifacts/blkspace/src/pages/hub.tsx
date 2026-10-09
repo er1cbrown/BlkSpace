@@ -59,7 +59,9 @@ export default function HubPage() {
   const [pubTopic, setPubTopic] = useState<HubTopic>("chess");
   const [kind, setKind] = useState<HubItemKind>("post");
   const [tick, setTick] = useState(0);
-  const [publicHubs, setPublicHubs] = useState<{ handle: string; headline: string }[]>([]);
+  const [publicHubs, setPublicHubs] = useState<
+    { handle: string; headline: string }[]
+  >([]);
   const [prefsTick, setPrefsTick] = useState(0);
 
   const uiPrefs = useMemo(() => {
@@ -145,7 +147,9 @@ export default function HubPage() {
           });
           if (!door.ok) {
             const err = await door.json().catch(() => ({}));
-            throw new Error(err.error || "Create the hub door while signed in.");
+            throw new Error(
+              err.error || "Create the hub door while signed in.",
+            );
           }
           saved = await hostedPost("/api/portfolio/hub/page", page);
         }

@@ -24,11 +24,15 @@ export function SendmeLaneCard({ fileLane }: { fileLane?: string }) {
     setListError("");
     try {
       const res = await fetch("/api/weixnet/outbox");
-      const body = await readJson<{ files?: OutboxFile[]; error?: string }>(res);
+      const body = await readJson<{ files?: OutboxFile[]; error?: string }>(
+        res,
+      );
       if (!res.ok) throw new Error(body.error || "The outbox did not answer.");
       setFiles(Array.isArray(body.files) ? body.files : []);
     } catch (error) {
-      setListError(error instanceof Error ? error.message : "The outbox did not answer.");
+      setListError(
+        error instanceof Error ? error.message : "The outbox did not answer.",
+      );
     }
   }, []);
 
@@ -46,10 +50,13 @@ export function SendmeLaneCard({ fileLane }: { fileLane?: string }) {
         body: JSON.stringify({ file: name }),
       });
       const body = await readJson<ShareBody>(res);
-      if (!res.ok || !body.ticket) throw new Error(body.error || "Share did not start.");
+      if (!res.ok || !body.ticket)
+        throw new Error(body.error || "Share did not start.");
       setTicket(body.ticket);
       setPaste(body.ticket);
-      setNote("Ticket is live. Leave this window open until the file is received.");
+      setNote(
+        "Ticket is live. Leave this window open until the file is received.",
+      );
     } catch (error) {
       setNote(error instanceof Error ? error.message : "Share did not start.");
     } finally {
@@ -73,9 +80,13 @@ export function SendmeLaneCard({ fileLane }: { fileLane?: string }) {
       });
       const body = await readJson<ReceiveBody>(res);
       if (!res.ok) throw new Error(body.error || "Receive did not finish.");
-      setNote(body.detail ? `Received. ${body.detail}` : "Received into the inbox.");
+      setNote(
+        body.detail ? `Received. ${body.detail}` : "Received into the inbox.",
+      );
     } catch (error) {
-      setNote(error instanceof Error ? error.message : "Receive did not finish.");
+      setNote(
+        error instanceof Error ? error.message : "Receive did not finish.",
+      );
     } finally {
       setBusy("");
     }
@@ -106,14 +117,21 @@ export function SendmeLaneCard({ fileLane }: { fileLane?: string }) {
         </p>
         {listError ? <p>{listError}</p> : null}
         {files.length === 0 && !listError ? (
-          <p className="text-muted-foreground">No files are in the outbox yet.</p>
+          <p className="text-muted-foreground">
+            No files are in the outbox yet.
+          </p>
         ) : (
           <ul className="space-y-2">
             {files.map((file) => (
-              <li key={file.name} className="flex items-center justify-between gap-3">
+              <li
+                key={file.name}
+                className="flex items-center justify-between gap-3"
+              >
                 <span>
                   {file.name}{" "}
-                  <span className="text-muted-foreground">{file.bytes} bytes</span>
+                  <span className="text-muted-foreground">
+                    {file.bytes} bytes
+                  </span>
                 </span>
                 <Button
                   type="button"
@@ -130,7 +148,12 @@ export function SendmeLaneCard({ fileLane }: { fileLane?: string }) {
         {ticket ? (
           <div className="space-y-2">
             <p className="break-all font-mono text-xs">{ticket}</p>
-            <Button type="button" variant="outline" size="sm" onClick={() => void copy()}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void copy()}
+            >
               Copy ticket
             </Button>
           </div>
@@ -143,7 +166,11 @@ export function SendmeLaneCard({ fileLane }: { fileLane?: string }) {
             disabled={blocked}
             aria-label="Sendme ticket"
           />
-          <Button type="button" disabled={blocked || busy !== ""} onClick={() => void receive()}>
+          <Button
+            type="button"
+            disabled={blocked || busy !== ""}
+            onClick={() => void receive()}
+          >
             {busy === "receive" ? "Receiving…" : "Receive"}
           </Button>
         </div>

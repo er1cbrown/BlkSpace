@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { storeIdentity } from "@/lib/auth";
-import {
-  createWebUserPost,
-  listWebUserPosts,
-} from "@/lib/web-posts";
+import { createWebUserPost, listWebUserPosts } from "@/lib/web-posts";
 import {
   fetchFollowSummary,
   followHostedHandle,
@@ -28,25 +25,27 @@ beforeEach(async () => {
   hostedPost.mockReset();
   localStorage.setItem("blkspace_handle", "alice");
   await storeIdentity("web_session_token", "alice", "1".repeat(64), "Alice");
-  hostedPost.mockImplementation(async (url: string, body: { desiredState?: boolean; postUid?: string }) => {
-    if (String(url).includes("/like")) {
-      const likes = body.desiredState ? 1 : 0;
-      return Response.json({
-        ok: true,
-        liked: body.desiredState,
-        likesCount: likes,
-        counts: { likes },
-      });
-    }
-    if (String(url).includes("/follow")) {
-      return Response.json({
-        ok: true,
-        following: body.desiredState,
-        desiredState: body.desiredState,
-      });
-    }
-    return Response.json({ ok: true, postUid: body.postUid });
-  });
+  hostedPost.mockImplementation(
+    async (url: string, body: { desiredState?: boolean; postUid?: string }) => {
+      if (String(url).includes("/like")) {
+        const likes = body.desiredState ? 1 : 0;
+        return Response.json({
+          ok: true,
+          liked: body.desiredState,
+          likesCount: likes,
+          counts: { likes },
+        });
+      }
+      if (String(url).includes("/follow")) {
+        return Response.json({
+          ok: true,
+          following: body.desiredState,
+          desiredState: body.desiredState,
+        });
+      }
+      return Response.json({ ok: true, postUid: body.postUid });
+    },
+  );
 });
 
 describe("shared likes and follows", () => {

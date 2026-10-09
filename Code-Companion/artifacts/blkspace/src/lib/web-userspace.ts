@@ -136,7 +136,10 @@ export async function sharedYardIds(): Promise<string[] | null> {
   }
 }
 
-export async function sharedYardCounts(): Promise<Record<string, number> | null> {
+export async function sharedYardCounts(): Promise<Record<
+  string,
+  number
+> | null> {
   try {
     const res = await fetch("/api/yards/counts");
     if (!res.ok) return null;
@@ -214,8 +217,7 @@ export function saveWebProfilePatch(patch: WebProfilePatch) {
 
 async function readHosted(res: Response): Promise<Record<string, unknown>> {
   const body = (await res.json().catch(() => null)) as
-    | (Record<string, unknown> & { ok?: boolean; error?: string })
-    | null;
+    (Record<string, unknown> & { ok?: boolean; error?: string }) | null;
   if (!res.ok || body?.ok === false) {
     throw new Error(body?.error || "Could not save that to the yard.");
   }
@@ -357,7 +359,12 @@ export async function fetchFollowSummary(handle: string): Promise<{
 
 /** Apply like state onto a post list for the current browser user. */
 export function applyLikesToPosts<
-  T extends { id: number; likesCount: number; liked: boolean; postUid?: string },
+  T extends {
+    id: number;
+    likesCount: number;
+    liked: boolean;
+    postUid?: string;
+  },
 >(posts: T[]): T[] {
   const map = getLikedMap();
   return posts.map((p) => {
@@ -494,7 +501,10 @@ export async function createSharedYardChannels(
   names: string[],
   origin = "",
 ): Promise<string[]> {
-  const res = await hostedPost(`${origin}/api/yards/channels`, { yardId, names });
+  const res = await hostedPost(`${origin}/api/yards/channels`, {
+    yardId,
+    names,
+  });
   const body = await res.json().catch(() => null);
   if (!res.ok || body?.ok === false) {
     throw new Error(body?.error || "Could not add that channel.");

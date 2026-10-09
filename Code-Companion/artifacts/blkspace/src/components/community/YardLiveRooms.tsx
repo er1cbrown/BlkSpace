@@ -83,7 +83,9 @@ export function YardLiveRooms({
         externalUrl: kind === "external" ? externalUrl : undefined,
       });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not open that room.");
+      toast.error(
+        err instanceof Error ? err.message : "Could not open that room.",
+      );
       return;
     }
     setTitle("");
@@ -110,7 +112,9 @@ export function YardLiveRooms({
     try {
       await deleteLiveRoom(id);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not close that room.");
+      toast.error(
+        err instanceof Error ? err.message : "Could not close that room.",
+      );
     }
     refresh();
   };

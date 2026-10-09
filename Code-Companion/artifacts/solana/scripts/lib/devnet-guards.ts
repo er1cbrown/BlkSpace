@@ -32,9 +32,7 @@ export function loadDeployerKeypair(): Keypair {
       return Keypair.fromSecretKey(Uint8Array.from(secret));
     }
   }
-  throw new Error(
-    `No deployer keypair. Tried: ${candidates.join(", ")}`,
-  );
+  throw new Error(`No deployer keypair. Tried: ${candidates.join(", ")}`);
 }
 
 export function loadKeypairFile(path: string): Keypair {

@@ -347,8 +347,8 @@ function ShootsStudioSection({ me }: { me: string }) {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <p className="text-xs text-muted-foreground">
-          After a shoot: upload selects â†’ publish delivery â†’ grant free access
-          or sell all-in-one unlock
+          After a shoot: upload selects â†’ publish delivery â†’ grant free
+          access or sell all-in-one unlock
         </p>
         <Button size="sm" onClick={() => setShowCreate(!showCreate)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> New shoot

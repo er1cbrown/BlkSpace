@@ -151,7 +151,9 @@ export default function CommunityPage() {
     if (!nm || !nm.trim()) return;
     if (!isTauri()) {
       try {
-        const created = await createSharedYardChannels(yardId || id, [nm.trim()]);
+        const created = await createSharedYardChannels(yardId || id, [
+          nm.trim(),
+        ]);
         qc.invalidateQueries({ queryKey: ["yard", "channels", yardId || id] });
         const slug = created[0];
         if (slug) setActiveChannel(`#${slug}`);
@@ -174,7 +176,11 @@ export default function CommunityPage() {
     try {
       await tauriCreateChannel(token, yardId || id, nm.trim());
       try {
-        await createSharedYardChannels(yardId || id, [nm.trim()], "https://bkspc.app");
+        await createSharedYardChannels(
+          yardId || id,
+          [nm.trim()],
+          "https://bkspc.app",
+        );
       } catch {
         /* The desktop database still has the channel when bkspc is unreachable. */
       }
@@ -361,22 +367,25 @@ export default function CommunityPage() {
             const slug = String(p.channelId || p.channel_id || "general")
               .replace(/^#/, "")
               .toLowerCase();
-            return (slug || "general") === activeChannel.replace(/^#/, "").toLowerCase();
+            return (
+              (slug || "general") ===
+              activeChannel.replace(/^#/, "").toLowerCase()
+            );
           })
           .map((p) => ({
-          id: p.id,
-          user: p.authorDisplayName || p.authorHandle,
-          handle: p.authorHandle,
-          content: p.content,
-          raw: p,
-          time: p.createdAt
-            ? new Date(p.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "now",
-          reactions: p.likesCount || 0,
-        }));
+            id: p.id,
+            user: p.authorDisplayName || p.authorHandle,
+            handle: p.authorHandle,
+            content: p.content,
+            raw: p,
+            time: p.createdAt
+              ? new Date(p.createdAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "now",
+            reactions: p.likesCount || 0,
+          }));
 
   const tauriCommunity =
     isTauri() && Array.isArray(tauriCommunities)
@@ -441,8 +450,8 @@ export default function CommunityPage() {
                   <MapPin className="w-4 h-4" /> {community.location}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Users className="w-4 h-4" />{" "}
-                  {memberTotal.toLocaleString()} members
+                  <Users className="w-4 h-4" /> {memberTotal.toLocaleString()}{" "}
+                  members
                 </span>
               </div>
             </div>
@@ -523,8 +532,8 @@ export default function CommunityPage() {
                 + Create channel
               </button>
               <div className="mt-6 pt-4 border-t text-xs text-muted-foreground">
-                Add a channel for a club, an org, or a faculty desk. Everyone
-                on this yard sees it. Voice and video stay on the Live tab.
+                Add a channel for a club, an org, or a faculty desk. Everyone on
+                this yard sees it. Voice and video stay on the Live tab.
               </div>
             </CardContent>
           </Card>

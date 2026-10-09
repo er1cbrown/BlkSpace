@@ -171,10 +171,7 @@ export async function getIntranetStatus(): Promise<IntranetStatus | null> {
   if (!isTauri()) {
     try {
       const relays = await probeWeixnetRelays();
-      return webRelayStatus(
-        undefined,
-        relays.filter((row) => row.ok).length,
-      );
+      return webRelayStatus(undefined, relays.filter((row) => row.ok).length);
     } catch {
       return webRelayStatus(undefined, 0);
     }

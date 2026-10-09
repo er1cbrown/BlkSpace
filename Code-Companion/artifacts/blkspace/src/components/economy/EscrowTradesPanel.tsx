@@ -46,8 +46,8 @@ export function EscrowTradesPanel() {
             <h4 className="font-bold text-sm">Escrow trades</h4>
           </div>
           <p className="text-xs text-muted-foreground">
-            Fashion / digital buys use 2-party escrow: pay â†’ deliver â†’ release.
-            Your active trades will show here.
+            Fashion / digital buys use 2-party escrow: pay â†’ deliver â†’
+            release. Your active trades will show here.
           </p>
         </CardContent>
       </Card>
@@ -93,8 +93,8 @@ export function EscrowTradesPanel() {
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  @{t.buyerHandle} â†’ @{t.sellerHandle} Â· {t.amount} WB hold Â·
-                  seller net {t.sellerNet} WB Â· {t.townTag}
+                  @{t.buyerHandle} â†’ @{t.sellerHandle} Â· {t.amount} WB hold
+                  Â· seller net {t.sellerNet} WB Â· {t.townTag}
                 </div>
                 {t.deliveryRef && (
                   <div className="text-[10px] font-mono break-all">

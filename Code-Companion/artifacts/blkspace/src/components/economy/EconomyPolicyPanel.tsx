@@ -119,8 +119,9 @@ export function EconomyPolicyPanel() {
         <p className="text-[10px]">
           {p.softCurrencyName} {p.wbPurchasable ? "purchasable" : "earn-only"} ·
           Cash-out is {p.cashOutAsset} on {p.cashOutNetwork}
-          {p.onChainReady ? "" : " until a funded mint exists"} · {p.separateAsset}{" "}
-          is separate and is not earned from {p.softCurrencySymbol}
+          {p.onChainReady ? "" : " until a funded mint exists"} ·{" "}
+          {p.separateAsset} is separate and is not earned from{" "}
+          {p.softCurrencySymbol}
         </p>
       </CardContent>
     </Card>

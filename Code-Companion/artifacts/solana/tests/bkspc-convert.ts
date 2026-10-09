@@ -38,7 +38,10 @@ const ACTION_SET_GOV_DELAY = 2;
 const ACTION_ROTATE_MINTER = 3;
 
 function pda(seed: string, ...extra: Buffer[]): PublicKey {
-  return PublicKey.findProgramAddressSync([Buffer.from(seed), ...extra], PROGRAM_ID)[0];
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from(seed), ...extra],
+    PROGRAM_ID,
+  )[0];
 }
 
 const configPda = () => pda("convert_config");
@@ -190,7 +193,9 @@ describe("bkspc Token-2022 convert", () => {
       .signers([minter, user])
       .rpc();
 
-    const balance = await provider.connection.getTokenAccountBalance(ata.address);
+    const balance = await provider.connection.getTokenAccountBalance(
+      ata.address,
+    );
     assert.equal(balance.value.amount, "1000000");
   });
 
@@ -302,7 +307,11 @@ describe("bkspc Token-2022 convert", () => {
   // Staking
   // ------------------------------------------------------------------
 
-  const stakeAccounts = (owner: PublicKey, userAta: PublicKey, position: PublicKey) => ({
+  const stakeAccounts = (
+    owner: PublicKey,
+    userAta: PublicKey,
+    position: PublicKey,
+  ) => ({
     user: owner,
     convertConfig: configPda(),
     mint,
@@ -318,10 +327,13 @@ describe("bkspc Token-2022 convert", () => {
     const ata = await ataFor(user.publicKey);
     await program.methods
       .stake(new anchor.BN(500_000))
-      .accounts(stakeAccounts(user.publicKey, ata.address, positionPda(user.publicKey)))
+      .accounts(
+        stakeAccounts(user.publicKey, ata.address, positionPda(user.publicKey)),
+      )
       .rpc();
 
-    const vaultBalance = await provider.connection.getTokenAccountBalance(vaultAta);
+    const vaultBalance =
+      await provider.connection.getTokenAccountBalance(vaultAta);
     assert.equal(vaultBalance.value.amount, "500000");
   });
 
@@ -366,7 +378,12 @@ describe("bkspc Token-2022 convert", () => {
   it("refuses to propose without stake", async () => {
     await assert.rejects(
       program.methods
-        .propose(new anchor.BN(1), ACTION_LOWER_CAP, new anchor.BN(500_000), PublicKey.default)
+        .propose(
+          new anchor.BN(1),
+          ACTION_LOWER_CAP,
+          new anchor.BN(500_000),
+          PublicKey.default,
+        )
         .accounts({
           proposer: attacker.publicKey,
           convertConfig: configPda(),
@@ -382,7 +399,12 @@ describe("bkspc Token-2022 convert", () => {
   it("refuses a proposal to RAISE the cap", async () => {
     await assert.rejects(
       program.methods
-        .propose(new anchor.BN(2), ACTION_LOWER_CAP, new anchor.BN(CAP + 1), PublicKey.default)
+        .propose(
+          new anchor.BN(2),
+          ACTION_LOWER_CAP,
+          new anchor.BN(CAP + 1),
+          PublicKey.default,
+        )
         .accounts({
           proposer: user.publicKey,
           convertConfig: configPda(),
@@ -397,7 +419,12 @@ describe("bkspc Token-2022 convert", () => {
   it("refuses a proposal to shorten the governance delay below the floor", async () => {
     await assert.rejects(
       program.methods
-        .propose(new anchor.BN(3), ACTION_SET_GOV_DELAY, new anchor.BN(60), PublicKey.default)
+        .propose(
+          new anchor.BN(3),
+          ACTION_SET_GOV_DELAY,
+          new anchor.BN(60),
+          PublicKey.default,
+        )
         .accounts({
           proposer: user.publicKey,
           convertConfig: configPda(),
@@ -412,7 +439,12 @@ describe("bkspc Token-2022 convert", () => {
   it("opens a valid proposal and refuses execution before its eta", async () => {
     const p = proposalPda(mint, 4);
     await program.methods
-      .propose(new anchor.BN(4), ACTION_LOWER_CAP, new anchor.BN(500_000), PublicKey.default)
+      .propose(
+        new anchor.BN(4),
+        ACTION_LOWER_CAP,
+        new anchor.BN(500_000),
+        PublicKey.default,
+      )
       .accounts({
         proposer: user.publicKey,
         convertConfig: configPda(),

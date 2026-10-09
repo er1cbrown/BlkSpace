@@ -18,8 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ImageIcon, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-const PREPARE =
-  "~/.venvs/ds/bin/python tools/yard_photo_loop.py";
+const PREPARE = "~/.venvs/ds/bin/python tools/yard_photo_loop.py";
 
 async function fileFromPublish(item: YardPhotoItem): Promise<File> {
   const res = await fetch(
@@ -27,7 +26,9 @@ async function fileFromPublish(item: YardPhotoItem): Promise<File> {
   );
   if (!res.ok) throw new Error(`Could not read ${item.file}.`);
   const blob = await res.blob();
-  const picked = new File([blob], item.file, { type: item.mime || "image/jpeg" });
+  const picked = new File([blob], item.file, {
+    type: item.mime || "image/jpeg",
+  });
   const file = await fitImageForUpload(picked);
   const local = checkWebLocalLimit(file);
   if (!local.ok) throw new Error(local.reason);
@@ -135,7 +136,12 @@ export default function LibraryPage() {
           <code className="block text-xs bg-muted rounded px-2 py-1 overflow-x-auto">
             {PREPARE}
           </code>
-          <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void load()}
+          >
             Refresh list
           </Button>
         </CardContent>
@@ -150,12 +156,15 @@ export default function LibraryPage() {
         </p>
       )}
 
-      {manifest && !manifest.missing && ready.length === 0 && held.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Nothing is picked. A star, the Accepted label, or a tag you created
-          is what this loop publishes.
-        </p>
-      )}
+      {manifest &&
+        !manifest.missing &&
+        ready.length === 0 &&
+        held.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nothing is picked. A star, the Accepted label, or a tag you created
+            is what this loop publishes.
+          </p>
+        )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         {ready.map((item) => {

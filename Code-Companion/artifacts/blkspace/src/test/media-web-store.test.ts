@@ -47,9 +47,7 @@ describe("browser-local size ceiling", () => {
     // The transport allows 50 MB, but base64-in-IndexedDB cannot carry it.
     // If these ever converge, the fallback is safe again and the guard is moot.
     expect(WEB_LOCAL_MAX_BYTES).toBeLessThan(MAX_UPLOAD_BYTES / 4);
-    expect(WEB_LOCAL_MAX_BYTES).toBeLessThanOrEqual(
-      MEDIA_SIZE_LIMITS.image,
-    );
+    expect(WEB_LOCAL_MAX_BYTES).toBeLessThanOrEqual(MEDIA_SIZE_LIMITS.image);
   });
 
   it("rejects a video the transport would accept", () => {

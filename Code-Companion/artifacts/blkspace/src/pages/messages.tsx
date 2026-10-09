@@ -136,10 +136,10 @@ export default function MessagesPage() {
           )}
         </div>
         <p className="text-sm text-muted-foreground max-w-2xl">
-          Messages stay inside {loadUiPrefs().homeYardId || "tsu"}. Every user already has a{" "}
-          <strong className="text-foreground">@handle</strong>. Messaging is
-          handle-to-handle with ethical security: No-PHI, consent, blocks, rate
-          limits. Institutional tags are{" "}
+          Messages stay inside {loadUiPrefs().homeYardId || "tsu"}. Every user
+          already has a <strong className="text-foreground">@handle</strong>.
+          Messaging is handle-to-handle with ethical security: No-PHI, consent,
+          blocks, rate limits. Institutional tags are{" "}
           <strong className="text-foreground">
             self-attested or domain-declared
           </strong>{" "}

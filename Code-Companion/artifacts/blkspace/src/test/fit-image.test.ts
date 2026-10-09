@@ -43,9 +43,7 @@ describe("publish sizing", () => {
 
     const small = photo("ready.jpg", "image/jpeg", 1000);
     const decode = vi.fn(async () => decoded(1200, 800));
-    expect(
-      await fitImageForUpload(small, { decode, encode }),
-    ).toBe(small);
+    expect(await fitImageForUpload(small, { decode, encode })).toBe(small);
     expect(encode).not.toHaveBeenCalled();
   });
 
@@ -55,7 +53,11 @@ describe("publish sizing", () => {
     const encode = vi.fn(
       async (args: { width: number; height: number; quality: number }) => {
         if (args.quality === 80) {
-          expect(args).toMatchObject({ width: 1600, height: 1200, quality: 80 });
+          expect(args).toMatchObject({
+            width: 1600,
+            height: 1200,
+            quality: 80,
+          });
           return new Blob([new Uint8Array(PUBLISH_MAX_BYTES + 1)], {
             type: "image/jpeg",
           });

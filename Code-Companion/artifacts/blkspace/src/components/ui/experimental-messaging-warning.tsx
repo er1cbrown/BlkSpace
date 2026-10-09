@@ -13,10 +13,10 @@ export function ExperimentalMessagingWarning({
     >
       <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
       <p>
-        <strong className="font-semibold">Experimental messaging.</strong> Direct
-        messages are currently handle-based and stored locally; they are not
-        NIP-44 encrypted. Do not use them for sensitive content. Yard channel
-        posts are public to relay subscribers.
+        <strong className="font-semibold">Experimental messaging.</strong>{" "}
+        Direct messages are currently handle-based and stored locally; they are
+        not NIP-44 encrypted. Do not use them for sensitive content. Yard
+        channel posts are public to relay subscribers.
       </p>
     </div>
   );

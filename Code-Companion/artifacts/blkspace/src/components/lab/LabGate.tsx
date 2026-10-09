@@ -4,7 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppShell } from "@/components/layout/AppShell";
 import { getCurrentHandle } from "@/lib/auth";
-import { CRED_GATE, CRED_KEY, LAB_EVENT, labUnlocked, markWalletEnabled } from "@/lib/lab-gate";
+import {
+  CRED_GATE,
+  CRED_KEY,
+  LAB_EVENT,
+  labUnlocked,
+  markWalletEnabled,
+} from "@/lib/lab-gate";
 
 export function useLabUnlocked(): boolean {
   const [open, setOpen] = useState(labUnlocked);
@@ -53,8 +59,8 @@ export function LabLocked() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>
-            Mesh test, relays, and the stack open after you accept the terms
-            and enable the practice wallet, or after Yard Cred reaches {CRED_GATE}.
+            Mesh test, relays, and the stack open after you accept the terms and
+            enable the practice wallet, or after Yard Cred reaches {CRED_GATE}.
           </p>
           <Button asChild>
             <Link href="/terms">Read the terms</Link>

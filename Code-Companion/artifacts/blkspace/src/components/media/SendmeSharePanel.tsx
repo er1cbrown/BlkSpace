@@ -181,8 +181,9 @@ export function SendmeSharePanel({ compact = false }: { compact?: boolean }) {
               </Badge>
             </CardTitle>
             <CardDescription className="mt-1">
-              Share a file you uploaded as a portable ticket. New v2 tickets authenticate the sender; legacy v1 metadata is not authenticated. Peers materialize
-              from local/Iroh store — or use{" "}
+              Share a file you uploaded as a portable ticket. New v2 tickets
+              authenticate the sender; legacy v1 metadata is not authenticated.
+              Peers materialize from local/Iroh store — or use{" "}
               <a
                 href={SENDME_DOCS}
                 className="text-primary hover:underline"

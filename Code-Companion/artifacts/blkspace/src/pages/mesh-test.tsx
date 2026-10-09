@@ -642,8 +642,9 @@ export default function DeviceMeshTestPage() {
               <CardHeader>
                 <CardTitle>Offline Queue Test</CardTitle>
                 <CardDescription>
-                  Replays explicitly queued local actions, then drains the durable
-                  Nostr outbox. Hosted and Nostr delivery are tracked separately
+                  Replays explicitly queued local actions, then drains the
+                  durable Nostr outbox. Hosted and Nostr delivery are tracked
+                  separately
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -657,7 +658,10 @@ export default function DeviceMeshTestPage() {
                         Posts are signed and saved locally first; explicit
                         actions also appear in the local queue
                       </li>
-                      <li>Reconnect internet — replay runs automatically or on Flush Now</li>
+                      <li>
+                        Reconnect internet — replay runs automatically or on
+                        Flush Now
+                      </li>
                       <li>
                         Each queued Nostr event republishes the same event id,
                         never a new one

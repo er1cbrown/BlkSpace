@@ -408,9 +408,9 @@ export default function FocusPage() {
             </Link>
           </div>
           <p className="text-xs text-muted-foreground">
-            You want peers and labs who get HBCU / Meharry life â€” without a full
-            LinkedIn campaign. Express interest in micro-hours or async work.
-            Cred grows from real follow-through later, not from spam.
+            You want peers and labs who get HBCU / Meharry life â€” without a
+            full LinkedIn campaign. Express interest in micro-hours or async
+            work. Cred grows from real follow-through later, not from spam.
           </p>
           <div className="space-y-2">
             {connectCards.map((opp) => (

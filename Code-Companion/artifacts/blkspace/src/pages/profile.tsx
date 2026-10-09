@@ -1091,11 +1091,15 @@ export default function ProfilePage() {
                     {!lab ? (
                       <Card>
                         <CardHeader>
-                          <CardTitle className="text-base">Customize stays closed</CardTitle>
+                          <CardTitle className="text-base">
+                            Customize stays closed
+                          </CardTitle>
                         </CardHeader>
                         <CardContent className="text-sm text-muted-foreground space-y-3">
                           <p>
-                            The public hub door is open. Deeper MyYard packs open after you accept the terms or reach Yard Cred 15.
+                            The public hub door is open. Deeper MyYard packs
+                            open after you accept the terms or reach Yard Cred
+                            15.
                           </p>
                           <Button asChild>
                             <Link href="/terms">Read the terms</Link>
@@ -1103,19 +1107,19 @@ export default function ProfilePage() {
                         </CardContent>
                       </Card>
                     ) : (
-                    <CustomizeStation
-                      key={`station-${profileHandle}`}
-                      layout={myyardLayout}
-                      profileTheme={profileTheme}
-                      profileSong={profileSong}
-                      audioBlobs={audioBlobs}
-                      imageBlobs={imageBlobs}
-                      saving={
-                        updateProfileLayout.isPending ||
-                        updateCustomization.isPending
-                      }
-                      onSave={saveStation}
-                    />
+                      <CustomizeStation
+                        key={`station-${profileHandle}`}
+                        layout={myyardLayout}
+                        profileTheme={profileTheme}
+                        profileSong={profileSong}
+                        audioBlobs={audioBlobs}
+                        imageBlobs={imageBlobs}
+                        saving={
+                          updateProfileLayout.isPending ||
+                          updateCustomization.isPending
+                        }
+                        onSave={saveStation}
+                      />
                     )}
                     <Button variant="outline" size="sm" asChild>
                       <Link href="/wallet">

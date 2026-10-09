@@ -76,7 +76,10 @@ describe("cloud post acknowledgement", () => {
       id: event.id,
     }));
     hostedPost.mockResolvedValue(Response.json({ ok: true, storage: "cloud" }));
-    const post = await createWebUserPost({ content: "on the relay", townTag: "tsu" });
+    const post = await createWebUserPost({
+      content: "on the relay",
+      townTag: "tsu",
+    });
     expect(post.relayUrl).toBe("wss://nos.lol");
     expect(post.nostrEventId).toMatch(/^[0-9a-f]{64}$/);
     const body = hostedPost.mock.calls[0][1];

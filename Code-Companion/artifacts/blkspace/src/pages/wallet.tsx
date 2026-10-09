@@ -580,8 +580,8 @@ function WalletPageContent() {
           </div>
           <p className="text-sm text-muted-foreground mb-6">
             Earn-only soft currency · tier daily cap {dailyCap} WB · not cash.
-             Balances are currently local to this install and are not restored
-             by account recovery.
+            Balances are currently local to this install and are not restored by
+            account recovery.
           </p>
           <div className="flex gap-3 flex-wrap">
             <SendDialog baseBalance={rawBalance} yardCred={yardCred} />

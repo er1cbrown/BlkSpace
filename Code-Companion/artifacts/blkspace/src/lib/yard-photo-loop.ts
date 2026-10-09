@@ -4,10 +4,7 @@
  */
 
 export type YardPhotoStatus =
-  | "ready"
-  | "needs-darktable"
-  | "missing"
-  | "too-big";
+  "ready" | "needs-darktable" | "missing" | "too-big";
 
 export interface YardPhotoItem {
   id: number;

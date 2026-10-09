@@ -369,7 +369,9 @@ function CircleDetail({
           </div>
         )}
         <div className="border rounded p-3 space-y-2 bg-muted/20">
-          <p className="text-xs font-medium">Share note Â· publish page Â· rec</p>
+          <p className="text-xs font-medium">
+            Share note Â· publish page Â· rec
+          </p>
           <div className="flex flex-wrap gap-1">
             {["note", "publish", "chapter", "rec"].map((t) => (
               <Button
@@ -487,8 +489,8 @@ function TournamentsSection({ communityId }: { communityId: string }) {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <p className="text-xs text-muted-foreground">
-          Brackets Â· 1v1 Â· scores Â· WB prizes Â· Lichess/OTB play link Â· live
-          link-out
+          Brackets Â· 1v1 Â· scores Â· WB prizes Â· Lichess/OTB play link Â·
+          live link-out
         </p>
         <Button size="sm" onClick={() => setShowCreate(!showCreate)}>
           <Gamepad2 className="w-3.5 h-3.5 mr-1" /> Host tournament

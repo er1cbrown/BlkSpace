@@ -27,7 +27,8 @@ app.use(
 );
 
 // Local demo only — never open CORS to the world in a real deploy.
-const corsOrigin = process.env.API_SERVER_CORS_ORIGIN || "http://localhost:24442";
+const corsOrigin =
+  process.env.API_SERVER_CORS_ORIGIN || "http://localhost:24442";
 app.use(
   cors({
     origin: corsOrigin === "*" ? true : corsOrigin.split(","),

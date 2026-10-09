@@ -80,8 +80,7 @@ export const CLINYARD_ITEMS: DrillItem[] = [
     prompt:
       "Write one sentence about a made-up normal film. Include the word heart and the word effusion.",
     requiredPhrases: ["heart", "effusion"],
-    modelAnswer:
-      "The heart size is normal and there is no pleural effusion.",
+    modelAnswer: "The heart size is normal and there is no pleural effusion.",
   },
 ];
 
@@ -106,5 +105,8 @@ export function scoreSteps(item: DrillItem, picked: string[]): boolean {
 export function scoreReport(item: DrillItem, text: string): boolean {
   const haystack = text.toLowerCase();
   const phrases = item.requiredPhrases ?? [];
-  return phrases.length > 0 && phrases.every((phrase) => haystack.includes(phrase.toLowerCase()));
+  return (
+    phrases.length > 0 &&
+    phrases.every((phrase) => haystack.includes(phrase.toLowerCase()))
+  );
 }

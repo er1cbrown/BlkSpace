@@ -44,7 +44,11 @@ const PROGRAM_ID = "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs";
 
 const DEPLOYER_PATH = join(ROOT, "devnet", "deployer.json");
 const MANIFEST_PATH = join(ROOT, "devnet", "bkspc-token2022-mint.json");
-const PUBLIC_EXAMPLE_PATH = join(ROOT, "devnet", "bkspc-token2022.example.json");
+const PUBLIC_EXAMPLE_PATH = join(
+  ROOT,
+  "devnet",
+  "bkspc-token2022.example.json",
+);
 
 function metadataUri(): string {
   return (

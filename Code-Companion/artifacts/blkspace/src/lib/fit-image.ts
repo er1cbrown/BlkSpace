@@ -7,7 +7,11 @@
  * libvips install is required. Audio, PDF, and documents are unchanged.
  */
 
-import { WEB_LOCAL_MAX_BYTES, extensionOf, mediaKindFromFile } from "@/lib/media-upload";
+import {
+  WEB_LOCAL_MAX_BYTES,
+  extensionOf,
+  mediaKindFromFile,
+} from "@/lib/media-upload";
 
 export const PUBLISH_EDGE = 1600;
 export const PUBLISH_QUALITY = 80;

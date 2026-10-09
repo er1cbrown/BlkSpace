@@ -163,8 +163,8 @@ export default function CreatePage() {
           <p>
             A photo attached above is resized in the app to 1600px on Windows,
             Mac, and Linux. Rated and tagged photos in digiKam on this computer
-            can still be prepared with pyvips and posted from Library. RAWs
-            wait for a Darktable JPEG or TIFF.
+            can still be prepared with pyvips and posted from Library. RAWs wait
+            for a Darktable JPEG or TIFF.
           </p>
           <Link href="/library" className="text-primary hover:underline">
             Open Library

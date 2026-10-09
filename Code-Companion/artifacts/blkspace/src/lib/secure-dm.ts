@@ -168,7 +168,9 @@ async function sharedMessages(
   }
 }
 
-export async function listThreads(yardId = homeYard()): Promise<SecureDmThread[]> {
+export async function listThreads(
+  yardId = homeYard(),
+): Promise<SecureDmThread[]> {
   const me = getCurrentHandle();
   if (!me) return [];
   if (isTauri()) {

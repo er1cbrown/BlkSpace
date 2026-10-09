@@ -17,8 +17,10 @@ export function EconomyTermsCard() {
           <strong className="text-foreground">
             {SOFT_CURRENCY.name} ({SOFT_CURRENCY.symbol})
           </strong>{" "}
-          start with one 50 WB grant for joining a yard. That grant does not refill, and posting does not mint more. After Yard Cred 15 inside that yard, the reward is that university's mark, not extra WeixBucks.
-          Tip fee {formatFeePercent(FEE_BPS.tip)}. Marketplace fee{" "}
+          start with one 50 WB grant for joining a yard. That grant does not
+          refill, and posting does not mint more. After Yard Cred 15 inside that
+          yard, the reward is that university's mark, not extra WeixBucks. Tip
+          fee {formatFeePercent(FEE_BPS.tip)}. Marketplace fee{" "}
           {formatFeePercent(FEE_BPS.marketplace)}. An empty pool pays 0.
         </p>
         <p>The chain socket is not connected. No cash-out is offered.</p>

@@ -47,7 +47,9 @@ test.describe("Device B student smoke", () => {
   test("3–6. TSU join → post → Customize → Live", async ({ page }) => {
     await page.goto("/welcome");
     await expect
-      .poll(async () => page.evaluate(() => typeof window.Buffer === "function"))
+      .poll(async () =>
+        page.evaluate(() => typeof window.Buffer === "function"),
+      )
       .toBe(true);
 
     await page.getByRole("button", { name: /^continue$/i }).click();
@@ -86,7 +88,10 @@ test.describe("Device B student smoke", () => {
     expect(postMs).toBeLessThan(15_000);
 
     await page.goto(`/profile/${HANDLE}`);
-    await page.getByRole("button", { name: /^customize$/i }).first().click();
+    await page
+      .getByRole("button", { name: /^customize$/i })
+      .first()
+      .click();
     await expect(page.getByText(/customize station/i)).toBeVisible({
       timeout: 15_000,
     });

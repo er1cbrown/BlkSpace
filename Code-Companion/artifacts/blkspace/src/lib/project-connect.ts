@@ -4,7 +4,11 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "@/lib/tauri-api";
-import { createHttpAuthHeader, getCurrentHandle, getSessionToken } from "@/lib/auth";
+import {
+  createHttpAuthHeader,
+  getCurrentHandle,
+  getSessionToken,
+} from "@/lib/auth";
 import { hostedPost } from "@/lib/hosted-api";
 
 export type OrgType = "research" | "professional" | "club" | "service" | "peer";
@@ -939,7 +943,10 @@ async function connectGet(path: string): Promise<Record<string, any> | null> {
   }
 }
 
-async function connectPost(path: string, body: unknown): Promise<Record<string, any>> {
+async function connectPost(
+  path: string,
+  body: unknown,
+): Promise<Record<string, any>> {
   const res = await hostedPost(path, body);
   const json = await res.json().catch(() => null);
   if (!res.ok || json?.ok === false) {
@@ -953,7 +960,9 @@ function signedOut(err: unknown): boolean {
   return message.includes("Sign in again");
 }
 
-async function connectGetSigned(path: string): Promise<Record<string, any> | null> {
+async function connectGetSigned(
+  path: string,
+): Promise<Record<string, any> | null> {
   try {
     const authorization = createHttpAuthHeader(path, "GET", "");
     const res = await fetch(path, { headers: { authorization } });
@@ -1005,9 +1014,7 @@ export async function listOrgs(orgType?: string): Promise<ConnectOrg[]> {
     });
   }
   const query =
-    orgType && orgType !== "all"
-      ? `?type=${encodeURIComponent(orgType)}`
-      : "";
+    orgType && orgType !== "all" ? `?type=${encodeURIComponent(orgType)}` : "";
   const remote = await connectGet(`/api/connect/orgs${query}`);
   if (Array.isArray(remote?.orgs)) return remote.orgs as ConnectOrg[];
   const s = loadWeb();
@@ -1345,7 +1352,8 @@ export async function listInterests(
   const remote = await connectGet(
     `/api/connect/interests?opportunityId=${encodeURIComponent(String(opportunityId))}`,
   );
-  if (Array.isArray(remote?.interests)) return remote.interests as ConnectInterest[];
+  if (Array.isArray(remote?.interests))
+    return remote.interests as ConnectInterest[];
   return loadWeb().interests.filter((i) => i.opportunityId === opportunityId);
 }
 
@@ -1356,7 +1364,8 @@ export async function listInbox(): Promise<ConnectInterest[]> {
     return invoke("connect_inbox", { sessionToken });
   }
   const remote = await connectGetSigned("/api/connect/inbox");
-  if (Array.isArray(remote?.interests)) return remote.interests as ConnectInterest[];
+  if (Array.isArray(remote?.interests))
+    return remote.interests as ConnectInterest[];
   const handle = getCurrentHandle();
   const s = loadWeb();
   // Match Tauri: opp creator OR org owner (createdBy on org)
@@ -1379,7 +1388,8 @@ export async function listMyInterests(): Promise<ConnectInterest[]> {
     return invoke("connect_my_interests", { sessionToken });
   }
   const remote = await connectGetSigned("/api/connect/my-interests");
-  if (Array.isArray(remote?.interests)) return remote.interests as ConnectInterest[];
+  if (Array.isArray(remote?.interests))
+    return remote.interests as ConnectInterest[];
   const handle = getCurrentHandle();
   return loadWeb().interests.filter((i) => i.handle === handle);
 }
