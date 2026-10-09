@@ -10,12 +10,23 @@ optimizer_runs = 200
 evm_version = "cancun"
 ffi = false
 
+# Both deploy scripts end with `vm.writeFile("deployments/last-run.json", ...)`.
+# Without this permission Foundry reverts on that call at the very end of `run()`,
+# AFTER the contracts are constructed — so `--broadcast` never completes and no
+# deployment record is written. Scoped to ./deployments only.
+fs_permissions = [{ access = "read-write", path = "./deployments" }]
+
 # Hyperliquid HyperEVM — canonical home of BI9 (see docs/tokenomics.md)
 # Mainnet chain id 999 · testnet 998
 
 [rpc_endpoints]
 hyperevm = "https://rpc.hyperliquid.xyz/evm"
 hyperevm_testnet = "https://rpc.hyperliquid-testnet.xyz/evm"
+# Fallback testnet endpoint. The official host above intermittently fails TLS
+# handshakes ("wrong version number") from some networks, which makes
+# `forge script --rpc-url hyperevm_testnet` fail with no useful error. Chainlink's
+# public endpoint serves chain 998 and is verified working.
+hyperevm_testnet_fallback = "https://rpcs.chain.link/hyperevm/testnet"
 
 [fmt]
 line_length = 100
