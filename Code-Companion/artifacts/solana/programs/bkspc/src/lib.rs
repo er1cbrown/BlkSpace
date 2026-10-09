@@ -480,7 +480,7 @@ pub mod bkspc {
 
     /// Cast an initial vote. Weight is snapshotted from current stake into a `VoteRecord`
     /// and locks the position until the proposal resolves and the voter releases.
-    pub fn cast_vote(ctx: Context<CastVote>, support: bool) -> Result<()> {
+    pub fn cast_vote(ctx: Context<CastVote>, nonce: u64, support: bool) -> Result<()> {
         let now = Clock::get()?.unix_timestamp;
 
         let p = &ctx.accounts.proposal;
@@ -530,7 +530,7 @@ pub mod bkspc {
 
     /// Switch an existing vote's direction. Weight is unchanged, so stake cannot be
     /// topped up mid-proposal to inflate a changed ballot.
-    pub fn change_vote(ctx: Context<ChangeVote>, support: bool) -> Result<()> {
+    pub fn change_vote(ctx: Context<ChangeVote>, nonce: u64, support: bool) -> Result<()> {
         let now = Clock::get()?.unix_timestamp;
 
         let p = &ctx.accounts.proposal;
@@ -565,7 +565,7 @@ pub mod bkspc {
     }
 
     /// Execute an allowlisted action once its `eta` has passed and it has passed.
-    pub fn execute(ctx: Context<Execute>) -> Result<()> {
+    pub fn execute(ctx: Context<Execute>, nonce: u64) -> Result<()> {
         let now = Clock::get()?.unix_timestamp;
         let p = &ctx.accounts.proposal;
         require!(!p.executed, BkspcError::ProposalAlreadyResolved);
@@ -614,7 +614,7 @@ pub mod bkspc {
     }
 
     /// Cancel an unresolved proposal. Proposer or admin only.
-    pub fn cancel_proposal(ctx: Context<CancelProposal>) -> Result<()> {
+    pub fn cancel_proposal(ctx: Context<CancelProposal>, nonce: u64) -> Result<()> {
         let p = &mut ctx.accounts.proposal;
         require!(!p.executed, BkspcError::ProposalAlreadyResolved);
         require!(!p.canceled, BkspcError::ProposalAlreadyResolved);
@@ -632,7 +632,7 @@ pub mod bkspc {
     }
 
     /// Release a resolved proposal's vote commitment so the stake can be unstaked.
-    pub fn release_vote(ctx: Context<ReleaseVote>) -> Result<()> {
+    pub fn release_vote(ctx: Context<ReleaseVote>, nonce: u64) -> Result<()> {
         let p = &ctx.accounts.proposal;
         require!(p.executed || p.canceled, BkspcError::ProposalNotResolved);
 

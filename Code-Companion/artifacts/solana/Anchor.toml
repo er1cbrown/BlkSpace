@@ -20,7 +20,7 @@ bkspc = "7whUULzUwYkDRZkpuKRS6dFRR4eWfzQaXnS3mz5FbVXs"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

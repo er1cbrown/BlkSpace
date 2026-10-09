@@ -245,8 +245,10 @@ describe("bkspc Token-2022 convert", () => {
     );
   });
 
-  it("REJECTS a mint into a third party's ATA", async () => {
-    const attackerAta = await ataFor(attacker.publicKey);
+  it("cannot mint into an ATA the recipient does not own", async () => {
+    // `userAta.owner == user` is the guard. Victim's ATA is passed while `user`
+    // signs as attacker, so the mint must be rejected.
+    const victimAta = await ataFor(user.publicKey);
     await assert.rejects(
       program.methods
         .convertWbToBkspc(new BN(1_000))
@@ -255,14 +257,18 @@ describe("bkspc Token-2022 convert", () => {
           user: attacker.publicKey,
           convertConfig: configPda(),
           mint,
-          // user signs, but the ATA belongs to someone else.
-          userAta: attackerAta.address,
+          userAta: victimAta.address,
           mintAuthority: mintAuthorityPda(),
           tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .signers([minter, attacker])
         .rpc(),
     );
+
+    const victimBalance = await provider.connection.getTokenAccountBalance(
+      victimAta.address,
+    );
+    assert.equal(victimBalance.value.amount, "0");
   });
 
   it("REJECTS a mint that would exceed the cap", async () => {
@@ -328,9 +334,7 @@ describe("bkspc Token-2022 convert", () => {
     const ata = await ataFor(user.publicKey);
     await program.methods
       .stake(new BN(500_000))
-      .accounts(
-        stakeAccounts(user.publicKey, ata.address, positionPda(user.publicKey)),
-      )
+      .accounts(stakeAccounts(user.publicKey, ata.address))
       .rpc();
 
     const vaultBalance =
@@ -420,7 +424,12 @@ describe("bkspc Token-2022 convert", () => {
   it("refuses a proposal to shorten the governance delay below the floor", async () => {
     await assert.rejects(
       program.methods
-        .propose(new BN(3), ACTION_SET_GOV_DELAY, new BN(60), PublicKey.default)
+        .propose(
+          new BN(3),
+          new BN(ACTION_SET_GOV_DELAY),
+          new BN(60),
+          PublicKey.default,
+        )
         .accounts({
           proposer: user.publicKey,
           convertConfig: configPda(),
@@ -435,7 +444,12 @@ describe("bkspc Token-2022 convert", () => {
   it("opens a valid proposal and refuses execution before its eta", async () => {
     const p = proposalPda(mint, 4);
     await program.methods
-      .propose(new BN(4), ACTION_LOWER_CAP, new BN(500_000), PublicKey.default)
+      .propose(
+        new BN(4),
+        new BN(ACTION_LOWER_CAP),
+        new BN(500_000),
+        PublicKey.default,
+      )
       .accounts({
         proposer: user.publicKey,
         convertConfig: configPda(),
@@ -447,7 +461,7 @@ describe("bkspc Token-2022 convert", () => {
 
     await assert.rejects(
       program.methods
-        .execute()
+        .execute(new BN(4))
         .accounts({
           executor: user.publicKey,
           convertConfig: configPda(),
@@ -460,7 +474,7 @@ describe("bkspc Token-2022 convert", () => {
   it("locks the voter's stake while a vote is outstanding", async () => {
     const p = proposalPda(mint, 4);
     await program.methods
-      .castVote(true)
+      .castVote(new BN(4), true)
       .accounts({
         voter: user.publicKey,
         convertConfig: configPda(),
@@ -487,7 +501,7 @@ describe("bkspc Token-2022 convert", () => {
   it("cancels an unresolved proposal and then releases the vote", async () => {
     const p = proposalPda(mint, 4);
     await program.methods
-      .cancelProposal()
+      .cancelProposal(new BN(4))
       .accounts({
         canceller: deployer.publicKey,
         convertConfig: configPda(),
@@ -497,7 +511,7 @@ describe("bkspc Token-2022 convert", () => {
 
     await assert.rejects(
       program.methods
-        .execute()
+        .execute(new BN(4))
         .accounts({
           executor: user.publicKey,
           convertConfig: configPda(),
@@ -507,7 +521,7 @@ describe("bkspc Token-2022 convert", () => {
     );
 
     await program.methods
-      .releaseVote()
+      .releaseVote(new BN(4))
       .accounts({
         voter: user.publicKey,
         convertConfig: configPda(),

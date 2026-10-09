@@ -606,6 +606,10 @@
       ],
       "args": [
         {
+          "name": "nonce",
+          "type": "u64"
+        },
+        {
           "name": "support",
           "type": "bool"
         }
@@ -646,6 +650,10 @@
       ],
       "args": [
         {
+          "name": "nonce",
+          "type": "u64"
+        },
+        {
           "name": "support",
           "type": "bool"
         }
@@ -673,7 +681,12 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "nonce",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "cancelProposal",
@@ -695,7 +708,12 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "nonce",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "releaseVote",
@@ -729,7 +747,12 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "nonce",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
