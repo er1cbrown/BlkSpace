@@ -37,6 +37,8 @@ contract BI9 {
     error PausedError();
     error CapExceeded();
     error MintDisabled();
+    error CapCannotIncrease();
+    error InvalidCap();
     error ZeroAddress();
     error InsufficientBalance();
     error InsufficientAllowance();
@@ -60,7 +62,27 @@ contract BI9 {
         // There is no WeixBucks parameter and never will be.
     }
 
+    /// @notice Set the supply ceiling.
+    /// @dev The cap is a **one-way ratchet**. `cap == 0` is the "not yet activated"
+    ///      sentinel that deploys start from, so exactly one activation raise is allowed
+    ///      (0 -> N). Once a non-zero cap exists it can only be lowered, and never returned
+    ///      to 0 — that would reopen activation and let the ceiling climb again.
+    ///
+    ///      A non-zero cap alone does not enable minting: `minter` starts as `address(0)`
+    ///      and minting needs a separate timelocked `setMinter`. So the intended sequence
+    ///      is deploy(cap 0, minter 0) -> setCap(N) -> setMinter(addr), each via its own
+    ///      delayed proposal.
+    ///
+    ///      This matches BKSPC's `ConvertConfig.cap`, which is also monotonically
+    ///      decreasing, so the two assets cannot end up with different dilution guarantees.
     function setCap(uint256 newCap) external onlyAdmin {
+        if (cap != 0) {
+            // Reverting to 0 would make `cap != 0` false again and reopen activation.
+            if (newCap == 0) revert InvalidCap();
+            if (newCap > cap) revert CapCannotIncrease();
+        } else if (newCap == 0) {
+            revert InvalidCap();
+        }
         if (newCap < totalSupply) revert CapExceeded();
         uint256 previous = cap;
         cap = newCap;

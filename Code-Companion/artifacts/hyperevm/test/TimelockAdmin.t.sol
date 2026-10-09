@@ -34,6 +34,53 @@ contract TimelockAdminTest is Test {
         assertEq(token.cap(), 100 ether);
     }
 
+    /// @notice The cap ratchet holds on the real production path: through the timelock.
+    /// @dev BI9's constructor starts `cap` at 0, so activation is a single queued
+    ///      `setCap(N)`. A second, larger raise must be impossible even when executed by
+    ///      admin after the full delay — the timelock is not a loophole around the ratchet.
+    function test_capRatchetHoldsThroughTimelock() public {
+        assertEq(token.cap(), 0);
+
+        // Single activation: 0 -> 100 ether.
+        bytes memory activate = abi.encodeWithSelector(BI9.setCap.selector, 100 ether);
+        vm.prank(admin);
+        uint256 first = tl.propose(address(token), 0, activate);
+        vm.warp(block.timestamp + 2 days);
+        vm.prank(admin);
+        tl.execute(first);
+        assertEq(token.cap(), 100 ether);
+
+        // Second raise to 1000 ether must fail, delay fully elapsed.
+        bytes memory raiseAgain = abi.encodeWithSelector(BI9.setCap.selector, 1000 ether);
+        vm.prank(admin);
+        uint256 second = tl.propose(address(token), 0, raiseAgain);
+        vm.warp(block.timestamp + 2 days);
+        vm.prank(admin);
+        vm.expectRevert(BI9.CapCannotIncrease.selector);
+        tl.execute(second);
+
+        assertEq(token.cap(), 100 ether);
+    }
+
+    /// @notice Lowering the cap is still permitted through the timelock.
+    function test_capCanDecreaseThroughTimelock() public {
+        bytes memory activate = abi.encodeWithSelector(BI9.setCap.selector, 100 ether);
+        vm.prank(admin);
+        uint256 first = tl.propose(address(token), 0, activate);
+        vm.warp(block.timestamp + 2 days);
+        vm.prank(admin);
+        tl.execute(first);
+
+        bytes memory lower = abi.encodeWithSelector(BI9.setCap.selector, 40 ether);
+        vm.prank(admin);
+        uint256 second = tl.propose(address(token), 0, lower);
+        vm.warp(block.timestamp + 2 days);
+        vm.prank(admin);
+        tl.execute(second);
+
+        assertEq(token.cap(), 40 ether);
+    }
+
     function test_cancelBlocksExecute() public {
         bytes memory data = abi.encodeWithSelector(BI9.setCap.selector, 1 ether);
         vm.prank(admin);

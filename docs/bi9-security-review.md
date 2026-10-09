@@ -30,23 +30,29 @@ proposal on an `admin` that does not exist yet.
 - **`_transfer` uses `unchecked` only after the balance check**, so no arithmetic slip.
 - Contract sizes leave >20 KB headroom against EIP-170.
 
-## Finding 1 — the cap is raisable, and that differs from BKSPC
+## Finding 1 — the cap is now a one-way ratchet (FIXED)
 
-`setCap` (`BI9.sol:63`) has no monotonicity constraint. Anyone controlling `admin` can raise
-the cap at any time and mint the new headroom immediately. Pinned by
-`test_capCanBeRaisedByAdmin`.
+`setCap` originally had no monotonicity constraint, so anyone controlling `admin` could raise
+the cap at any time and mint the new headroom immediately. That was inconsistent with
+BKSPC, whose `ConvertConfig.cap` is monotonically decreasing.
 
-On a live deploy `admin` is a `TimelockAdmin`, so a raise requires a queued proposal plus the
-2-day `minDelay`. That is a real delay, but it is **not** a one-way door.
+**Resolved 2026-10-08.** `setCap` is now a ratchet. `cap == 0` is the "not yet activated"
+sentinel that deploys start from, so exactly one activation raise is permitted (`0 -> N`).
+Once a non-zero cap exists it can only be lowered, and **cannot return to 0** — that would
+reopen activation and let the ceiling climb again.
 
-This matters because it is *inconsistent with the token we just hardened*. BKSPC's
-`ConvertConfig.cap` was deliberately made monotonically decreasing — no instruction can
-raise it. BI9 has the opposite property.
+Pinned by `test_capActivatesOnceThenDecreases`, `test_capCannotBeRaisedAfterActivation`,
+`test_capCannotReturnToZeroAfterActivation`, `test_settingCapToZeroBeforeActivationReverts`,
+and — on the real production path — `test_capRatchetHoldsThroughTimelock`, which proves the
+timelock is not a loophole around the ratchet even with the delay fully elapsed.
+`test_capCanDecreaseThroughTimelock` confirms governance can still tighten.
 
-**This is a decision, not a defect, but it should be a deliberate one.** For an asset sold
-to donors, "supply can never increase" is materially easier to underwrite than "supply can
-increase after two days' notice". If the raisable cap is intended, say so plainly in the
-tokenomics docs. If not, `setCap` should mirror BKSPC and reject `newCap > cap`.
+The intended sequence is unchanged and still two independent gates:
+
+1. deploy with `cap = 0`, `minter = address(0)`
+2. timelocked `setCap(N)` — sets the ceiling. Minting still impossible.
+3. timelocked `setMinter(addr)` — minting now works, bounded by `N` forever.
+4. from then on the cap can only go down.
 
 ## Finding 2 — a pause cannot be undone quickly
 
