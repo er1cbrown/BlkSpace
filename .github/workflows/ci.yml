@@ -74,6 +74,19 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+      # Tauri pulls in glib-sys, which needs GTK development headers. Without these the
+      # build script fails before a single test runs. This job has been failing on
+      # glib-sys since at least commit 450329c.
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libsecret-1-dev
       - run: cargo test --locked --manifest-path src-tauri/Cargo.toml --lib -- --skip nostr_relay_smoke
         working-directory: ./Code-Companion/artifacts/blkspace
 
@@ -244,6 +257,18 @@ jobs:
             patchelf \
             libssl-dev \
             libsecret-1-dev
+      # solana-client pulls in openssl-sys, whose build script needs to locate a real
+      # OpenSSL install. The Windows runner does not ship one, so the crate fails to
+      # compile there without this. Verified: ubuntu and macos pass without it.
+      - name: Install OpenSSL (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          choco install openssl --no-progress -y
+          "C:\Program Files\OpenSSL" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "C:\Program Files\OpenSSL\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "C:\Program Files\OpenSSL\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "OPENSSL_DIR=C:\Program Files\OpenSSL" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - run: bun install --frozen-lockfile
         working-directory: ./Code-Companion
       - run: bun run build:full

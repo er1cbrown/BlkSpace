@@ -7,6 +7,7 @@
  */
 import { readFileSync } from "node:fs";
 import * as anchor from "@coral-xyz/anchor";
+import BN from "bn.js";
 import {
   Connection,
   Keypair,
@@ -135,9 +136,9 @@ describe("bkspc Token-2022 convert", () => {
       .initializeConvert(
         minter.publicKey,
         deployer.publicKey,
-        new anchor.BN(CAP),
-        new anchor.BN(UNSTAKE_DELAY),
-        new anchor.BN(GOV_DELAY),
+        new BN(CAP),
+        new BN(UNSTAKE_DELAY),
+        new BN(GOV_DELAY),
       )
       .accounts({
         payer: deployer.publicKey,
@@ -180,7 +181,7 @@ describe("bkspc Token-2022 convert", () => {
   it("mints for an eligible user when the minter signs", async () => {
     const ata = await ataFor(user.publicKey);
     await program.methods
-      .convertWbToBkspc(new anchor.BN(1_000_000))
+      .convertWbToBkspc(new BN(1_000_000))
       .accounts({
         minter: minter.publicKey,
         user: user.publicKey,
@@ -208,7 +209,7 @@ describe("bkspc Token-2022 convert", () => {
 
     await assert.rejects(
       program.methods
-        .convertWbToBkspc(new anchor.BN(1_000_000_000))
+        .convertWbToBkspc(new BN(1_000_000_000))
         .accounts({
           minter: attacker.publicKey,
           user: attacker.publicKey,
@@ -229,7 +230,7 @@ describe("bkspc Token-2022 convert", () => {
     const ata = await ataFor(user.publicKey);
     await assert.rejects(
       program.methods
-        .convertWbToBkspc(new anchor.BN(1_000))
+        .convertWbToBkspc(new BN(1_000))
         .accounts({
           minter: attacker.publicKey,
           user: user.publicKey,
@@ -248,7 +249,7 @@ describe("bkspc Token-2022 convert", () => {
     const attackerAta = await ataFor(attacker.publicKey);
     await assert.rejects(
       program.methods
-        .convertWbToBkspc(new anchor.BN(1_000))
+        .convertWbToBkspc(new BN(1_000))
         .accounts({
           minter: minter.publicKey,
           user: attacker.publicKey,
@@ -268,7 +269,7 @@ describe("bkspc Token-2022 convert", () => {
     const ata = await ataFor(user.publicKey);
     await assert.rejects(
       program.methods
-        .convertWbToBkspc(new anchor.BN(CAP + 1))
+        .convertWbToBkspc(new BN(CAP + 1))
         .accounts({
           minter: minter.publicKey,
           user: user.publicKey,
@@ -288,7 +289,7 @@ describe("bkspc Token-2022 convert", () => {
     const ata = await ataFor(user.publicKey);
     await assert.rejects(
       program.methods
-        .convertWbToBkspc(new anchor.BN(0))
+        .convertWbToBkspc(new BN(0))
         .accounts({
           minter: minter.publicKey,
           user: user.publicKey,
@@ -326,7 +327,7 @@ describe("bkspc Token-2022 convert", () => {
   it("stakes and moves tokens into the vault", async () => {
     const ata = await ataFor(user.publicKey);
     await program.methods
-      .stake(new anchor.BN(500_000))
+      .stake(new BN(500_000))
       .accounts(
         stakeAccounts(user.publicKey, ata.address, positionPda(user.publicKey)),
       )
@@ -379,9 +380,9 @@ describe("bkspc Token-2022 convert", () => {
     await assert.rejects(
       program.methods
         .propose(
-          new anchor.BN(1),
+          new BN(1),
           ACTION_LOWER_CAP,
-          new anchor.BN(500_000),
+          new BN(500_000),
           PublicKey.default,
         )
         .accounts({
@@ -400,9 +401,9 @@ describe("bkspc Token-2022 convert", () => {
     await assert.rejects(
       program.methods
         .propose(
-          new anchor.BN(2),
+          new BN(2),
           ACTION_LOWER_CAP,
-          new anchor.BN(CAP + 1),
+          new BN(CAP + 1),
           PublicKey.default,
         )
         .accounts({
@@ -419,12 +420,7 @@ describe("bkspc Token-2022 convert", () => {
   it("refuses a proposal to shorten the governance delay below the floor", async () => {
     await assert.rejects(
       program.methods
-        .propose(
-          new anchor.BN(3),
-          ACTION_SET_GOV_DELAY,
-          new anchor.BN(60),
-          PublicKey.default,
-        )
+        .propose(new BN(3), ACTION_SET_GOV_DELAY, new BN(60), PublicKey.default)
         .accounts({
           proposer: user.publicKey,
           convertConfig: configPda(),
@@ -439,12 +435,7 @@ describe("bkspc Token-2022 convert", () => {
   it("opens a valid proposal and refuses execution before its eta", async () => {
     const p = proposalPda(mint, 4);
     await program.methods
-      .propose(
-        new anchor.BN(4),
-        ACTION_LOWER_CAP,
-        new anchor.BN(500_000),
-        PublicKey.default,
-      )
+      .propose(new BN(4), ACTION_LOWER_CAP, new BN(500_000), PublicKey.default)
       .accounts({
         proposer: user.publicKey,
         convertConfig: configPda(),
@@ -549,7 +540,7 @@ describe("bkspc Token-2022 convert", () => {
     const ata = await ataFor(user.publicKey);
     await assert.rejects(
       program.methods
-        .convertWbToBkspc(new anchor.BN(1_000))
+        .convertWbToBkspc(new BN(1_000))
         .accounts({
           minter: minter.publicKey,
           user: user.publicKey,
@@ -564,7 +555,7 @@ describe("bkspc Token-2022 convert", () => {
     );
 
     await program.methods
-      .convertWbToBkspc(new anchor.BN(1_000))
+      .convertWbToBkspc(new BN(1_000))
       .accounts({
         minter: newMinter.publicKey,
         user: user.publicKey,

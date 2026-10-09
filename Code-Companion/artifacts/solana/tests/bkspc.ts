@@ -4,6 +4,7 @@
  */
 import { readFileSync } from "node:fs";
 import * as anchor from "@coral-xyz/anchor";
+import BN from "bn.js";
 import {
   Connection,
   Keypair,
@@ -113,7 +114,7 @@ describe("bkspc", () => {
     );
 
     await program.methods
-      .mintRewards(new anchor.BN(1_000_000_000))
+      .mintRewards(new BN(1_000_000_000))
       .accounts({
         treasurySignerA: treasuryA.publicKey,
         treasurySignerB: treasuryB.publicKey,
@@ -148,7 +149,7 @@ describe("bkspc", () => {
 
     await assert.rejects(
       program.methods
-        .mintRewards(new anchor.BN(1))
+        .mintRewards(new BN(1))
         .accounts({
           treasurySignerA: impostor.publicKey,
           treasurySignerB: treasuryB.publicKey,
@@ -176,7 +177,7 @@ describe("bkspc", () => {
     );
 
     await program.methods
-      .mintRewards(new anchor.BN(500_000_000))
+      .mintRewards(new BN(500_000_000))
       .accounts({
         treasurySignerA: treasuryA.publicKey,
         treasurySignerB: treasuryB.publicKey,
@@ -190,7 +191,7 @@ describe("bkspc", () => {
       .rpc();
 
     await program.methods
-      .burnTokens(new anchor.BN(250_000_000))
+      .burnTokens(new BN(250_000_000))
       .accounts({
         studentAuthority: student.publicKey,
         config: configPda(),
