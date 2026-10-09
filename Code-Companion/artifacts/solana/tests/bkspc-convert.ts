@@ -246,9 +246,13 @@ describe("bkspc Token-2022 convert", () => {
   });
 
   it("cannot mint into an ATA the recipient does not own", async () => {
-    // `userAta.owner == user` is the guard. Victim's ATA is passed while `user`
-    // signs as attacker, so the mint must be rejected.
-    const victimAta = await ataFor(user.publicKey);
+    // `userAta.owner == user` is the guard. A dedicated bystander's ATA is passed
+    // while `user` signs as the attacker, so the mint must be rejected and the
+    // bystander must receive nothing. A fresh key is used because earlier tests
+    // legitimately minted into `user`'s ATA.
+    const bystander = Keypair.generate();
+    await fund(bystander);
+    const victimAta = await ataFor(bystander.publicKey);
     await assert.rejects(
       program.methods
         .convertWbToBkspc(new BN(1_000))
@@ -334,7 +338,9 @@ describe("bkspc Token-2022 convert", () => {
     const ata = await ataFor(user.publicKey);
     await program.methods
       .stake(new BN(500_000))
-      .accounts(stakeAccounts(user.publicKey, ata.address))
+      .accounts(
+        stakeAccounts(user.publicKey, ata.address, positionPda(user.publicKey)),
+      )
       .rpc();
 
     const vaultBalance =
