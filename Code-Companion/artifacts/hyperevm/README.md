@@ -35,12 +35,44 @@ forge test
 
 Mint stays **off** until a timelocked `setCap` + `setMinter`. There is no WB → BI9 path.
 
+The deploy needs HYPE for gas (about 0.001 HYPE at the 100 gwei testnet gas price — the
+`drip` at <https://app.hyperliquid.xyz/drip> is the only source, and it is a UI action).
+Testnet gas is free; mainnet gas is not.
+
 ```bash
-export TIMELOCK_ADMIN=0xYourAdmin
-export TIMELOCK_DELAY=172800   # 2 days, seconds
-forge script script/Deploy.s.sol:Deploy --rpc-url hyperevm_testnet --broadcast --private-key $PRIVATE_KEY
-# review deployments/last-run.json then copy to deployments/testnet.json
+export TIMELOCK_ADMIN=0xYourAdmin      # EOA that may PROPOSE. Admin of the timelock.
+export TIMELOCK_DELAY=172800           # 2 days, seconds
+export PRIVATE_KEY=0x...
+
+# `hyperevm_testnet` is the official host. If forge fails with a TLS or empty-response
+# error, the network is blocking it — use `hyperevm_testnet_fallback` instead.
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url hyperevm_testnet \
+  --broadcast --private-key $PRIVATE_KEY
+
+# Same command, but dry-run first to confirm addresses and cap:
+forge script script/Deploy.s.sol:Deploy --rpc-url hyperevm_testnet
 ```
+
+Review `deployments/last-run.json`, then copy it to `deployments/testnet.json`.
+
+### Wiring the deployed address into the app
+
+`deployments/testnet.json` is documentation only. The app reads the address from
+`VITE_BI9_ADDRESS`, and an empty value is what makes `isBi9Deployed` false and keeps the
+amber "BI9 not deployed" badge on `/wallet`.
+
+```bash
+export VITE_BI9_ADDRESS=$(jq -r .bi9 deployments/testnet.json)
+export VITE_STAKE_VAULT=$(jq -r .stakeVault deployments/testnet.json)
+export VITE_TIMELOCK=$(jq -r .timelock deployments/testnet.json)
+export VITE_HYPEREVM_NETWORK=testnet
+bun run build            # from artifacts/blkspace
+```
+
+Never set `VITE_BI9_ADDRESS` to a simulated address. `forge script` without `--broadcast`
+prints real-looking addresses that do not exist on chain, and the app will then issue
+`eth_call`s against empty accounts.
 
 ## Deploy (mainnet, chain 999)
 
