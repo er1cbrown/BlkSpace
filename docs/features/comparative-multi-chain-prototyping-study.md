@@ -1,3 +1,10 @@
+> **SUPERSEDED (2026-10-08).** This study was written when BI9 on HyperEVM was the
+> canonical mint and Solana BKSPC was an optional prototype. Hyperliquid geo-restricts
+> the United States, so BI9 is not deployable by this operator and **BKSPC on Solana is
+> now canonical**. The referee's underlying concern still applies — never let two
+> instruments both be called "the coin." Read with
+> [`../../docs/canonical-chain-decision.md`](../../docs/canonical-chain-decision.md).
+
 # Comparative Multi-Chain Prototyping Study
 
 **Status:** Optional IEEE / systems track — **not** the core campus-social contribution  
@@ -163,6 +170,6 @@ Code lock: `Code-Companion/artifacts/blkspace/src/lib/power-of-2.ts`.
 
 ## 4. One sentence for the podium (if asked)
 
-> Canonical on-chain token is BI9, an ERC-20 on HyperEVM. Solana BKSPC is an optional Token-2022 prototype. WeixBucks do not auto-convert.
+> *(Superseded 2026-10-08)* The canonical on-chain asset is BKSPC, Token-2022, on Solana. WeixBucks do not auto-convert.
 
 If time is short, **omit this track**. The core contribution does not depend on it.

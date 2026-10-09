@@ -112,7 +112,7 @@ Base URL: `https://api.x.ai/v1` — never ship keys in the Tauri/Vite bundle.
 | WeixBucks | Off-chain; **no** auto-convert to BI9 |
 | Paper | [`features/comparative-multi-chain-prototyping-study.md`](features/comparative-multi-chain-prototyping-study.md) |
 
-**Podium sentence:** canonical on-chain token is BI9 (ERC-20) on HyperEVM. Solana BKSPC is an optional prototype. WeixBucks do not auto-convert. BI9 mint is **off** (cap 0).
+**Podium sentence:** *(amended 2026-10-08)* the canonical on-chain asset is BKSPC, Token-2022, on Solana. WeixBucks do not auto-convert. BI9 on HyperEVM is retained reference code and was never deployed.
 
 ---
 
