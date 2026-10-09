@@ -341,6 +341,7 @@ describe("bkspc Token-2022 convert", () => {
       .accounts(
         stakeAccounts(user.publicKey, ata.address, positionPda(user.publicKey)),
       )
+      .signers([user])
       .rpc();
 
     const vaultBalance =
@@ -356,6 +357,7 @@ describe("bkspc Token-2022 convert", () => {
         convertConfig: configPda(),
         position: positionPda(user.publicKey),
       })
+      .signers([user])
       .rpc();
 
     await assert.rejects(
@@ -371,6 +373,7 @@ describe("bkspc Token-2022 convert", () => {
           vaultAta,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
+        .signers([user])
         .rpc(),
     );
   });
@@ -383,6 +386,7 @@ describe("bkspc Token-2022 convert", () => {
         convertConfig: configPda(),
         position: positionPda(user.publicKey),
       })
+      .signers([user])
       .rpc();
   });
 
@@ -463,6 +467,7 @@ describe("bkspc Token-2022 convert", () => {
         proposal: p,
         systemProgram: SystemProgram.programId,
       })
+      .signers([user])
       .rpc();
 
     await assert.rejects(
@@ -489,6 +494,7 @@ describe("bkspc Token-2022 convert", () => {
         position: positionPda(user.publicKey),
         systemProgram: SystemProgram.programId,
       })
+      .signers([user])
       .rpc();
 
     // Unstaking must be blocked while the vote is unresolved.
@@ -500,6 +506,7 @@ describe("bkspc Token-2022 convert", () => {
           convertConfig: configPda(),
           position: positionPda(user.publicKey),
         })
+        .signers([user])
         .rpc(),
     );
   });
@@ -535,6 +542,7 @@ describe("bkspc Token-2022 convert", () => {
         voteRecord: voteRecordPda(user.publicKey, p),
         position: positionPda(user.publicKey),
       })
+      .signers([user])
       .rpc();
 
     // With the vote released the stake can move again.
@@ -545,6 +553,7 @@ describe("bkspc Token-2022 convert", () => {
         convertConfig: configPda(),
         position: positionPda(user.publicKey),
       })
+      .signers([user])
       .rpc();
   });
 
