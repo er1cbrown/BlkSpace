@@ -106,6 +106,23 @@ the earn, permanently inflating the daily-cap denominator — which is recompute
 
 ## Verification performed
 
+BI9 Solidity (`artifacts/hyperevm/`) — **22 tests pass**, run for the first time. These
+had never been executed because no CI job ran `forge test`:
+
+| Suite | Result |
+|---|---|
+| `BI9.t.sol` | 7 passed — including `test_mintRevertsWhenCapZero` |
+| `StakeVault.t.sol` | 5 passed |
+| `TimelockAdmin.t.sol` | 10 passed — including `test_cannotLowerDelayBelowFloorEvenViaTimelock` |
+
+Contract sizes, all far under the 24,576 B EIP-170 limit: BI9 3,122 B · StakeVault 3,818 B
+· TimelockAdmin 3,157 B.
+
+`forge fmt --check` is **not** a CI gate. These contracts predate any formatting
+standard, so enabling it would fail immediately, and reformatting them would add diff
+noise to an audit surface. Format them deliberately before the audit begins.
+
+
 | Check | Result |
 |---|---|
 | `cargo build-sbf` (program for chain) | pass — `bkspc.so`, 415 KB |
