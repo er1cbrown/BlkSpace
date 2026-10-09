@@ -1,8 +1,19 @@
+> **CHAIN CHANGED (2026-10-08).** This spec was written against **HyperEVM / HyperCore** as the
+> settlement chain. Hyperliquid geo-restricts the United States and this operator is in
+> Tennessee, so chain 999 is not deployable here. **BKSPC on Solana is now canonical.**
+>
+> The *design* below still stands — order book, collateral isolation, explicit destination
+> selection, no auto-bridging of WeixBucks. The *chain references* do not. Repoint
+> `HyperEVM` -> `Solana`, `HYPE` -> `SOL`, and `HyperCore` -> a Solana order book (OpenBook)
+> before treating anything here as implementable.
+>
+> Decision record: [`canonical-chain-decision.md`](./canonical-chain-decision.md).
+
 # BLKSHI
 
 **Status:** Spec — private / advanced only. **Not authorized for public US launch.**  
 **Inspiration:** Kalshi-style event contracts (product, not a license or DCM claim)  
-**Chain:** HyperEVM first; HyperCore order book only if needed later  
+**Chain:** *(was: HyperEVM first)* — repoint to Solana; order book via OpenBook if needed  
 **Decision:** [`finance-l1-strategy.md`](finance-l1-strategy.md) · Collateral in via [`blkbridge.md`](blkbridge.md) · Token rules: [`tokenomics.md`](tokenomics.md)
 
 BLKSHI is the **finance desk** attached to BlkCore. It is not the college-town home screen.

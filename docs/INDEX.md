@@ -2,7 +2,7 @@
 
 **Status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ~90% · Phase 3 ~75% · Phase 4 in progress · Phase 5 not started  
 **Date:** 2026-08-02  
-**Product mark:** **BlkSpace** · **In-app:** WeixBucks · **Canonical on-chain:** **BI9 ERC-20** (HyperEVM) · **Optional Solana ticker:** BKSPC
+**Product mark:** **BlkSpace** · **In-app:** WeixBucks · **Canonical on-chain:** **BKSPC** (Solana, Token-2022) · **Retained, not deployable:** BI9 ERC-20 (HyperEVM)
 
 > **New here?** Read [`../README.md`](../README.md) first, then [`README.md`](README.md) (doc map) or [`ROADMAP.md`](ROADMAP.md) (what's next).
 
@@ -39,9 +39,10 @@
 | [federated-college-towns.md](./federated-college-towns.md) | Town relay mesh spec |
 | [reward-formulas.md](./reward-formulas.md) | Draft earn/spend math |
 | [nostr-event-kinds.md](./nostr-event-kinds.md) | Custom kind registry |
-| [finance-l1-strategy.md](./finance-l1-strategy.md) | **Product decision:** BI9 **ERC-20** on HyperEVM, BlkBridge + BLKSHI |
-| [tokenomics.md](./tokenomics.md) | **Canonical tokenomics** — HyperEVM / BI9 ERC-20, no auto WB conversion |
-| [features/comparative-multi-chain-prototyping-study.md](./features/comparative-multi-chain-prototyping-study.md) | Optional notes — **BI9 ERC-20 canonical**; Solana prototype |
+| [finance-l1-strategy.md](./finance-l1-strategy.md) | *Superseded in part* — BI9/HyperEVM plan; BlkBridge + BLKSHI design still valid |
+| [canonical-chain-decision.md](./canonical-chain-decision.md) | **Decision record:** why BKSPC on Solana is canonical and BI9 is not deployable |
+| [tokenomics.md](./tokenomics.md) | **Canonical tokenomics** — BKSPC on Solana, no auto WB conversion |
+| [features/comparative-multi-chain-prototyping-study.md](./features/comparative-multi-chain-prototyping-study.md) | Optional notes — **historical**, pre-dates the Solana canonical decision |
 | [blkbridge.md](./blkbridge.md) | Yard-class deposit surface (existing rails, named destinations) |
 | [blkshi.md](./blkshi.md) | Advanced event-contract / portfolio desk (not a public US launch) |
 | [tokenomics-policy.md](./tokenomics-policy.md) | Live WeixBucks creator-marketplace policy |
@@ -90,7 +91,7 @@
 | [features/use-case-capability-log.md](./features/use-case-capability-log.md) | **Living log** — what campus use cases are Done / Partial / Out of scope |
 | [features/brand-trademark-and-bkspc-rights.md](./features/brand-trademark-and-bkspc-rights.md) | **BlkSpace** trademark intent · **BKSPC** coin ticker · naming lock |
 | [features/bkspc-rights-path.md](./features/bkspc-rights-path.md) | Cred → WB → gated BlkSpace Coin (BKSPC) |
-| [features/comparative-multi-chain-prototyping-study.md](./features/comparative-multi-chain-prototyping-study.md) | Optional — **BI9 ERC-20 canonical**; Solana prototype |
+| [features/comparative-multi-chain-prototyping-study.md](./features/comparative-multi-chain-prototyping-study.md) | Optional — **historical**, pre-dates the Solana canonical decision |
 | [features/sendme-iroh-transfer.md](./features/sendme-iroh-transfer.md) | **sendme-inspired** content tickets + optional n0 CLI P2P |
 | [features/myyard-customize-station.md](./features/myyard-customize-station.md) | **MyYard** profile personalization hub (MySpace-class, safe) |
 | [ieee-features-review.md](./ieee-features-review.md) | **IEEE** streamlined features matrix + evaluation criteria |
@@ -119,5 +120,5 @@
 2. `architecture-blueprint.md` + `federated-college-towns.md` — scaling model
 3. `security-considerations.md` — before any Nostr code
 4. `hub-theory.md` + `reward-formulas.md` — live WeixBucks economy
-5. `finance-l1-strategy.md` + `tokenomics.md` — HyperEVM / BI9 (do not skip BlkCore)
+5. `tokenomics.md` + `canonical-chain-decision.md` — BKSPC / Solana (do not skip BlkCore)
 6. Feature specs as needed per phase

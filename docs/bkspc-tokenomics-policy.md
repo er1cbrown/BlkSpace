@@ -5,7 +5,7 @@
 **Token:** BKSPC (BlkSpace Coin) — Solana prototype name  
 **Chain:** Solana (Devnet first) — **not** the home of BI9
 
-> **Canonical on-chain asset is BLACKINCCOIN (BI9), ERC-20, on HyperEVM.**  
+> **Canonical on-chain asset is BKSPC, Token-2022, on Solana.** See [`canonical-chain-decision.md`](./canonical-chain-decision.md).  
 > Read [`tokenomics.md`](tokenomics.md) and [`finance-l1-strategy.md`](finance-l1-strategy.md) first.  
 > This file keeps the earlier Solana earned-settlement lock (Design 1) as a **historical / optional** note. It does **not** define BI9 minting. WeixBucks still do not auto-convert.
 

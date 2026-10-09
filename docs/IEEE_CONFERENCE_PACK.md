@@ -80,7 +80,7 @@ Hardware-constrained students at HBCUs still depend on centralized social platfo
 - Yard install is not full P2P mesh  
 - Stories (this pack) are not yet multi-device protocol  
 - No guaranteed token returns  
-- Canonical on-chain token is **BI9 ERC-20 on HyperEVM**; Solana BKSPC is a prototype (optional Track E)  
+- *(Amended 2026-10-08)* Canonical on-chain asset is **BKSPC on Solana**; BI9/HyperEVM is retained reference code, not deployable from the US  
 
 ### Persona result shells (fill after run)
 

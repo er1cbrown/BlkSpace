@@ -186,7 +186,7 @@ Wallet at freeze includes **optimistic tips**, shared **escrow status**, fee bre
 Eligibility UI exists. A **successful user mint** requires the upgraded program on-chain. Do **not** say conversion is live end-to-end. Say: **mint exists; convert instruction is implemented; authority has not moved; no user supply yet.**
 
 **If asked why Solana and HyperEVM both exist (optional Track E):**  
-**Canonical on-chain token is BI9 ERC-20 on HyperEVM.** Solana BKSPC is an optional Token-2022 prototype, not the mint home. WeixBucks do not auto-convert to BI9. Mint cap is **0**. Paper: [`features/comparative-multi-chain-prototyping-study.md`](features/comparative-multi-chain-prototyping-study.md).
+*Historical (2026-08-27). Superseded 2026-10-08: the canonical on-chain asset is BKSPC on Solana; BI9 on HyperEVM is retained reference code and is not deployable from the US.* WeixBucks do not auto-convert to any token. Paper: [`features/comparative-multi-chain-prototyping-study.md`](features/comparative-multi-chain-prototyping-study.md).
 
 ---
 

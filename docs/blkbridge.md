@@ -1,8 +1,19 @@
+> **CHAIN CHANGED (2026-10-08).** This spec was written against **HyperEVM / HyperCore** as the
+> settlement chain. Hyperliquid geo-restricts the United States and this operator is in
+> Tennessee, so chain 999 is not deployable here. **BKSPC on Solana is now canonical.**
+>
+> The *design* below still stands — order book, collateral isolation, explicit destination
+> selection, no auto-bridging of WeixBucks. The *chain references* do not. Repoint
+> `HyperEVM` -> `Solana`, `HYPE` -> `SOL`, and `HyperCore` -> a Solana order book (OpenBook)
+> before treating anything here as implementable.
+>
+> Decision record: [`canonical-chain-decision.md`](./canonical-chain-decision.md).
+
 # BlkBridge
 
 **Status:** Spec (v1 not shipped)  
 **Product:** Yard-class / HyBridge-class **surface** for moving value into BlkFinance  
-**Chain:** HyperEVM (canonical) · HyperCore accounts as explicit destinations  
+**Chain:** *(was: HyperEVM canonical)* — repoint to Solana; order book destination explicit  
 **Decision:** [`finance-l1-strategy.md`](finance-l1-strategy.md) · Token rules: [`tokenomics.md`](tokenomics.md)
 
 BlkBridge is a **product in the app**, not a new lock-and-mint bridge protocol. v1 routes through rails that already exist.

@@ -1,7 +1,7 @@
 # BlkSpace Roadmap (plain English)
 
 **Last updated:** August 2026 · **Repo:** [`er1cbrown/BlkSpace`](https://github.com/er1cbrown/BlkSpace)  
-**Product mark:** **BlkSpace** · Soft: **WeixBucks** · Cash-out: **BKSPC** on Solana devnet (1,000 WB = 1 BKSPC, until a funded mint exists) · Separate asset: **BI9** on HyperEVM (not paid out from WeixBucks)
+**Product mark:** **BlkSpace** · Soft: **WeixBucks** · **Canonical on-chain:** **BKSPC** on Solana (1,000 WB = 1 BKSPC, devnet until a funded mint exists) · Retained, not deployable: BI9 on HyperEVM
 
 This doc answers: *what works today, multi-OS status, what “BlkSpace-Full” means, and what Tier C / Phase 5 are.*
 
@@ -120,7 +120,8 @@ Spec: [`features/project-connect-credibility-layer.md`](features/project-connect
 **Locked rule:** BKSPC is the cash-out. Earned WeixBucks settle only into BKSPC, at 1,000 WeixBucks = 1 BKSPC, on Solana devnet until a funded mint exists. BI9 stays a separate asset and is not paid out from WeixBucks.
 
 - Cash-out tickets: [`bkspc-phase0-phase1-tickets.md`](bkspc-phase0-phase1-tickets.md). Next gap is deploying `convert_wb_to_bkspc` and recording one devnet signature.
-- BI9 stays on HyperEVM with the mint cap at 0: `Code-Companion/artifacts/hyperevm/`. Do not convert WeixBucks into it.
+- **BI9 on HyperEVM is not deployable from this operator's jurisdiction** (Hyperliquid geo-restricts the US). `Code-Companion/artifacts/hyperevm/` is retained reference code; the cap stays 0 and the minter stays unset. Do not deploy to chain 999. See [`canonical-chain-decision.md`](./canonical-chain-decision.md).
+- WeixBucks never auto-convert to any token.
 - BlkBridge v1 is a kiosk over existing rails (not a custom L1 bridge)
 - BLKSHI is gated advanced mode only — not a public US event-contract launch
 

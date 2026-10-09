@@ -10,7 +10,7 @@
 
 **Document:** `docs/finance-l1-strategy.md`  
 **Status:** Product decision (2026-08-26)  
-**Tokens:** WeixBucks (off-chain) → **BLACKINCCOIN / BI9 ERC-20** (on-chain, canonical)  
+**Tokens:** WeixBucks (off-chain) → **BKSPC** (Token-2022 on Solana, canonical — supersedes BI9/HyperEVM, see [`canonical-chain-decision.md`](./canonical-chain-decision.md))  
 **Settlement target:** HyperEVM (Hyperliquid / HYPE chain)  
 **Related products:** BlkBridge (Yard-class), BLKSHI (Kalshi-inspired)
 

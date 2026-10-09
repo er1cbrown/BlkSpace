@@ -52,7 +52,7 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 | Mesh skeleton (intra → internet) | [`mesh-perfect-skeleton.md`](mesh-perfect-skeleton.md) |
 | Economy / WeixBucks | [`reward-formulas.md`](reward-formulas.md) · [`economy-student-terms.md`](economy-student-terms.md) · [`features/four-pillar-economy.md`](features/four-pillar-economy.md) · [`features/wb-progression-v2.md`](features/wb-progression-v2.md) · [`economy-fast-transparent.md`](economy-fast-transparent.md) |
 | IEEE campus use cases | [`IEEE_CONFERENCE_PACK.md`](IEEE_CONFERENCE_PACK.md) (start) · [`features/use-case-omega-psi-phi-meharry-ieee.md`](features/use-case-omega-psi-phi-meharry-ieee.md) · [`features/use-case-fisk-finance-ieee.md`](features/use-case-fisk-finance-ieee.md) · [`features/use-case-jimmy-tsu-fashion-ieee.md`](features/use-case-jimmy-tsu-fashion-ieee.md) |
-| Finance layer (HyperEVM) | [`finance-l1-strategy.md`](finance-l1-strategy.md) (decision) · [`tokenomics.md`](tokenomics.md) (**canonical = BI9 ERC-20 on HyperEVM**) · [`blkbridge.md`](blkbridge.md) · [`blkshi.md`](blkshi.md) |
+| Finance layer (Solana) | [`tokenomics.md`](tokenomics.md) (**canonical = BKSPC Token-2022 on Solana**) · [`canonical-chain-decision.md`](canonical-chain-decision.md) (**decision record**) · [`finance-l1-strategy.md`](finance-l1-strategy.md) (*superseded in part*) · [`blkbridge.md`](blkbridge.md) · [`blkshi.md`](blkshi.md) |
 | Dual-chain notes (optional) | [`features/comparative-multi-chain-prototyping-study.md`](features/comparative-multi-chain-prototyping-study.md) — ERC-20 is canonical; Solana is a prototype |
 | Solana / BKSPC (optional prototype) | [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md) (historical Design 1) · [`bkspc-phase0-phase1-tickets.md`](bkspc-phase0-phase1-tickets.md) · [`bkspc-devnet-mint.md`](bkspc-devnet-mint.md) · [`bkspc-devnet-runbook.md`](bkspc-devnet-runbook.md) · [`solana-blueprint.md`](solana-blueprint.md) |
 | Security | [`security-considerations.md`](security-considerations.md) |
@@ -85,7 +85,7 @@ BlkSpace has **50+ docs**. Most people only need **one file** from each column:
 | **0–1** | App boots, auth, feed, SQLite — **done** |
 | **2** | Nostr relays, Iroh blobs, and offline paths — **partial; see current topology and Device B sign-off** |
 | **3** | Yards, MySpace, rewards polish — **~55–75%** |
-| **4** | On-chain finance (**BI9 ERC-20 on HyperEVM**; BlkBridge / BLKSHI later) — **early**; Solana BKSPC is optional prototype |
+| **4** | On-chain finance (**BKSPC on Solana** — settlement, staking, governance; BlkBridge / BLKSHI later) |
 | **5** | Scripture NLP, anti-abuse ML, LogosDecks — **not started** |
 
 Details: [`ROADMAP.md`](ROADMAP.md)

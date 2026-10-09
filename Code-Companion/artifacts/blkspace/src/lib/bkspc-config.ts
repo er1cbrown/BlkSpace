@@ -1,6 +1,7 @@
 /**
  * Optional Solana BKSPC prototype (Token-2022). Not the canonical mint.
- * Canonical on-chain token is BI9 ERC-20 on HyperEVM.
+ * BKSPC on Solana is the canonical on-chain asset. BI9/HyperEVM is retained
+ * reference code and is not deployable from the operator's jurisdiction.
  * Soft WB stays in-app. Mainnet Solana mint is empty until launch + counsel.
  */
 

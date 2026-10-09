@@ -50,7 +50,7 @@ Fees are burned (reduce WB in circulation). Recipients receive **net** after fee
 
 ## Treasury / mint
 
-- **Canonical on-chain mint (2026-08-26):** **BI9 on HyperEVM**, governance-capped, timelocked. **No automatic WeixBucks → BI9.** See [`tokenomics.md`](tokenomics.md). Skeleton: `Code-Companion/artifacts/hyperevm/`.
+- **Canonical on-chain asset (amended 2026-10-08):** **BKSPC on Solana**, one-way-capped, timelocked, non-rewarding staking. **No automatic WeixBucks conversion.** See [`tokenomics.md`](tokenomics.md) and [`canonical-chain-decision.md`](canonical-chain-decision.md). Prior position: BI9 on HyperEVM, retained as reference code in `Code-Companion/artifacts/hyperevm/` and not deployable from the US.
 - **WeixBucks** stay off-chain. They are not bridged and not a mint input.
 - **Legacy Solana Phase A (not canonical):** earned WB → BKSPC notes in [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md) remain historical scaffolding / optional wallet reach. Do not treat the 1,000 WB → 1 BKSPC ratio as the BI9 issuance path.
 - **Mainnet launch:** not a bonding-curve dump of supply. Pump.fun notes in `docs/bkspc-pumpfun-launch.md` are **not** the BI9 mint path.

@@ -28,13 +28,13 @@ export const SETTLEMENT_TOKEN = {
 
 /** Same pattern as Robux, V-Bucks, Bits — earn in-app, spend in creator shop */
 export const CREATOR_ECONOMY_SUMMARY =
-  "Earn WeixBucks from activity, spend them on tips and the creator marketplace. Canonical on-chain token is BI9 (ERC-20) on HyperEVM — same class of economy as Roblox or Fortnite, not a cash shop.";
+  "Earn WeixBucks from activity, spend them on tips and the creator marketplace. Canonical on-chain asset is BKSPC on Solana — same class of economy as Roblox or Fortnite, not a cash shop.";
 
 export const PLATFORM_RULES = [
   "WB is earn-only — not sold for USD",
   "Creators sell in the marketplace for WB; platform fee applies",
   "Karma is reputation only — never spendable",
-  "BI9 ERC-20 on HyperEVM is the canonical on-chain token; listings require legal review. WeixBucks do not auto-convert.",
+  "BKSPC on Solana is the canonical on-chain asset; listings require legal review. WeixBucks do not auto-convert. BI9 on HyperEVM is retained reference code and was never deployed.",
   "Fees, caps, and throttle rules are always visible in wallet",
 ] as const;
 

@@ -84,7 +84,7 @@ These replace “WB → on-chain mint as the default path.”
 
 Official positioning (finance UI, not the student feed):
 
-> Canonical on-chain token is BI9 (ERC-20) on HyperEVM. No guaranteed value or yield. Not investment advice. WeixBucks do not convert automatically.
+> Canonical on-chain asset is BKSPC (Token-2022) on Solana. No guaranteed value or yield. Not investment advice. WeixBucks do not convert automatically. BI9 on HyperEVM is retained reference code and was never deployed.
 
 ---
 
