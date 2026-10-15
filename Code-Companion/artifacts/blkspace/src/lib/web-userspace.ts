@@ -483,17 +483,24 @@ export async function sharedYardChannels(
   return null;
 }
 
-export async function sharedYardWb(yardId: string): Promise<number | null> {
-  try {
-    const path = `/api/yards/wb?yard=${encodeURIComponent(yardId)}`;
-    const authorization = createHttpAuthHeader(path, "GET", "");
-    const res = await fetch(path, { headers: { authorization } });
-    if (!res.ok) return null;
-    const body = await res.json();
-    return typeof body.balance === "number" ? body.balance : null;
-  } catch {
-    return null;
+export async function sharedYardWb(
+  yardId: string,
+  origin = "",
+): Promise<number | null> {
+  const path = `/api/yards/wb?yard=${encodeURIComponent(yardId)}`;
+  const urls = origin ? [`${origin}${path}`, path] : [path];
+  for (const url of urls) {
+    try {
+      const authorization = createHttpAuthHeader(url, "GET", "");
+      const res = await fetch(url, { headers: { authorization } });
+      if (!res.ok) continue;
+      const body = await res.json();
+      if (typeof body.balance === "number") return body.balance;
+    } catch {
+      /* try the next host */
+    }
   }
+  return null;
 }
 
 export async function createSharedYardChannels(

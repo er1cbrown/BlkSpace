@@ -74,14 +74,25 @@ function externalUrl(value) {
   }
   const host = url.hostname.toLowerCase();
   const allowed =
-    host.includes("discord") ||
-    host.includes("zoom.") ||
-    host.includes("youtube.com") ||
-    host.includes("youtu.be") ||
-    host.includes("twitch.tv") ||
-    host.includes("meet.google") ||
-    host.includes("meet.jit.si") ||
-    host.includes("teams.microsoft") ||
+    host === "discord.com" ||
+    host.endsWith(".discord.com") ||
+    host === "discord.gg" ||
+    host.endsWith(".discord.gg") ||
+    host === "zoom.us" ||
+    host.endsWith(".zoom.us") ||
+    host.startsWith("zoom.") ||
+    host === "youtube.com" ||
+    host.endsWith(".youtube.com") ||
+    host === "youtu.be" ||
+    host.endsWith(".youtu.be") ||
+    host === "twitch.tv" ||
+    host.endsWith(".twitch.tv") ||
+    host === "meet.google.com" ||
+    host.endsWith(".meet.google.com") ||
+    host === "meet.jit.si" ||
+    host.endsWith(".meet.jit.si") ||
+    host === "teams.microsoft.com" ||
+    host.endsWith(".teams.microsoft.com") ||
     host.endsWith(".edu");
   if (!allowed) {
     throw new HttpError(400, "Use a Discord, Zoom, YouTube, Meet, or .edu link.");
@@ -209,11 +220,10 @@ export function createYardDesk(env) {
       )
     )[0];
     if (existing) return balanceOf(yard, handle);
-    const id = await nextId("yard_wb");
     await query(
       `INSERT INTO yard_wb (id, yard_id, handle, amount, reason, ref, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, yard, handle, amount, reason, ref, new Date().toISOString()],
+       VALUES (NULL, ?, ?, ?, ?, ?, ?)`,
+      [yard, handle, amount, reason, ref, new Date().toISOString()],
     );
     return balanceOf(yard, handle);
   }
@@ -322,16 +332,16 @@ export function createYardDesk(env) {
     if (kind === "external" && !link) {
       throw new HttpError(400, "Paste the Discord, Zoom, or YouTube link.");
     }
-    const id = await nextId("yard_rooms");
-    const slug = `BkspcYard${yard.replace(/-/g, "")}${title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 24)}${id}`;
-    await query(
-      `INSERT INTO yard_rooms
-        (id, yard_id, title, kind, external_url, jitsi_slug, created_by, created_at, closed)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-      [id, yard, title, kind, link || null, slug, who, new Date().toISOString()],
-    );
+    const slug = `BkspcYard${yard.replace(/-/g, "")}${title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 24)}${Date.now().toString(36)}`;
+    const createdAt = new Date().toISOString();
     const row = (
-      await query("SELECT * FROM yard_rooms WHERE id = ?", [id])
+      await query(
+        `INSERT INTO yard_rooms
+          (id, yard_id, title, kind, external_url, jitsi_slug, created_by, created_at, closed)
+         VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0)
+         RETURNING *`,
+        [yard, title, kind, link || null, slug, who, createdAt],
+      )
     )[0];
     await maybeGrantMark(yard, who);
     return { ok: true, room: mapRoom(row) };
@@ -411,13 +421,16 @@ export function createYardDesk(env) {
     if (looksLikePhi(message)) {
       throw new HttpError(400, "Message blocked: looks like clinical or patient information. Use the hospital system.");
     }
-    const id = await nextId("yard_messages");
     const createdAt = new Date().toISOString();
-    await query(
-      `INSERT INTO yard_messages (id, yard_id, from_handle, to_handle, body, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, yard, who, to, message, createdAt],
-    );
+    const inserted = (
+      await query(
+        `INSERT INTO yard_messages (id, yard_id, from_handle, to_handle, body, created_at)
+         VALUES (NULL, ?, ?, ?, ?, ?)
+         RETURNING id`,
+        [yard, who, to, message, createdAt],
+      )
+    )[0];
+    const id = num(inserted?.id);
     const sent = {
       ok: true,
       message: {
@@ -497,22 +510,25 @@ export function createYardDesk(env) {
     if (!Number.isInteger(price) || price < 1 || price > 100000) {
       throw new HttpError(400, "Price must be a whole WeixBucks amount from 1 to 100000.");
     }
-    const id = await nextId("yard_listings");
-    await query(
-      `INSERT INTO yard_listings
-        (id, yard_id, seller_handle, title, description, price, item_type, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        yard,
-        who,
-        title,
-        description,
-        price,
-        String(body.itemType || body.item_type || "item").slice(0, 40),
-        new Date().toISOString(),
-      ],
-    );
+    const createdAt = new Date().toISOString();
+    const inserted = (
+      await query(
+        `INSERT INTO yard_listings
+          (id, yard_id, seller_handle, title, description, price, item_type, created_at)
+         VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)
+         RETURNING id`,
+        [
+          yard,
+          who,
+          title,
+          description,
+          price,
+          String(body.itemType || body.item_type || "item").slice(0, 40),
+          createdAt,
+        ],
+      )
+    )[0];
+    const id = num(inserted?.id);
     await maybeGrantMark(yard, who);
     return { ok: true, id };
   }
@@ -533,33 +549,34 @@ export function createYardDesk(env) {
     if ((await balanceOf(yard, who)) < price) {
       throw new HttpError(400, "Not enough WeixBucks in this yard.");
     }
-    const escrowId = await nextId("yard_escrow");
     const now = new Date().toISOString();
-    await query("UPDATE yard_listings SET sold_to = ? WHERE id = ?", [who, num(listing.id)]);
-    await query(
-      `INSERT INTO yard_escrow
-        (id, listing_id, yard_id, buyer_handle, seller_handle, amount, seller_net, platform_fee,
-         status, title, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'funds_locked', ?, ?, ?)`,
-      [
-        escrowId,
-        num(listing.id),
-        yard,
-        who,
-        String(listing.seller_handle),
-        price,
-        sellerNet,
-        fee,
-        String(listing.title),
-        now,
-        now,
-      ],
-    );
-    const debitId = await nextId("yard_wb");
+    await query("UPDATE yard_listings SET sold_to = ? WHERE id = ? AND sold_to IS NULL", [who, num(listing.id)]);
+    const inserted = (
+      await query(
+        `INSERT INTO yard_escrow
+          (id, listing_id, yard_id, buyer_handle, seller_handle, amount, seller_net, platform_fee,
+           status, title, created_at, updated_at)
+         VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 'funds_locked', ?, ?, ?)
+         RETURNING id`,
+        [
+          num(listing.id),
+          yard,
+          who,
+          String(listing.seller_handle),
+          price,
+          sellerNet,
+          fee,
+          String(listing.title),
+          now,
+          now,
+        ],
+      )
+    )[0];
+    const escrowId = num(inserted?.id);
     await query(
       `INSERT INTO yard_wb (id, yard_id, handle, amount, reason, ref, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [debitId, yard, who, -price, `Yard Sale: ${listing.title}`, `escrow:${escrowId}`, now],
+       VALUES (NULL, ?, ?, ?, ?, ?, ?)`,
+      [yard, who, -price, `Yard Sale: ${listing.title}`, `escrow:${escrowId}`, now],
     );
     const bought = {
       ok: true,
