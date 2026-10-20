@@ -90,7 +90,9 @@ export default function TypeversePage() {
         if (!verses[idx]) setError(`no verses in ${spec.label}`);
       } catch (e) {
         if (cancelled || gen !== genRef.current) return;
-        setError(e instanceof Error ? e.message : `could not load ${spec.label}`);
+        setError(
+          e instanceof Error ? e.message : `could not load ${spec.label}`,
+        );
       } finally {
         if (!cancelled && gen === genRef.current) setLoading(false);
       }
@@ -138,7 +140,8 @@ export default function TypeversePage() {
   const onType = (value: string) => {
     if (done || !target) return;
     let next = foldKeys(value);
-    if (next.length > target.text.length) next = next.slice(0, target.text.length);
+    if (next.length > target.text.length)
+      next = next.slice(0, target.text.length);
     if (!startedAt && next.length > 0) setStartedAt(performance.now());
     setTyped(next);
     if (next.length === target.text.length) setDone(true);
@@ -208,13 +211,20 @@ export default function TypeversePage() {
           >
             verse of the day
           </Button>
-          <Button size="sm" variant="outline" onClick={() => chooseMode("random")}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => chooseMode("random")}
+          >
             tab · next
           </Button>
         </div>
 
         <div className="rounded-xl bg-[#323437] text-[#d1d0c5] px-4 py-5 sm:px-6">
-          <p className="text-sm text-[#646669] mb-3 min-h-5 font-mono" id="typeverse-ref">
+          <p
+            className="text-sm text-[#646669] mb-3 min-h-5 font-mono"
+            id="typeverse-ref"
+          >
             {refLine}
           </p>
           <div className="relative min-h-32">
@@ -222,39 +232,43 @@ export default function TypeversePage() {
               className="font-mono text-lg sm:text-xl leading-relaxed break-words select-none"
               aria-hidden
             >
-              {target
-                ? [...target.text].map((ch, i) => {
-                    const show = ch === " " ? "\u00a0" : ch;
-                    if (i < typed.length) {
-                      const ok = typed[i] === target.text[i];
-                      return (
-                        <span
-                          key={i}
-                          className={
-                            ok ? "text-[#d1d0c5]" : "text-[#ca4754] bg-[#ca475422]"
-                          }
-                        >
-                          {show}
-                        </span>
-                      );
-                    }
-                    if (i === typed.length) {
-                      return (
-                        <span
-                          key={i}
-                          className="text-[#646669] border-l-2 border-[#e2b714]"
-                        >
-                          {show}
-                        </span>
-                      );
-                    }
+              {target ? (
+                [...target.text].map((ch, i) => {
+                  const show = ch === " " ? "\u00a0" : ch;
+                  if (i < typed.length) {
+                    const ok = typed[i] === target.text[i];
                     return (
-                      <span key={i} className="text-[#646669]">
+                      <span
+                        key={i}
+                        className={
+                          ok
+                            ? "text-[#d1d0c5]"
+                            : "text-[#ca4754] bg-[#ca475422]"
+                        }
+                      >
                         {show}
                       </span>
                     );
-                  })
-                : <span className="text-[#646669]">…</span>}
+                  }
+                  if (i === typed.length) {
+                    return (
+                      <span
+                        key={i}
+                        className="text-[#646669] border-l-2 border-[#e2b714]"
+                      >
+                        {show}
+                      </span>
+                    );
+                  }
+                  return (
+                    <span key={i} className="text-[#646669]">
+                      {show}
+                    </span>
+                  );
+                })
+              ) : (
+                <span className="text-[#646669]">…</span>
+              )}
             </p>
             <input
               ref={inputRef}
@@ -280,25 +294,31 @@ export default function TypeversePage() {
           </div>
           <div className="mt-5 flex gap-6 font-mono text-[#e2b714] text-2xl">
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-[#646669]">wpm</div>
+              <div className="text-[11px] uppercase tracking-wide text-[#646669]">
+                wpm
+              </div>
               {wpm}
             </div>
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-[#646669]">acc</div>
+              <div className="text-[11px] uppercase tracking-wide text-[#646669]">
+                acc
+              </div>
               {acc}%
             </div>
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-[#646669]">streak</div>
+              <div className="text-[11px] uppercase tracking-wide text-[#646669]">
+                streak
+              </div>
               {streak.count}
             </div>
           </div>
         </div>
 
         <p className="text-xs text-muted-foreground max-w-xl">
-          Type the verse. <kbd className="font-mono">Tab</kbd> loads a new random
-          verse. <kbd className="font-mono">Escape</kbd> restarts this one. A day
-          counts toward the streak at 90% accuracy. {spec.notice} Greek SBLGNT and
-          Reina Valera Gómez stay on the desktop typer.
+          Type the verse. <kbd className="font-mono">Tab</kbd> loads a new
+          random verse. <kbd className="font-mono">Escape</kbd> restarts this
+          one. A day counts toward the streak at 90% accuracy. {spec.notice}{" "}
+          Greek SBLGNT and Reina Valera Gómez stay on the desktop typer.
         </p>
       </div>
     </AppShell>

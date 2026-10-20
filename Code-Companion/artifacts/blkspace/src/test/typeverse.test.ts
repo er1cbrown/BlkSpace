@@ -26,7 +26,9 @@ const root = path.resolve(
 
 describe("typeverse", () => {
   it("folds curly quotes and dashes to keyboard characters", () => {
-    expect(foldKeys("\u201cGod\u2019s\u201d word\u2014now")).toBe("\"God's\" word-now");
+    expect(foldKeys("\u201cGod\u2019s\u201d word\u2014now")).toBe(
+      '"God\'s" word-now',
+    );
     expect(foldKeys("¿listo? ¡sí!")).toBe("?listo? !sí!");
   });
 
@@ -57,7 +59,11 @@ describe("typeverse", () => {
   it("keeps a daily streak only across consecutive days", () => {
     expect(previousYmd("2026-10-20")).toBe("2026-10-19");
     expect(previousYmd("2026-03-01")).toBe("2026-02-28");
-    const first = bumpStreak({ count: 0, last: "" }, "2026-10-20", "2026-10-19");
+    const first = bumpStreak(
+      { count: 0, last: "" },
+      "2026-10-20",
+      "2026-10-19",
+    );
     expect(first).toEqual({ count: 1, last: "2026-10-20" });
     expect(bumpStreak(first, "2026-10-20", "2026-10-19")).toBe(first);
     expect(bumpStreak(first, "2026-10-21", "2026-10-20")).toEqual({
@@ -92,7 +98,9 @@ describe("typeverse", () => {
       gunzipSync(readFileSync(path.join(root, "kjv.tsv.gz"))).toString("utf8"),
     );
     const sparv = parseCorpus(
-      gunzipSync(readFileSync(path.join(root, "sparv.tsv.gz"))).toString("utf8"),
+      gunzipSync(readFileSync(path.join(root, "sparv.tsv.gz"))).toString(
+        "utf8",
+      ),
     );
     expect(kjv.length).toBeGreaterThan(20_000);
     expect(sparv.length).toBeGreaterThan(20_000);

@@ -103,7 +103,12 @@ export function parseCorpus(raw: string): Verse[] {
     const chapter = Number(tab[1]);
     const verse = Number(tab[2]);
     const text = tab.slice(3).join("\t").trim();
-    if (!book || !Number.isInteger(chapter) || !Number.isInteger(verse) || !text)
+    if (
+      !book ||
+      !Number.isInteger(chapter) ||
+      !Number.isInteger(verse) ||
+      !text
+    )
       continue;
     out.push({ book, chapter, verse, text });
   }
@@ -151,7 +156,10 @@ export function loadCorpus(id: TypeverseModuleId): Promise<Verse[]> {
   return pending;
 }
 
-export function pickIndex(length: number, rng: () => number = Math.random): number {
+export function pickIndex(
+  length: number,
+  rng: () => number = Math.random,
+): number {
   if (length <= 0) throw new Error("empty corpus");
   return Math.floor(rng() * length) % length;
 }
@@ -185,7 +193,10 @@ export function correctCount(typed: string, target: string): number {
 }
 
 /** Monkeytype-style WPM: correct characters / 5 / minutes. */
-export function wordsPerMinute(correctChars: number, elapsedMs: number): number {
+export function wordsPerMinute(
+  correctChars: number,
+  elapsedMs: number,
+): number {
   if (!elapsedMs || elapsedMs <= 0 || correctChars <= 0) return 0;
   const mins = Math.max(elapsedMs / 60_000, 1 / 60_000);
   return Math.round(correctChars / 5 / mins);
@@ -213,7 +224,8 @@ export function readStreak(raw: string | null): Streak {
   try {
     const s = JSON.parse(raw) as { count?: unknown; last?: unknown };
     return {
-      count: typeof s.count === "number" && s.count > 0 ? Math.floor(s.count) : 0,
+      count:
+        typeof s.count === "number" && s.count > 0 ? Math.floor(s.count) : 0,
       last: typeof s.last === "string" ? s.last : "",
     };
   } catch {
@@ -222,7 +234,11 @@ export function readStreak(raw: string | null): Streak {
 }
 
 /** One streak step per local day, only when the caller already checked accuracy. */
-export function bumpStreak(prev: Streak, today: string, yesterday: string): Streak {
+export function bumpStreak(
+  prev: Streak,
+  today: string,
+  yesterday: string,
+): Streak {
   if (prev.last === today) return prev;
   const count = (prev.last === yesterday ? prev.count : 0) + 1;
   return { count, last: today };
