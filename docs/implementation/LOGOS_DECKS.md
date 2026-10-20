@@ -1,6 +1,6 @@
 # LogosDecks — DevOps track
 
-**Status:** devops open · feature not implemented
+**Status:** slice 1 reads the four typeverse SWORD modules locally · full deck UI not started · Phase 5 not started
 **Branch:** `feat/logos-decks`
 **Opened:** 2026-10-20
 **Concept (do not relocate):** [`weixinfo/Bible DJ Software Concept Design.md`](../../weixinfo/Bible%20DJ%20Software%20Concept%20Design.md)
@@ -65,9 +65,11 @@ Heavy jobs (Yard, Full, E2E, bundle budget) stay on the existing `needs: [lint, 
 
 Still inside BlkSpace. Still opt-in. Still not the full Phase 5 instrument.
 
+The profile player asks `GET /api/logos/sword?module=KJV&ref=Isaiah%2053:5`. `scripts/logos-sword.py` reads that verse through pysword from `~/.sword`, the same library typeverse uses. GNT and RVG stay on this machine. If the library is missing, the six-verse starter crate stays on screen and sync does not invent a verse.
+
 | In slice 1 | Out of slice 1 |
 |---|---|
-| Public-domain verse text the page can load (KJV, and Reina-Valera 1909 if a Spanish deck is needed) | NIV, NRSV, SBLGNT, Reina Valera Gómez |
+| The four typeverse SWORD modules, read from `~/.sword` on this machine: KJV, GNT, RVG, SpaRV | Copying GNT or RVG text into the repo. NIV, NRSV, Reina Valera Gómez |
 | Hermeneutical sync that only returns verses present in the loaded text | A knowledge-graph service, myBibleNLP weights, or an external Bible API |
 | Keep `modules.logosDeck` default **false** until the slice's tests pass | Turning the module on for every profile |
 | Existing Vitest + `check:bundle:tier0` | Mixxx fork, Tone.js, a new npm or Rust crate |

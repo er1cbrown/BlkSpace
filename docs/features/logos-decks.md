@@ -2,7 +2,7 @@
 
 **Source:** `weixinfo/Bible DJ Software Concept Design.md`  
 **BlkSpace phase:** 5 (scripture creative seeding) — stub metadata in Phase 2  
-**Status:** DevOps open on `feat/logos-decks`. Product not implemented.  
+**Status:** Slice 1 reads typeverse's four SWORD modules (KJV, GNT, RVG, SpaRV) from the local library. Full deck UI is still Phase 5 and is not started.  
 **Track:** [`../implementation/LOGOS_DECKS.md`](../implementation/LOGOS_DECKS.md)
 
 ---

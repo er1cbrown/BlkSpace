@@ -202,7 +202,7 @@ Before merging to `main`:
 | — | Tag + ship `v0.1.0-yard` installers | ✅ Done |
 | — | Optional signing; unsigned Yard/Full upload when secrets absent | ✅ Done |
 | **Next** | Enable **GitHub Pages** for Deploy Web Preview campus demo | ⏳ Repo setting pending |
-| — | LogosDecks (`feat/logos-decks`) | 🟡 DevOps open · deck UI not implemented |
+| — | LogosDecks (`feat/logos-decks`) | 🟡 Slice 1 reads the four typeverse SWORD modules locally · full deck UI not started |
 | **Next** | Device B student smoke close-out (see `docs/YARD_RELEASE_CHECKLIST.md` Part A) | ⏳ Partial |
 | — | CI job gating + non-blocking Nostr smoke + `cargo --locked` | ✅ Done (2026-08) |
 | 4 | Mobile CI (iOS/Android packaging via Tauri Mobile) | ⬜ Planned |
