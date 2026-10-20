@@ -16,6 +16,8 @@ import {
 } from "@/lib/bkspc-marketplace";
 import { itemTypeLabel, themeLabelFromRef } from "@/lib/myyard-catalog";
 import { getYardTheme } from "@/lib/yard-themes";
+import { getMixtape, parseMixtapeRef } from "@/lib/audio-mixtapes";
+import { MixtapePlayer } from "@/components/media/MixtapePlayer";
 
 type Listing = {
   id: number;
@@ -40,6 +42,29 @@ interface YardSaleListingsProps {
   yardIdFilter?: string;
   emptyMessage?: string;
   bkspcWired?: boolean;
+}
+
+function MixPreview({
+  itemRef,
+  deliveryHint,
+}: {
+  itemRef?: string | null;
+  deliveryHint?: string | null;
+}) {
+  const id = parseMixtapeRef(deliveryHint) || itemRef || "";
+  const mixtape = id ? getMixtape(id) : null;
+  if (!mixtape) {
+    return (
+      <p className="text-[11px] text-muted-foreground mt-1">
+        BlkCore edition. Play it from Audio on the device that published it.
+      </p>
+    );
+  }
+  return (
+    <div className="mt-2">
+      <MixtapePlayer mixtape={mixtape} compact />
+    </div>
+  );
 }
 
 function appliedPurchaseMessage(
@@ -240,6 +265,12 @@ export function YardSaleListings({
                 <div className="text-xs mt-1 text-muted-foreground">
                   {item.description}
                 </div>
+              )}
+              {item.itemType === "mix" && (
+                <MixPreview
+                  itemRef={item.itemRef}
+                  deliveryHint={item.deliveryHint}
+                />
               )}
               {item.deliveryHint && isEscrow && (
                 <div className="text-[10px] text-muted-foreground mt-0.5">

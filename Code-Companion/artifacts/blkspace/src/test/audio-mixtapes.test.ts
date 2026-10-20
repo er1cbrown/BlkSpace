@@ -9,6 +9,7 @@ import {
   trackSrcOk,
 } from "@/lib/audio-mixtapes";
 import { listHubItems } from "@/lib/content-hub";
+import { mergeMarketplaceBoards } from "@/lib/marketplace-escrow";
 
 vi.mock("@/lib/auth", () => ({
   getCurrentHandle: () => "dj_yard",
@@ -64,5 +65,58 @@ describe("audio mixtapes", () => {
       isNft: false,
       fulfillmentMode: "instant",
     });
+  });
+
+  it("keeps a device-only mix on the yard sale board", () => {
+    const board = mergeMarketplaceBoards(
+      [
+        {
+          id: 9,
+          sellerHandle: "other",
+          itemType: "notes",
+          price: 5,
+          title: "Notes",
+        },
+        {
+          id: 8,
+          sellerHandle: "dj_yard",
+          itemType: "mix",
+          itemRef: "mix_shared",
+          price: 10,
+          title: "Shared",
+        },
+      ],
+      [
+        {
+          id: 3,
+          sellerHandle: "dj_yard",
+          itemType: "mix",
+          itemRef: "mix_friday",
+          price: 25,
+          title: "Friday lawn",
+        },
+        {
+          id: 4,
+          sellerHandle: "dj_yard",
+          itemType: "mix",
+          itemRef: "mix_shared",
+          price: 25,
+          title: "already shared",
+        },
+        {
+          id: 1,
+          sellerHandle: "campus_king",
+          itemType: "mockup",
+          itemRef: "fashion:mockup",
+          price: 45,
+          title: "Tee",
+        },
+      ],
+    );
+    expect(board.map((row) => row.title)).toEqual([
+      "Friday lawn",
+      "Notes",
+      "Shared",
+    ]);
   });
 });

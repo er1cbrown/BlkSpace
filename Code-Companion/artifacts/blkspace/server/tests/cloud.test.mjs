@@ -381,6 +381,27 @@ describe("yard desk on the shared server", () => {
     expect(inbox.messages).toHaveLength(1);
     expect((await fetch(base + "/api/yards/messages?yard=desk")).status).toBe(401);
 
+    const mix = await post("/api/yards/sale", {
+      yardId: "desk",
+      title: "Friday lawn",
+      description: "BlkCore audio edition. Not a chain NFT.",
+      price: 25,
+      itemType: "mix",
+      itemRef: "mix_friday",
+      isNft: true,
+      fulfillmentMode: "instant",
+      deliveryHint: "mixtape:mix_friday",
+    });
+    expect(mix.status).toBe(200);
+    const mixId = (await mix.json()).id;
+    const audioBoard = await (await fetch(base + "/api/yards/sale?yard=desk")).json();
+    const audioRow = audioBoard.listings.find((row) => row.id === mixId);
+    expect(audioRow.itemType).toBe("mix");
+    expect(audioRow.itemRef).toBe("mix_friday");
+    expect(audioRow.isNft).toBe(false);
+    expect(audioRow.fulfillmentMode).toBe("instant");
+    expect(audioRow.deliveryHint).toBe("mixtape:mix_friday");
+
     const listing = await post("/api/yards/sale", {
       yardId: "desk",
       title: "Study notes",
@@ -409,6 +430,20 @@ describe("yard desk on the shared server", () => {
     expect(aliceAfter.mark.school).toBe("");
     const board = await (await fetch(base + "/api/yards/sale?yard=desk")).json();
     expect(board.listings.some((row) => row.id === listingId)).toBe(false);
+    expect(board.listings.some((row) => row.id === mixId)).toBe(true);
+
+    const boughtMix = await post("/api/yards/sale/buy", { listingId: mixId }, bob);
+    expect(boughtMix.status).toBe(200);
+    const mixSale = await boughtMix.json();
+    expect(mixSale.fulfillmentMode).toBe("instant");
+    expect(mixSale.escrowId).toBeUndefined();
+    expect(mixSale.sellerNet).toBe(24);
+    expect(
+      (await (await authorizedGet("/api/yards/wb?yard=desk", bob)).json()).balance,
+    ).toBe(5);
+    expect((await (await authorizedGet("/api/yards/wb?yard=desk")).json()).balance).toBe(93);
+    const afterAudio = await (await fetch(base + "/api/yards/sale?yard=desk")).json();
+    expect(afterAudio.listings.some((row) => row.id === mixId)).toBe(false);
   });
 });
 

@@ -55,6 +55,14 @@ function text(value, label, max) {
   return out;
 }
 
+function optionalRef(value) {
+  const out = String(value || "").trim();
+  if (!out) return "";
+  if (out.length > 200) throw new HttpError(400, "That reference is too long.");
+  if (/[\u0000-\u001f]/.test(out)) throw new HttpError(400, "That reference is not valid.");
+  return out;
+}
+
 function looksLikePhi(body) {
   const lower = body.toLowerCase();
   return PHI.some((hit) => lower.includes(hit));
@@ -97,7 +105,7 @@ export function createYardDesk(env) {
   const token = (env.TURSO_AUTH_TOKEN || "").trim();
   let ready;
 
-  async function query(sql, args = []) {
+  async function pipeline(sql, args = []) {
     if (!base || !token) {
       throw new HttpError(503, "Shared yard storage is not configured.");
     }
@@ -118,12 +126,35 @@ export function createYardDesk(env) {
     const payload = await res.json().catch(() => null);
     const entry = payload?.results?.[0];
     if (!res.ok || entry?.type !== "ok" || entry.response?.type !== "execute") {
-      throw new HttpError(502, "Shared yard storage could not complete the request. Please retry.");
+      return { rows: [], error: String(entry?.error?.message || "storage") };
     }
     const result = entry.response.result;
-    return (result.rows || []).map((row) =>
-      Object.fromEntries(result.cols.map((col, i) => [col.name, row[i]?.value ?? null])),
-    );
+    return {
+      rows: (result.rows || []).map((row) =>
+        Object.fromEntries(result.cols.map((col, i) => [col.name, row[i]?.value ?? null])),
+      ),
+      error: "",
+    };
+  }
+
+  async function query(sql, args = []) {
+    const result = await pipeline(sql, args);
+    if (result.error) {
+      throw new HttpError(502, "Shared yard storage could not complete the request. Please retry.");
+    }
+    return result.rows;
+  }
+
+  async function ensureColumn(sql) {
+    try {
+      const result = await pipeline(sql);
+      if (!result.error || /duplicate column/i.test(result.error)) return;
+      throw new HttpError(502, "Shared yard storage could not complete the request. Please retry.");
+    } catch (err) {
+      if (err instanceof HttpError) throw err;
+      if (/duplicate column/i.test(String(err?.message || err))) return;
+      throw err;
+    }
   }
 
   async function ensure() {
@@ -148,7 +179,17 @@ export function createYardDesk(env) {
         await query(`CREATE TABLE IF NOT EXISTS yard_listings (
           id INTEGER PRIMARY KEY, yard_id TEXT NOT NULL, seller_handle TEXT NOT NULL,
           title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', price INTEGER NOT NULL,
-          item_type TEXT NOT NULL DEFAULT 'item', sold_to TEXT, created_at TEXT NOT NULL)`);
+          item_type TEXT NOT NULL DEFAULT 'item', sold_to TEXT, created_at TEXT NOT NULL,
+          item_ref TEXT, delivery_hint TEXT, is_nft INTEGER NOT NULL DEFAULT 0,
+          fulfillment_mode TEXT NOT NULL DEFAULT 'escrow')`);
+        await ensureColumn("ALTER TABLE yard_listings ADD COLUMN item_ref TEXT");
+        await ensureColumn("ALTER TABLE yard_listings ADD COLUMN delivery_hint TEXT");
+        await ensureColumn(
+          "ALTER TABLE yard_listings ADD COLUMN is_nft INTEGER NOT NULL DEFAULT 0",
+        );
+        await ensureColumn(
+          "ALTER TABLE yard_listings ADD COLUMN fulfillment_mode TEXT NOT NULL DEFAULT 'escrow'",
+        );
         await query(`CREATE TABLE IF NOT EXISTS yard_escrow (
           id INTEGER PRIMARY KEY, listing_id INTEGER NOT NULL, yard_id TEXT NOT NULL,
           buyer_handle TEXT NOT NULL, seller_handle TEXT NOT NULL, amount INTEGER NOT NULL,
@@ -464,11 +505,14 @@ export function createYardDesk(env) {
       id: num(row.id),
       sellerHandle: String(row.seller_handle),
       itemType: String(row.item_type || "item"),
+      itemRef: row.item_ref ? String(row.item_ref) : null,
       price: num(row.price),
       title: String(row.title),
       description: String(row.description || ""),
+      isNft: num(row.is_nft) === 1,
       townTag: String(row.yard_id),
-      fulfillmentMode: "escrow",
+      fulfillmentMode: String(row.fulfillment_mode || "escrow"),
+      deliveryHint: row.delivery_hint ? String(row.delivery_hint) : null,
       soldTo: row.sold_to ? String(row.sold_to) : null,
       createdAt: String(row.created_at || ""),
     };
@@ -497,11 +541,19 @@ export function createYardDesk(env) {
     if (!Number.isInteger(price) || price < 1 || price > 100000) {
       throw new HttpError(400, "Price must be a whole WeixBucks amount from 1 to 100000.");
     }
+    const itemType = String(body.itemType || body.item_type || "item").slice(0, 40);
+    const itemRef = optionalRef(body.itemRef || body.item_ref);
+    const deliveryHint = optionalRef(body.deliveryHint || body.delivery_hint);
+    const requested = String(body.fulfillmentMode || body.fulfillment_mode || "");
+    const fulfillment =
+      itemType === "mix" && requested === "instant" ? "instant" : "escrow";
+    const isNft = body.isNft === true && itemType !== "mix" ? 1 : 0;
     const id = await nextId("yard_listings");
     await query(
       `INSERT INTO yard_listings
-        (id, yard_id, seller_handle, title, description, price, item_type, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, yard_id, seller_handle, title, description, price, item_type, created_at,
+         item_ref, delivery_hint, is_nft, fulfillment_mode)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         yard,
@@ -509,8 +561,12 @@ export function createYardDesk(env) {
         title,
         description,
         price,
-        String(body.itemType || body.item_type || "item").slice(0, 40),
+        itemType,
         new Date().toISOString(),
+        itemRef || null,
+        deliveryHint || null,
+        isNft,
+        fulfillment,
       ],
     );
     await maybeGrantMark(yard, who);
@@ -532,6 +588,35 @@ export function createYardDesk(env) {
     const sellerNet = price - fee;
     if ((await balanceOf(yard, who)) < price) {
       throw new HttpError(400, "Not enough WeixBucks in this yard.");
+    }
+    if (String(listing.fulfillment_mode || "escrow") === "instant") {
+      const now = new Date().toISOString();
+      await query("UPDATE yard_listings SET sold_to = ? WHERE id = ?", [who, num(listing.id)]);
+      const debitId = await nextId("yard_wb");
+      await query(
+        `INSERT INTO yard_wb (id, yard_id, handle, amount, reason, ref, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [debitId, yard, who, -price, `Yard Sale: ${listing.title}`, `sale:${listing.id}`, now],
+      );
+      await credit(
+        yard,
+        String(listing.seller_handle),
+        sellerNet,
+        `Yard Sale release: ${listing.title}`,
+        `sale-net:${listing.id}`,
+      );
+      await maybeGrantMark(yard, who);
+      return {
+        ok: true,
+        listingId: num(listing.id),
+        status: "released",
+        fulfillmentMode: "instant",
+        amount: price,
+        platformFee: fee,
+        sellerNet,
+        title: String(listing.title),
+        deliveryHint: listing.delivery_hint ? String(listing.delivery_hint) : "",
+      };
     }
     const escrowId = await nextId("yard_escrow");
     const now = new Date().toISOString();
