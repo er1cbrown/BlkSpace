@@ -7,6 +7,7 @@ import { createYardDesk } from "./yard-desk.mjs";
 import { createPortfolio } from "./portfolio.mjs";
 import { createHubs, termsDocument } from "./hubs.mjs";
 import { readYardFile, readYardManifest } from "./yard-photos.mjs";
+import { readSwordVerses } from "./logos-sword.mjs";
 import { listOutboxFiles, receiveTicket, shareOutboxFile, weixnetStatus } from "./weixnet.mjs";
 
 const interactionRoutes = new Map([
@@ -149,6 +150,23 @@ export function createApiHandler(env, { origins, development = false } = {}) {
           version: env.BLKSPACE_REVISION || "development",
           storage: "cloud",
         });
+      }
+
+      // Typeverse's four SWORD modules, read from this machine. No module text
+      // is stored by this route.
+      if (req.method === "GET" && path === "/api/logos/sword") {
+        try {
+          const row = await readSwordVerses(
+            url.searchParams.get("module") || "KJV",
+            url.searchParams.getAll("ref"),
+          );
+          return json(res, 200, row);
+        } catch (err) {
+          return json(res, err.status || 503, {
+            ok: false,
+            error: err.message || "SWORD library is not on this host.",
+          });
+        }
       }
 
       // Local digiKam publishes. Files stay on this machine until the pic post
