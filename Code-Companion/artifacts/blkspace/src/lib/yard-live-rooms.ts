@@ -47,20 +47,27 @@ function signedOut(err: unknown): boolean {
 }
 
 export async function listLiveRooms(yardId: string): Promise<YardLiveRoom[]> {
+  const local = loadAll()
+    .filter((r) => r.yardId === yardId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   try {
     const res = await fetch(
       `/api/yards/rooms?yard=${encodeURIComponent(yardId)}`,
     );
     if (res.ok) {
       const body = await res.json();
-      if (Array.isArray(body.rooms)) return body.rooms as YardLiveRoom[];
+      if (Array.isArray(body.rooms)) {
+        const remote = body.rooms as YardLiveRoom[];
+        const seen = new Set(remote.map((r) => r.id));
+        return [...local.filter((r) => !seen.has(r.id)), ...remote].sort(
+          (a, b) => b.createdAt.localeCompare(a.createdAt),
+        );
+      }
     }
   } catch {
     /* this browser still has its own room list */
   }
-  return loadAll()
-    .filter((r) => r.yardId === yardId)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return local;
 }
 
 function slugify(s: string): string {
@@ -96,7 +103,10 @@ export async function createLiveRoom(input: {
     }
     if (body?.room) return body.room as YardLiveRoom;
   } catch (err) {
-    if (!signedOut(err)) throw err;
+    const message = err instanceof Error ? err.message : "";
+    // A bad external link is the student's input. Every other refusal
+    // (no desk, not a member yet, signed out) still opens a room here.
+    if (message.includes("Paste the Discord")) throw err;
   }
   const title = input.title.trim() || "Yard stage";
   const id = `live_${Date.now().toString(36)}`;

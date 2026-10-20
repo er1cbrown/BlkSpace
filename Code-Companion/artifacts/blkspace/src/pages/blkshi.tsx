@@ -130,9 +130,9 @@ export default function BlkshiPage() {
               WeixBucks.
             </p>
             <p>
-              BI9 is a separate coin on HyperEVM. WeixBucks do not convert into
-              BI9. The contract address is empty on this build, and the mint cap
-              stays 0. An empty address is not something you can buy.
+              BI9 is a separate ERC-20 on Ethereum. WeixBucks do not convert
+              into BI9. The contract address is empty on this build, and the
+              mint cap stays 0. An empty address is not something you can buy.
             </p>
             <p>
               BlkSpace will not ask you to send SOL, HYPE, or dollars to a
@@ -212,7 +212,7 @@ export default function BlkshiPage() {
                   {status.lane?.file || "unknown"}.
                 </li>
                 <li>
-                  BI9: HyperEVM{" "}
+                  BI9: Ethereum{" "}
                   {status.bi9?.reachable
                     ? `chain ${status.bi9.chainId} answered`
                     : "did not answer"}

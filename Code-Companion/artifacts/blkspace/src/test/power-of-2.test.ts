@@ -49,12 +49,11 @@ describe("Power of 2 — ERC-20 is canonical", () => {
     expect(solanaIsCanonicalMint()).toBe(true);
   });
 
-  it("marks BI9 on HyperEVM as retained and not deployable", () => {
-    // Hyperliquid geo-restricts the US, so chain 999 is unreachable for this
-    // operator. See docs/canonical-chain-decision.md
+  it("marks BI9 on Ethereum as not deployed", () => {
     expect(POWER_OF_2.retainedHyperEvm.canonical).toBe(false);
     expect(POWER_OF_2.retainedHyperEvm.token).toBe("BI9");
-    expect(POWER_OF_2.retainedHyperEvm.chain).toBe("hyperevm");
+    expect(POWER_OF_2.retainedHyperEvm.chain).toBe("ethereum");
+    expect(POWER_OF_2.retainedHyperEvm.pillarSub).toBe("Ethereum · BI9");
     expect(hyperEvmDeployable()).toBe(false);
   });
 

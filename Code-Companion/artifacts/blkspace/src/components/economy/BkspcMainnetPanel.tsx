@@ -84,8 +84,8 @@ export function BkspcMainnetPanel({
           {BRAND.symbol} on Solana is the canonical on-chain asset and the only
           creator cash-out of earned {BRAND.softCurrency}. One published ratio,
           on devnet until a funded mint exists. Staking pays no reward — it is
-          governance weight. BI9 on HyperEVM is retained reference code and was
-          never deployed.
+          governance weight. BI9 is an ERC-20 on Ethereum. It is not deployed.
+          WeixBucks never convert into it automatically.
         </p>
 
         <div className="rounded-xl border bg-muted/30 p-3 space-y-1">

@@ -1,6 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
-import { HYPEREVM_MAINNET } from "../../src/lib/hyperevm.ts";
 import { solanaRpcUrl } from "../../src/lib/bkspc-config.ts";
 import {
   probeRelay,
@@ -62,8 +61,8 @@ function socketFactory(modes) {
 
 describe("weixnet lanes", () => {
   test("published chain URLs stay the read sockets", () => {
-    expect(BI9_RPC_URL).toBe(HYPEREVM_MAINNET.rpcUrl);
-    expect(BI9_CHAIN_ID).toBe(HYPEREVM_MAINNET.chainId);
+    expect(BI9_RPC_URL).toBe("https://cloudflare-eth.com");
+    expect(BI9_CHAIN_ID).toBe(1);
     expect(BKSPC_RPC_URL).toBe(solanaRpcUrl("devnet"));
   });
 
@@ -137,11 +136,11 @@ describe("weixnet lanes", () => {
       ],
       localRns: async () => ({ up: true, clients: 1, listen: "127.0.0.1:4242" }),
       fetchFn: async (url, init) => {
-        if (String(url).includes("hyperliquid")) {
+        if (String(url).includes("cloudflare-eth.com")) {
           return {
             ok: true,
             status: 200,
-            json: async () => ({ result: "0x3e7" }),
+            json: async () => ({ result: "0x1" }),
           };
         }
         if (String(url).includes("solana")) {
@@ -154,7 +153,7 @@ describe("weixnet lanes", () => {
     expect(status.chainSocket).toBe("not-connected");
     expect(status.nostr.reachable).toBe(true);
     expect(status.bi9.reachable).toBe(true);
-    expect(status.bi9.chainId).toBe(999);
+    expect(status.bi9.chainId).toBe(1);
     expect(status.bi9.trades).toBe(false);
     expect(status.bi9.cashOut).toBe(false);
     expect(status.bkspc.reachable).toBe(true);

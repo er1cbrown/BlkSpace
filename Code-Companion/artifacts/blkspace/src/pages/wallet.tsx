@@ -541,18 +541,20 @@ function WalletPageContent() {
       <EconomyPillarsBar handle={handle} />
       <ProgressionCard summary={earnSummary} />
 
+      <p
+        id={BETA_FEATURES.showBlkFinance() ? undefined : "hyperevm"}
+        className="mb-4 text-xs text-muted-foreground"
+      >
+        BKSPC on Solana is the canonical on-chain asset — settlement, staking,
+        and governance. BI9 is an ERC-20 on Ethereum. It is not deployed.
+        WeixBucks reach BKSPC only by explicit withdrawal, never automatically.
+      </p>
+
       {BETA_FEATURES.showBlkFinance() ? (
-        <div id="hyperevm" className="mb-8">
+        <div className="mb-8">
           <HyperEvmPanel />
         </div>
-      ) : (
-        <p id="hyperevm" className="mb-4 text-xs text-muted-foreground">
-          BKSPC on Solana is the canonical on-chain asset — settlement, staking,
-          and governance. BI9 on HyperEVM is retained reference code: it was
-          never deployed, because Hyperliquid geo-restricts the US. WeixBucks
-          reach BKSPC only by explicit withdrawal, never automatically.
-        </p>
-      )}
+      ) : null}
 
       <div id="settlement" className="mb-8">
         <BkspcMainnetPanel wbBalance={balance} />

@@ -4,8 +4,8 @@
  * Canonical on-chain asset: BKSPC (Token-2022) on Solana — settlement, non-rewarding
  * staking, and allowlisted timelocked governance.
  *
- * BI9 (ERC-20) on HyperEVM is retained but NOT deployable by this operator: Hyperliquid
- * geo-restricts the US. Decision record: docs/canonical-chain-decision.md
+ * BI9 (ERC-20) is aimed at Ethereum mainnet. It is not deployed.
+ * Decision record: docs/canonical-chain-decision.md
  *
  * Canonical rules: docs/tokenomics.md
  */
@@ -25,19 +25,19 @@ export const POWER_OF_2 = {
     pillarSub: "Solana · BKSPC",
     pillarHref: "#settlement",
   },
-  /** BI9 — retained reference code. Not deployable from this operator's jurisdiction. */
+  /** BI9 — Ethereum ERC-20. Not deployed. Not the settlement coin. */
   retainedHyperEvm: {
     tier: 1,
-    chain: "hyperevm",
-    chainLabel: "HyperEVM",
-    role: "Retained reference contracts — not deployable from the US",
+    chain: "ethereum",
+    chainLabel: "Ethereum",
+    role: "ERC-20 on Ethereum mainnet — not deployed",
     token: "BI9",
     standard: "ERC-20",
     canonical: false,
     wbRatio: null,
     interactsWithWeixBucks: false,
     deployable: false,
-    pillarSub: "HyperEVM · BI9",
+    pillarSub: "Ethereum · BI9",
     pillarHref: "#hyperevm",
   },
 } as const;
@@ -74,7 +74,7 @@ export function solanaIsCanonicalMint(): boolean {
   return POWER_OF_2.canonicalSolana.canonical;
 }
 
-/** BI9 on HyperEVM is retained but not deployable from this operator's jurisdiction. */
+/** BI9 on Ethereum is not deployed. */
 export function hyperEvmDeployable(): boolean {
   return POWER_OF_2.retainedHyperEvm.deployable;
 }

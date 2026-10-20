@@ -117,7 +117,7 @@ export function HyperEvmPanel({ className }: { className?: string }) {
               className="flex w-full items-center gap-2 text-left"
             >
               <CardTitle className="text-base flex items-center gap-2 flex-wrap flex-1">
-                On-chain (HyperEVM)
+                Chain 999 reader
                 <Badge variant={cfg.isMainnet ? "default" : "secondary"}>
                   {cfg.isMainnet ? "mainnet 999" : "testnet 998"}
                 </Badge>
@@ -146,11 +146,11 @@ export function HyperEvmPanel({ className }: { className?: string }) {
         <CollapsibleContent>
           <CardContent className="space-y-4 text-sm">
             <p className="text-muted-foreground text-xs leading-relaxed">
-              Review <strong className="text-foreground">BI9</strong> on
-              HyperEVM the way you would open a balance in Coinbase: address,
-              network, and amount. Practice credits stay WeixBucks. BKSPC is the
-              other coin. There is no buy, sell, or conversion button. This is
-              for learning the numbers, not for trading.
+              This reader is the old chain 999 reference.{" "}
+              <strong className="text-foreground">BI9</strong> is an ERC-20
+              aimed at Ethereum and is not deployed. Practice credits stay
+              WeixBucks. BKSPC on Solana is the settlement coin. There is no
+              buy, sell, or conversion button.
             </p>
 
             <ul className="space-y-1.5 text-xs text-muted-foreground">
@@ -167,15 +167,11 @@ export function HyperEvmPanel({ className }: { className?: string }) {
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                 <div>
                   <p className="font-medium text-amber-800 dark:text-amber-200">
-                    BI9 is not on chain 999 yet
+                    BI9 is not deployed
                   </p>
                   <p className="text-muted-foreground mt-1">
-                    Broadcast{" "}
-                    <code className="text-[10px]">
-                      script/DeployMainnet.s.sol
-                    </code>{" "}
-                    with HYPE for gas, then set the BI9 address. Cap stays 0
-                    (mint off) until a timelocked propose.
+                    BI9 is aimed at Ethereum. This chain 999 reader stays
+                    closed. Do not broadcast a mint from here. Cap stays 0.
                   </p>
                 </div>
               </div>

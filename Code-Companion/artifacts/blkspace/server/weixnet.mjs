@@ -9,8 +9,8 @@ import path from "node:path";
 import { probeWeixnetRelays } from "../src/lib/weixnet-relays.ts";
 import { HttpError } from "./http.mjs";
 
-export const BI9_RPC_URL = "https://rpc.hyperliquid.xyz/evm";
-export const BI9_CHAIN_ID = 999;
+export const BI9_RPC_URL = "https://cloudflare-eth.com";
+export const BI9_CHAIN_ID = 1;
 export const BKSPC_RPC_URL = "https://api.devnet.solana.com";
 export const IROH_RELAY_HTTP = "https://use1-1.relay.n0.iroh.link/";
 
@@ -183,7 +183,7 @@ export async function weixnetStatus(deps = {}) {
       cashOut: false,
       detail: bi9rpc.ok
         ? ""
-        : bi9rpc.error || "HyperEVM did not answer",
+        : bi9rpc.error || "Ethereum did not answer",
     },
     bkspc: {
       reachable: bkspcRpc.ok && bkspcRpc.result === "ok",
