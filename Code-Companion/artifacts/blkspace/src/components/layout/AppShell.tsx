@@ -28,6 +28,8 @@ import {
   Shield,
   Trophy,
   Joystick,
+  Keyboard,
+  Headphones,
   TerminalSquare,
 } from "lucide-react";
 import { getCurrentHandle } from "@/lib/auth";
@@ -178,7 +180,9 @@ export function AppShell({
     { href: "/blkshi", label: "BLKSHI", icon: Share2, show: true },
     { href: "/messages", label: "Messages", icon: MessageCircle, show: true },
     { href: "/hub", label: "Hub", icon: Layers, show: true },
+    { href: "/audio", label: "Audio", icon: Headphones, show: true },
     { href: "/arcade", label: "Arcade", icon: Joystick, show: true },
+    { href: "/typeverse", label: "Typeverse", icon: Keyboard, show: true },
     {
       href: "/focus",
       label: "Focus",
@@ -238,6 +242,26 @@ export function AppShell({
           <BrandMark size="sm" />
         </Link>
         <div className="flex items-center gap-1">
+          <Link href="/audio">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              aria-label="Audio"
+            >
+              <Headphones className="h-5 w-5" />
+            </Button>
+          </Link>
+          <Link href="/typeverse">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              aria-label="typeverse"
+            >
+              <Keyboard className="h-5 w-5" />
+            </Button>
+          </Link>
           <Link href="/search">
             <Button variant="ghost" size="icon" className="rounded-full">
               <Search className="h-5 w-5" />

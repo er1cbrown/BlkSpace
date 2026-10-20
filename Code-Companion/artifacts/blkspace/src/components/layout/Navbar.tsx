@@ -17,8 +17,10 @@ export function Navbar() {
   const navItems = [
     { href: "/feed", label: "Feed" },
     { href: "/hub", label: "Hub" },
+    { href: "/audio", label: "Audio" },
     { href: "/blkshi", label: "BLKSHI" },
     { href: "/arcade", label: "Arcade" },
+    { href: "/typeverse", label: "Typeverse" },
     { href: "/focus", label: "Focus" },
     { href: "/faculty", label: "Faculty" },
     { href: "/messages", label: "Messages" },

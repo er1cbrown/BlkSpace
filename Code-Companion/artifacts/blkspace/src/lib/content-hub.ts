@@ -19,7 +19,14 @@ export type HubTopic =
   | "systems";
 
 export type HubItemKind =
-  "post" | "video" | "article" | "stream" | "portfolio" | "lesson" | "playable";
+  | "post"
+  | "video"
+  | "article"
+  | "stream"
+  | "portfolio"
+  | "lesson"
+  | "playable"
+  | "audio";
 
 export interface HubItem {
   id: string;
@@ -73,8 +80,8 @@ export const HUB_TOPICS: {
   {
     id: "music",
     label: "Music & mixes",
-    blurb: "Profile songs, DJ drops, show recaps.",
-    earnAngle: "Uploads · tips · merch",
+    blurb: "Profile songs, mixtapes, and DJ drops you can play in the yard.",
+    earnAngle: "Play · list a BlkCore edition · tips later",
   },
   {
     id: "pro",

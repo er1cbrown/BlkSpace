@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SendmeLaneCard } from "@/components/weixnet/SendmeLaneCard";
+import { listMixtapes } from "@/lib/audio-mixtapes";
 
 type LaneStatus = {
   chainSocket: string;
@@ -80,6 +81,37 @@ export default function BlkshiPage() {
               Yard Cred is reputation. It is not spendable and it does not
               convert into WeixBucks.
             </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Audio editions</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground space-y-2">
+            <p>
+              A mixtape listed from Audio is a BlkCore catalog row: a copy count
+              priced in WeixBucks. BLKSHI shows that row. It does not take the
+              trade, and it does not mint a Solana NFT.
+            </p>
+            {listMixtapes().length === 0 ? (
+              <p>No audio editions on this device.</p>
+            ) : (
+              <ul className="space-y-1">
+                {listMixtapes().map((mix) => (
+                  <li key={mix.id}>
+                    {mix.title} ·{" "}
+                    {mix.priceWb > 0 ? `${mix.priceWb} WB` : "free"} ·{" "}
+                    {mix.editionSize} copies
+                    {mix.listingId
+                      ? ` · sale #${mix.listingId}`
+                      : " · not listed"}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link href="/audio" className="underline text-sm">
+              Open Audio
+            </Link>
           </CardContent>
         </Card>
         <Card>

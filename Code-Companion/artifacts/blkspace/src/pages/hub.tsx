@@ -29,11 +29,15 @@ import {
   ExternalLink,
   Gamepad2,
   GraduationCap,
+  Headphones,
+  Keyboard,
   Layers,
   Plus,
   Radio,
 } from "lucide-react";
 import { toast } from "sonner";
+import { MixtapePlayer } from "@/components/media/MixtapePlayer";
+import { getMixtape, parseMixtapeRef } from "@/lib/audio-mixtapes";
 import { loadUiPrefs } from "@/lib/ui-prefs";
 import {
   disciplineUpliftLine,
@@ -214,6 +218,18 @@ export default function HubPage() {
                 Yard Arcade
               </Button>
             </Link>
+            <Link href="/audio">
+              <Button size="sm" variant="outline" className="gap-1">
+                <Headphones className="w-3.5 h-3.5" />
+                Audio
+              </Button>
+            </Link>
+            <Link href="/typeverse">
+              <Button size="sm" variant="outline" className="gap-1">
+                <Keyboard className="w-3.5 h-3.5" />
+                typeverse
+              </Button>
+            </Link>
             <Link href="/create">
               <Button size="sm" variant="outline" className="gap-1">
                 <Clapperboard className="w-3.5 h-3.5" />
@@ -319,6 +335,7 @@ export default function HubPage() {
                         "article",
                         "portfolio",
                         "playable",
+                        "audio",
                       ] as HubItemKind[]
                     ).map((k) => (
                       <SelectItem key={k} value={k}>
@@ -376,6 +393,13 @@ export default function HubPage() {
                   {item.title}
                 </h2>
                 <p className="text-sm text-muted-foreground">{item.body}</p>
+                {(() => {
+                  const mixtapeId = parseMixtapeRef(item.mediaUrl);
+                  const mixtape = mixtapeId ? getMixtape(mixtapeId) : null;
+                  return mixtape ? (
+                    <MixtapePlayer mixtape={mixtape} compact />
+                  ) : null;
+                })()}
                 <div className="flex flex-wrap gap-2 pt-1">
                   <ShareCardButton
                     variant="outline"
