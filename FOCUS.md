@@ -1,13 +1,13 @@
 # Active focus (2026-10-08)
 
-**Canonical on-chain asset is BKSPC on Solana.** BI9 / HyperEVM is retained as code but is
-**not deployable by this operator** — Hyperliquid geo-restricts the US. Decision record:
+**Canonical on-chain asset is BKSPC on Solana.** BI9 is a separate ERC-20 aimed at
+Ethereum. It is not deployed and it is not a HyperEVM asset. Decision record:
 [`docs/canonical-chain-decision.md`](docs/canonical-chain-decision.md).
 
 | Tree | Status |
 |------|--------|
 | **Solana BKSPC** | **Canonical.** Earned WeixBucks settle into it at 1,000 WB = 1 BKSPC on Solana devnet. Non-rewarding staking plus allowlisted timelocked governance. Minting requires the on-chain `minter` and is bounded by a one-way `cap` that governance can only lower. Blocked on devnet SOL for the first real deploy. |
-| **HyperEVM / BI9** | **Retained, not deployable.** Hyperliquid geo-restricts the US; this operator is in Tennessee. `DeployMainnet.s.sol` only accepts chain 999, so the old plan was never executable. 38 forge tests still pass against the retained contracts. Leave as reference. Do not deploy. |
+| **BI9** | **Ethereum ERC-20, not deployed.** Separate from BKSPC. Cap 0, minter unset. Not paid from WeixBucks. The chain 999 contracts in `artifacts/hyperevm/` are old reference code. Do not deploy them. |
 | **Order book listing** | OpenBook v2 (CLOB on Solana, open source, permissionless) is the intended venue. Raydium/Orca are constant-product AMMs — a different venue type, not a better one. Sui/DeepBook v3 stays open as a later fallback if liquidity proves too thin; do not pre-empt that. |
 | **`rustytempleOS/`** | Paused (Phase 1 VFS still next on that tree) |
 | **BlkSpace campus app** | Keep shipping WeixBucks / Yard. Do not delete assets, keys, or CI. |

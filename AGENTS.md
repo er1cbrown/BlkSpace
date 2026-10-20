@@ -8,10 +8,10 @@ Tauri 2 + React + TypeScript. BlkCore is off-chain (Nostr + Iroh + WeixBucks).
 non-rewarding staking, and allowlisted timelocked governance. Never auto-convert
 WeixBucks.
 
-BI9 on HyperEVM is **not deployable by this operator**: Hyperliquid geo-restricts the US
-and this operator is in Tennessee. The contracts under `Code-Companion/artifacts/hyperevm/`
-are retained and tested but are **not** canonical, **not** a fallback, and **not** on the
-roadmap. Do not deploy to chain 999 and do not revive the BI9 plan. See
+BI9 is a separate **ERC-20 aimed at Ethereum**. It is not deployed (`cap` 0, minter unset),
+not the cash-out, and not a HyperEVM asset. The contracts under
+`Code-Companion/artifacts/hyperevm/` are old chain 999 reference code. Do not deploy to
+chain 999 and do not broadcast a BI9 mint. See
 [`docs/canonical-chain-decision.md`](docs/canonical-chain-decision.md).
 Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 
@@ -34,7 +34,7 @@ Cross-platform: macOS, Windows, Linux, iOS, Android (future).
 - `docs/TOP_DOWN_APPROACH.md` — Nostr/Iroh/Solana to 5-layer network stack
 - `docs/security-considerations.md` — Nostr attack mitigations
 - `docs/architecture-blueprint.md` — Federated College-Town Relay Mesh
-- `docs/finance-l1-strategy.md` — BI9 on HyperEVM; BlkBridge + BLKSHI (do not skip BlkCore)
+- `docs/finance-l1-strategy.md` — old HyperEVM plan, superseded; BlkBridge + BLKSHI (do not skip BlkCore)
 - `docs/tokenomics.md` — canonical tokenomics (WeixBucks off-chain, **BKSPC on Solana**)
 - `docs/canonical-chain-decision.md` — why Solana/BKSPC is canonical and BI9 is not
 - `docs/features/comparative-multi-chain-prototyping-study.md` — optional IEEE dual-chain role split (Power of 2)
@@ -69,7 +69,7 @@ BlkSpace/ (cloned root)
 │   │   ├── api-server/     ← Express API server (alternative deployment)
 │   │   ├── mockup-sandbox/ ← UI component showcase
 │   │   ├── solana/         ← Anchor: BKSPC — CANONICAL on-chain asset
-│   │   └── hyperevm/       ← Solidity: BI9 ERC-20 — RETAINED, NOT DEPLOYABLE (US geo)
+│   │   └── hyperevm/       ← Solidity: old chain 999 reference. BI9 is an undeployed Ethereum ERC-20.
 │   ├── lib/                ← workspace packages (api-client-react, api-spec, api-zod, db)
 │   ├── scripts/            ← utility scripts
 │   └── package.json        ← Bun workspace root
@@ -85,7 +85,7 @@ BlkSpace/ (cloned root)
 4. Write tests for new features (Vitest for frontend, Rust tests for Tauri)
 5. Keep dependencies minimal — every byte counts on low-end machines
 6. Blockchain: BlkCore stays off-chain. Canonical on-chain asset is **BKSPC on Solana** (`Code-Companion/artifacts/solana/`). It holds a program-PDA mint authority, requires an on-chain `minter` signer, and enforces a one-way supply `cap` that governance may only lower. Never auto-convert WeixBucks.
-6c. **Do not deploy to HyperEVM.** BI9 is not deployable from this operator's jurisdiction and is not canonical. Leave `artifacts/hyperevm/` as dead reference code.
+6c. **Do not deploy BI9.** It is an undeployed Ethereum ERC-20, not a HyperEVM asset, and not canonical. Leave `artifacts/hyperevm/` as chain 999 reference code. Do not broadcast a mint.
 6a. **BKSPC minting is not permissionless.** `convert_wb_to_bkspc` requires `convert_config.minter` to sign and rejects any mint above `cap`. Do not weaken this — it was an exploitable hole until 2026-10-08. Staking pays **no reward**, and governance has **no arbitrary-CPI instruction**. See [`docs/bkspc-settlement-hardening.md`](docs/bkspc-settlement-hardening.md).
 6b. The `bkspc-devnet` Cargo feature gates the entire WB→BKSPC settlement path and is **not** a default feature. `check-tauri-bkspc` compiles it on three OSes; `build-tauri-bkspc` ships one Linux installer. Builds without it must refuse settlement rather than fabricate a transaction signature.
 7. Use **Bun** only (`bun install`, `bun run …`). Do not use pnpm/npm/yarn.

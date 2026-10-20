@@ -80,7 +80,7 @@ Hardware-constrained students at HBCUs still depend on centralized social platfo
 - Yard install is not full P2P mesh  
 - Stories (this pack) are not yet multi-device protocol  
 - No guaranteed token returns  
-- *(Amended 2026-10-08)* Canonical on-chain asset is **BKSPC on Solana**; BI9/HyperEVM is retained reference code, not deployable from the US  
+- *(Amended 2026-10-20)* Canonical on-chain asset is **BKSPC on Solana**. BI9 is an undeployed Ethereum ERC-20, not a HyperEVM asset.  
 
 ### Persona result shells (fill after run)
 
@@ -107,12 +107,12 @@ Base URL: `https://api.x.ai/v1` — never ship keys in the Tauri/Vite bundle.
 
 | Rule | Line |
 |------|------|
-| Canonical mint | **BI9 ERC-20 on HyperEVM** — we are doing ERC-20 |
-| Optional prototype | Solana Devnet BKSPC (Token-2022) — not the mint home |
-| WeixBucks | Off-chain; **no** auto-convert to BI9 |
+| Canonical mint | **BKSPC Token-2022 on Solana** |
+| Separate token | BI9 ERC-20 aimed at Ethereum — not deployed, not a HyperEVM asset |
+| WeixBucks | Off-chain; **no** auto-convert to BKSPC or BI9 |
 | Paper | [`features/comparative-multi-chain-prototyping-study.md`](features/comparative-multi-chain-prototyping-study.md) |
 
-**Podium sentence:** *(amended 2026-10-08)* the canonical on-chain asset is BKSPC, Token-2022, on Solana. WeixBucks do not auto-convert. BI9 on HyperEVM is retained reference code and was never deployed.
+**Podium sentence:** *(amended 2026-10-20)* the canonical on-chain asset is BKSPC, Token-2022, on Solana. WeixBucks do not auto-convert. BI9 is an ERC-20 aimed at Ethereum and was never deployed.
 
 ---
 

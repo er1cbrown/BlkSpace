@@ -39,7 +39,7 @@ function injectedEthereum(): EthereumProvider | undefined {
 }
 
 /**
- * Read-only HyperEVM / BI9 review for students. Collapsed by default.
+ * Read-only chain 999 reference. BI9 is not a HyperEVM asset. Collapsed by default.
  * Never converts WeixBucks. Not a trading desk.
  */
 export function HyperEvmPanel({ className }: { className?: string }) {

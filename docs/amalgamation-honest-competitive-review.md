@@ -69,7 +69,7 @@ These are real, not slogan:
 - **Phone.** Existing media *is* the phone. A great Windows yard is a lab and a church computer. It is not the habit. Until mobile (or a hosted web rung that feels native), BlkSpace amalgamates for people who will still screenshot into GroupMe.
 - **Empty graph.** Instagram’s product is other people. An amalgamation with seed orgs is a demo. Network effects are the competitor, not the tab list.
 - **20 surfaces, one attention budget.** Arcade, rollback netplay, SBF trilogy, Reticulum, LogosDecks, BLKSHI — that is builder amalgamation. Users amalgamate *what they open every day*. Extra tabs without a full yard make the app feel unfinished, not complete.
-- **Finance as a 13th network.** HyperEVM / BI9 / BlkBridge does not make this more like Instagram. It makes a second product. WeChat only got pay after chat was oxygen. Do not skip BlkCore.
+- **Finance as a 13th network.** A chain reader, BI9, or BlkBridge does not make this more like Instagram. It makes a second product. WeChat only got pay after chat was oxygen. Do not skip BlkCore.
 
 ---
 

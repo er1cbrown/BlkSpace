@@ -26,7 +26,7 @@ Move assets a user **already holds** onto the BlkSpace finance layer with as lit
 
 | In | Out |
 |---|---|
-| Stables, HYPE, SOL, common L2 assets | HyperEVM wallet (BI9 / HYPE / stables) |
+| Stables, HYPE, SOL, common L2 assets | The wallet the user picked (HYPE / stables). BI9 is not a HyperEVM asset. |
 | HyperEVM balances | HyperCore Spot or Perps (when the user asks) |
 | Portfolio collateral | BLKSHI desk (later) |
 | Finance-layer proceeds | User wallet on the destination they picked |
@@ -41,7 +41,7 @@ The user picks **one** destination before signing. Do not hide HyperCore vs Hype
 
 | Code | Label in UI | What it means |
 |---|---|---|
-| `hyperevm` | **HyperEVM wallet** | ERC-20 / native HYPE on HyperEVM. Default for BI9 and BLKSHI. |
+| `hyperevm` | **Chain 999 wallet** | Native HYPE on chain 999. Not the home of BI9. |
 | `hypercore-spot` | **HyperCore Spot** | Hyperliquid spot clearing. Only when the user needs Core spot. |
 | `hypercore-perps` | **HyperCore Perps** | Hyperliquid perps margin. Only when the user needs Core perps. |
 
@@ -192,7 +192,7 @@ No WeixBucks column. No “BI9 minted from WB” column.
 
 - Frontend: quote → review sheet → wallet send → poll rail + destination.
 - Tauri: no custom rust bridge protocol. HTTP to rail APIs + wallet deep-link / injected provider.
-- BI9 balance: `balanceOf` on HyperEVM once the token is deployed (`artifacts/hyperevm`).
+- BI9 balance: an Ethereum `balanceOf` only after a real deploy. BI9 is not a chain 999 token. `artifacts/hyperevm` is old reference code.
 - Tests: quote parsing, destination enum exhaustiveness, “WB excluded from asset list,” expired quote rejection.
 - Feature flag: `blkfinance` / advanced mode. Yard build can compile with the UI stubbed.
 

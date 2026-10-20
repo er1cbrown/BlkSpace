@@ -34,7 +34,7 @@ export const PLATFORM_RULES = [
   "WB is earn-only — not sold for USD",
   "Creators sell in the marketplace for WB; platform fee applies",
   "Karma is reputation only — never spendable",
-  "BKSPC on Solana is the canonical on-chain asset; listings require legal review. WeixBucks do not auto-convert. BI9 on HyperEVM is retained reference code and was never deployed.",
+  "BKSPC on Solana is the canonical on-chain asset; listings require legal review. WeixBucks do not auto-convert. BI9 is an ERC-20 aimed at Ethereum and is not deployed.",
   "Fees, caps, and throttle rules are always visible in wallet",
 ] as const;
 

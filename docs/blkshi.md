@@ -43,7 +43,7 @@ Social identity (Nostr) stays off the ticket tape. Bind a HyperEVM address as a 
 ```
 Existing portfolio (user already holds assets)
         ↓
-BlkBridge → HyperEVM (stables, HYPE, later BI9)
+BlkBridge → the venue the user picked (stables, HYPE). BI9 is not a HyperEVM asset.
         ↓
 BLKSHI desk
    • event contracts (yes/no or defined outcomes)
@@ -73,7 +73,7 @@ Kalshi-style **binary** (yes/no) or **categorical** contracts with:
 | `resolution_time` | Window, not “whenever an admin feels like it” |
 | `tick_size` / `lot` | Discrete prices, e.g. 1¢–99¢ if using probability-style quotes |
 | `cap` | Per-user and per-market notional caps in v1 |
-| `collateral` | HyperEVM stable and/or HYPE (BI9 later) |
+| `collateral` | Stable and/or HYPE. BI9 is not a HyperEVM asset and is not deployed. |
 
 No open-ended “what will happen?” markets. No sportsbook framing. No campus gossip markets in v1.
 

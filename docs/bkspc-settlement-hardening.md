@@ -102,7 +102,7 @@ the earn, permanently inflating the daily-cap denominator — which is recompute
   path that sets it. Counsel sign-off and an external audit are still gates.
 - Staking deliberately pays no yield. A yield promise attached to a token marketed to
   sponsors is a materially larger problem than the missing feature.
-- BI9 remains `cap == 0` on HyperEVM with an unset minter. Nothing in this change touches it.
+- BI9 remains `cap == 0` with an unset minter. It is an undeployed Ethereum ERC-20, not a HyperEVM asset. Nothing in this change deploys it.
 
 ## Verification performed — final
 
