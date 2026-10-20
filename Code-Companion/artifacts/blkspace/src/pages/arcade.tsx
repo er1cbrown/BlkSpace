@@ -53,6 +53,7 @@ import {
   Layers,
 } from "lucide-react";
 import { toast } from "sonner";
+import { DjBattlePanel } from "@/components/arcade/DjBattlePanel";
 
 /**
  * Yard Arcade — homebrew campus games shelf.
@@ -337,6 +338,10 @@ export default function ArcadePage() {
             </CardHeader>
           </Card>
         </Link>
+
+        <DjBattlePanel
+          yardId={yardFilter === "all" ? prefs.homeYardId || "tsu" : yardFilter}
+        />
 
         <div className="grid gap-3 sm:grid-cols-2">
           {games.map((item) => {

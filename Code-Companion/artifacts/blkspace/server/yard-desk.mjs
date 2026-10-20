@@ -101,9 +101,11 @@ function externalUrl(value) {
     host.endsWith(".meet.jit.si") ||
     host === "teams.microsoft.com" ||
     host.endsWith(".teams.microsoft.com") ||
+    host === "slack.com" ||
+    host.endsWith(".slack.com") ||
     host.endsWith(".edu");
   if (!allowed) {
-    throw new HttpError(400, "Use a Discord, Zoom, YouTube, Meet, or .edu link.");
+    throw new HttpError(400, "Use a Discord, Slack, Zoom, YouTube, Meet, or .edu link.");
   }
   return url.href;
 }
@@ -221,7 +223,16 @@ export function createYardDesk(env) {
           id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, title TEXT NOT NULL,
           body TEXT NOT NULL DEFAULT '', tracks TEXT NOT NULL, author_handle TEXT NOT NULL,
           author_display TEXT NOT NULL DEFAULT '', price_wb INTEGER NOT NULL DEFAULT 0,
-          edition_size INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL)`);
+          edition_size INTEGER NOT NULL DEFAULT 1, set_kind TEXT NOT NULL DEFAULT 'songs',
+          created_at TEXT NOT NULL)`);
+        await ensureColumn(
+          "ALTER TABLE yard_mixtapes ADD COLUMN set_kind TEXT NOT NULL DEFAULT 'songs'",
+        );
+        await query(`CREATE TABLE IF NOT EXISTS yard_dj_battles (
+          id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, title TEXT NOT NULL,
+          mix_id TEXT NOT NULL, mix_title TEXT NOT NULL, set_kind TEXT NOT NULL DEFAULT 'songs',
+          call_url TEXT NOT NULL DEFAULT '', jitsi_slug TEXT NOT NULL,
+          host_handle TEXT NOT NULL, created_at TEXT NOT NULL)`);
       })();
     }
     await ready;
@@ -781,6 +792,16 @@ export function createYardDesk(env) {
     return id;
   }
 
+  function trackSrc(value) {
+    const out = String(value || "").trim();
+    if (/^verse:[A-Za-z0-9][A-Za-z0-9 .:'-]{1,78}$/.test(out)) return out;
+    return mediaRef(out);
+  }
+
+  function setKindOf(value) {
+    return value === "verses" || value === "logos" ? value : "songs";
+  }
+
   function mediaRef(value) {
     const out = String(value || "").trim();
     if (!out) throw new HttpError(400, "Add a photo, a track, or an https link.");
@@ -847,8 +868,24 @@ export function createYardDesk(env) {
       createdAt: String(row.created_at),
       priceWb: num(row.price_wb),
       editionSize: num(row.edition_size) || 1,
+      setKind: setKindOf(row.set_kind),
       listingId: null,
       hubItemId: null,
+    };
+  }
+
+  function mapBattle(row) {
+    return {
+      id: String(row.id),
+      yardId: String(row.yard_id),
+      title: String(row.title),
+      mixId: String(row.mix_id),
+      mixTitle: String(row.mix_title),
+      setKind: setKindOf(row.set_kind),
+      callUrl: String(row.call_url || ""),
+      jitsiSlug: String(row.jitsi_slug),
+      hostHandle: String(row.host_handle),
+      createdAt: String(row.created_at),
     };
   }
 
@@ -958,11 +995,11 @@ export function createYardDesk(env) {
     await ensure();
     const rows = id
       ? await query(
-          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, created_at FROM yard_mixtapes WHERE yard_id = ? ORDER BY created_at DESC",
+          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, created_at FROM yard_mixtapes WHERE yard_id = ? ORDER BY created_at DESC",
           [id],
         )
       : await query(
-          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, created_at FROM yard_mixtapes ORDER BY created_at DESC",
+          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, created_at FROM yard_mixtapes ORDER BY created_at DESC",
         );
     return { ok: true, mixtapes: rows.map(mapMixtape) };
   }
@@ -983,11 +1020,15 @@ export function createYardDesk(env) {
       return {
         id,
         title: text(track?.title, "Track", 80),
-        src: mediaRef(track?.src),
+        src: trackSrc(track?.src),
       };
     });
     const packed = JSON.stringify(clean);
     if (packed.length > 8000) throw new HttpError(400, "That mixtape is too large to share.");
+    const setKind = setKindOf(body.setKind);
+    if (setKind === "songs" && clean.some((track) => String(track.src).startsWith("verse:"))) {
+      throw new HttpError(400, "A song set needs an audio file or an https link on every row.");
+    }
     const priceWb = Math.max(0, Math.min(100000, Math.floor(num(body.priceWb))));
     const editionSize = Math.max(1, Math.min(100, Math.floor(num(body.editionSize) || 1)));
     const display = optionalText(body.authorDisplayName, 40) || who;
@@ -998,18 +1039,70 @@ export function createYardDesk(env) {
       await query(
         `INSERT INTO yard_mixtapes (
            id, yard_id, title, body, tracks, author_handle, author_display,
-           price_wb, edition_size, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, yard, title, blurb, packed, who, display, priceWb, editionSize, stamp(body.createdAt)],
+           price_wb, edition_size, set_kind, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, yard, title, blurb, packed, who, display, priceWb, editionSize, setKind, stamp(body.createdAt)],
       );
     }
     const row = (
       await query(
-        "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, created_at FROM yard_mixtapes WHERE id = ? LIMIT 1",
+        "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, created_at FROM yard_mixtapes WHERE id = ? LIMIT 1",
         [id],
       )
     )[0];
     return { ok: true, mixtape: mapMixtape(row) };
+  }
+
+  async function battles(yard) {
+    const id = yard ? yardId(yard) : "";
+    await ensure();
+    const rows = id
+      ? await query(
+          "SELECT id, yard_id, title, mix_id, mix_title, set_kind, call_url, jitsi_slug, host_handle, created_at FROM yard_dj_battles WHERE yard_id = ? ORDER BY created_at DESC",
+          [id],
+        )
+      : await query(
+          "SELECT id, yard_id, title, mix_id, mix_title, set_kind, call_url, jitsi_slug, host_handle, created_at FROM yard_dj_battles ORDER BY created_at DESC",
+        );
+    return { ok: true, battles: rows.map(mapBattle) };
+  }
+
+  async function saveBattle(body, pubkey) {
+    const yard = yardId(body.yardId);
+    const who = await actor(pubkey);
+    await requireMember(yard, who);
+    const id = rowId(body.id, "Battle");
+    const title = text(body.title, "Battle name", 80);
+    const mixId = rowId(body.mixId, "Mix");
+    const mixTitle = text(body.mixTitle, "Mix", 80);
+    const setKind = setKindOf(body.setKind);
+    const call = body.callUrl ? externalUrl(body.callUrl) : "";
+    const slugRaw = String(body.jitsiSlug || "").trim();
+    const slug = /^BkspcBattle[A-Za-z0-9]{4,48}$/.test(slugRaw)
+      ? slugRaw
+      : `BkspcBattle${yard.replace(/[^a-z0-9]/gi, "").slice(0, 12)}${Date.now().toString(36)}`;
+    const existing = (
+      await query("SELECT id FROM yard_dj_battles WHERE id = ? LIMIT 1", [id])
+    )[0];
+    if (!existing) {
+      const count = (
+        await query("SELECT COUNT(*) AS n FROM yard_dj_battles WHERE yard_id = ?", [yard])
+      )[0];
+      if (num(count?.n) >= 24) throw new HttpError(400, "This yard battle list is full.");
+      await query(
+        `INSERT INTO yard_dj_battles (
+           id, yard_id, title, mix_id, mix_title, set_kind, call_url, jitsi_slug, host_handle, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, yard, title, mixId, mixTitle, setKind, call, slug, who, stamp(body.createdAt)],
+      );
+    }
+    const row = (
+      await query(
+        "SELECT id, yard_id, title, mix_id, mix_title, set_kind, call_url, jitsi_slug, host_handle, created_at FROM yard_dj_battles WHERE id = ? LIMIT 1",
+        [id],
+      )
+    )[0];
+    return { ok: true, battle: mapBattle(row) };
   }
 
   return {
@@ -1032,5 +1125,7 @@ export function createYardDesk(env) {
     savePin,
     mixtapes,
     saveMixtape,
+    battles,
+    saveBattle,
   };
 }

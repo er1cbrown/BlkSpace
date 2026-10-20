@@ -209,6 +209,9 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (req.method === "GET" && path === "/api/yards/mixtapes") {
         return json(res, 200, await desk.mixtapes(url.searchParams.get("yard") || ""));
       }
+      if (req.method === "GET" && path === "/api/yards/battles") {
+        return json(res, 200, await desk.battles(url.searchParams.get("yard") || ""));
+      }
       if (req.method === "GET" && path === "/api/yards/messages") {
         const pubkey = authenticate(req, "", allowed);
         return json(
@@ -402,6 +405,7 @@ export function createApiHandler(env, { origins, development = false } = {}) {
             "/api/yards/boards",
             "/api/yards/pins",
             "/api/yards/mixtapes",
+            "/api/yards/battles",
             "/api/yards/messages",
             "/api/yards/sale",
             "/api/yards/sale/buy",
@@ -490,6 +494,9 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       }
       if (path === "/api/yards/mixtapes") {
         return json(res, 200, await desk.saveMixtape(body, pubkey));
+      }
+      if (path === "/api/yards/battles") {
+        return json(res, 200, await desk.saveBattle(body, pubkey));
       }
       if (path === "/api/yards/rooms/close") {
         return json(res, 200, await desk.closeRoom(body, pubkey));

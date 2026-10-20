@@ -15,6 +15,8 @@ import {
   mixtapeListingArgs,
   publishMixtape,
   syncMixtapes,
+  verseTrackSrc,
+  type MixSetKind,
   type MixtapeTrack,
 } from "@/lib/audio-mixtapes";
 import { createMarketplaceListing } from "@/lib/marketplace-escrow";
@@ -46,6 +48,8 @@ export default function AudioPage() {
   const [edition, setEdition] = useState("10");
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const [setKind, setSetKind] = useState<MixSetKind>("songs");
+  const [verseRef, setVerseRef] = useState("");
   const [tracks, setTracks] = useState<MixtapeTrack[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -122,6 +126,27 @@ export default function AudioPage() {
     setLinkUrl("");
   };
 
+  const addVerse = () => {
+    try {
+      const src = verseTrackSrc(verseRef);
+      setTracks((cur) =>
+        [
+          ...cur,
+          {
+            id: `verse_${cur.length}`,
+            title: src.slice(6),
+            src,
+          },
+        ].slice(0, 12),
+      );
+      setVerseRef("");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "That verse did not parse",
+      );
+    }
+  };
+
   const publish = () => {
     if (isGuest) {
       signIn();
@@ -134,6 +159,7 @@ export default function AudioPage() {
         tracks,
         priceWb: Number.parseInt(price, 10) || 0,
         editionSize: Number.parseInt(edition, 10) || 1,
+        setKind,
       });
       setTitle("");
       setBody("");
@@ -181,10 +207,10 @@ export default function AudioPage() {
             <Badge variant="outline">BlkCore</Badge>
           </div>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            Put a song or a mixtape on the hub. People play it here. A priced
-            set can sit on Yard Sale as a BlkCore edition (a copy count in
-            WeixBucks). That is not a Solana NFT, and BLKSHI does not take the
-            trade.
+            Publish a song mix, a verse mix, or a Logos Deck. People play an
+            audio file here, or read a verse row. A priced set can sit on Yard
+            Sale as a BlkCore edition (a copy count in WeixBucks). That is not a
+            Solana NFT, and BLKSHI does not take the trade.
           </p>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             <span>MySpace — one song on your page.</span>
@@ -198,6 +224,16 @@ export default function AudioPage() {
             <CardTitle className="text-base">Publish a set</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
+            <select
+              aria-label="Set kind"
+              value={setKind}
+              onChange={(event) => setSetKind(event.target.value as MixSetKind)}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            >
+              <option value="songs">Song mix</option>
+              <option value="verses">Verse mix</option>
+              <option value="logos">Logos Deck</option>
+            </select>
             <Input
               placeholder="Title"
               value={title}
@@ -234,6 +270,24 @@ export default function AudioPage() {
                 e.target.value = "";
               }}
             />
+            {setKind !== "songs" && (
+              <div className="grid sm:grid-cols-[1fr_auto] gap-2">
+                <Input
+                  placeholder="Verse, like Isaiah 53:5"
+                  value={verseRef}
+                  onChange={(event) => setVerseRef(event.target.value)}
+                  aria-label="Verse reference"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addVerse}
+                >
+                  Add verse
+                </Button>
+              </div>
+            )}
             <div className="grid sm:grid-cols-[1fr_1.4fr_auto] gap-2">
               <Input
                 placeholder="Track name"
@@ -282,7 +336,12 @@ export default function AudioPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">{mixtape.title}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  @{mixtape.authorHandle} · {mixtape.editionSize} copies ·{" "}
+                  {mixtape.setKind === "logos"
+                    ? "Logos Deck"
+                    : mixtape.setKind === "verses"
+                      ? "Verse mix"
+                      : "Song mix"}{" "}
+                  · @{mixtape.authorHandle} · {mixtape.editionSize} copies ·{" "}
                   {mixtape.priceWb > 0 ? `${mixtape.priceWb} WB` : "free"}
                   {mixtape.listingId
                     ? ` · Yard Sale #${mixtape.listingId}`

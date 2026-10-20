@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isSafeHttpUrl } from "@/lib/amalgamation-meta";
-import type { AudioMixtape } from "@/lib/audio-mixtapes";
+import {
+  isVerseSrc,
+  verseLabel,
+  type AudioMixtape,
+} from "@/lib/audio-mixtapes";
 import { webGetBlobAsync } from "@/lib/media-web-store";
 
 /**
@@ -21,6 +25,7 @@ export function MixtapePlayer({
   const [src, setSrc] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [missing, setMissing] = useState(false);
+  const [verseLine, setVerseLine] = useState("");
   const track = mixtape.tracks[index];
 
   useEffect(() => {
@@ -31,6 +36,13 @@ export function MixtapePlayer({
   useEffect(() => {
     let cancel = false;
     const raw = track?.src || "";
+    if (isVerseSrc(raw)) {
+      setSrc(null);
+      setMissing(false);
+      setVerseLine(verseLabel(raw));
+      return;
+    }
+    setVerseLine("");
     if (!raw) {
       setSrc(null);
       setMissing(true);
@@ -148,6 +160,11 @@ export function MixtapePlayer({
         onPause={() => setPlaying(false)}
         onPlay={() => setPlaying(true)}
       />
+      {verseLine && (
+        <p className="text-[11px] text-muted-foreground">
+          {verseLine}. This row is the verse, not an audio file.
+        </p>
+      )}
       {missing && (
         <p className="text-[11px] text-muted-foreground">
           This copy is on the machine that uploaded it. An https track plays

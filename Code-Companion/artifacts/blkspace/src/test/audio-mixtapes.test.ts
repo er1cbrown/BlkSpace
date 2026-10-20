@@ -8,6 +8,7 @@ import {
   publishMixtape,
   syncMixtapes,
   trackSrcOk,
+  verseTrackSrc,
 } from "@/lib/audio-mixtapes";
 import { listHubItems } from "@/lib/content-hub";
 import { mergeMarketplaceBoards } from "@/lib/marketplace-escrow";
@@ -42,6 +43,28 @@ describe("audio mixtapes", () => {
     expect(trackSrcOk("web_abc123")).toBe(true);
     expect(trackSrcOk("https://media.example.test/set.mp3")).toBe(true);
     expect(trackSrcOk("data:audio/mpeg;base64,AAA")).toBe(false);
+    expect(trackSrcOk(verseTrackSrc("Isaiah 53:5"))).toBe(true);
+  });
+
+  it("publishes a Logos Deck as an off-chain edition", () => {
+    const deck = publishMixtape({
+      title: "Servant set",
+      setKind: "logos",
+      tracks: [
+        { id: "v1", title: "Isaiah 53:5", src: verseTrackSrc("Isaiah 53:5") },
+      ],
+    });
+    expect(deck.setKind).toBe("logos");
+    expect(mixtapeListingArgs(deck).isNft).toBe(false);
+    expect(() =>
+      publishMixtape({
+        title: "Songs only",
+        setKind: "songs",
+        tracks: [
+          { id: "v1", title: "Isaiah 53:5", src: verseTrackSrc("Isaiah 53:5") },
+        ],
+      }),
+    ).toThrow(/audio file or an https link/);
   });
 
   it("publishes onto the music hub and keeps the edition off-chain", () => {

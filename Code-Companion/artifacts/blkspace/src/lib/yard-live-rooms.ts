@@ -181,6 +181,7 @@ export function isSafeExternalLiveUrl(url: string): boolean {
       host.includes("meet.google") ||
       host.includes("meet.jit.si") ||
       host.includes("teams.microsoft") ||
+      host.includes("slack.com") ||
       host.endsWith(".edu")
     );
   } catch {

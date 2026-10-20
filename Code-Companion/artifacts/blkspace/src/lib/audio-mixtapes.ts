@@ -19,6 +19,10 @@ export const MIXTAPE_STORE = "blkspace_audio_mixtapes_v1";
 export const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 export const MAX_TRACKS = 12;
 
+export type MixSetKind = "songs" | "verses" | "logos";
+
+const VERSE_SRC = /^verse:[A-Za-z0-9][A-Za-z0-9 .:'-]{1,78}$/;
+
 const AUDIO_MIME = new Set([
   "audio/mpeg",
   "audio/mp3",
@@ -48,6 +52,8 @@ export interface AudioMixtape {
   authorDisplayName: string;
   yardId: string;
   createdAt: string;
+  /** songs = owned or https audio. verses = scripture refs. logos = a Logos Deck. */
+  setKind: MixSetKind;
   priceWb: number;
   /** How many copies the yard sale catalog offers. Not minted on a chain. */
   editionSize: number;
@@ -84,10 +90,41 @@ export function audioFileOk(file: {
   return null;
 }
 
+export function mixSetKind(value: unknown): MixSetKind {
+  return value === "verses" || value === "logos" ? value : "songs";
+}
+
+export function isVerseSrc(src: string): boolean {
+  return VERSE_SRC.test(src.trim());
+}
+
+/** A verse row names the passage. It is not an audio file and not a download. */
+export function verseTrackSrc(reference: string): string {
+  const ref = reference.trim().replace(/\s+/g, " ");
+  if (
+    !/^[A-Za-z0-9][A-Za-z0-9 .:'-]{1,78}$/.test(ref) ||
+    !/\d+:\d+$/.test(ref)
+  ) {
+    throw new Error("Use a verse like Isaiah 53:5.");
+  }
+  return `verse:${ref}`;
+}
+
+export function verseLabel(src: string): string {
+  return isVerseSrc(src) ? src.trim().slice(6) : "";
+}
+
 export function trackSrcOk(src: string): boolean {
   const value = src.trim();
+  if (isVerseSrc(value)) return true;
   if (isWebBlobId(value)) return true;
   return isSafeHttpUrl(value);
+}
+
+function kindLabel(kind: MixSetKind): string {
+  if (kind === "logos") return "Logos Deck";
+  if (kind === "verses") return "Verse mix";
+  return "Song mix";
 }
 
 function load(): AudioMixtape[] {
@@ -105,14 +142,22 @@ function save(items: AudioMixtape[]) {
   localStorage.setItem(MIXTAPE_STORE, JSON.stringify(items.slice(0, 100)));
 }
 
+function withKind(row: AudioMixtape): AudioMixtape {
+  return { ...row, setKind: mixSetKind(row.setKind) };
+}
+
 export function listMixtapes(): AudioMixtape[] {
-  return load().sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
+  return load()
+    .map(withKind)
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
 }
 
 export function getMixtape(id: string): AudioMixtape | null {
-  return load().find((item) => item.id === id) ?? null;
+  const row = load().find((item) => item.id === id);
+  return row ? withKind(row) : null;
 }
 
 export function publishMixtape(input: {
@@ -121,9 +166,11 @@ export function publishMixtape(input: {
   tracks: MixtapeTrack[];
   priceWb?: number;
   editionSize?: number;
+  setKind?: MixSetKind;
 }): AudioMixtape {
   const title = input.title.trim();
   if (!title) throw new Error("Title required");
+  const setKind = mixSetKind(input.setKind);
   const tracks = input.tracks
     .map((track) => ({
       id: track.id,
@@ -131,12 +178,19 @@ export function publishMixtape(input: {
       src: track.src.trim(),
     }))
     .filter((track) => track.src);
+  if (setKind === "songs" && tracks.some((track) => isVerseSrc(track.src))) {
+    throw new Error(
+      "A song set needs an audio file or an https link on every row.",
+    );
+  }
   if (!tracks.length) throw new Error("Add at least one track");
   if (tracks.length > MAX_TRACKS) {
     throw new Error(`A mixtape holds up to ${MAX_TRACKS} tracks`);
   }
   if (tracks.some((track) => !trackSrcOk(track.src))) {
-    throw new Error("Each track needs an uploaded file or an https link");
+    throw new Error(
+      "Each row needs an uploaded file, an https link, or a verse reference.",
+    );
   }
   const priceWb = Math.max(0, Math.floor(input.priceWb ?? 0));
   const editionSize = Math.min(
@@ -154,6 +208,7 @@ export function publishMixtape(input: {
     authorDisplayName: getCurrentDisplayName() || handle,
     yardId,
     createdAt: new Date().toISOString(),
+    setKind,
     priceWb,
     editionSize,
     listingId: null,
@@ -164,7 +219,8 @@ export function publishMixtape(input: {
     kind: "audio",
     title,
     body:
-      input.body || `${tracks.length} track${tracks.length === 1 ? "" : "s"}`,
+      input.body ||
+      `${kindLabel(setKind)} · ${tracks.length} track${tracks.length === 1 ? "" : "s"}`,
     mediaUrl: mixtapeRef(mixtape.id),
     yardId,
     earnHint:
@@ -198,7 +254,7 @@ export function mixtapeListingArgs(mixtape: AudioMixtape) {
     title: mixtape.title,
     description:
       mixtape.body ||
-      `BlkCore audio edition (${mixtape.editionSize} copies). Not a chain NFT.`,
+      `BlkCore ${kindLabel(mixSetKind(mixtape.setKind)).toLowerCase()} edition (${mixtape.editionSize} copies). Not a chain NFT.`,
     isNft: false,
     townTag: mixtape.yardId,
     fulfillmentMode: "instant" as const,
@@ -218,7 +274,7 @@ function rememberMixtape(mixtape: AudioMixtape) {
     title: mixtape.title,
     body:
       mixtape.body ||
-      `${mixtape.tracks.length} track${mixtape.tracks.length === 1 ? "" : "s"}`,
+      `${kindLabel(mixSetKind(mixtape.setKind))} · ${mixtape.tracks.length} track${mixtape.tracks.length === 1 ? "" : "s"}`,
     mediaUrl: ref,
     yardId: mixtape.yardId,
     authorHandle: mixtape.authorHandle,
@@ -240,7 +296,7 @@ export async function syncMixtapes(yardId?: string): Promise<void> {
     if (!res.ok) return;
     const body = await res.json();
     if (!Array.isArray(body.mixtapes)) return;
-    remote = body.mixtapes;
+    remote = body.mixtapes.map((item: AudioMixtape) => withKind(item));
   } catch {
     return;
   }

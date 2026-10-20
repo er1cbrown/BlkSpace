@@ -378,6 +378,40 @@ describe("yard desk on the shared server", () => {
     expect(sharedPins.pins.map((row) => row.title)).toEqual(["Gold jacket"]);
     expect(sharedTapes.mixtapes[0].tracks[0].src).toBe("https://media.example.test/a.mp3");
     expect(sharedTapes.mixtapes[0].authorHandle).toBe("alice");
+    expect(sharedTapes.mixtapes[0].setKind).toBe("songs");
+    const deck = await post("/api/yards/mixtapes", {
+      id: "mix_logos_1",
+      yardId: "desk",
+      title: "Servant set",
+      body: "Verses for the deck.",
+      setKind: "logos",
+      priceWb: 0,
+      editionSize: 1,
+      tracks: [{ id: "v1", title: "Isaiah 53:5", src: "verse:Isaiah 53:5" }],
+      createdAt: "2026-10-20T12:03:00.000Z",
+    });
+    expect(deck.status).toBe(200);
+    expect((await fetch(base + "/api/yards/battles", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status).toBe(401);
+    const battle = await post("/api/yards/battles", {
+      id: "battle_lawn_1",
+      yardId: "desk",
+      title: "Friday lawn battle",
+      mixId: "mix_friday_1",
+      mixTitle: "Friday lawn",
+      setKind: "songs",
+      callUrl: "https://discord.gg/yard",
+      jitsiSlug: "BkspcBattledeskfriday",
+      createdAt: "2026-10-20T12:04:00.000Z",
+    });
+    expect(battle.status).toBe(200);
+    const sharedDecks = await (await fetch(base + "/api/yards/mixtapes?yard=desk")).json();
+    const logos = sharedDecks.mixtapes.find((row) => row.id === "mix_logos_1");
+    expect(logos.setKind).toBe("logos");
+    expect(logos.tracks[0].src).toBe("verse:Isaiah 53:5");
+    const lobbies = await (await fetch(base + "/api/yards/battles?yard=desk")).json();
+    expect(lobbies.battles[0].title).toBe("Friday lawn battle");
+    expect(lobbies.battles[0].hostHandle).toBe("alice");
+    expect(lobbies.battles[0].callUrl).toContain("discord.gg");
     const blob = await fetch(base + "/api/portfolio/blob", {
       method: "POST",
       headers: { "content-type": "application/json" },
