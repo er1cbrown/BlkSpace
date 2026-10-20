@@ -76,10 +76,10 @@ export function CreatorMarketplacePanel() {
   const defaultTown = (user as { town?: string })?.town?.toLowerCase() || "tsu";
 
   const [showListForm, setShowListForm] = useState(false);
-  const [mintNftOnList, setMintNftOnList] = useState(true);
+  const [mintNftOnList, setMintNftOnList] = useState(false);
   const [townTag, setTownTag] = useState(defaultTown);
   const [newItem, setNewItem] = useState({
-    itemType: "media",
+    itemType: "mix",
     itemRef: "",
     price: 10,
     title: "",
@@ -198,9 +198,9 @@ export function CreatorMarketplacePanel() {
       } else {
         toast.success(
           mode === "escrow"
-            ? `Listed with escrow (#${listingId}) — buyer pays, you deliver, they release.`
+            ? `Listed #${listingId}. The buyer pays, you deliver, then they release.`
             : newItem.itemType === "mix"
-              ? "Mix published (30078) + listed. Connect wallet to mint NFT."
+              ? "Mix listed. Buyers get the set right away."
               : newItem.itemType === "logos-deck"
                 ? "Logos Deck set listed on Yard Sale."
                 : isNft
@@ -211,7 +211,7 @@ export function CreatorMarketplacePanel() {
 
       setShowListForm(false);
       setNewItem({
-        itemType: "media",
+        itemType: "mix",
         itemRef: "",
         price: 10,
         title: "",
@@ -237,15 +237,12 @@ export function CreatorMarketplacePanel() {
           <h4 className="font-bold">Yard Sale</h4>
         </div>
         <p className="text-sm text-muted-foreground mb-3">
-          Sell from your MyYard — media, mixes, themes, fashion mockups, art,
-          tech packs, merch digital. Fashion types use 2-party escrow (pay →
-          deliver → release). Optional club branding + revenue split. Platform
-          fee {formatFeePercent(marketplaceFeeBps)}.
+          Start with a mix, a Logos Deck, or a theme. Buyers pay in WeixBucks
+          and get it right away. Custom fashion is made to order. Platform fee{" "}
+          {formatFeePercent(marketplaceFeeBps)}.
           {bkspcWired ? (
             <span className="text-primary"> BKSPC devnet: active.</span>
-          ) : (
-            <span> BKSPC burns require `bkspc-devnet` build + manifest.</span>
-          )}
+          ) : null}
         </p>
 
         <Button
@@ -474,12 +471,8 @@ export function CreatorMarketplacePanel() {
                 <SelectValue placeholder="Fulfillment" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="instant">
-                  Instant (theme/media style)
-                </SelectItem>
-                <SelectItem value="escrow">
-                  Escrow (pay → deliver → release)
-                </SelectItem>
+                <SelectItem value="instant">Ready now</SelectItem>
+                <SelectItem value="escrow">Made to order</SelectItem>
               </SelectContent>
             </Select>
 
@@ -562,7 +555,7 @@ export function CreatorMarketplacePanel() {
         <YardSaleListings
           listings={listings}
           bkspcWired={bkspcWired}
-          emptyMessage="No listings yet. Be the first creator on the Yard Sale."
+          emptyMessage="No listings yet. Publish a mix from Audio, or list a theme here."
         />
 
         <div className="mt-4">

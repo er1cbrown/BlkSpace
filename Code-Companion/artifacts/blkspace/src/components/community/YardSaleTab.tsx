@@ -38,9 +38,8 @@ export function YardSaleTab({ yardId, communityName }: YardSaleTabProps) {
           {communityName} Yard Sale
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Creators selling from their MyYard — mixes, themes, fashion mockups,
-          art, tech packs, merch digital, and Logos Deck sets tagged to this
-          campus. Fashion listings use escrow (pay → deliver → release).
+          Ready now: mixes, Logos Decks, and yard themes. Custom fashion is made
+          to order.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -61,7 +60,7 @@ export function YardSaleTab({ yardId, communityName }: YardSaleTabProps) {
           listings={listings}
           yardIdFilter={yardId}
           bkspcWired={settlementStatus?.wired === true}
-          emptyMessage={`No ${communityName} listings yet. List from your MyYard in Wallet → Yard Sale.`}
+          emptyMessage={`No ${communityName} listings yet. Publish a mix from Audio, or list one in Wallet → Yard Sale.`}
         />
 
         <Button variant="outline" size="sm" asChild>
