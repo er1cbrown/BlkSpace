@@ -1,8 +1,14 @@
 import { isTauri } from "@/lib/tauri-api";
 
+const fullRelease =
+  import.meta.env.VITE_FULL_RELEASE === "true" ||
+  import.meta.env.VITE_FULL_RELEASE === "1";
+
+/** Yard lite never applies to `bun run build:full`. */
 const tier0Lite =
-  import.meta.env.VITE_TIER0_LITE === "true" ||
-  import.meta.env.VITE_TIER0_LITE === "1";
+  !fullRelease &&
+  (import.meta.env.VITE_TIER0_LITE === "true" ||
+    import.meta.env.VITE_TIER0_LITE === "1");
 
 /**
  * Beta feature gates — keep the web preview focused on the core yard loop
@@ -12,6 +18,8 @@ const tier0Lite =
  * and reduces feed IPC on low-end devices.
  */
 export const BETA_FEATURES = {
+  /** `bun run build:full` — mesh UI stays available, yard lite stays off */
+  fullRelease,
   /** Production tier0 build or explicit env — yard shell only */
   tier0Lite,
   /** Architecture, mesh-test, relay debug links */

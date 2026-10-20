@@ -5,7 +5,7 @@
  *
  * Usage:
  *   node scripts/vite-with-env.mjs dev [--tier0]
- *   node scripts/vite-with-env.mjs build [--tier0]
+ *   node scripts/vite-with-env.mjs build [--tier0|--full]
  *   node scripts/vite-with-env.mjs preview
  */
 import { spawn } from "node:child_process";
@@ -15,10 +15,12 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
-const mode = args[0] === "build" || args[0] === "preview" || args[0] === "dev"
-  ? args[0]
-  : "build";
+const mode =
+  args[0] === "build" || args[0] === "preview" || args[0] === "dev"
+    ? args[0]
+    : "build";
 const tier0 = args.includes("--tier0") || process.env.VITE_TIER0_LITE === "1";
+const fullRelease = args.includes("--full") && !tier0;
 
 const env = {
   ...process.env,
@@ -27,6 +29,10 @@ const env = {
 };
 if (tier0) {
   env.VITE_TIER0_LITE = "1";
+}
+if (fullRelease) {
+  env.VITE_FULL_RELEASE = "1";
+  delete env.VITE_TIER0_LITE;
 }
 
 const viteArgs =

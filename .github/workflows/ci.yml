@@ -482,5 +482,5 @@ jobs:
         working-directory: ./Code-Companion
       - run: bun run --filter @workspace/blkspace test:iroh
         working-directory: ./Code-Companion
-      - run: bun run tauri build -- --features iroh
+      - run: bun run tauri build -- --features full-release
         working-directory: ./Code-Companion/artifacts/blkspace
