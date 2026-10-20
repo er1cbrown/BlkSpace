@@ -83,7 +83,10 @@ export function useAppGetUser(handle: string, enabled = true) {
     queryFn: async () => {
       const user = getMockUser(handle);
       if (handle.replace(/^@/, "") === getCurrentHandle()) {
-        const balance = await sharedYardWb(user.town || "tsu");
+        const balance = await sharedYardWb(
+          user.town || "tsu",
+          IS_TAURI ? "https://bkspc.app" : "",
+        );
         if (balance != null) user.weixBucks = balance;
       }
       const summary = await fetchFollowSummary(handle);

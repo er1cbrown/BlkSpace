@@ -121,11 +121,24 @@ export function createApiHandler(env, { origins, development = false } = {}) {
   const connect = createConnect(env);
   const yards = createYards(env);
   const desk = createYardDesk(env);
-  const limit = createWriteLimiter();
+  const configuredLimit = Number(env.WRITE_LIMIT);
+  const limit = createWriteLimiter(
+    Number.isInteger(configuredLimit) && configuredLimit > 0
+      ? configuredLimit
+      : 60,
+  );
   const uploadLimit = createWriteLimiter(10);
   return async (req, res) => {
     try {
-      res.setHeader("access-control-allow-origin", "*");
+      const url = new URL(req.url, "http://internal");
+      const path = withoutTrailingSlash(url.pathname);
+      const allowed =
+        origins || (development ? [`http://${req.headers.host}`] : []);
+      const requestOrigin = req.headers.origin;
+      if (requestOrigin && (development || allowed.includes(requestOrigin))) {
+        res.setHeader("access-control-allow-origin", requestOrigin);
+        res.setHeader("vary", "Origin");
+      }
       res.setHeader("access-control-allow-headers", "authorization, content-type");
       res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
       if (req.method === "OPTIONS") {
@@ -133,10 +146,6 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         res.end();
         return;
       }
-      const url = new URL(req.url, "http://internal");
-      const path = withoutTrailingSlash(url.pathname);
-      const allowed =
-        origins || (development ? [`http://${req.headers.host}`] : []);
 
       if (req.method === "GET" && path === "/api/health") {
         return json(res, 200, {

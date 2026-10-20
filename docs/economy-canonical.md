@@ -225,7 +225,9 @@ Precedence, when two layers appear to conflict:
 
 1. **Consumer protection (§4) wins over every other consideration.**
 2. Canonical mint is **BI9**, singular.
-3. Solana BKSPC is **prototype only**, never a mint home.
+3. Solana BKSPC is the **canonical on-chain asset** for settlement, staking, and
+   governance (see `docs/canonical-chain-decision.md` and `docs/bkspc-settlement-hardening.md`);
+   the earlier "prototype only" wording is superseded.
 4. Any proposal creating a WB↔BI9 path is rejected at review, not at
    implementation.
 5. Under Model B, §7.1 is non-negotiable: no WB-underlying perpetuals.

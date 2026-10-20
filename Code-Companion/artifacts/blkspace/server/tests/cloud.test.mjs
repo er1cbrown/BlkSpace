@@ -131,6 +131,7 @@ beforeAll(async () => {
     env: {
       TURSO_DATABASE_URL: "libsql://test.turso",
       TURSO_AUTH_TOKEN: "test-only",
+      WRITE_LIMIT: "200",
       CLOUDFLARE_ACCOUNT_ID: "test-account",
       CLOUDFLARE_API_TOKEN: "test-only",
       R2_ACCESS_KEY_ID: "test-access",
