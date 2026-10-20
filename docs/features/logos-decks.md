@@ -2,7 +2,8 @@
 
 **Source:** `weixinfo/Bible DJ Software Concept Design.md`  
 **BlkSpace phase:** 5 (scripture creative seeding) — stub metadata in Phase 2  
-**Status:** Concept → spec
+**Status:** DevOps open on `feat/logos-decks`. Product not implemented.  
+**Track:** [`../implementation/LOGOS_DECKS.md`](../implementation/LOGOS_DECKS.md)
 
 ---
 
