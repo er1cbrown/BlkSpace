@@ -161,8 +161,8 @@ export default function CommunitiesPage() {
       </div>
       <p className="text-muted-foreground text-base mb-2">
         A <strong className="text-foreground font-medium">yard</strong> is one
-        HBCU campus space — feed, chat, events, Live. Your home yard is sorted
-        first.
+        campus space — feed, chat, events, Live, and a board of pins. Your home
+        yard is sorted first.
       </p>
       {homeTheme && homeYard && (
         <p className="text-sm mb-6">
@@ -175,7 +175,14 @@ export default function CommunitiesPage() {
           </Link>
           <span className="text-muted-foreground">
             {" "}
-            — open it anytime from here.
+            — open it anytime from here, or start on the{" "}
+            <Link
+              href={`/communities/${homeYard}?tab=board`}
+              className="text-primary font-semibold hover:underline"
+            >
+              board
+            </Link>
+            .
           </span>
         </p>
       )}

@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { MixtapePlayer } from "@/components/media/MixtapePlayer";
+import { PinImage } from "@/components/yard/PinImage";
 import { getMixtape, parseMixtapeRef } from "@/lib/audio-mixtapes";
 import { loadUiPrefs } from "@/lib/ui-prefs";
 import {
@@ -336,6 +337,7 @@ export default function HubPage() {
                         "portfolio",
                         "playable",
                         "audio",
+                        "pin",
                       ] as HubItemKind[]
                     ).map((k) => (
                       <SelectItem key={k} value={k}>
@@ -393,6 +395,11 @@ export default function HubPage() {
                   {item.title}
                 </h2>
                 <p className="text-sm text-muted-foreground">{item.body}</p>
+                {item.kind === "pin" && item.mediaUrl ? (
+                  <div className="max-w-xs overflow-hidden rounded-md border">
+                    <PinImage src={item.mediaUrl} alt={item.title} />
+                  </div>
+                ) : null}
                 {(() => {
                   const mixtapeId = parseMixtapeRef(item.mediaUrl);
                   const mixtape = mixtapeId ? getMixtape(mixtapeId) : null;
@@ -418,6 +425,13 @@ export default function HubPage() {
                       externalUrl: item.mediaUrl || undefined,
                     }}
                   />
+                  {item.kind === "pin" && item.yardId && (
+                    <Link href={`/communities/${item.yardId}?tab=board`}>
+                      <Button size="sm" variant="outline" className="h-8">
+                        Open yard board
+                      </Button>
+                    </Link>
+                  )}
                   {item.kind === "playable" &&
                     item.mediaUrl &&
                     isSafeHttpUrl(item.mediaUrl) && (

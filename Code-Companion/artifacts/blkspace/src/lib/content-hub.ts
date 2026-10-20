@@ -26,7 +26,8 @@ export type HubItemKind =
   | "portfolio"
   | "lesson"
   | "playable"
-  | "audio";
+  | "audio"
+  | "pin";
 
 export interface HubItem {
   id: string;
@@ -92,7 +93,7 @@ export const HUB_TOPICS: {
   {
     id: "culture",
     label: "Culture & yard life",
-    blurb: "HBCU energy, memes, homecoming, MADE vibes.",
+    blurb: "HBCU energy, homecoming, and pins from the yard board.",
     earnAngle: "Posts · engagement · brand collabs",
   },
   {

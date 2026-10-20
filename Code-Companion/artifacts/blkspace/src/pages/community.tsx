@@ -39,6 +39,7 @@ import { showEarnFromResult } from "@/components/economy/EarnToast";
 import { YardEventsPanel } from "@/components/community/YardEventsPanel";
 import { YardMembersPanel } from "@/components/community/YardMembersPanel";
 import { YardSaleTab } from "@/components/community/YardSaleTab";
+import { YardBoardPanel } from "@/components/yard/YardBoardPanel";
 import { YardLiveRooms } from "@/components/community/YardLiveRooms";
 import {
   ClubActivitiesPanel,
@@ -118,7 +119,12 @@ export default function CommunityPage() {
   const [, params] = useRoute("/communities/:id");
   const id = params?.id || "";
   const [activeChannel, setActiveChannel] = useState("#general");
-  const [activeTab, setActiveTab] = useState("chat");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window === "undefined") return "chat";
+    return new URLSearchParams(window.location.search).get("tab") === "board"
+      ? "board"
+      : "chat";
+  });
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [postReplies, setPostReplies] = useState<Record<number, any[]>>({});
@@ -589,6 +595,7 @@ export default function CommunityPage() {
               <TabsTrigger value="events">Events</TabsTrigger>
               <TabsTrigger value="clubs">Clubs</TabsTrigger>
               <TabsTrigger value="yard-sale">Yard Sale</TabsTrigger>
+              <TabsTrigger value="board">Board</TabsTrigger>
               <TabsTrigger value="about">About</TabsTrigger>
             </TabsList>
 
@@ -767,6 +774,10 @@ export default function CommunityPage() {
 
             <TabsContent value="yard-sale">
               <YardSaleTab yardId={yardId} communityName={community.name} />
+            </TabsContent>
+
+            <TabsContent value="board">
+              <YardBoardPanel yardId={yardId} yardName={community.name} />
             </TabsContent>
 
             <TabsContent value="about">
