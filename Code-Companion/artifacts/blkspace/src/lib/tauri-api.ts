@@ -1507,6 +1507,21 @@ export function tauriReportPinServe(
   return invoke("report_pin_serve", { sessionToken, hash });
 }
 
+export function tauriRunHomeworkCell(
+  lang: "python" | "r",
+  source: string,
+): Promise<string> {
+  return invoke("run_homework_cell", { lang, source });
+}
+
+export function tauriOpenNotebookInLazyVim(
+  title: string,
+  filename: string,
+  body: string,
+): Promise<string> {
+  return invoke("open_notebook_in_lazyvim", { title, filename, body });
+}
+
 export function tauriClaimNodeRewards(sessionToken: string): Promise<number> {
   return invoke("claim_node_rewards", { sessionToken });
 }

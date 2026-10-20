@@ -4644,6 +4644,159 @@ fn open_myyard_css(handle: String, css: String, prefer_lazyvim: bool) -> Result<
   Ok(path_str)
 }
 
+/// Run one Python or R cell with the homework toolchain from er1cbrown/lazyvim.
+/// Python prefers ~/miniconda3. R uses Rscript. No shell. Stops after 8 seconds.
+#[tauri::command]
+fn run_homework_cell(lang: String, source: String) -> Result<String, String> {
+  let lang = lang.trim().to_ascii_lowercase();
+  if lang != "python" && lang != "r" {
+    return Err("Only Python and R cells run in the app".into());
+  }
+  if source.len() > 8000 {
+    return Err("That cell is too long".into());
+  }
+  if source.trim().is_empty() {
+    return Err("The cell is empty".into());
+  }
+  let dir = std::env::temp_dir().join("blkspace-ide");
+  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  let ext = if lang == "r" { "R" } else { "py" };
+  let path = dir.join(format!("cell-{}.{ext}", std::process::id()));
+  std::fs::write(&path, &source).map_err(|e| e.to_string())?;
+  let program = if lang == "r" {
+    std::path::PathBuf::from(if cfg!(windows) { "Rscript.exe" } else { "Rscript" })
+  } else {
+    homework_python()
+  };
+  let result = run_file_bounded(&program, &path);
+  let _ = std::fs::remove_file(&path);
+  result
+}
+
+/// Write a Quarto or TeX notebook and open it in Neovim (LazyVim config).
+#[tauri::command]
+fn open_notebook_in_lazyvim(title: String, filename: String, body: String) -> Result<String, String> {
+  if body.len() > 200_000 {
+    return Err("That notebook is too large".into());
+  }
+  let name = safe_notebook_filename(&filename, &title);
+  let dir = std::env::temp_dir().join("blkspace-ide");
+  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  let path = dir.join(&name);
+  std::fs::write(&path, body).map_err(|e| e.to_string())?;
+  if spawn_lazyvim(&path) {
+    return Ok(path.to_string_lossy().to_string());
+  }
+  Err("nvim was not found. Install Neovim and clone github.com/er1cbrown/lazyvim into the nvim config.".into())
+}
+
+fn safe_notebook_filename(filename: &str, title: &str) -> String {
+  let raw = filename.trim();
+  let (stem_raw, ext) = if let Some(stem) = raw.strip_suffix(".tex") {
+    (stem, "tex")
+  } else if let Some(stem) = raw.strip_suffix(".qmd") {
+    (stem, "qmd")
+  } else if let Some(stem) = raw.strip_suffix(".py") {
+    (stem, "py")
+  } else {
+    ("", "qmd")
+  };
+  let mut stem: String = stem_raw
+    .chars()
+    .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+    .take(40)
+    .collect();
+  if stem.is_empty() {
+    stem = title
+      .chars()
+      .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+      .take(40)
+      .collect();
+  }
+  if stem.is_empty() {
+    stem = "homework".to_string();
+  }
+  format!("{stem}.{ext}")
+}
+
+fn homework_python() -> std::path::PathBuf {
+  for key in ["HOME", "USERPROFILE"] {
+    if let Ok(home) = std::env::var(key) {
+      for rel in ["miniconda3/bin/python", "miniconda3/python.exe"] {
+        let path = std::path::PathBuf::from(&home).join(rel);
+        if path.exists() {
+          return path;
+        }
+      }
+    }
+  }
+  std::path::PathBuf::from(if cfg!(windows) { "python.exe" } else { "python3" })
+}
+
+fn run_file_bounded(program: &std::path::Path, script: &std::path::Path) -> Result<String, String> {
+  use std::io::Read;
+  use std::process::{Command, Stdio};
+  use std::time::{Duration, Instant};
+
+  let mut child = Command::new(program)
+    .arg(script)
+    .stdin(Stdio::null())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .map_err(|e| format!("Could not start {}: {e}", program.display()))?;
+  let mut stdout = child.stdout.take();
+  let mut stderr = child.stderr.take();
+  let out_thread = std::thread::spawn(move || {
+    let mut text = String::new();
+    if let Some(pipe) = stdout.as_mut() {
+      let _ = pipe.read_to_string(&mut text);
+    }
+    text
+  });
+  let err_thread = std::thread::spawn(move || {
+    let mut text = String::new();
+    if let Some(pipe) = stderr.as_mut() {
+      let _ = pipe.read_to_string(&mut text);
+    }
+    text
+  });
+  let deadline = Instant::now() + Duration::from_secs(8);
+  loop {
+    match child.try_wait() {
+      Ok(Some(status)) => {
+        let mut text = out_thread.join().unwrap_or_default();
+        let err = err_thread.join().unwrap_or_default();
+        if !err.is_empty() {
+          if !text.is_empty() {
+            text.push('\n');
+          }
+          text.push_str(&err);
+        }
+        if text.len() > 20_000 {
+          text.truncate(20_000);
+          text.push_str("\n…");
+        }
+        if status.success() {
+          return Ok(text);
+        }
+        return Err(if text.is_empty() {
+          format!("exit {}", status.code().unwrap_or(1))
+        } else {
+          text
+        });
+      }
+      Ok(None) if Instant::now() >= deadline => {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err("Stopped after 8 seconds".into());
+      }
+      Ok(None) => std::thread::sleep(Duration::from_millis(40)),
+      Err(e) => return Err(e.to_string()),
+    }
+  }
+}
+
 /// LazyVim is Neovim + the LazyVim distro. Binary is `nvim` (optional `NVIM_APPNAME=lazyvim`).
 fn spawn_lazyvim(path: &std::path::Path) -> bool {
   let try_nvim = |appname: Option<&str>| -> bool {
@@ -6101,6 +6254,8 @@ pub fn run() {
       upload_blob,
       get_blob_bytes,
       open_myyard_css,
+      run_homework_cell,
+      open_notebook_in_lazyvim,
       list_user_blobs,
       delete_blob,
       get_blob_metadata,

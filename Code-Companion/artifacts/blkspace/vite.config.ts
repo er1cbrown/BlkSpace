@@ -108,6 +108,12 @@ export default defineConfig({
             return "typeverse";
           }
           if (id.includes("/src/pages/hub")) return "hub";
+          if (
+            id.includes("/src/pages/ide") ||
+            id.includes("/src/lib/homework-notebook")
+          ) {
+            return "ide";
+          }
         },
       },
     },

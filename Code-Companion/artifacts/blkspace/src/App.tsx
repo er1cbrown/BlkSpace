@@ -48,6 +48,7 @@ const PlayPage = React.lazy(() => import("@/pages/play"));
 const ArcadePage = React.lazy(() => import("@/pages/arcade"));
 const TypeversePage = React.lazy(() => import("@/pages/typeverse"));
 const AudioPage = React.lazy(() => import("@/pages/audio"));
+const IdePage = React.lazy(() => import("@/pages/ide"));
 const RollbackPage = React.lazy(() => import("@/pages/rollback"));
 const TermsPage = React.lazy(() => import("@/pages/terms"));
 const BlkshiPage = React.lazy(() => import("@/pages/blkshi"));
@@ -225,6 +226,7 @@ function Router() {
         <Route path="/arcade" component={ArcadePage} />
         <Route path="/typeverse" component={TypeversePage} />
         <Route path="/audio" component={AudioPage} />
+        <Route path="/ide" component={IdePage} />
         <Route path="/play" component={PlayPage} />
         <Route
           path="/rollback"
