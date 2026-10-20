@@ -9,7 +9,8 @@
  */
 import { isSafeHttpUrl } from "@/lib/amalgamation-meta";
 import { getCurrentDisplayName, getCurrentHandle } from "@/lib/auth";
-import { publishHubItem } from "@/lib/content-hub";
+import { listHubItems, publishHubItem } from "@/lib/content-hub";
+import { hostedPost } from "@/lib/hosted-api";
 import { isWebBlobId } from "@/lib/media-web-store";
 import { loadUiPrefs } from "@/lib/ui-prefs";
 
@@ -203,4 +204,59 @@ export function mixtapeListingArgs(mixtape: AudioMixtape) {
     fulfillmentMode: "instant" as const,
     deliveryHint: mixtapeRef(mixtape.id),
   };
+}
+
+function rememberMixtape(mixtape: AudioMixtape) {
+  const ref = mixtapeRef(mixtape.id);
+  const known = listHubItems("music").some(
+    (item) => item.kind === "audio" && item.mediaUrl === ref,
+  );
+  if (known) return;
+  publishHubItem({
+    topic: "music",
+    kind: "audio",
+    title: mixtape.title,
+    body:
+      mixtape.body ||
+      `${mixtape.tracks.length} track${mixtape.tracks.length === 1 ? "" : "s"}`,
+    mediaUrl: ref,
+    yardId: mixtape.yardId,
+    authorHandle: mixtape.authorHandle,
+    authorDisplayName: mixtape.authorDisplayName,
+    earnHint:
+      mixtape.priceWb > 0
+        ? `BlkCore edition · ${mixtape.priceWb} WB · ${mixtape.editionSize} copies · not a chain NFT`
+        : "Play on the hub · list a BlkCore edition later",
+  });
+}
+
+/** Pull shared mixtapes, then send sets that only exist in this browser. */
+export async function syncMixtapes(yardId?: string): Promise<void> {
+  const yard = (yardId || "").trim();
+  let remote: AudioMixtape[] = [];
+  try {
+    const query = yard ? `?yard=${encodeURIComponent(yard)}` : "";
+    const res = await fetch(`/api/yards/mixtapes${query}`);
+    if (!res.ok) return;
+    const body = await res.json();
+    if (!Array.isArray(body.mixtapes)) return;
+    remote = body.mixtapes;
+  } catch {
+    return;
+  }
+  const local = load();
+  const ids = new Set(local.map((item) => item.id));
+  const extra = remote.filter((item) => !ids.has(item.id));
+  for (const mixtape of extra) rememberMixtape(mixtape);
+  if (extra.length) save([...extra, ...local]);
+  const seen = new Set(remote.map((item) => item.id));
+  for (const mixtape of load()) {
+    if (seen.has(mixtape.id)) continue;
+    if (yard && mixtape.yardId !== yard) continue;
+    try {
+      await hostedPost("/api/yards/mixtapes", mixtape);
+    } catch {
+      /* this browser keeps the mixtape when the desk is closed */
+    }
+  }
 }

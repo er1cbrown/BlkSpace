@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   markMixtapeListed,
   mixtapeListingArgs,
   publishMixtape,
+  syncMixtapes,
   type MixtapeTrack,
 } from "@/lib/audio-mixtapes";
 import { createMarketplaceListing } from "@/lib/marketplace-escrow";
@@ -47,6 +48,16 @@ export default function AudioPage() {
   const [linkUrl, setLinkUrl] = useState("");
   const [tracks, setTracks] = useState<MixtapeTrack[]>([]);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancel = false;
+    void syncMixtapes().then(() => {
+      if (!cancel) setTick((n) => n + 1);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, []);
 
   const mixtapes = useMemo(() => {
     void tick;
@@ -128,6 +139,7 @@ export default function AudioPage() {
       setBody("");
       setTracks([]);
       setTick((n) => n + 1);
+      void syncMixtapes().then(() => setTick((n) => n + 1));
       toast.success("On the hub. Play it from Music.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not publish");

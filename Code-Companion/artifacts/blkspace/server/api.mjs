@@ -200,6 +200,15 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (req.method === "GET" && path === "/api/yards/rooms") {
         return json(res, 200, await desk.rooms(url.searchParams.get("yard") || ""));
       }
+      if (req.method === "GET" && path === "/api/yards/boards") {
+        return json(res, 200, await desk.boards(url.searchParams.get("yard") || ""));
+      }
+      if (req.method === "GET" && path === "/api/yards/pins") {
+        return json(res, 200, await desk.pins(url.searchParams.get("yard") || ""));
+      }
+      if (req.method === "GET" && path === "/api/yards/mixtapes") {
+        return json(res, 200, await desk.mixtapes(url.searchParams.get("yard") || ""));
+      }
       if (req.method === "GET" && path === "/api/yards/messages") {
         const pubkey = authenticate(req, "", allowed);
         return json(
@@ -346,6 +355,10 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       }
       if (req.method === "GET" && path === "/api/portfolio/blob")
         return json(res, 200, await portfolio.blob(url.searchParams.get("id")));
+      if (req.method === "POST" && path === "/api/portfolio/blob") {
+        const { body } = await readJson(req);
+        return json(res, 200, await portfolio.saveBlob(body));
+      }
 
       // Notification listing is intentionally authenticated even though the
       // older post/blob reads are public. NIP-98 binds a GET proof to the
@@ -386,6 +399,9 @@ export function createApiHandler(env, { origins, development = false } = {}) {
             "/api/yards/channels",
             "/api/yards/rooms",
             "/api/yards/rooms/close",
+            "/api/yards/boards",
+            "/api/yards/pins",
+            "/api/yards/mixtapes",
             "/api/yards/messages",
             "/api/yards/sale",
             "/api/yards/sale/buy",
@@ -465,6 +481,15 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       }
       if (path === "/api/yards/rooms") {
         return json(res, 200, await desk.createRoom(body, pubkey));
+      }
+      if (path === "/api/yards/boards") {
+        return json(res, 200, await desk.saveBoard(body, pubkey));
+      }
+      if (path === "/api/yards/pins") {
+        return json(res, 200, await desk.savePin(body, pubkey));
+      }
+      if (path === "/api/yards/mixtapes") {
+        return json(res, 200, await desk.saveMixtape(body, pubkey));
       }
       if (path === "/api/yards/rooms/close") {
         return json(res, 200, await desk.closeRoom(body, pubkey));

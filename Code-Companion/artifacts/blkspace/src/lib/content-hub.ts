@@ -253,10 +253,12 @@ export function publishHubItem(input: {
   mediaUrl?: string;
   yardId?: string;
   earnHint?: string;
+  authorHandle?: string;
+  authorDisplayName?: string;
 }): HubItem {
   const title = input.title.trim();
   if (!title) throw new Error("Title required");
-  const handle = getCurrentHandle() || "guest";
+  const handle = input.authorHandle || getCurrentHandle() || "guest";
   const item: HubItem = {
     id: `hub_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     topic: input.topic,
@@ -265,7 +267,8 @@ export function publishHubItem(input: {
     body: input.body.trim(),
     mediaUrl: (input.mediaUrl || "").trim(),
     authorHandle: handle,
-    authorDisplayName: getCurrentDisplayName() || handle,
+    authorDisplayName:
+      input.authorDisplayName || getCurrentDisplayName() || handle,
     yardId: input.yardId || "tsu",
     createdAt: new Date().toISOString(),
     earnHint:

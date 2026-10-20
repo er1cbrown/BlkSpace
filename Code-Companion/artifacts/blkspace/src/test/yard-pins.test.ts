@@ -3,10 +3,12 @@ import { listHubItems } from "@/lib/content-hub";
 import {
   addPin,
   createBoard,
+  listBoards,
   listPins,
   pinFileOk,
   pinImageOk,
   savePinToBoard,
+  syncYardBoard,
 } from "@/lib/yard-pins";
 
 vi.mock("@/lib/auth", () => ({
@@ -61,6 +63,58 @@ describe("yard pins", () => {
     expect(saved.boardId).toBe(flyers.id);
     expect(saved.image).toBe(pin.image);
     expect(listPins("tsu")).toHaveLength(2);
+  });
+
+  it("copies a shared board into this browser", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const path = String(url);
+        if (path.includes("/api/yards/boards")) {
+          return new Response(
+            JSON.stringify({
+              boards: [
+                {
+                  id: "board_remote_1",
+                  yardId: "tsu",
+                  title: "Fits",
+                  authorHandle: "ada",
+                  createdAt: "2026-10-20T00:00:00.000Z",
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        if (path.includes("/api/yards/pins")) {
+          return new Response(
+            JSON.stringify({
+              pins: [
+                {
+                  id: "pin_remote_1",
+                  yardId: "tsu",
+                  boardId: "board_remote_1",
+                  title: "Gold jacket",
+                  note: "Homecoming.",
+                  image: "https://media.example.test/jacket.jpg",
+                  authorHandle: "ada",
+                  createdAt: "2026-10-20T00:00:00.000Z",
+                  hubItemId: null,
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        return new Response("{}", { status: 404 });
+      }),
+    );
+    await syncYardBoard("tsu");
+    expect(listBoards("tsu").map((board) => board.title)).toEqual(["Fits"]);
+    expect(listPins("tsu").map((pin) => pin.title)).toEqual(["Gold jacket"]);
+    expect(listHubItems("culture").some((item) => item.kind === "pin")).toBe(
+      true,
+    );
     expect(
       listHubItems("culture").filter((item) => item.kind === "pin"),
     ).toHaveLength(1);

@@ -210,6 +210,18 @@ export function createYardDesk(env) {
           yard_id TEXT NOT NULL, handle TEXT NOT NULL, school TEXT NOT NULL DEFAULT '',
           short_name TEXT NOT NULL, created_at TEXT NOT NULL,
           PRIMARY KEY (yard_id, handle))`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_boards (
+          id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, title TEXT NOT NULL,
+          author_handle TEXT NOT NULL, created_at TEXT NOT NULL)`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_pins (
+          id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, board_id TEXT NOT NULL,
+          title TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', image TEXT NOT NULL,
+          author_handle TEXT NOT NULL, created_at TEXT NOT NULL)`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_mixtapes (
+          id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, title TEXT NOT NULL,
+          body TEXT NOT NULL DEFAULT '', tracks TEXT NOT NULL, author_handle TEXT NOT NULL,
+          author_display TEXT NOT NULL DEFAULT '', price_wb INTEGER NOT NULL DEFAULT 0,
+          edition_size INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL)`);
       })();
     }
     await ready;
@@ -754,6 +766,252 @@ export function createYardDesk(env) {
     };
   }
 
+  function stamp(value) {
+    const raw = String(value || "").trim();
+    const time = Date.parse(raw);
+    if (!raw || Number.isNaN(time)) return new Date().toISOString();
+    return new Date(time).toISOString();
+  }
+
+  function rowId(value, label) {
+    const id = String(value || "").trim();
+    if (!/^[a-z][a-z0-9_]{3,64}$/i.test(id)) {
+      throw new HttpError(400, `${label} id is not valid.`);
+    }
+    return id;
+  }
+
+  function mediaRef(value) {
+    const out = String(value || "").trim();
+    if (!out) throw new HttpError(400, "Add a photo, a track, or an https link.");
+    if (out.length > 500) throw new HttpError(400, "That media link is too long.");
+    if (/^web_[a-z0-9]+$/i.test(out)) return out;
+    let url;
+    try {
+      url = new URL(out);
+    } catch {
+      throw new HttpError(400, "Add a photo, a track, or an https link.");
+    }
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new HttpError(400, "Add a photo, a track, or an https link.");
+    }
+    return out;
+  }
+
+  function optionalText(value, max) {
+    const out = String(value || "").trim();
+    if (out.length > max) throw new HttpError(400, "That note is too long.");
+    return out;
+  }
+
+  function mapBoard(row) {
+    return {
+      id: String(row.id),
+      yardId: String(row.yard_id),
+      title: String(row.title),
+      authorHandle: String(row.author_handle),
+      createdAt: String(row.created_at),
+    };
+  }
+
+  function mapPin(row) {
+    return {
+      id: String(row.id),
+      yardId: String(row.yard_id),
+      boardId: String(row.board_id),
+      title: String(row.title),
+      note: String(row.note || ""),
+      image: String(row.image),
+      authorHandle: String(row.author_handle),
+      createdAt: String(row.created_at),
+      hubItemId: null,
+    };
+  }
+
+  function mapMixtape(row) {
+    let tracks = [];
+    try {
+      const parsed = JSON.parse(String(row.tracks || "[]"));
+      if (Array.isArray(parsed)) tracks = parsed;
+    } catch {
+      tracks = [];
+    }
+    return {
+      id: String(row.id),
+      yardId: String(row.yard_id),
+      title: String(row.title),
+      body: String(row.body || ""),
+      tracks,
+      authorHandle: String(row.author_handle),
+      authorDisplayName: String(row.author_display || row.author_handle),
+      createdAt: String(row.created_at),
+      priceWb: num(row.price_wb),
+      editionSize: num(row.edition_size) || 1,
+      listingId: null,
+      hubItemId: null,
+    };
+  }
+
+  async function boards(yard) {
+    const id = yardId(yard);
+    await ensure();
+    const rows = await query(
+      "SELECT id, yard_id, title, author_handle, created_at FROM yard_boards WHERE yard_id = ? ORDER BY created_at ASC",
+      [id],
+    );
+    return { ok: true, boards: rows.map(mapBoard) };
+  }
+
+  async function saveBoard(body, pubkey) {
+    const yard = yardId(body.yardId);
+    const who = await actor(pubkey);
+    await requireMember(yard, who);
+    const id = rowId(body.id, "Board");
+    const title = text(body.title, "Board name", 40);
+    const existing = (
+      await query("SELECT id FROM yard_boards WHERE id = ? LIMIT 1", [id])
+    )[0];
+    if (!existing) {
+      const count = (
+        await query(
+          "SELECT COUNT(*) AS n FROM yard_boards WHERE yard_id = ?",
+          [yard],
+        )
+      )[0];
+      if (num(count?.n) >= 24) throw new HttpError(400, "This yard already has 24 boards");
+      const dup = (
+        await query(
+          "SELECT id FROM yard_boards WHERE yard_id = ? AND lower(title) = lower(?) LIMIT 1",
+          [yard, title],
+        )
+      )[0];
+      if (dup) throw new HttpError(400, "That board already exists");
+      await query(
+        `INSERT INTO yard_boards (id, yard_id, title, author_handle, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [id, yard, title, who, stamp(body.createdAt)],
+      );
+    }
+    const row = (
+      await query(
+        "SELECT id, yard_id, title, author_handle, created_at FROM yard_boards WHERE id = ? LIMIT 1",
+        [id],
+      )
+    )[0];
+    return { ok: true, board: mapBoard(row) };
+  }
+
+  async function pins(yard) {
+    const id = yardId(yard);
+    await ensure();
+    const rows = await query(
+      "SELECT id, yard_id, board_id, title, note, image, author_handle, created_at FROM yard_pins WHERE yard_id = ? ORDER BY created_at DESC",
+      [id],
+    );
+    return { ok: true, pins: rows.map(mapPin) };
+  }
+
+  async function savePin(body, pubkey) {
+    const yard = yardId(body.yardId);
+    const who = await actor(pubkey);
+    await requireMember(yard, who);
+    const id = rowId(body.id, "Pin");
+    const boardId = rowId(body.boardId, "Board");
+    const title = text(body.title, "Title", 80);
+    const note = optionalText(body.note, 280);
+    const image = mediaRef(body.image);
+    const board = (
+      await query(
+        "SELECT id FROM yard_boards WHERE id = ? AND yard_id = ? LIMIT 1",
+        [boardId, yard],
+      )
+    )[0];
+    if (!board) throw new HttpError(400, "Pick a board on this yard");
+    const existing = (
+      await query("SELECT id FROM yard_pins WHERE id = ? LIMIT 1", [id])
+    )[0];
+    if (!existing) {
+      const count = (
+        await query(
+          "SELECT COUNT(*) AS n FROM yard_pins WHERE yard_id = ?",
+          [yard],
+        )
+      )[0];
+      if (num(count?.n) >= 200) throw new HttpError(400, "This yard board is full");
+      await query(
+        `INSERT INTO yard_pins (id, yard_id, board_id, title, note, image, author_handle, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, yard, boardId, title, note, image, who, stamp(body.createdAt)],
+      );
+    }
+    const row = (
+      await query(
+        "SELECT id, yard_id, board_id, title, note, image, author_handle, created_at FROM yard_pins WHERE id = ? LIMIT 1",
+        [id],
+      )
+    )[0];
+    return { ok: true, pin: mapPin(row) };
+  }
+
+  async function mixtapes(yard) {
+    const id = yard ? yardId(yard) : "";
+    await ensure();
+    const rows = id
+      ? await query(
+          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, created_at FROM yard_mixtapes WHERE yard_id = ? ORDER BY created_at DESC",
+          [id],
+        )
+      : await query(
+          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, created_at FROM yard_mixtapes ORDER BY created_at DESC",
+        );
+    return { ok: true, mixtapes: rows.map(mapMixtape) };
+  }
+
+  async function saveMixtape(body, pubkey) {
+    const yard = yardId(body.yardId);
+    const who = await actor(pubkey);
+    await requireMember(yard, who);
+    const id = rowId(body.id, "Mixtape");
+    const title = text(body.title, "Title", 80);
+    const blurb = optionalText(body.body, 500);
+    const tracks = Array.isArray(body.tracks) ? body.tracks : [];
+    if (!tracks.length) throw new HttpError(400, "Add at least one track");
+    if (tracks.length > 12) throw new HttpError(400, "A mixtape holds up to 12 tracks");
+    const clean = tracks.map((track, index) => {
+      const raw = String(track?.id || "").trim();
+      const id = /^[a-z0-9_.:-]{1,64}$/i.test(raw) ? raw : `track_${index}`;
+      return {
+        id,
+        title: text(track?.title, "Track", 80),
+        src: mediaRef(track?.src),
+      };
+    });
+    const packed = JSON.stringify(clean);
+    if (packed.length > 8000) throw new HttpError(400, "That mixtape is too large to share.");
+    const priceWb = Math.max(0, Math.min(100000, Math.floor(num(body.priceWb))));
+    const editionSize = Math.max(1, Math.min(100, Math.floor(num(body.editionSize) || 1)));
+    const display = optionalText(body.authorDisplayName, 40) || who;
+    const existing = (
+      await query("SELECT id FROM yard_mixtapes WHERE id = ? LIMIT 1", [id])
+    )[0];
+    if (!existing) {
+      await query(
+        `INSERT INTO yard_mixtapes (
+           id, yard_id, title, body, tracks, author_handle, author_display,
+           price_wb, edition_size, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, yard, title, blurb, packed, who, display, priceWb, editionSize, stamp(body.createdAt)],
+      );
+    }
+    const row = (
+      await query(
+        "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, created_at FROM yard_mixtapes WHERE id = ? LIMIT 1",
+        [id],
+      )
+    )[0];
+    return { ok: true, mixtape: mapMixtape(row) };
+  }
+
   return {
     rooms,
     createRoom,
@@ -768,5 +1026,11 @@ export function createYardDesk(env) {
     deliver,
     release,
     myEscrows,
+    boards,
+    saveBoard,
+    pins,
+    savePin,
+    mixtapes,
+    saveMixtape,
   };
 }

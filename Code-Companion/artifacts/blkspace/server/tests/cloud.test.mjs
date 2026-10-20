@@ -342,6 +342,57 @@ describe("yard desk on the shared server", () => {
     expect((await post("/api/yards/join", { yardId: "desk" })).status).toBe(200);
     expect((await post("/api/yards/join", { yardId: "desk" }, bob)).status).toBe(200);
 
+    expect((await fetch(base + "/api/yards/boards", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status).toBe(401);
+    const fits = await post("/api/yards/boards", {
+      id: "board_fits_1",
+      yardId: "desk",
+      title: "Fits",
+      createdAt: "2026-10-20T12:00:00.000Z",
+    });
+    expect(fits.status).toBe(200);
+    const pin = await post("/api/yards/pins", {
+      id: "pin_jacket_1",
+      yardId: "desk",
+      boardId: "board_fits_1",
+      title: "Gold jacket",
+      note: "Homecoming.",
+      image: "https://media.example.test/jacket.jpg",
+      createdAt: "2026-10-20T12:01:00.000Z",
+    });
+    expect(pin.status).toBe(200);
+    const tape = await post("/api/yards/mixtapes", {
+      id: "mix_friday_1",
+      yardId: "desk",
+      title: "Friday lawn",
+      body: "Recorded in the yard.",
+      priceWb: 25,
+      editionSize: 10,
+      tracks: [{ id: "t1", title: "Intro", src: "https://media.example.test/a.mp3" }],
+      createdAt: "2026-10-20T12:02:00.000Z",
+    });
+    expect(tape.status).toBe(200);
+    const sharedBoards = await (await fetch(base + "/api/yards/boards?yard=desk")).json();
+    const sharedPins = await (await fetch(base + "/api/yards/pins?yard=desk")).json();
+    const sharedTapes = await (await fetch(base + "/api/yards/mixtapes?yard=desk")).json();
+    expect(sharedBoards.boards.map((row) => row.title)).toEqual(["Fits"]);
+    expect(sharedPins.pins.map((row) => row.title)).toEqual(["Gold jacket"]);
+    expect(sharedTapes.mixtapes[0].tracks[0].src).toBe("https://media.example.test/a.mp3");
+    expect(sharedTapes.mixtapes[0].authorHandle).toBe("alice");
+    const blob = await fetch(base + "/api/portfolio/blob", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: "web_abcdef1234567890",
+        filename: "jacket.jpg",
+        mime: "image/jpeg",
+        size: 12,
+        dataUrl: "data:image/jpeg;base64,AAAA",
+      }),
+    });
+    expect(blob.status).toBe(200);
+    const loaded = await (await fetch(base + "/api/portfolio/blob?id=web_abcdef1234567890")).json();
+    expect(loaded.row.data_url).toBe("data:image/jpeg;base64,AAAA");
+
     const aliceWb = await (
       await authorizedGet("/api/yards/wb?yard=desk")
     ).json();

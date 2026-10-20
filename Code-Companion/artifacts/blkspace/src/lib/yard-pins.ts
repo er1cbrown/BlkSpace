@@ -5,7 +5,8 @@
  */
 import { isSafeHttpUrl } from "@/lib/amalgamation-meta";
 import { getCurrentHandle } from "@/lib/auth";
-import { publishHubItem } from "@/lib/content-hub";
+import { listHubItems, publishHubItem } from "@/lib/content-hub";
+import { hostedPost } from "@/lib/hosted-api";
 import { isWebBlobId } from "@/lib/media-web-store";
 
 export const YARD_PIN_STORE = "blkspace_yard_pins_v1";
@@ -213,4 +214,87 @@ export function savePinToBoard(pinId: string, boardId: string): YardPin {
   };
   save({ ...store, pins: [copy, ...store.pins] });
   return copy;
+}
+
+function rememberPin(pin: YardPin, boardTitle: string) {
+  const known = listHubItems("culture").some(
+    (item) =>
+      item.kind === "pin" &&
+      item.title === pin.title &&
+      item.mediaUrl === pin.image,
+  );
+  if (known) return;
+  publishHubItem({
+    topic: "culture",
+    kind: "pin",
+    title: pin.title,
+    body: pin.note || `Pinned on ${boardTitle}`,
+    mediaUrl: pin.image,
+    yardId: pin.yardId,
+    authorHandle: pin.authorHandle,
+    authorDisplayName: pin.authorHandle,
+    earnHint: "On the yard board · save it to another collection",
+  });
+}
+
+async function postJson(url: string, body: unknown) {
+  try {
+    await hostedPost(url, body);
+  } catch {
+    /* this browser keeps the board when the desk is closed */
+  }
+}
+
+/** Pull the shared yard board, then send rows that only exist here. */
+export async function syncYardBoard(yardId: string): Promise<void> {
+  const yard = yardId.trim();
+  if (!yard) return;
+  let remoteBoards: YardBoard[] = [];
+  let remotePins: YardPin[] = [];
+  try {
+    const [boardsRes, pinsRes] = await Promise.all([
+      fetch(`/api/yards/boards?yard=${encodeURIComponent(yard)}`),
+      fetch(`/api/yards/pins?yard=${encodeURIComponent(yard)}`),
+    ]);
+    if (boardsRes.ok) {
+      const body = await boardsRes.json();
+      if (Array.isArray(body.boards)) remoteBoards = body.boards;
+    }
+    if (pinsRes.ok) {
+      const body = await pinsRes.json();
+      if (Array.isArray(body.pins)) remotePins = body.pins;
+    }
+    if (!boardsRes.ok && !pinsRes.ok) return;
+  } catch {
+    return;
+  }
+  const store = load();
+  const boardIds = new Set(store.boards.map((board) => board.id));
+  const pinIds = new Set(store.pins.map((pin) => pin.id));
+  const extraBoards = remoteBoards.filter((board) => !boardIds.has(board.id));
+  const extraPins = remotePins.filter((pin) => !pinIds.has(pin.id));
+  const titles = new Map(
+    [...store.boards, ...extraBoards].map((board) => [board.id, board.title]),
+  );
+  for (const pin of extraPins)
+    rememberPin(pin, titles.get(pin.boardId) || "a board");
+  if (extraBoards.length || extraPins.length) {
+    save({
+      boards: [...extraBoards, ...store.boards],
+      pins: [...extraPins, ...store.pins],
+    });
+  }
+  const seenBoards = new Set(remoteBoards.map((board) => board.id));
+  const seenPins = new Set(remotePins.map((pin) => pin.id));
+  const latest = load();
+  for (const board of latest.boards) {
+    if (board.yardId === yard && !seenBoards.has(board.id)) {
+      await postJson("/api/yards/boards", board);
+    }
+  }
+  for (const pin of latest.pins) {
+    if (pin.yardId === yard && !seenPins.has(pin.id)) {
+      await postJson("/api/yards/pins", pin);
+    }
+  }
 }

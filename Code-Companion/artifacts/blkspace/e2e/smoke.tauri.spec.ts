@@ -27,8 +27,11 @@ test.describe("tauri native smoke", () => {
 
   test("feed tab is reachable in native webview", async ({ tauriPage }) => {
     await navigateTo(tauriPage, "/feed");
-    await expect(tauriPage.getByText("Watch")).toBeVisible();
-    await expect(tauriPage.getByText("Read")).toBeVisible();
-    await expect(tauriPage.getByText("Following")).toBeVisible();
+    await expect(
+      tauriPage.getByText("Following", { exact: true }),
+    ).toBeVisible();
+    await expect(tauriPage.getByText("Yard", { exact: true })).toBeVisible();
+    await expect(tauriPage.getByText("Blog", { exact: true })).toBeVisible();
+    await expect(tauriPage.getByText("Watch", { exact: true })).toBeVisible();
   });
 });

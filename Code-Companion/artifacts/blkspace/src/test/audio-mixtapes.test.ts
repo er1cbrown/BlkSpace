@@ -6,6 +6,7 @@ import {
   mixtapeRef,
   parseMixtapeRef,
   publishMixtape,
+  syncMixtapes,
   trackSrcOk,
 } from "@/lib/audio-mixtapes";
 import { listHubItems } from "@/lib/content-hub";
@@ -118,5 +119,47 @@ describe("audio mixtapes", () => {
       "Notes",
       "Shared",
     ]);
+  });
+
+  it("copies a shared mixtape into this browser", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            mixtapes: [
+              {
+                id: "mix_remote_1",
+                yardId: "tsu",
+                title: "Friday lawn",
+                body: "From the other phone.",
+                tracks: [
+                  {
+                    id: "t1",
+                    title: "Intro",
+                    src: "https://media.example.test/a.mp3",
+                  },
+                ],
+                authorHandle: "ada",
+                authorDisplayName: "Ada",
+                createdAt: "2026-10-20T00:00:00.000Z",
+                priceWb: 25,
+                editionSize: 10,
+                listingId: null,
+                hubItemId: null,
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }),
+    );
+    await syncMixtapes();
+    expect(listMixtapes().map((row) => row.title)).toEqual(["Friday lawn"]);
+    expect(
+      listHubItems("music").some(
+        (item) => item.mediaUrl === "mixtape:mix_remote_1",
+      ),
+    ).toBe(true);
   });
 });

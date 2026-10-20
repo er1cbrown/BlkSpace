@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import {
   listPins,
   pinFileOk,
   savePinToBoard,
+  syncYardBoard,
 } from "@/lib/yard-pins";
 import { toast } from "sonner";
 
@@ -45,6 +46,16 @@ export function YardBoardPanel({
   const [image, setImage] = useState("");
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    let cancel = false;
+    void syncYardBoard(yardId).then(() => {
+      if (!cancel) setTick((n) => n + 1);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [yardId]);
+
   const boards = useMemo(() => {
     void tick;
     return listBoards(yardId);
@@ -75,6 +86,7 @@ export function YardBoardPanel({
       setBoardName("");
       setActiveBoard(board.id);
       setTick((n) => n + 1);
+      void syncYardBoard(yardId).then(() => setTick((n) => n + 1));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not add a board");
     }
@@ -126,6 +138,7 @@ export function YardBoardPanel({
       setImage("");
       setActiveBoard(boardId);
       setTick((n) => n + 1);
+      void syncYardBoard(yardId).then(() => setTick((n) => n + 1));
       toast.success("Pinned on the yard board");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not pin");
@@ -140,6 +153,7 @@ export function YardBoardPanel({
     try {
       savePinToBoard(pinId, boardId);
       setTick((n) => n + 1);
+      void syncYardBoard(yardId).then(() => setTick((n) => n + 1));
       toast.success("Saved onto that board");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save");
@@ -152,8 +166,9 @@ export function YardBoardPanel({
         <h2 className="text-lg font-semibold">{yardName} board</h2>
         <p className="text-sm text-muted-foreground max-w-2xl">
           Pin a photo, a fit, a flyer, or a link. Boards are collections on this
-          yard. Save a pin onto another board when you want it in a second
-          place. The hub keeps a copy under Culture.
+          yard, and the shared yard desk shows them on the next phone. Save a
+          pin onto another board when you want it in a second place. The hub
+          keeps a copy under Culture.
         </p>
       </div>
 

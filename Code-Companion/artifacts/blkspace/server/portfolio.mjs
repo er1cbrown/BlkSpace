@@ -2016,5 +2016,25 @@ export function createPortfolio(env) {
           )[0] || null,
       };
     },
+    async saveBlob(body) {
+      await ensure();
+      const id = String(body?.id || "").trim();
+      if (!/^web_[a-z0-9]{8,40}$/i.test(id)) {
+        throw new HttpError(400, "Blob id is not valid.");
+      }
+      const dataUrl = String(body?.dataUrl || "");
+      if (!dataUrl.startsWith("data:") || dataUrl.length > 12_000_000) {
+        throw new HttpError(400, "That file is too large to share. Use an https link.");
+      }
+      const filename = String(body?.filename || "file").slice(0, 120);
+      const mime = String(body?.mime || "application/octet-stream").slice(0, 80);
+      const size = Math.max(0, Math.floor(Number(body?.size) || 0));
+      await query(
+        `INSERT OR REPLACE INTO portfolio_blobs (id, filename, mime, size, data_url)
+         VALUES (?, ?, ?, ?, ?)`,
+        [id, filename, mime, size, dataUrl],
+      );
+      return { ok: true, id };
+    },
   };
 }
