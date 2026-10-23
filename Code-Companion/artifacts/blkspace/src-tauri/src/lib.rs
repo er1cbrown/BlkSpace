@@ -49,6 +49,12 @@ mod tests_nostr_relay;
 #[cfg(all(test, feature = "rns-t3-net"))]
 mod rns_local_hop;
 
+#[cfg(all(test, feature = "rns-t3-net"))]
+mod rns_tcp_pair;
+
+#[cfg(all(test, feature = "rns-t3-net"))]
+mod rns_lan;
+
 use blob_store::BlobStore;
 use key_store::KeyStore;
 use db::{
@@ -3884,9 +3890,9 @@ fn get_nostr_outbox_status(
 ///
 /// `lanAvailable` means a local Iroh transport is *initialized*, not that a peer
 /// answered — it describes this device's own transport, which is the honest
-/// reading of "a local path exists". `meshPeerObserved` is always false until a
-/// real courier exists, so the mesh tier can never be claimed from a linked
-/// library alone.
+/// reading of "a local path exists". `meshPeerObserved` stays false. Loopback
+/// and this computer's own LAN address are not another laptop.
+/// `peer_is_another_machine` is the check a later observation has to pass.
 #[tauri::command]
 fn get_delivery_tier(state: State<AppState>) -> serde_json::Value {
   let relays_connected = state.relay_manager.lock().unwrap().relay_count();

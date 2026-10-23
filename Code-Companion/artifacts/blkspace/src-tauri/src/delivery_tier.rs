@@ -21,6 +21,7 @@
 //! precedence rules exhaustively testable without touching a socket.
 
 use serde::Serialize;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 /// The delivery regime the device can currently use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -74,7 +75,7 @@ impl DeliveryTier {
 pub struct TierInputs {
   /// Number of connected Nostr relays. Greater than zero means T1.
   pub relays_connected: usize,
-  /// Whether a local-network path is available (Iroh LAN, AutoInterface, ...).
+  /// Whether a local-network path is available (Iroh on the LAN).
   pub lan_available: bool,
   /// Whether a mesh peer has been observed (T3). Always false until the Reticulum
   /// courier is proven live — the tier must not claim a transport that is dark.
@@ -105,6 +106,53 @@ pub fn classify(inputs: TierInputs) -> DeliveryTier {
     return DeliveryTier::Mesh;
   }
   DeliveryTier::Offline
+}
+
+fn mapped_ipv4(ip: IpAddr) -> Option<Ipv4Addr> {
+  match ip {
+    IpAddr::V4(v4) => Some(v4),
+    IpAddr::V6(v6) => v6.to_ipv4_mapped(),
+  }
+}
+
+fn same_ip(left: IpAddr, right: IpAddr) -> bool {
+  if left == right {
+    return true;
+  }
+  match (mapped_ipv4(left), mapped_ipv4(right)) {
+    (Some(left), Some(right)) => left == right,
+    _ => false,
+  }
+}
+
+fn usable_v4(ip: Ipv4Addr) -> bool {
+  !ip.is_loopback() && !ip.is_unspecified() && !ip.is_multicast() && !ip.is_broadcast()
+}
+
+fn usable_unicast(ip: IpAddr) -> bool {
+  match ip {
+    IpAddr::V4(v4) => usable_v4(v4),
+    IpAddr::V6(v6) => {
+      if v6.is_loopback() || v6.is_unspecified() || v6.is_multicast() {
+        return false;
+      }
+      match v6.to_ipv4_mapped() {
+        Some(v4) => usable_v4(v4),
+        None => true,
+      }
+    }
+  }
+}
+
+/// A peer counts only when it is a real unicast address on another machine.
+///
+/// Loopback, an unspecified address, and any address configured on this
+/// computer do not count. Two processes on this laptop are still one laptop.
+pub fn peer_is_another_machine(peer: IpAddr, own: &[IpAddr]) -> bool {
+  if !usable_unicast(peer) {
+    return false;
+  }
+  !own.iter().copied().any(|addr| same_ip(addr, peer))
 }
 
 /// Whether the mesh tier can be claimed by this build at all.
@@ -264,5 +312,34 @@ mod tests {
     assert!(mesh_available(true));
     // Not compiled in: available is false.
     assert!(!mesh_available(false));
+  }
+
+  #[test]
+  fn a_foreign_address_is_the_only_mesh_observation() {
+    let own = [
+      IpAddr::V4(Ipv4Addr::new(10, 0, 0, 40)),
+      IpAddr::V4(Ipv4Addr::LOCALHOST),
+    ];
+    let itself = IpAddr::V4(Ipv4Addr::new(10, 0, 0, 40));
+    let mapped = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0xffff, 0x0a00, 0x0028));
+    let foreign = IpAddr::V4(Ipv4Addr::new(10, 9, 8, 7));
+
+    assert!(!peer_is_another_machine(IpAddr::V4(Ipv4Addr::LOCALHOST), &own));
+    assert!(!peer_is_another_machine(IpAddr::V4(Ipv4Addr::UNSPECIFIED), &own));
+    assert!(!peer_is_another_machine(IpAddr::V6(Ipv6Addr::LOCALHOST), &own));
+    assert!(!peer_is_another_machine(itself, &own));
+    assert!(!peer_is_another_machine(mapped, &own));
+    assert!(!peer_is_another_machine(IpAddr::V4(Ipv4Addr::BROADCAST), &own));
+    assert!(peer_is_another_machine(foreign, &own));
+
+    let mut inputs = TierInputs {
+      relays_connected: 0,
+      lan_available: false,
+      mesh_transport_available: true,
+      mesh_peer_observed: peer_is_another_machine(itself, &own),
+    };
+    assert_eq!(classify(inputs), DeliveryTier::Offline);
+    inputs.mesh_peer_observed = peer_is_another_machine(foreign, &own);
+    assert_eq!(classify(inputs), DeliveryTier::Mesh);
   }
 }

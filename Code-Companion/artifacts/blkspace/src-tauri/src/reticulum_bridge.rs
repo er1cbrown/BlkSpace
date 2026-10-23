@@ -105,6 +105,13 @@ pub const SPOOL_MAX_AGE_SECS: i64 = 7 * 24 * 60 * 60;
 /// Newest records retained after compaction.
 pub const SPOOL_MAX_RECORDS: usize = 500;
 
+/// How many times a due note is handed to the socket before we stop.
+/// Stopping is not a receipt. There is no `delivered` state.
+pub const DRAIN_MAX_ATTEMPTS: u32 = 5;
+
+/// Wait before the same signed event is eligible again.
+pub const DRAIN_BACKOFF_SECS: i64 = 60;
+
 /// One parsed spool line. Malformed lines are dropped, never trusted.
 #[derive(Debug, Clone, PartialEq)]
 struct SpoolRecord {
@@ -113,6 +120,11 @@ struct SpoolRecord {
   handle: String,
   text: String,
   at: i64,
+  state: String,
+  attempts: u32,
+  next_attempt_at: i64,
+  event_json: String,
+  last_error: String,
 }
 
 /// Parse a spool line, or `None` if it is not a usable record.
@@ -128,13 +140,66 @@ fn parse_spool_line(line: &str) -> Option<SpoolRecord> {
     .unwrap_or("")
     .to_string();
   let at = value.get("at").and_then(|t| t.as_i64()).unwrap_or(0);
+  // A line that claims delivery is lying. Reticulum has no end-to-end receipt.
+  let state = match value.get("state").and_then(|t| t.as_str()).unwrap_or("queued") {
+    "failed" => "failed",
+    _ => "queued",
+  };
+  let attempts = value
+    .get("attempts")
+    .and_then(|t| t.as_u64())
+    .unwrap_or(0)
+    .min(u32::MAX as u64) as u32;
+  let next_attempt_at = value
+    .get("next_attempt_at")
+    .and_then(|t| t.as_i64())
+    .unwrap_or(0);
+  let event_json = value
+    .get("event_json")
+    .and_then(|t| t.as_str())
+    .unwrap_or("")
+    .to_string();
+  let last_error = value
+    .get("last_error")
+    .and_then(|t| t.as_str())
+    .unwrap_or("")
+    .to_string();
   Some(SpoolRecord {
     kind,
     yard,
     handle,
     text,
     at,
+    state: state.to_string(),
+    attempts,
+    next_attempt_at,
+    event_json,
+    last_error,
   })
+}
+
+fn record_line(record: &SpoolRecord) -> String {
+  let state = if record.state == "failed" {
+    "failed"
+  } else {
+    "queued"
+  };
+  json!({
+    "v": 1,
+    "kind": record.kind,
+    "yard": record.yard,
+    "handle": record.handle,
+    "text": record.text,
+    "at": record.at,
+    "state": state,
+    "attempts": record.attempts,
+    "next_attempt_at": record.next_attempt_at,
+    "event_json": record.event_json,
+    "last_error": record.last_error,
+    "lxmf": false,
+    "rnode": false,
+  })
+  .to_string()
 }
 
 /// Identity used for deduplication: repeated identical announces collapse.
@@ -402,6 +467,11 @@ pub fn spool_event(
     "handle": handle.trim(),
     "text": text.trim(),
     "at": chrono::Utc::now().timestamp(),
+    "state": "queued",
+    "attempts": 0,
+    "next_attempt_at": 0,
+    "event_json": "",
+    "last_error": "",
     "lxmf": false,
     "rnode": false,
   });
@@ -456,9 +526,135 @@ pub fn reticulum_send_yard_note(
   spool_event(app_dir, "yard_note", yard, handle, text)
 }
 
+/// Counts after one drain pass. `handed_off` is how many notes the socket
+/// accepted this call. That is not a delivery receipt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DrainReport {
+  pub handed_off: usize,
+  pub still_queued: usize,
+  pub failed: usize,
+}
+
+fn sign_yard_note(keys: &nostr_sdk::prelude::Keys, text: &str) -> Result<String, String> {
+  use nostr_sdk::prelude::EventBuilder;
+  let event = EventBuilder::text_note(text)
+    .sign_with_keys(keys)
+    .map_err(|err| format!("sign yard note: {err}"))?;
+  serde_json::to_string(&event).map_err(|err| format!("encode yard note: {err}"))
+}
+
+fn note_is_due(record: &SpoolRecord, now: i64) -> bool {
+  record.kind == "yard_note"
+    && record.state != "failed"
+    && record.attempts < DRAIN_MAX_ATTEMPTS
+    && record.next_attempt_at <= now
+    && !record.text.is_empty()
+}
+
+fn read_spool_records(path: &Path) -> Vec<SpoolRecord> {
+  let Ok(body) = fs::read_to_string(path) else {
+    return Vec::new();
+  };
+  body.lines().filter_map(parse_spool_line).collect()
+}
+
+fn write_spool_records(path: &Path, records: &[SpoolRecord]) -> Result<(), String> {
+  let mut body = String::new();
+  for record in records {
+    let line = record_line(record);
+    let lower = line.to_ascii_lowercase();
+    if lower.contains("delivered")
+      || lower.contains("destination")
+      || lower.contains("desthash")
+    {
+      return Err("refusing to persist a delivery receipt or a destination hash".into());
+    }
+    body.push_str(&line);
+    body.push('\n');
+  }
+  fs::write(path, body).map_err(|err| format!("rns spool rewrite: {err}"))
+}
+
+/// Hand due yard notes to `sender`.
+///
+/// The first attempt signs the note. Later attempts resend that same event.
+/// A socket accept leaves the note `queued` and moves `next_attempt_at`
+/// forward. The retry cap on errors sets `failed`. Neither result is
+/// `delivered`.
+pub fn drain_due_notes(
+  app_dir: &Path,
+  now: i64,
+  keys: &nostr_sdk::prelude::Keys,
+  sender: &mut dyn FnMut(&str) -> Result<(), String>,
+) -> Result<DrainReport, String> {
+  let path = spool_path(app_dir);
+  if rns_path_touches_keys(app_dir, &path) {
+    return Err("refusing to drain RNS data next to Nostr keys".into());
+  }
+  if !path.exists() {
+    return Ok(DrainReport {
+      handed_off: 0,
+      still_queued: 0,
+      failed: 0,
+    });
+  }
+
+  let mut records = read_spool_records(&path);
+  let mut handed_off = 0usize;
+  for record in &mut records {
+    if !note_is_due(record, now) {
+      continue;
+    }
+    if record.event_json.is_empty() {
+      match sign_yard_note(keys, &record.text) {
+        Ok(event_json) => record.event_json = event_json,
+        Err(err) => {
+          record.attempts = record.attempts.saturating_add(1);
+          record.last_error = err.chars().take(200).collect();
+          record.next_attempt_at = now.saturating_add(DRAIN_BACKOFF_SECS);
+          if record.attempts >= DRAIN_MAX_ATTEMPTS {
+            record.state = "failed".into();
+          }
+          continue;
+        }
+      }
+    }
+    let event_json = record.event_json.clone();
+    match sender(&event_json) {
+      Ok(()) => {
+        handed_off += 1;
+        record.attempts = record.attempts.saturating_add(1);
+        record.last_error.clear();
+        record.state = "queued".into();
+        record.next_attempt_at = now.saturating_add(DRAIN_BACKOFF_SECS);
+        record.event_json = event_json;
+      }
+      Err(err) => {
+        record.attempts = record.attempts.saturating_add(1);
+        record.last_error = err.chars().take(200).collect();
+        record.event_json = event_json;
+        record.next_attempt_at = now.saturating_add(DRAIN_BACKOFF_SECS);
+        if record.attempts >= DRAIN_MAX_ATTEMPTS {
+          record.state = "failed".into();
+        } else {
+          record.state = "queued".into();
+        }
+      }
+    }
+  }
+
+  write_spool_records(&path, &records)?;
+  Ok(DrainReport {
+    handed_off,
+    still_queued: records.iter().filter(|r| r.state == "queued").count(),
+    failed: records.iter().filter(|r| r.state == "failed").count(),
+  })
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
+  use nostr_sdk::prelude::Keys;
   use std::io::Write;
   use std::sync::Mutex;
 
@@ -744,5 +940,309 @@ mod tests {
       Some(v) => std::env::set_var("BLKSPACE_RNSD", v),
       None => std::env::remove_var("BLKSPACE_RNSD"),
     }
+  }
+
+  fn assert_no_receipt(app: &Path) {
+    let spool = fs::read_to_string(spool_path(app)).unwrap();
+    let lower = spool.to_ascii_lowercase();
+    for banned in ["delivered", "destination", "desthash"] {
+      assert!(!lower.contains(banned), "spool contains {banned}");
+    }
+  }
+
+  fn one_record(app: &Path) -> SpoolRecord {
+    let records = read_spool_records(&spool_path(app));
+    assert_eq!(records.len(), 1, "expected one spool record");
+    records.into_iter().next().unwrap()
+  }
+
+  #[test]
+  fn drain_of_a_missing_spool_reports_zero_and_creates_nothing() {
+    let (_keep, app) = temp_app();
+    let keys = Keys::generate();
+    let report = drain_due_notes(&app, 1_000, &keys, &mut |_| {
+      panic!("a missing spool must not send");
+    })
+    .unwrap();
+    assert_eq!(
+      report,
+      DrainReport {
+        handed_off: 0,
+        still_queued: 0,
+        failed: 0,
+      }
+    );
+    assert!(!spool_path(&app).exists());
+  }
+
+  #[test]
+  fn drain_signs_once_resends_that_event_and_stays_queued() {
+    let (_keep, app) = temp_app();
+    reticulum_send_yard_note(&app, "tsu", "demo_user", "yard note").unwrap();
+    let keys = Keys::generate();
+    let secret = keys.secret_key().to_secret_hex();
+    let now = 1_700_000_000i64;
+
+    let mut sent = Vec::new();
+    let report = drain_due_notes(&app, now, &keys, &mut |event| {
+      sent.push(event.to_string());
+      Ok(())
+    })
+    .unwrap();
+    assert_eq!(report.handed_off, 1);
+    assert_eq!(report.still_queued, 1);
+    assert_eq!(report.failed, 0);
+    assert_eq!(sent.len(), 1);
+
+    let record = one_record(&app);
+    assert_eq!(record.state, "queued");
+    assert_eq!(record.attempts, 1);
+    assert_eq!(record.event_json, sent[0]);
+    assert_eq!(record.next_attempt_at, now + DRAIN_BACKOFF_SECS);
+    assert!(record.last_error.is_empty());
+    let event: Value = serde_json::from_str(&record.event_json).unwrap();
+    assert_eq!(event["content"], "yard note");
+    assert_eq!(event["kind"], 1);
+    let verified = crate::verify_nostr_event_detail(&record.event_json);
+    assert!(verified.valid, "{:?}", verified.message);
+    let spool = fs::read_to_string(spool_path(&app)).unwrap();
+    assert!(!spool.to_ascii_lowercase().contains(&secret.to_ascii_lowercase()));
+    assert_no_receipt(&app);
+
+    let quiet = drain_due_notes(&app, now + DRAIN_BACKOFF_SECS - 1, &keys, &mut |_| {
+      panic!("backoff has not elapsed");
+    })
+    .unwrap();
+    assert_eq!(quiet.handed_off, 0);
+    let again = one_record(&app);
+    assert_eq!(again.event_json, sent[0]);
+    assert_eq!(again.attempts, 1);
+    assert_eq!(again.state, "queued");
+
+    // A later attempt must resend the stored event. Replacing it with a
+    // marker proves the drain did not sign a second time.
+    let marker = r#"{"content":"yard note","id":"already-signed"}"#;
+    let mut line: Value = serde_json::from_str(
+      fs::read_to_string(spool_path(&app))
+        .unwrap()
+        .lines()
+        .next()
+        .unwrap(),
+    )
+    .unwrap();
+    line["event_json"] = json!(marker);
+    line["next_attempt_at"] = json!(0);
+    fs::write(spool_path(&app), format!("{line}\n")).unwrap();
+
+    let mut resent = Vec::new();
+    let again_report = drain_due_notes(&app, now + DRAIN_BACKOFF_SECS, &keys, &mut |event| {
+      resent.push(event.to_string());
+      Ok(())
+    })
+    .unwrap();
+    assert_eq!(again_report.handed_off, 1);
+    assert_eq!(resent, vec![marker.to_string()]);
+    let stored = one_record(&app);
+    assert_eq!(stored.event_json, marker);
+    assert_eq!(stored.attempts, 2);
+    assert_eq!(stored.state, "queued");
+    assert_no_receipt(&app);
+  }
+
+  #[test]
+  fn drain_fails_a_note_after_five_errors_and_then_stops() {
+    let (_keep, app) = temp_app();
+    reticulum_send_yard_note(&app, "tsu", "demo_user", "yard note").unwrap();
+    let keys = Keys::generate();
+    let mut calls = 0usize;
+    let mut signed = String::new();
+    let mut now = 1_700_000_000i64;
+
+    for n in 1..=DRAIN_MAX_ATTEMPTS {
+      let report = drain_due_notes(&app, now, &keys, &mut |event| {
+        calls += 1;
+        if signed.is_empty() {
+          signed = event.to_string();
+        } else {
+          assert_eq!(event, signed, "a retry must resend the same event");
+        }
+        Err("socket down".into())
+      })
+      .unwrap();
+      assert_eq!(report.handed_off, 0);
+      let record = one_record(&app);
+      assert_eq!(record.attempts, n);
+      assert_eq!(record.event_json, signed);
+      assert_eq!(record.last_error, "socket down");
+      assert_eq!(record.next_attempt_at, now + DRAIN_BACKOFF_SECS);
+      if n < DRAIN_MAX_ATTEMPTS {
+        assert_eq!(record.state, "queued");
+        assert_eq!(report.still_queued, 1);
+        assert_eq!(report.failed, 0);
+      } else {
+        assert_eq!(record.state, "failed");
+        assert_eq!(report.still_queued, 0);
+        assert_eq!(report.failed, 1);
+      }
+
+      let early = drain_due_notes(&app, now, &keys, &mut |_| {
+        calls += 1;
+        Ok(())
+      })
+      .unwrap();
+      assert_eq!(early.handed_off, 0);
+      assert_eq!(calls, n as usize);
+      now += DRAIN_BACKOFF_SECS;
+    }
+
+    let stopped = drain_due_notes(&app, now, &keys, &mut |_| {
+      calls += 1;
+      Ok(())
+    })
+    .unwrap();
+    assert_eq!(stopped.handed_off, 0);
+    assert_eq!(stopped.failed, 1);
+    assert_eq!(calls, DRAIN_MAX_ATTEMPTS as usize);
+    assert_eq!(one_record(&app).state, "failed");
+    assert_no_receipt(&app);
+  }
+
+  #[test]
+  fn drain_stops_after_five_handoffs_and_stays_queued() {
+    let (_keep, app) = temp_app();
+    reticulum_send_yard_note(&app, "tsu", "demo_user", "yard note").unwrap();
+    let keys = Keys::generate();
+    let mut calls = 0usize;
+    let mut signed = String::new();
+    let mut now = 1_700_000_000i64;
+
+    for n in 1..=DRAIN_MAX_ATTEMPTS {
+      let report = drain_due_notes(&app, now, &keys, &mut |event| {
+        calls += 1;
+        if signed.is_empty() {
+          signed = event.to_string();
+        } else {
+          assert_eq!(event, signed);
+        }
+        Ok(())
+      })
+      .unwrap();
+      assert_eq!(report.handed_off, 1);
+      assert_eq!(report.still_queued, 1);
+      assert_eq!(report.failed, 0);
+      let record = one_record(&app);
+      assert_eq!(record.state, "queued");
+      assert_eq!(record.attempts, n);
+      assert_eq!(record.event_json, signed);
+      assert!(record.last_error.is_empty());
+      now += DRAIN_BACKOFF_SECS;
+    }
+
+    let stopped = drain_due_notes(&app, now, &keys, &mut |_| {
+      calls += 1;
+      Ok(())
+    })
+    .unwrap();
+    assert_eq!(stopped.handed_off, 0);
+    assert_eq!(stopped.still_queued, 1);
+    assert_eq!(stopped.failed, 0);
+    assert_eq!(calls, DRAIN_MAX_ATTEMPTS as usize);
+    let record = one_record(&app);
+    assert_eq!(record.state, "queued");
+    assert_eq!(record.attempts, DRAIN_MAX_ATTEMPTS);
+    assert_eq!(record.event_json, signed);
+    assert_no_receipt(&app);
+  }
+
+  #[test]
+  fn drain_skips_announces() {
+    let (_keep, app) = temp_app();
+    reticulum_announce_yard(&app, "tsu", "demo_user").unwrap();
+    reticulum_send_yard_note(&app, "tsu", "demo_user", "yard note").unwrap();
+    let keys = Keys::generate();
+    let mut sent = Vec::new();
+    let report = drain_due_notes(&app, 1_700_000_000, &keys, &mut |event| {
+      sent.push(event.to_string());
+      Ok(())
+    })
+    .unwrap();
+    assert_eq!(sent.len(), 1);
+    assert_eq!(report.handed_off, 1);
+    assert_eq!(report.still_queued, 2);
+    assert_eq!(report.failed, 0);
+
+    let records = read_spool_records(&spool_path(&app));
+    assert_eq!(records.len(), 2);
+    assert_eq!(records[0].kind, "yard_announce");
+    assert_eq!(records[0].attempts, 0);
+    assert!(records[0].event_json.is_empty());
+    assert_eq!(records[1].kind, "yard_note");
+    assert_eq!(records[1].attempts, 1);
+    assert_eq!(records[1].event_json, sent[0]);
+    assert_no_receipt(&app);
+  }
+
+  #[test]
+  fn drain_accepts_an_older_spool_line_that_has_no_attempt_fields() {
+    let (_keep, app) = temp_app();
+    write_spool(&app, &[row("yard_note", "demo_user", "yard note", 1_000)]);
+    let keys = Keys::generate();
+    let report = drain_due_notes(&app, 1_700_000_000, &keys, &mut |_| Ok(())).unwrap();
+    assert_eq!(report.handed_off, 1);
+    let record = one_record(&app);
+    assert_eq!(record.state, "queued");
+    assert_eq!(record.attempts, 1);
+    assert!(!record.event_json.is_empty());
+    let verified = crate::verify_nostr_event_detail(&record.event_json);
+    assert!(verified.valid, "{:?}", verified.message);
+    assert_no_receipt(&app);
+  }
+
+  #[test]
+  fn drain_drops_a_forged_receipt_and_any_destination_hash() {
+    let (_keep, app) = temp_app();
+    let path = spool_path(&app);
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(
+      &path,
+      concat!(
+        r#"{"v":1,"kind":"yard_note","yard":"tsu","handle":"demo_user","text":"yard note","at":1,"state":"delivered","destination":"abcdef","attempts":0,"next_attempt_at":0,"event_json":"","last_error":""}"#,
+        "\n",
+      ),
+    )
+    .unwrap();
+    let keys = Keys::generate();
+    let mut sent = Vec::new();
+    let report = drain_due_notes(&app, 1_700_000_000, &keys, &mut |event| {
+      sent.push(event.to_string());
+      Ok(())
+    })
+    .unwrap();
+    assert_eq!(report.handed_off, 1);
+    assert_eq!(report.still_queued, 1);
+    assert_eq!(report.failed, 0);
+    let record = one_record(&app);
+    assert_eq!(record.state, "queued");
+    assert_eq!(record.attempts, 1);
+    assert_eq!(record.event_json, sent[0]);
+    assert_no_receipt(&app);
+  }
+
+  #[test]
+  fn drain_truncates_a_long_send_error() {
+    let (_keep, app) = temp_app();
+    reticulum_send_yard_note(&app, "tsu", "demo_user", "yard note").unwrap();
+    let keys = Keys::generate();
+    let err = "x".repeat(400);
+    let report = drain_due_notes(&app, 1_700_000_000, &keys, &mut |_| Err(err.clone())).unwrap();
+    assert_eq!(report.handed_off, 0);
+    assert_eq!(report.still_queued, 1);
+    assert_eq!(report.failed, 0);
+    let record = one_record(&app);
+    assert_eq!(record.state, "queued");
+    assert_eq!(record.attempts, 1);
+    assert_eq!(record.last_error.chars().count(), 200);
+    assert!(err.starts_with(&record.last_error));
+    assert_no_receipt(&app);
   }
 }

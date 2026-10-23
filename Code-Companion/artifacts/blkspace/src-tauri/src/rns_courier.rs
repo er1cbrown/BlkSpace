@@ -43,21 +43,116 @@
 //! substituted for a mesh identity by accident â€” and an announce minted for one
 //! destination will not validate against another.
 //!
-//! # What is still undecided
+//! # Yard notes use the group destination
 //!
-//! Whose mesh identity is it? `destination_hash` takes
-//! `identity_hash: Option<&[u8; 16]>`; `None` yields a group destination anyone
-//! may announce to, `Some` yields a point-to-point destination only that
-//! identity can decrypt. Per-user, per-device, and per-campus are all
-//! defensible and they have different privacy consequences. That is a product
-//! decision and is deliberately not made here.
+//! A yard note is addressed to `blkspace.campus` with `identity_hash: None`.
+//! That is a group destination: there is no per-handle address book, and the
+//! destination hash is not stored next to a Nostr key. The group key is derived
+//! from that public name. It is not a secret. The Nostr signature is what makes
+//! the note authentic. Point-to-point destinations remain available and unused.
 
 #![cfg(feature = "rns-t3")]
 
+use std::collections::BTreeSet;
+
 use rns_core::announce::AnnounceData;
+use rns_core::constants::{
+  CONTEXT_NONE, DESTINATION_GROUP, FLAG_UNSET, HEADER_1, PACKET_TYPE_DATA, TRANSPORT_BROADCAST,
+};
 use rns_core::destination;
+use rns_core::packet::{PacketFlags, RawPacket};
 use rns_crypto::identity::Identity;
-use rns_crypto::FixedRng;
+use rns_crypto::token::Token;
+use rns_crypto::{FixedRng, Rng};
+
+/// What the receiver does with one opened yard note.
+#[derive(Debug, PartialEq, Eq)]
+pub enum CampusNote {
+  Kept { event_id: String },
+  Duplicate { event_id: String },
+  Rejected,
+}
+
+/// Group address for yard notes. No identity hash, so no address book.
+pub fn campus_group_hash() -> [u8; 16] {
+  destination::destination_hash(APP_NAME, ASPECTS, None)
+}
+
+/// Symmetric key for the campus group.
+///
+/// Derived from the public name `blkspace.campus`. Never written to disk.
+/// Anyone who knows the service name can open the note.
+fn campus_group_key() -> [u8; 32] {
+  let name = destination::expand_name(APP_NAME, ASPECTS, None)
+    .expect("blkspace.campus contains no dots");
+  let material = rns_crypto::hkdf::hkdf(32, name.as_bytes(), None, Some(b"blkspace-campus-group"))
+    .expect("the campus name is non-empty");
+  let mut key = [0u8; 32];
+  key.copy_from_slice(&material);
+  key
+}
+
+/// Encrypt a signed Nostr event for the campus group.
+pub fn seal_campus_event(event_json: &[u8], rng: &mut dyn Rng) -> Vec<u8> {
+  let token = Token::new(&campus_group_key()).expect("campus group key is 32 bytes");
+  token.encrypt(event_json, rng)
+}
+
+/// Open a campus-group token. Fails closed on a bad key or a truncated token.
+pub fn open_campus_event(token_bytes: &[u8]) -> Result<Vec<u8>, &'static str> {
+  let token = Token::new(&campus_group_key()).map_err(|_| "campus group key")?;
+  token
+    .decrypt(token_bytes)
+    .map_err(|_| "campus note did not open")
+}
+
+/// Pack a sealed note as one GROUP data packet for `blkspace.campus`.
+pub fn pack_campus_frame(sealed: &[u8]) -> Result<Vec<u8>, String> {
+  let flags = PacketFlags {
+    header_type: HEADER_1,
+    context_flag: FLAG_UNSET,
+    transport_type: TRANSPORT_BROADCAST,
+    destination_type: DESTINATION_GROUP,
+    packet_type: PACKET_TYPE_DATA,
+  };
+  let hash = campus_group_hash();
+  let packet = RawPacket::pack(flags, 0, &hash, None, CONTEXT_NONE, sealed)
+    .map_err(|err| err.to_string())?;
+  Ok(packet.raw)
+}
+
+/// Recover the sealed token from a campus GROUP data packet.
+pub fn unpack_campus_frame(raw: &[u8]) -> Result<Vec<u8>, String> {
+  let packet = RawPacket::unpack(raw).map_err(|err| err.to_string())?;
+  if packet.flags.destination_type != DESTINATION_GROUP {
+    return Err("not a group packet".into());
+  }
+  if packet.flags.packet_type != PACKET_TYPE_DATA {
+    return Err("not a data packet".into());
+  }
+  if packet.destination_hash != campus_group_hash() {
+    return Err("not the campus group".into());
+  }
+  Ok(packet.data)
+}
+
+/// Verify the Nostr signature and keep the note only when its id is new.
+///
+/// `seen` is the caller's memory for this session. This function does not
+/// write the id, the event, or a destination hash anywhere.
+pub fn accept_campus_note(seen: &mut BTreeSet<String>, event_json: &str) -> CampusNote {
+  let verified = crate::verify_nostr_event_detail(event_json);
+  if !verified.valid {
+    return CampusNote::Rejected;
+  }
+  let Some(event_id) = verified.event_id else {
+    return CampusNote::Rejected;
+  };
+  if !seen.insert(event_id.clone()) {
+    return CampusNote::Duplicate { event_id };
+  }
+  CampusNote::Kept { event_id }
+}
 
 /// The application name BlkSpace announces under on the mesh.
 ///
@@ -352,6 +447,58 @@ mod tests {
   }
 
   // â”€â”€ The honesty boundary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  fn signed_text_note(content: &str) -> String {
+    use nostr_sdk::prelude::{EventBuilder, Keys};
+    let keys = Keys::generate();
+    let event = EventBuilder::text_note(content)
+      .sign_with_keys(&keys)
+      .expect("a text note must sign");
+    serde_json::to_string(&event).expect("a signed note must serialize")
+  }
+
+  #[test]
+  fn a_signed_note_seals_for_the_campus_group_and_is_kept_once() {
+    let note = signed_text_note("yard note");
+    let mut rng = test_rng();
+    let sealed = seal_campus_event(note.as_bytes(), &mut rng);
+    assert!(
+      !sealed.windows(b"yard note".len()).any(|w| w == b"yard note"),
+      "the note content must not be visible in the token"
+    );
+
+    let frame = pack_campus_frame(&sealed).expect("a short note fits one packet");
+    assert!(
+      frame.len() <= rns_core::constants::MTU,
+      "campus note frame is {} bytes, over the 500-byte reticulum MTU",
+      frame.len()
+    );
+    assert_ne!(
+      campus_group_hash(),
+      destination::destination_hash(APP_NAME, ASPECTS, Some(&[7u8; 16])),
+      "the group address must not collapse into a point-to-point address"
+    );
+
+    let opened = open_campus_event(&unpack_campus_frame(&frame).unwrap()).unwrap();
+    let json = String::from_utf8(opened).unwrap();
+    assert_eq!(json, note);
+
+    let mut seen = BTreeSet::new();
+    let first = accept_campus_note(&mut seen, &json);
+    let second = accept_campus_note(&mut seen, &json);
+    match first {
+      CampusNote::Kept { event_id } => assert_eq!(event_id.len(), 64),
+      other => panic!("first copy must be kept, got {other:?}"),
+    }
+    assert!(matches!(second, CampusNote::Duplicate { .. }));
+
+    let mut bad = json.clone();
+    bad.replace_range(bad.len() - 8..bad.len() - 4, "ffff");
+    assert_eq!(accept_campus_note(&mut seen, &bad), CampusNote::Rejected);
+    assert!(open_campus_event(&sealed[..sealed.len() - 1]).is_err());
+
+    assert!(!crate::rns_t3::probe().courier_available);
+  }
 
   #[test]
   fn a_working_payload_layer_still_does_not_enable_the_mesh_tier() {
