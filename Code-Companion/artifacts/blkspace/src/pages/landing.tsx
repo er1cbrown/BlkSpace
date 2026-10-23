@@ -216,8 +216,8 @@ export default function LandingPage() {
               </li>
               <li>
                 <strong className="text-foreground">BI9</strong> is a separate
-                coin on HyperEVM. It is not paid from WeixBucks. Its mint is not
-                issuing.
+                ERC-20 on Ethereum. It is not paid from WeixBucks. Its mint is
+                not issuing.
               </li>
               <li>
                 The finance desk is a later screen for reading prices and

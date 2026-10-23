@@ -1,4 +1,4 @@
-> **SUPERSEDED (2026-10-08).** This study was written when BI9 on HyperEVM was the
+> **SUPERSEDED (2026-10-20).** Do not follow this study. BKSPC on Solana is the canonical on-chain asset. BI9 is an undeployed Ethereum ERC-20, not a HyperEVM asset. The text below is the withdrawn 2026-08 argument. It was written when BI9 on HyperEVM was the
 > canonical mint and Solana BKSPC was an optional prototype. Hyperliquid geo-restricts
 > the United States, so BI9 is not deployable by this operator and **BKSPC on Solana is
 > now canonical**. The referee's underlying concern still applies — never let two
@@ -12,7 +12,7 @@
 **Freeze context:** IEEE preview pack + Device B smoke; dual-chain code exists under `Code-Companion/artifacts/solana/` and `…/hyperevm/`  
 **Audience:** Program committee, faculty, counsel. Not student onboarding.
 
-> This study is **optional**. The core paper remains a hardware-aware federated campus social system. **Canonical on-chain token is BI9 ERC-20 on HyperEVM.** Solana Token-2022 is an optional prototype. Do not present BKSPC as the mint home.
+> Withdrawn. The canonical on-chain token is **BKSPC on Solana**. BI9 is an undeployed Ethereum ERC-20, not a HyperEVM asset. The paragraphs below record the old argument and are not instructions.
 
 **Related:** [`../tokenomics.md`](../tokenomics.md) · [`../finance-l1-strategy.md`](../finance-l1-strategy.md) · [`../IEEE_CONFERENCE_PACK.md`](../IEEE_CONFERENCE_PACK.md) · [`../IEEE_REFEREE_REPORT_2026-08-27.md`](../IEEE_REFEREE_REPORT_2026-08-27.md) · [`four-pillar-economy.md`](four-pillar-economy.md)
 
@@ -48,7 +48,7 @@ This document completes **§1 (role definition)**. Measurement (§2+) is not cla
 | **Primary job** | Rapid state updates without bloating Tier 0 client CPU | On-chain home of BI9: routing, treasury, governance |
 | **Gas / runtime** | SOL on Solana | HYPE on HyperEVM (chain id 999 / 998) |
 
-**Invariant (non-negotiable):** we **are** doing ERC-20. BI9 on HyperEVM is the canonical on-chain token. Off-chain WeixBucks remain the live student loop. Solana must not be described as the mint home.
+**Withdrawn invariant:** this paper told readers that BI9 on HyperEVM was the canonical token. That call is void. BKSPC on Solana is the mint home. BI9 is an undeployed Ethereum ERC-20. WeixBucks stay off-chain.
 
 ```
 BlkCore (off-chain)
@@ -88,9 +88,9 @@ BlkCore (off-chain)
 
 **Live artifact (honest).** Token-2022 mint `HBcTHr2LEC7wb1Y5Sni8pgBp8ChduHuf4sk2tLgykZPx` is **on Solana Devnet**, decimals 6, user supply **0**. Convert program source exists (`convert_wb_to_bkspc`); **user conversion is not live** until BPF deploy + authority move. Eligibility UI and the 1,000:1 constant are in `TokenomicsPolicy::published()`.
 
-### 1.2 Canonical — HyperEVM (BI9 ERC-20)
+### 1.2 Withdrawn — this section called HyperEVM the home of BI9
 
-**Role.** Canonical on-chain home of **BLACKINCCOIN (BI9)**. ERC-20 on Hyperliquid HyperEVM. Also the venue for institutional routing, treasury, and protocol-role governance.
+**Role.** Withdrawn. BI9 is an ERC-20 aimed at Ethereum, not a HyperEVM asset, and it is not deployed. The old text below treated Hyperliquid HyperEVM as its home.
 
 **Mechanic.** **BI9** is a real **ERC-20**. It **does not interact with WeixBucks**. That isolation is the student-protection property: campus practice credits are insulated from HYPE gas spikes. Solidity: no WB parameter, no convert instruction, cap `0` until timelocked governance. Stake sleeves (HYPE / BI9) are membership and collateral, **not** yield from posting.
 
@@ -158,10 +158,10 @@ Until §2–§3 have numbers, the optional track is a **design partition + proto
 
 | Surface | Correct job line |
 |---------|------------------|
-| Wallet pillar 4 | **On-chain · HyperEVM · BI9 ERC-20** → `#hyperevm` |
-| Wallet HyperEVM panel | **Canonical ERC-20** — no WB convert button |
-| Landing economy card | BI9 ERC-20 is the on-chain token |
-| `BI9.sol` | Canonical ERC-20; no WB |
+| Wallet pillar 4 | **On-chain · Solana · BKSPC** |
+| Chain 999 reader | Old reference. Not BI9's home. No WB convert button |
+| Landing economy card | BKSPC is the settlement coin. BI9 is an undeployed Ethereum ERC-20 |
+| `BI9.sol` | Undeployed ERC-20 aimed at Ethereum; no WB |
 | Anchor `bkspc` | Optional prototype; not the mint home |
 
 Code lock: `Code-Companion/artifacts/blkspace/src/lib/power-of-2.ts`.

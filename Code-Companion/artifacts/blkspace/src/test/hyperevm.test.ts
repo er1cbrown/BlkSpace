@@ -24,7 +24,8 @@ describe("HyperEVM mainnet constants", () => {
 
   it("never lists WeixBucks as a HyperEVM asset", () => {
     expect(isWeixBucksListedAsHyperevmAsset()).toBe(false);
-    expect(HYPEREVM_ASSETS).toEqual(["HYPE", "BI9"]);
+    expect(HYPEREVM_ASSETS).toEqual(["HYPE"]);
+    expect(HYPEREVM_ASSETS).not.toContain("BI9");
     expect(BRIDGE_EXCLUDED_ASSETS).toContain("WB");
     expect(BRIDGE_EXCLUDED_ASSETS).toContain("WeixBucks");
   });

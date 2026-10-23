@@ -1,6 +1,7 @@
 /**
- * Canonical on-chain home of BI9: Hyperliquid HyperEVM (chain id 999), ERC-20.
- * WeixBucks never appear here. Solana BKSPC is an optional prototype, not the mint.
+ * Old chain 999 reader. BI9 is an ERC-20 aimed at Ethereum and is not deployed.
+ * BI9 is not a chain 999 asset. BKSPC on Solana is the settlement coin.
+ * WeixBucks never appear here.
  */
 
 export const HYPEREVM_MAINNET = {
@@ -27,8 +28,8 @@ export const HYPE_CORE_SYSTEM_ADDRESS =
 
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-/** Assets BlkBridge v1 may mention. WB is intentionally absent. */
-export const HYPEREVM_ASSETS = ["HYPE", "BI9"] as const;
+/** Chain 999 gas token. BI9 is not a HyperEVM asset. WB is absent. */
+export const HYPEREVM_ASSETS = ["HYPE"] as const;
 export const BRIDGE_EXCLUDED_ASSETS = ["WB", "WeixBucks"] as const;
 
 export type HyperevmNetwork = "mainnet" | "testnet";
@@ -240,7 +241,7 @@ export async function fetchHyperevmBalances(
 export const HYPEREVM_GATES_COPY = [
   "BI9 is retained reference code. It is not the canonical asset and is not deployable.",
   "The canonical on-chain asset is BKSPC on Solana.",
-  "Hyperliquid geo-restricts the US, so BI9 was never deployed here.",
+  "BI9 is an ERC-20 aimed at Ethereum. It is not a chain 999 asset.",
   "No BI9 address is configured, so there is no balance to read.",
   "WeixBucks never auto-convert to any token.",
 ] as const;

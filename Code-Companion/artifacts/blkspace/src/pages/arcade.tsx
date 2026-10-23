@@ -45,6 +45,7 @@ import {
 import {
   Gamepad2,
   Joystick,
+  Keyboard,
   Plus,
   Shield,
   Store,
@@ -52,6 +53,7 @@ import {
   Layers,
 } from "lucide-react";
 import { toast } from "sonner";
+import { DjBattlePanel } from "@/components/arcade/DjBattlePanel";
 
 /**
  * Yard Arcade — homebrew campus games shelf.
@@ -314,6 +316,32 @@ export default function ArcadePage() {
             {games.length} game{games.length === 1 ? "" : "s"}
           </span>
         </div>
+
+        <Link href="/typeverse" className="block">
+          <Card className="border-primary/40 overflow-hidden hover:border-primary transition-colors">
+            <div className="h-1 bg-gradient-to-r from-primary via-accent to-secondary" />
+            <CardHeader className="pb-2">
+              <div className="flex flex-wrap gap-1.5">
+                <Badge className="text-[10px]">On BKSPC</Badge>
+                <Badge variant="outline" className="text-[10px]">
+                  Micro
+                </Badge>
+              </div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Keyboard className="w-4 h-4 text-primary" />
+                typeverse
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Monkeytype-style Bible verses in the yard. KJV and Reina-Valera
+                1909. Tab for a new verse, Escape to restart.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+
+        <DjBattlePanel
+          yardId={yardFilter === "all" ? prefs.homeYardId || "tsu" : yardFilter}
+        />
 
         <div className="grid gap-3 sm:grid-cols-2">
           {games.map((item) => {

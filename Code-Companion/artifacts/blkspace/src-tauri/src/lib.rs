@@ -1,5 +1,6 @@
 #[macro_use]
 mod sqlite;
+pub mod ledger;
 mod db;
 mod hbcu_catalog_seed;
 mod connect;
@@ -49,6 +50,12 @@ mod tests_nostr_relay;
 #[cfg(all(test, feature = "rns-t3-net"))]
 mod rns_local_hop;
 
+#[cfg(all(test, feature = "rns-t3-net"))]
+mod rns_tcp_pair;
+
+#[cfg(all(test, feature = "rns-t3-net"))]
+mod rns_lan;
+
 use blob_store::BlobStore;
 use key_store::KeyStore;
 use db::{
@@ -90,9 +97,19 @@ struct PendingChallenge {
   created_at: Instant,
 }
 
-/// Yard-first boot unless `BLKSPACE_FULL_MESH=1` (connect all relays + eager Iroh).
+/// Yard boot uses one relay. A Full release binary, or `BLKSPACE_FULL_MESH=1`,
+/// connects every relay and starts Iroh on a background thread. `BLKSPACE_FULL_MESH=0`
+/// or `BLKSPACE_YARD_BOOT=1` keeps the yard path even on a Full binary.
 fn full_mesh_startup() -> bool {
-  std::env::var("BLKSPACE_FULL_MESH").as_deref() == Ok("1")
+  match std::env::var("BLKSPACE_FULL_MESH").as_deref() {
+    Ok("1") => return true,
+    Ok("0") => return false,
+    _ => {}
+  }
+  if std::env::var("BLKSPACE_YARD_BOOT").as_deref() == Ok("1") {
+    return false;
+  }
+  cfg!(feature = "full-release")
 }
 
 struct AppState {
@@ -489,6 +506,17 @@ fn ingest_validated_relay_event(
     created_at,
   );
   let _ = state.db.record_relay_consensus(event_id, relay_url, &content_hash);
+  // Signature and town tag already passed. Kind 1 is the only feed entity.
+  if kind_i64 == 1 {
+    let _ = state.db.materialize_kind1_note(
+      event_id,
+      pubkey,
+      content,
+      &tags_json,
+      relay_url,
+      created_at,
+    );
+  }
   true
 }
 
@@ -3190,6 +3218,7 @@ fn sync_town_events(
   get_handle_from_session(&state, &session_token)?;
   let town_tag = normalize_subscription_tag(&town);
   let town_id = town_id_from_tag(&town_tag);
+  let feed_cursor = state.db.relay_feed_cursor(&town_id).unwrap_or(0);
   let mut manager = state.relay_manager.lock().unwrap();
   if manager.relay_count() == 0 {
     return Err("No relays connected. Connect to a relay first.".to_string());
@@ -3202,17 +3231,23 @@ fn sync_town_events(
   };
   let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
   rt.block_on(async {
-    manager.subscribe_tag_filter("t", &town_tag, 3600).await?;
     let now = std::time::SystemTime::now()
       .duration_since(std::time::UNIX_EPOCH)
       .unwrap_or_default()
       .as_secs();
+    let catch_up = if feed_cursor > 0 {
+      feed_cursor as u64
+    } else {
+      now.saturating_sub(3600)
+    };
+    let subscribe_since = if feed_cursor > 0 { feed_cursor as u64 } else { 3600 };
+    manager.subscribe_tag_filter("t", &town_tag, subscribe_since).await?;
     let filter = nostr_sdk::prelude::Filter::new()
       .custom_tag(
         nostr_sdk::prelude::SingleLetterTag::lowercase(nostr_sdk::prelude::Alphabet::T),
         vec![town_tag.as_str()],
       )
-      .since(nostr_sdk::prelude::Timestamp::from_secs(now - 3600));
+      .since(nostr_sdk::prelude::Timestamp::from_secs(catch_up));
     let events = manager.sync_recent(filter, 5).await?;
 
     for event in &events {
@@ -3874,9 +3909,9 @@ fn get_nostr_outbox_status(
 ///
 /// `lanAvailable` means a local Iroh transport is *initialized*, not that a peer
 /// answered — it describes this device's own transport, which is the honest
-/// reading of "a local path exists". `meshPeerObserved` is always false until a
-/// real courier exists, so the mesh tier can never be claimed from a linked
-/// library alone.
+/// reading of "a local path exists". `meshPeerObserved` stays false. Loopback
+/// and this computer's own LAN address are not another laptop.
+/// `peer_is_another_machine` is the check a later observation has to pass.
 #[tauri::command]
 fn get_delivery_tier(state: State<AppState>) -> serde_json::Value {
   let relays_connected = state.relay_manager.lock().unwrap().relay_count();
@@ -4632,6 +4667,159 @@ fn open_myyard_css(handle: String, css: String, prefer_lazyvim: bool) -> Result<
       .map_err(|e| e.to_string())?;
   }
   Ok(path_str)
+}
+
+/// Run one Python or R cell with the homework toolchain from er1cbrown/lazyvim.
+/// Python prefers ~/miniconda3. R uses Rscript. No shell. Stops after 8 seconds.
+#[tauri::command]
+fn run_homework_cell(lang: String, source: String) -> Result<String, String> {
+  let lang = lang.trim().to_ascii_lowercase();
+  if lang != "python" && lang != "r" {
+    return Err("Only Python and R cells run in the app".into());
+  }
+  if source.len() > 8000 {
+    return Err("That cell is too long".into());
+  }
+  if source.trim().is_empty() {
+    return Err("The cell is empty".into());
+  }
+  let dir = std::env::temp_dir().join("blkspace-ide");
+  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  let ext = if lang == "r" { "R" } else { "py" };
+  let path = dir.join(format!("cell-{}.{ext}", std::process::id()));
+  std::fs::write(&path, &source).map_err(|e| e.to_string())?;
+  let program = if lang == "r" {
+    std::path::PathBuf::from(if cfg!(windows) { "Rscript.exe" } else { "Rscript" })
+  } else {
+    homework_python()
+  };
+  let result = run_file_bounded(&program, &path);
+  let _ = std::fs::remove_file(&path);
+  result
+}
+
+/// Write a Quarto or TeX notebook and open it in Neovim (LazyVim config).
+#[tauri::command]
+fn open_notebook_in_lazyvim(title: String, filename: String, body: String) -> Result<String, String> {
+  if body.len() > 200_000 {
+    return Err("That notebook is too large".into());
+  }
+  let name = safe_notebook_filename(&filename, &title);
+  let dir = std::env::temp_dir().join("blkspace-ide");
+  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  let path = dir.join(&name);
+  std::fs::write(&path, body).map_err(|e| e.to_string())?;
+  if spawn_lazyvim(&path) {
+    return Ok(path.to_string_lossy().to_string());
+  }
+  Err("nvim was not found. Install Neovim and clone github.com/er1cbrown/lazyvim into the nvim config.".into())
+}
+
+fn safe_notebook_filename(filename: &str, title: &str) -> String {
+  let raw = filename.trim();
+  let (stem_raw, ext) = if let Some(stem) = raw.strip_suffix(".tex") {
+    (stem, "tex")
+  } else if let Some(stem) = raw.strip_suffix(".qmd") {
+    (stem, "qmd")
+  } else if let Some(stem) = raw.strip_suffix(".py") {
+    (stem, "py")
+  } else {
+    ("", "qmd")
+  };
+  let mut stem: String = stem_raw
+    .chars()
+    .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+    .take(40)
+    .collect();
+  if stem.is_empty() {
+    stem = title
+      .chars()
+      .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+      .take(40)
+      .collect();
+  }
+  if stem.is_empty() {
+    stem = "homework".to_string();
+  }
+  format!("{stem}.{ext}")
+}
+
+fn homework_python() -> std::path::PathBuf {
+  for key in ["HOME", "USERPROFILE"] {
+    if let Ok(home) = std::env::var(key) {
+      for rel in ["miniconda3/bin/python", "miniconda3/python.exe"] {
+        let path = std::path::PathBuf::from(&home).join(rel);
+        if path.exists() {
+          return path;
+        }
+      }
+    }
+  }
+  std::path::PathBuf::from(if cfg!(windows) { "python.exe" } else { "python3" })
+}
+
+fn run_file_bounded(program: &std::path::Path, script: &std::path::Path) -> Result<String, String> {
+  use std::io::Read;
+  use std::process::{Command, Stdio};
+  use std::time::{Duration, Instant};
+
+  let mut child = Command::new(program)
+    .arg(script)
+    .stdin(Stdio::null())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .map_err(|e| format!("Could not start {}: {e}", program.display()))?;
+  let mut stdout = child.stdout.take();
+  let mut stderr = child.stderr.take();
+  let out_thread = std::thread::spawn(move || {
+    let mut text = String::new();
+    if let Some(pipe) = stdout.as_mut() {
+      let _ = pipe.read_to_string(&mut text);
+    }
+    text
+  });
+  let err_thread = std::thread::spawn(move || {
+    let mut text = String::new();
+    if let Some(pipe) = stderr.as_mut() {
+      let _ = pipe.read_to_string(&mut text);
+    }
+    text
+  });
+  let deadline = Instant::now() + Duration::from_secs(8);
+  loop {
+    match child.try_wait() {
+      Ok(Some(status)) => {
+        let mut text = out_thread.join().unwrap_or_default();
+        let err = err_thread.join().unwrap_or_default();
+        if !err.is_empty() {
+          if !text.is_empty() {
+            text.push('\n');
+          }
+          text.push_str(&err);
+        }
+        if text.len() > 20_000 {
+          text.truncate(20_000);
+          text.push_str("\n…");
+        }
+        if status.success() {
+          return Ok(text);
+        }
+        return Err(if text.is_empty() {
+          format!("exit {}", status.code().unwrap_or(1))
+        } else {
+          text
+        });
+      }
+      Ok(None) if Instant::now() >= deadline => {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err("Stopped after 8 seconds".into());
+      }
+      Ok(None) => std::thread::sleep(Duration::from_millis(40)),
+      Err(e) => return Err(e.to_string()),
+    }
+  }
 }
 
 /// LazyVim is Neovim + the LazyVim distro. Binary is `nvim` (optional `NVIM_APPNAME=lazyvim`).
@@ -5923,7 +6111,7 @@ pub fn run() {
           interval.tick().await;
 
           // Read state synchronously and release before awaiting
-          let (towns, relay_count, maybe_client) = {
+          let (towns, relay_count, maybe_client, cursors) = {
             let st = handle.state::<AppState>();
             let towns = st.relay_town_subscriptions.lock().unwrap().clone();
             let count = st.relay_manager.lock().unwrap().relay_count();
@@ -5932,7 +6120,15 @@ pub fn run() {
             } else {
               None
             };
-            (towns, count, client)
+            let cursors: Vec<i64> = towns
+              .iter()
+              .map(|town| {
+                st.db
+                  .relay_feed_cursor(&town_id_from_tag(town))
+                  .unwrap_or(0)
+              })
+              .collect();
+            (towns, count, client, cursors)
           };
 
           if relay_count == 0 || towns.is_empty() || maybe_client.is_none() {
@@ -5941,15 +6137,20 @@ pub fn run() {
 
           let client = maybe_client.unwrap();
 
-          for town in &towns {
+          for (town, cursor) in towns.iter().zip(cursors.iter()) {
             let now_secs = std::time::SystemTime::now()
               .duration_since(std::time::UNIX_EPOCH)
               .unwrap_or_default()
               .as_secs();
+            let since = if *cursor > 0 {
+              *cursor as u64
+            } else {
+              now_secs.saturating_sub(7200)
+            };
 
             let filter = Filter::new()
               .custom_tag(SingleLetterTag::lowercase(Alphabet::T), vec![town.as_str()])
-              .since(Timestamp::from_secs(now_secs - 7200));
+              .since(Timestamp::from_secs(since));
 
             if client.subscribe(vec![filter], None).await.is_err() {
               continue;
@@ -6091,6 +6292,8 @@ pub fn run() {
       upload_blob,
       get_blob_bytes,
       open_myyard_css,
+      run_homework_cell,
+      open_notebook_in_lazyvim,
       list_user_blobs,
       delete_blob,
       get_blob_metadata,

@@ -23,7 +23,7 @@ Both assets stay as they are.
 | Mark | Role | Not this |
 |------|------|----------|
 | **BKSPC** | The WeixBucks cash-out. Earned WeixBucks settle only into BKSPC, at 1,000 WeixBucks = 1 BKSPC, on Solana devnet until a funded mint exists. | Not a live mainnet payout. |
-| **BI9** | The separate HyperEVM coin. | Not paid out from WeixBucks. |
+| **BI9** | Separate ERC-20 aimed at Ethereum. Not deployed. | Not a HyperEVM asset. Not paid out from WeixBucks. |
 
 The next proof is still one deployed devnet conversion. This note is product wording for counsel. It is not a filed trademark registration.
 

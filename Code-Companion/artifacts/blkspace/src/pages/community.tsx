@@ -1,3 +1,4 @@
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   Card,
@@ -36,14 +37,6 @@ import {
   useTauriIsYardMember,
 } from "@/hooks/use-app-data";
 import { showEarnFromResult } from "@/components/economy/EarnToast";
-import { YardEventsPanel } from "@/components/community/YardEventsPanel";
-import { YardMembersPanel } from "@/components/community/YardMembersPanel";
-import { YardSaleTab } from "@/components/community/YardSaleTab";
-import { YardLiveRooms } from "@/components/community/YardLiveRooms";
-import {
-  ClubActivitiesPanel,
-  StudyHourHint,
-} from "@/components/community/ClubActivitiesPanel";
 import { getYardTheme, resolveCommunityYardTheme } from "@/lib/yard-themes";
 import { getHbcu, hbcuLocation, searchHbcus } from "@/lib/hbcu-catalog";
 import { YardCommunitySkin } from "@/components/community/YardCommunitySkin";
@@ -62,9 +55,52 @@ import {
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { createSharedYardChannels } from "@/lib/web-userspace";
 import { useRequiresWallet } from "@/hooks/use-requires-wallet";
-import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+
+const YardEventsPanel = lazy(() =>
+  import("@/components/community/YardEventsPanel").then((m) => ({
+    default: m.YardEventsPanel,
+  })),
+);
+const YardMembersPanel = lazy(() =>
+  import("@/components/community/YardMembersPanel").then((m) => ({
+    default: m.YardMembersPanel,
+  })),
+);
+const YardSaleTab = lazy(() =>
+  import("@/components/community/YardSaleTab").then((m) => ({
+    default: m.YardSaleTab,
+  })),
+);
+const YardBoardPanel = lazy(() =>
+  import("@/components/yard/YardBoardPanel").then((m) => ({
+    default: m.YardBoardPanel,
+  })),
+);
+const YardLiveRooms = lazy(() =>
+  import("@/components/community/YardLiveRooms").then((m) => ({
+    default: m.YardLiveRooms,
+  })),
+);
+const ClubActivitiesPanel = lazy(() =>
+  import("@/components/community/ClubActivitiesPanel").then((m) => ({
+    default: m.ClubActivitiesPanel,
+  })),
+);
+const StudyHourHint = lazy(() =>
+  import("@/components/community/ClubActivitiesPanel").then((m) => ({
+    default: m.StudyHourHint,
+  })),
+);
+
+function YardPanelFallback() {
+  return (
+    <p className="text-sm text-muted-foreground py-6">
+      Loading this part of the yard…
+    </p>
+  );
+}
 
 type CommunityView = {
   id: string;
@@ -118,7 +154,12 @@ export default function CommunityPage() {
   const [, params] = useRoute("/communities/:id");
   const id = params?.id || "";
   const [activeChannel, setActiveChannel] = useState("#general");
-  const [activeTab, setActiveTab] = useState("chat");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window === "undefined") return "chat";
+    return new URLSearchParams(window.location.search).get("tab") === "board"
+      ? "board"
+      : "chat";
+  });
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [postReplies, setPostReplies] = useState<Record<number, any[]>>({});
@@ -589,11 +630,14 @@ export default function CommunityPage() {
               <TabsTrigger value="events">Events</TabsTrigger>
               <TabsTrigger value="clubs">Clubs</TabsTrigger>
               <TabsTrigger value="yard-sale">Yard Sale</TabsTrigger>
+              <TabsTrigger value="board">Board</TabsTrigger>
               <TabsTrigger value="about">About</TabsTrigger>
             </TabsList>
 
             <TabsContent value="live">
-              <YardLiveRooms yardId={yardId} communityName={community.name} />
+              <Suspense fallback={<YardPanelFallback />}>
+                <YardLiveRooms yardId={yardId} communityName={community.name} />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="chat">
@@ -728,24 +772,28 @@ export default function CommunityPage() {
             </TabsContent>
 
             <TabsContent value="members">
-              <YardMembersPanel
-                communityId={yardId}
-                communityName={community.name}
-                isMember={isMember}
-              />
-            </TabsContent>
-
-            <TabsContent value="events">
-              <div className="space-y-3">
-                <StudyHourHint />
-                <YardEventsPanel
+              <Suspense fallback={<YardPanelFallback />}>
+                <YardMembersPanel
                   communityId={yardId}
                   communityName={community.name}
                   isMember={isMember}
-                  createDialogOpen={createEventOpen}
-                  onCreateDialogOpenChange={setCreateEventOpen}
                 />
-              </div>
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="events">
+              <Suspense fallback={<YardPanelFallback />}>
+                <div className="space-y-3">
+                  <StudyHourHint />
+                  <YardEventsPanel
+                    communityId={yardId}
+                    communityName={community.name}
+                    isMember={isMember}
+                    createDialogOpen={createEventOpen}
+                    onCreateDialogOpenChange={setCreateEventOpen}
+                  />
+                </div>
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="clubs">
@@ -760,13 +808,23 @@ export default function CommunityPage() {
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <ClubActivitiesPanel communityId={yardId} />
+                  <Suspense fallback={<YardPanelFallback />}>
+                    <ClubActivitiesPanel communityId={yardId} />
+                  </Suspense>
                 </CardContent>
               </Card>
             </TabsContent>
 
             <TabsContent value="yard-sale">
-              <YardSaleTab yardId={yardId} communityName={community.name} />
+              <Suspense fallback={<YardPanelFallback />}>
+                <YardSaleTab yardId={yardId} communityName={community.name} />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="board">
+              <Suspense fallback={<YardPanelFallback />}>
+                <YardBoardPanel yardId={yardId} yardName={community.name} />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="about">

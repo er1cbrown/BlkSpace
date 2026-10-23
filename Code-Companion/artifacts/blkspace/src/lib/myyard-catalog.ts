@@ -31,17 +31,17 @@ export const YARD_PACK_THEMES = FEATURED_YARD_IDS.map((id) => {
 });
 
 export const YARD_SALE_ITEM_TYPES = [
-  { value: "media", label: "Media (photo/video/audio)" },
-  { value: "mix", label: "DJ Mix (metadata + kind 30078)" },
-  { value: "theme", label: "Theme pack (MyYard or campus)" },
-  { value: "logos-deck", label: "Logos Deck set (scripture mix)" },
+  { value: "mix", label: "Mix" },
+  { value: "logos-deck", label: "Logos Deck" },
+  { value: "theme", label: "Yard theme" },
+  { value: "media", label: "Photo or audio" },
   { value: "service", label: "Service" },
-  { value: "ticket", label: "Event ticket" },
-  { value: "art", label: "Art (digital illustration)" },
-  { value: "mockup", label: "Mockup (apparel / print)" },
-  { value: "blueprint", label: "Blueprint / tech pack" },
-  { value: "merch-digital", label: "Merch digital (stickers, assets)" },
-  { value: "fashion", label: "Fashion drop (capsule / look)" },
+  { value: "ticket", label: "Ticket" },
+  { value: "art", label: "Art" },
+  { value: "mockup", label: "Mockup" },
+  { value: "blueprint", label: "Tech pack" },
+  { value: "merch-digital", label: "Digital merch" },
+  { value: "fashion", label: "Fashion" },
 ] as const;
 
 /** Fashion / digital goods default to 2-party escrow (pay → deliver → release). */
@@ -61,6 +61,47 @@ export function itemTypeLabel(itemType: string): string {
   const found = YARD_SALE_ITEM_TYPES.find((t) => t.value === itemType);
   if (found) return found.label.split(" (")[0];
   return itemType;
+}
+
+export type ShopShelf = "now" | "order";
+
+/** Instant digital goods sit on the ready-now shelf. Escrow stays made-to-order. */
+export function shopShelf(item: {
+  itemType: string;
+  fulfillmentMode?: string | null;
+}): ShopShelf {
+  if (item.fulfillmentMode === "escrow") return "order";
+  if (item.fulfillmentMode === "instant") return "now";
+  return isEscrowDefaultType(item.itemType) ? "order" : "now";
+}
+
+export function sortShopListings<
+  T extends {
+    itemType: string;
+    fulfillmentMode?: string | null;
+    price: number;
+  },
+>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const shelf =
+      Number(shopShelf(a) === "order") - Number(shopShelf(b) === "order");
+    if (shelf !== 0) return shelf;
+    return a.price - b.price;
+  });
+}
+
+export function shopBuyerLine(item: {
+  itemType: string;
+  fulfillmentMode?: string | null;
+}): string {
+  if (shopShelf(item) === "order") {
+    return "You pay, they deliver, then you release.";
+  }
+  if (item.itemType === "mix" || item.itemType === "logos-deck") {
+    return "You get the set right away.";
+  }
+  if (item.itemType === "theme") return "It applies to your yard right away.";
+  return "You get it right away.";
 }
 
 export function themeLabelFromRef(

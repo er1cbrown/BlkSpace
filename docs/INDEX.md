@@ -2,7 +2,7 @@
 
 **Status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ~90% · Phase 3 ~75% · Phase 4 in progress · Phase 5 not started  
 **Date:** 2026-08-02  
-**Product mark:** **BlkSpace** · **In-app:** WeixBucks · **Canonical on-chain:** **BKSPC** (Solana, Token-2022) · **Retained, not deployable:** BI9 ERC-20 (HyperEVM)
+**Product mark:** **BlkSpace** · **In-app:** WeixBucks · **Canonical on-chain:** **BKSPC** (Solana, Token-2022) · **BI9:** ERC-20 aimed at Ethereum, not deployed
 
 > **New here?** Read [`../README.md`](../README.md) first, then [`README.md`](README.md) (doc map) or [`ROADMAP.md`](ROADMAP.md) (what's next).
 

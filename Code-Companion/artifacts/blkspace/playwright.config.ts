@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const externalServer = process.env.BLKSPACE_E2E_EXTERNAL_SERVER === "1";
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
@@ -32,12 +34,15 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    // Serve production build — avoids Vite/esbuild dev-server hangs on low-RAM Macs.
-    // CI e2e job runs `bun run build` before `e2e:browser` (see .github/workflows/ci.yml).
-    command: "node scripts/spa-server.mjs",
-    url: "http://127.0.0.1:24442",
-    reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
-  },
+  webServer: externalServer
+    ? undefined
+    : {
+        // Serve production build — avoids Vite/esbuild dev-server hangs on low-RAM Macs.
+        // CI e2e job runs `bun run build` before `e2e:browser` (see .github/workflows/ci.yml).
+        // The Tauri runner already owns port 24442, so it sets BLKSPACE_E2E_EXTERNAL_SERVER.
+        command: "node scripts/spa-server.mjs",
+        url: "http://127.0.0.1:24442",
+        reuseExistingServer: !process.env.CI,
+        timeout: 30_000,
+      },
 });

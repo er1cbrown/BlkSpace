@@ -824,7 +824,7 @@ pub struct Database {
 }
 
 /// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
-const SCHEMA_VERSION: i32 = 13;
+const SCHEMA_VERSION: i32 = 15;
 
 /// Tier 0 page cache in KiB (negative PRAGMA cache_size = KiB).
 /// Default 8 MiB — was 64 MiB which is too heavy for 4 GB laptops.
@@ -851,6 +851,12 @@ fn apply_tier0_pragmas(conn: &Connection) {
   let _ = conn.execute("PRAGMA mmap_size=0", ());
   // Soft limit on busy waits (milliseconds) if supported.
   let _ = conn.execute("PRAGMA busy_timeout=3000", ());
+}
+
+fn unix_to_sqlite_utc(unix: i64) -> String {
+  chrono::DateTime::from_timestamp(unix, 0)
+    .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+    .unwrap_or_else(|| "1970-01-01 00:00:00".to_string())
 }
 
 impl Database {
@@ -1223,6 +1229,30 @@ impl Database {
         purchase_count INTEGER NOT NULL DEFAULT 0,
         last_activated_by TEXT,
         activated_at TEXT
+      );
+      ",
+    )?;
+
+    // v13 — a withdrawn/debited row can be voided when the off-chain credit is returned
+    // after a failed on-chain settlement. Voided rows must not count toward the weekly
+    // withdrawal cap or the cooldown.
+    let _ = conn.execute("ALTER TABLE wallet_tx ADD COLUMN voided INTEGER DEFAULT 0", ());
+
+    // v14 — double-entry ledger. `users.weix_bucks` becomes a mirror of
+    // `ledger_accounts`; the journal is the source of truth. See src/ledger.rs.
+    crate::ledger::Ledger::ensure_schema(conn)?;
+
+    // v15 — a verified kind-1 note can become one feed row. The event id is the
+    // dedup key. The cursor is the last created_at already written for a yard,
+    // so a reconnect asks the relay for events from there forward.
+    conn.execute_batch(
+      "
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_nostr_event_id
+        ON posts(nostr_event_id)
+        WHERE nostr_event_id IS NOT NULL AND nostr_event_id != '';
+      CREATE TABLE IF NOT EXISTS relay_feed_cursors (
+        town TEXT PRIMARY KEY,
+        last_created_at_unix INTEGER NOT NULL DEFAULT 0
       );
       ",
     )?;
@@ -1752,6 +1782,10 @@ impl Database {
       Self::set_schema_version(&conn, SCHEMA_VERSION)?;
     }
 
+    // Carry any pre-ledger balances into the journal as opening entries. Runs once: the
+    // backfill is a no-op when the journal already has entries.
+    let _ = crate::ledger::Ledger::backfill_from_legacy(&conn);
+
     // Catalog seed is heavy (100+ upserts). Skip when already full so cold/warm
     // MSI boot does not block the window on every launch. Re-seed only if empty
     // or short (schema bump / partial install).
@@ -1764,6 +1798,9 @@ impl Database {
     }
     // Backfill memberships from users.town → yard_memberships
     Self::backfill_yard_memberships_from_users(&conn)?;
+
+    // Notes already stored before this schema still belong in the feed.
+    let _ = Self::materialize_stored_kind1(&conn);
 
     Ok(())
   }
@@ -2100,11 +2137,38 @@ impl Database {
 
   pub fn create_user(&self, handle: &str, display_name: &str, pubkey: &str) -> Result<User> {
     let conn = self.conn.lock().unwrap();
-    conn.execute(
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(
       "INSERT INTO users (handle, display_name, pubkey) VALUES (?1, ?2, ?3)",
       params![handle, display_name, pubkey],
     )?;
-    let id = conn.last_insert_rowid();
+    let id = tx.last_insert_rowid();
+    // The schema default is the starter balance. It has to be a journal entry
+    // or later spends see a column the ledger does not have.
+    let balance: i64 = tx.query_row(
+      "SELECT COALESCE(weix_bucks, 0) FROM users WHERE handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    if balance != 0 {
+      crate::ledger::Ledger::post_tx(
+        &tx,
+        "opening",
+        "starting balance",
+        &format!("opening:user:{handle}"),
+        &[
+          crate::ledger::Posting {
+            account: crate::ledger::account_of(handle),
+            amount: balance,
+          },
+          crate::ledger::Posting {
+            account: crate::ledger::SYSTEM_FAUCET.to_string(),
+            amount: -balance,
+          },
+        ],
+      )?;
+    }
+    tx.commit()?;
     Ok(User {
       id,
       handle: handle.to_string(),
@@ -2115,7 +2179,7 @@ impl Database {
       town: "tsu".to_string(),
       followers_count: 0,
       following_count: 0,
-      weix_bucks: 100,
+      weix_bucks: balance,
       pubkey: pubkey.to_string(),
       engagement_quality: 1.0,
       theme_id: 0,
@@ -2576,6 +2640,12 @@ impl Database {
     // credit the balance without recording the earn, permanently inflating the daily-cap
     // denominator that the query above recomputes from `wallet_tx`.
     let tx = conn.unchecked_transaction()?;
+
+    // The journal is the source of truth. Posting inside this transaction means the ledger
+    // entry and the mirrored `users.weix_bucks` / `wallet_tx` rows commit or roll back
+    // together, so they cannot drift.
+    crate::ledger::Ledger::earn_tx(&tx, handle, grant, description, "")?;
+
     tx.execute(
       "UPDATE users SET weix_bucks = weix_bucks + ?1,
                         contribution_xp = COALESCE(contribution_xp, 0) + ?2
@@ -4098,6 +4168,10 @@ impl Database {
       return Err(crate::sqlite::Error::InvalidParameterName("Recipient not found".into()));
     }
 
+    crate::ledger::Ledger::transfer_with_fee_tx(
+      &tx, from_handle, to_handle, amount, fee, "transfer", "",
+    )?;
+
     tx.execute(
       "UPDATE users SET weix_bucks = weix_bucks - ?1 WHERE handle = ?2",
       params![amount, from_handle],
@@ -4311,10 +4385,23 @@ impl Database {
 
   pub fn test_set_weix_bucks(&self, handle: &str, amount: i64) -> Result<()> {
     let conn = self.conn.lock().unwrap();
-    conn.execute(
+    let tx = conn.unchecked_transaction()?;
+    let current: i64 = tx.query_row(
+      "SELECT COALESCE(weix_bucks, 0) FROM users WHERE handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    let delta = amount - current;
+    if delta > 0 {
+      crate::ledger::Ledger::earn_tx(&tx, handle, delta, "test balance", "")?;
+    } else if delta < 0 {
+      crate::ledger::Ledger::spend_tx(&tx, handle, -delta, "test balance", "")?;
+    }
+    tx.execute(
       "UPDATE users SET weix_bucks = ?1 WHERE handle = ?2",
       params![amount, handle],
     )?;
+    tx.commit()?;
     Ok(())
   }
 
@@ -4333,6 +4420,8 @@ impl Database {
     if current_bucks < amount {
       return Err(crate::sqlite::Error::InvalidParameterName("Insufficient WeixBucks".into()));
     }
+
+    crate::ledger::Ledger::spend_tx(&tx, handle, amount, description, "")?;
 
     tx.execute(
       "UPDATE users SET weix_bucks = weix_bucks - ?1 WHERE handle = ?2",
@@ -4380,6 +4469,8 @@ impl Database {
         "No matching unvoided debit to refund".into(),
       ));
     }
+
+    crate::ledger::Ledger::earn_tx(&tx, handle, amount, "settlement refund", "")?;
 
     tx.execute(
       "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",
@@ -4805,6 +4896,221 @@ impl Database {
       params![event_id, relay_url, kind, pubkey, content, tags, created_at_unix],
     )?;
     Ok(changed > 0)
+  }
+
+  /// Copy one verified kind-1 note into `posts`.
+  ///
+  /// Returns true only when a new feed row was inserted. A repeated event id,
+  /// including the echo of a note this device already queued, leaves the feed
+  /// at one row and still moves the yard cursor forward.
+  pub fn materialize_kind1_note(
+    &self,
+    event_id: &str,
+    pubkey: &str,
+    content: &str,
+    tags_json: &str,
+    relay_url: &str,
+    created_at_unix: i64,
+  ) -> Result<bool> {
+    let conn = self.conn.lock().unwrap();
+    Self::materialize_kind1_on(
+      &conn,
+      event_id,
+      pubkey,
+      content,
+      tags_json,
+      relay_url,
+      created_at_unix,
+    )
+  }
+
+  /// Last Nostr `created_at` already accounted for in this yard's feed.
+  /// Zero means this device has not written a kind-1 note for that yard yet.
+  pub fn relay_feed_cursor(&self, town: &str) -> Result<i64> {
+    let conn = self.conn.lock().unwrap();
+    Ok(conn
+      .query_row(
+        "SELECT last_created_at_unix FROM relay_feed_cursors WHERE town = ?1",
+        params![town],
+        |r| r.get(0),
+      )
+      .unwrap_or(0))
+  }
+
+  fn materialize_stored_kind1(conn: &Connection) -> Result<()> {
+    let pending = {
+      let mut stmt = conn.prepare(
+        "SELECT event_id, pubkey, content, tags, relay_url, created_at_unix
+         FROM relay_events
+         WHERE kind = 1
+           AND tags LIKE '%hbcu-town:%'
+           AND event_id NOT IN (
+             SELECT nostr_event_id FROM posts
+             WHERE nostr_event_id IS NOT NULL AND nostr_event_id != ''
+           )",
+      )?;
+      let rows = stmt.query_map((), |row| {
+        Ok((
+          row.get::<_, String>(0)?,
+          row.get::<_, String>(1)?,
+          row.get::<_, String>(2)?,
+          row.get::<_, String>(3)?,
+          row.get::<_, String>(4)?,
+          row.get::<_, i64>(5)?,
+        ))
+      })?;
+      let mut pending = Vec::new();
+      for row in rows {
+        pending.push(row?);
+      }
+      pending
+    };
+    for (event_id, pubkey, content, tags, relay_url, created_at_unix) in pending {
+      let _ = Self::materialize_kind1_on(
+        conn,
+        &event_id,
+        &pubkey,
+        &content,
+        &tags,
+        &relay_url,
+        created_at_unix,
+      );
+    }
+    Ok(())
+  }
+
+  fn materialize_kind1_on(
+    conn: &Connection,
+    event_id: &str,
+    pubkey: &str,
+    content: &str,
+    tags_json: &str,
+    relay_url: &str,
+    created_at_unix: i64,
+  ) -> Result<bool> {
+    if event_id.is_empty() || pubkey.is_empty() {
+      return Ok(false);
+    }
+    let Some(town) = Self::hbcu_town_from_tags(tags_json) else {
+      return Ok(false);
+    };
+
+    let tx = conn.unchecked_transaction()?;
+    let already: i64 = tx.query_row(
+      "SELECT COUNT(*) FROM posts WHERE nostr_event_id = ?1",
+      params![event_id],
+      |r| r.get(0),
+    )?;
+    if already > 0 {
+      Self::advance_feed_cursor(&tx, &town, created_at_unix)?;
+      tx.commit()?;
+      return Ok(false);
+    }
+
+    let local_post_id: Option<i64> = tx
+      .query_row(
+        "SELECT local_post_id FROM nostr_outbox WHERE event_id = ?1",
+        params![event_id],
+        |r| r.get(0),
+      )
+      .ok();
+    if let Some(post_id) = local_post_id {
+      tx.execute(
+        "UPDATE posts
+         SET nostr_event_id = ?1, relay_url = ?2
+         WHERE id = ?3 AND (nostr_event_id IS NULL OR nostr_event_id = '')",
+        params![event_id, relay_url, post_id],
+      )?;
+      Self::advance_feed_cursor(&tx, &town, created_at_unix)?;
+      tx.commit()?;
+      return Ok(false);
+    }
+
+    let handle = match tx
+      .query_row(
+        "SELECT handle FROM users WHERE pubkey = ?1 AND pubkey != '' LIMIT 1",
+        params![pubkey],
+        |r| r.get::<_, String>(0),
+      )
+      .ok()
+    {
+      Some(handle) => handle,
+      None => {
+        let handle = Self::pick_remote_handle(&tx, pubkey)?;
+        let display = pubkey.chars().take(8).collect::<String>();
+        tx.execute(
+          "INSERT INTO users (handle, display_name, pubkey, town, weix_bucks)
+           VALUES (?1, ?2, ?3, ?4, 0)",
+          params![handle, display, pubkey, town],
+        )?;
+        handle
+      }
+    };
+
+    let created_at = unix_to_sqlite_utc(created_at_unix);
+    let post_uid = format!("nostr:{event_id}");
+    let inserted = tx.execute(
+      "INSERT OR IGNORE INTO posts
+        (post_uid, author_handle, content, town_tag, channel_id, media_blobs,
+         nostr_event_id, relay_url, created_at)
+       VALUES (?1, ?2, ?3, ?4, '', '[]', ?5, ?6, ?7)",
+      params![post_uid, handle, content, town, event_id, relay_url, created_at],
+    )?;
+    Self::advance_feed_cursor(&tx, &town, created_at_unix)?;
+    tx.commit()?;
+    Ok(inserted > 0)
+  }
+
+  fn pick_remote_handle(tx: &crate::sqlite::Transaction<'_>, pubkey: &str) -> Result<String> {
+    let hex: String = pubkey
+      .chars()
+      .filter(|c| c.is_ascii_hexdigit())
+      .flat_map(|c| c.to_lowercase())
+      .collect();
+    let hex = if hex.len() < 8 {
+      format!("{hex}remote00")
+    } else {
+      hex
+    };
+    let mut start = 0usize;
+    loop {
+      let end = (start + 20).min(hex.len());
+      let candidate = format!("n{}", &hex[start..end]);
+      let owner: Option<String> = tx
+        .query_row(
+          "SELECT pubkey FROM users WHERE handle = ?1",
+          params![candidate],
+          |r| r.get(0),
+        )
+        .ok();
+      match owner {
+        None => return Ok(candidate),
+        Some(existing) if existing == pubkey => return Ok(candidate),
+        Some(_) if end >= hex.len() => {
+          return Err(crate::sqlite::Error::InvalidParameterName(
+            "remote author handle is taken".into(),
+          ));
+        }
+        Some(_) => start += 4,
+      }
+    }
+  }
+
+  fn advance_feed_cursor(
+    tx: &crate::sqlite::Transaction<'_>,
+    town: &str,
+    created_at_unix: i64,
+  ) -> Result<()> {
+    if created_at_unix <= 0 {
+      return Ok(());
+    }
+    tx.execute(
+      "INSERT INTO relay_feed_cursors (town, last_created_at_unix) VALUES (?1, ?2)
+       ON CONFLICT(town) DO UPDATE SET
+         last_created_at_unix = MAX(relay_feed_cursors.last_created_at_unix, excluded.last_created_at_unix)",
+      params![town, created_at_unix],
+    )?;
+    Ok(())
   }
 
   pub fn list_relay_events(&self, limit: i64, kind_filter: Option<i64>) -> Result<Vec<RelayEventRecord>> {

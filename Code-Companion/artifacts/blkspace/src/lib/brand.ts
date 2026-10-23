@@ -7,15 +7,11 @@
  *
  * TWO COINS, DISTINCTLY DIFFERENT. Coexistence is intentional; conflation is not.
  *
- *   BI9   — canonical ERC-20 on HyperEVM. The only mint. Settlement, treasury,
- *           protocol roles. Canonical wherever copy says "the token".
- *   BKSPC — Solana Token-2022. Optional prototype and wallet-reach. NEVER
- *           canonical, never a second mint home. Same mark as the *product*,
- *           which is a branding collision, not a token identity.
+ *   BKSPC — canonical Token-2022 on Solana. Settlement, staking, governance.
+ *   BI9   — separate ERC-20 aimed at Ethereum. Not deployed. Not the cash-out.
+ *           Not a HyperEVM asset.
  *
- * `symbol` therefore means the Solana prototype ticker and must not be used for
- * canonical-token copy — use `canonicalTokenSymbol` for that. See
- * docs/economy-canonical.md §2 and §8.
+ * `symbol` is the canonical settlement ticker. `bi9Symbol` is the other coin.
  *
  * Site: bkspc.app · GitHub repo path stays er1cbrown/BlkSpace (history).
  */
@@ -24,16 +20,20 @@ export const BRAND = {
   name: "BKSPC",
   /** Same as name; explicit for copy that says “product” */
   product: "BKSPC",
-  /** Solana Token-2022 prototype ticker. NOT the canonical token. */
+  /** Canonical settlement ticker — BKSPC, Token-2022 on Solana. */
   symbol: "BKSPC",
-  /** Long form for Solana-prototype settlement copy */
+  /** Long form for BKSPC settlement copy */
   coinName: "BKSPC Coin",
-  /** Canonical on-chain token — BI9, ERC-20 on HyperEVM. The only mint. */
-  canonicalTokenSymbol: "BI9",
-  /** Long form for canonical token / legal-facing copy */
-  canonicalTokenName: "BLACKINCCOIN",
+  /** Canonical on-chain token. Same ticker as `symbol`. */
+  canonicalTokenSymbol: "BKSPC",
+  /** Long form for the canonical token */
+  canonicalTokenName: "BKSPC Coin",
   /** Chain the canonical token lives on */
-  canonicalTokenChain: "HyperEVM",
+  canonicalTokenChain: "Solana",
+  /** Separate ERC-20. Not deployed. Not a HyperEVM asset. */
+  bi9Symbol: "BI9",
+  bi9Name: "BLACKINCCOIN",
+  bi9Chain: "Ethereum",
   /** Soft currency (not the product trademark) */
   softCurrency: "WeixBucks",
   softCurrencySymbol: "WB",

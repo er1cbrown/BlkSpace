@@ -6,13 +6,13 @@
 **Gas:** **SOL**  
 **In-app points:** **WeixBucks (WB)** — off-chain, live now  
 **Decision record:** [`canonical-chain-decision.md`](canonical-chain-decision.md)  
-**Prior position (superseded):** BI9 / BLACKINCCOIN on HyperEVM — retained, not deployable from the US
+**BI9:** separate ERC-20 aimed at Ethereum. Not deployed. Not a HyperEVM asset. Not the cash-out.
 
 This file is the **canonical** tokenomics overview. Live WeixBucks constants still live in [`tokenomics-policy.md`](tokenomics-policy.md) and `TokenomicsPolicy::published()`.
 
 **BKSPC on Solana is the canonical on-chain asset** — Token-2022, settlement plus non-rewarding staking plus allowlisted timelocked governance. Decision record: [`canonical-chain-decision.md`](canonical-chain-decision.md).
 
-BI9 on HyperEVM is **retained but not deployable by this operator** (Hyperliquid geo-restricts the US). Its contracts stay in `artifacts/hyperevm/` as reference only and are not canonical.
+BI9 is an **ERC-20 aimed at Ethereum**. It is not deployed, not canonical, and not a HyperEVM asset. The contracts in `artifacts/hyperevm/` are old chain 999 reference code.
 
 ---
 
@@ -22,31 +22,26 @@ BI9 on HyperEVM is **retained but not deployable by this operator** (Hyperliquid
 |---|---|---|---|
 | 1 | **WeixBucks (WB)** | App / SQLite / signed economy events | Earn-only practice credits. Daily cap. Spend in-app. **Not bridged.** |
 | 2 | **Yard Cred / Karma** | App | Reputation. Never spendable. Never convertible. |
-| 3 | **BLACKINCCOIN (BI9)** | HyperEVM **ERC-20** | Canonical on-chain asset: staking, governance, later BLKSHI. |
+| 3 | **BLACKINCCOIN (BI9)** | Ethereum **ERC-20**, not deployed | Separate asset. Not the cash-out. Not a HyperEVM asset. |
 
-There is **no automatic 1:1** (or 1,000:1) conversion from WeixBucks to BI9.
+There is **no automatic** conversion from WeixBucks to BI9 or to BKSPC.
 
 WeixBucks is the student / campus loop.  
-**BI9 ERC-20 is the on-chain token.**  
-They stay separate until a **governance-controlled, capped, opt-in** distribution is reviewed and shipped.
-
-Optional Solana **BKSPC** (Token-2022, 1,000 WB → 1 BKSPC on Devnet) is a high-throughput prototype only. Do not present it as the canonical coin. Study notes: [`features/comparative-multi-chain-prototyping-study.md`](features/comparative-multi-chain-prototyping-study.md).
+**BKSPC on Solana is the on-chain settlement token**, at 1,000 WB = 1 BKSPC, only after a funded mint.  
+BI9 stays a separate undeployed Ethereum ERC-20.
 
 ---
 
-## 2. Canonical chain = HyperEVM (ERC-20)
+## 2. Canonical chain = Solana (BKSPC)
 
 | Item | Decision |
 |---|---|
-| Home of BI9 | Hyperliquid HyperEVM (HYPE chain) |
-| Token standard | **ERC-20** |
-| Gas | HYPE (native) |
-| Why | Finance VM on the same validator set as HyperCore; trader / DeFi users already hold HYPE |
+| Home of BKSPC | Solana. Devnet until a funded mint exists. |
+| Token standard | **Token-2022** |
+| Gas | SOL |
+| Home of BI9 | Ethereum mainnet. ERC-20. Not deployed. Not a HyperEVM asset. |
 | What does **not** go on-chain | Posts, follows, town feeds, Iroh blobs, daily WB earn/spend, local app state |
-| Solana | Optional prototype / wallet reach. **Not** the canonical mint. Existing Anchor / BKSPC work is scaffolding. |
-
-**Chain IDs (reference):** HyperEVM mainnet `999`, testnet `998`.  
-Contracts: `Code-Companion/artifacts/hyperevm/`.
+| Chain 999 | Old reference contracts in `Code-Companion/artifacts/hyperevm/`. Not BI9's home. Do not deploy there. |
 
 Solana remains a possible *destination* in [`blkbridge.md`](blkbridge.md) (users already hold SOL / USDC there). It is not where BI9 is defined.
 
@@ -84,7 +79,7 @@ These replace “WB → on-chain mint as the default path.”
 
 Official positioning (finance UI, not the student feed):
 
-> Canonical on-chain asset is BKSPC (Token-2022) on Solana. No guaranteed value or yield. Not investment advice. WeixBucks do not convert automatically. BI9 on HyperEVM is retained reference code and was never deployed.
+> Canonical on-chain asset is BKSPC (Token-2022) on Solana. No guaranteed value or yield. Not investment advice. WeixBucks do not convert automatically. BI9 is an ERC-20 aimed at Ethereum and is not deployed.
 
 ---
 
@@ -131,13 +126,14 @@ Do **not** ship copy that says staking HYPE produces yield from posting, likes, 
 
 | Doc | Still true? | How to read it after this decision |
 |---|---|---|
-| [`tokenomics-policy.md`](tokenomics-policy.md) | **WB / fees / caps** yes | On-chain row points here. BKSPC-on-Solana is not canonical. |
-| [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md) | Historical Phase A lock | Solana earned-settlement design. Superseded as the **home** of the coin. |
-| [`bkspc-phase0-phase1-tickets.md`](bkspc-phase0-phase1-tickets.md) | Devnet experiment | Keep as Solana scaffolding; do not treat as BI9 mint path. |
-| [`beta-tokenomics-and-launch-strategy.md`](beta-tokenomics-and-launch-strategy.md) | Research | Pump.fun / 1,000 WB → 1 BKSPC is **not** the BI9 launch path. |
-| `Code-Companion/artifacts/solana/` | Code exists | Optional prototype / wallet reach. New token work is Solidity under `artifacts/hyperevm/`. |
+| [`tokenomics-policy.md`](tokenomics-policy.md) | **WB / fees / caps** yes | On-chain cash-out is BKSPC on Solana. |
+| [`bkspc-tokenomics-policy.md`](bkspc-tokenomics-policy.md) | Settlement design | Solana earned-settlement design. This is the cash-out. |
+| [`bkspc-phase0-phase1-tickets.md`](bkspc-phase0-phase1-tickets.md) | Devnet experiment | Solana scaffolding. Not a BI9 mint path. |
+| [`beta-tokenomics-and-launch-strategy.md`](beta-tokenomics-and-launch-strategy.md) | Research | Pump.fun notes are not a BI9 launch. |
+| `Code-Companion/artifacts/solana/` | Canonical chain code | BKSPC Token-2022. |
+| `Code-Companion/artifacts/hyperevm/` | Old reference | Chain 999 contracts. Not BI9's home. |
 
-Ticker note: canonical ticker for the HyperEVM **ERC-20** is **BI9** (BLACKINCCOIN). Product chrome may still say **BKSPC** on some Phase 4 Solana surfaces — that is the prototype, not the mint home. Student UI stays on WeixBucks until BlkFinance is an explicit advanced mode. Do not tell students WeixBucks become BI9 automatically.
+Ticker note: the settlement ticker is **BKSPC** on Solana. **BI9** (BLACKINCCOIN) is a separate ERC-20 aimed at Ethereum and is not deployed. It is not a HyperEVM asset. Student UI stays on WeixBucks until a funded BKSPC mint exists. Do not tell students WeixBucks become BI9 automatically.
 
 ---
 
@@ -167,4 +163,4 @@ Do not skip BlkCore. Do not market app usage as a path to BI9 profits.
 
 ---
 
-*Canonical chain decision: 2026-08-26. WeixBucks remains the live campus economy; BI9 lives on HyperEVM.*
+*Canonical chain decision: 2026-10-08. WeixBucks remains the live campus economy. BKSPC on Solana is the settlement coin. BI9 is an undeployed Ethereum ERC-20.*

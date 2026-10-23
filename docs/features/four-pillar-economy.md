@@ -4,7 +4,7 @@
 **Audience:** Faculty, counsel, students, IEEE-style reviewers  
 **Related:** [`wb-progression-v2.md`](wb-progression-v2.md) · [`project-connect-credibility-layer.md`](project-connect-credibility-layer.md) · [`../tokenomics.md`](../tokenomics.md) (older BI9 write-up; settlement lock is BKSPC in `FOCUS.md`) · [`../tokenomics-policy.md`](../tokenomics-policy.md) · [`../economy-student-terms.md`](../economy-student-terms.md)
 
-> **Settlement chain:** earned WeixBucks settle only into **BKSPC** on Solana, at 1,000 WB = 1 BKSPC, and only after a funded mint exists. **BI9** on HyperEVM is a separate asset. No WB → BI9. BI9 mint cap stays 0. See [`../../FOCUS.md`](../../FOCUS.md).
+> **Settlement chain:** earned WeixBucks settle only into **BKSPC** on Solana, at 1,000 WB = 1 BKSPC, and only after a funded mint exists. **BI9** is a separate Ethereum ERC-20. It is not deployed and it is not a HyperEVM asset. No WB → BI9. BI9 mint cap stays 0. See [`../../FOCUS.md`](../../FOCUS.md).
 
 ---
 

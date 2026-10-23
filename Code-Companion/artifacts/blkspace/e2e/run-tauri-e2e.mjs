@@ -120,7 +120,7 @@ try {
   await waitForSocket(socketPath, 120_000);
   execSync("bunx playwright test --project=tauri", {
     cwd: rootDir,
-    env,
+    env: { ...env, BLKSPACE_E2E_EXTERNAL_SERVER: "1" },
     stdio: "inherit",
   });
   exitCode = 0;

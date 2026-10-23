@@ -55,6 +55,14 @@ function text(value, label, max) {
   return out;
 }
 
+function optionalRef(value) {
+  const out = String(value || "").trim();
+  if (!out) return "";
+  if (out.length > 200) throw new HttpError(400, "That reference is too long.");
+  if (/[\u0000-\u001f]/.test(out)) throw new HttpError(400, "That reference is not valid.");
+  return out;
+}
+
 function looksLikePhi(body) {
   const lower = body.toLowerCase();
   return PHI.some((hit) => lower.includes(hit));
@@ -93,9 +101,11 @@ function externalUrl(value) {
     host.endsWith(".meet.jit.si") ||
     host === "teams.microsoft.com" ||
     host.endsWith(".teams.microsoft.com") ||
+    host === "slack.com" ||
+    host.endsWith(".slack.com") ||
     host.endsWith(".edu");
   if (!allowed) {
-    throw new HttpError(400, "Use a Discord, Zoom, YouTube, Meet, or .edu link.");
+    throw new HttpError(400, "Use a Discord, Slack, Zoom, YouTube, Meet, or .edu link.");
   }
   return url.href;
 }
@@ -108,7 +118,7 @@ export function createYardDesk(env) {
   const token = (env.TURSO_AUTH_TOKEN || "").trim();
   let ready;
 
-  async function query(sql, args = []) {
+  async function pipeline(sql, args = []) {
     if (!base || !token) {
       throw new HttpError(503, "Shared yard storage is not configured.");
     }
@@ -129,12 +139,35 @@ export function createYardDesk(env) {
     const payload = await res.json().catch(() => null);
     const entry = payload?.results?.[0];
     if (!res.ok || entry?.type !== "ok" || entry.response?.type !== "execute") {
-      throw new HttpError(502, "Shared yard storage could not complete the request. Please retry.");
+      return { rows: [], error: String(entry?.error?.message || "storage") };
     }
     const result = entry.response.result;
-    return (result.rows || []).map((row) =>
-      Object.fromEntries(result.cols.map((col, i) => [col.name, row[i]?.value ?? null])),
-    );
+    return {
+      rows: (result.rows || []).map((row) =>
+        Object.fromEntries(result.cols.map((col, i) => [col.name, row[i]?.value ?? null])),
+      ),
+      error: "",
+    };
+  }
+
+  async function query(sql, args = []) {
+    const result = await pipeline(sql, args);
+    if (result.error) {
+      throw new HttpError(502, "Shared yard storage could not complete the request. Please retry.");
+    }
+    return result.rows;
+  }
+
+  async function ensureColumn(sql) {
+    try {
+      const result = await pipeline(sql);
+      if (!result.error || /duplicate column/i.test(result.error)) return;
+      throw new HttpError(502, "Shared yard storage could not complete the request. Please retry.");
+    } catch (err) {
+      if (err instanceof HttpError) throw err;
+      if (/duplicate column/i.test(String(err?.message || err))) return;
+      throw err;
+    }
   }
 
   async function ensure() {
@@ -159,7 +192,17 @@ export function createYardDesk(env) {
         await query(`CREATE TABLE IF NOT EXISTS yard_listings (
           id INTEGER PRIMARY KEY, yard_id TEXT NOT NULL, seller_handle TEXT NOT NULL,
           title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', price INTEGER NOT NULL,
-          item_type TEXT NOT NULL DEFAULT 'item', sold_to TEXT, created_at TEXT NOT NULL)`);
+          item_type TEXT NOT NULL DEFAULT 'item', sold_to TEXT, created_at TEXT NOT NULL,
+          item_ref TEXT, delivery_hint TEXT, is_nft INTEGER NOT NULL DEFAULT 0,
+          fulfillment_mode TEXT NOT NULL DEFAULT 'escrow')`);
+        await ensureColumn("ALTER TABLE yard_listings ADD COLUMN item_ref TEXT");
+        await ensureColumn("ALTER TABLE yard_listings ADD COLUMN delivery_hint TEXT");
+        await ensureColumn(
+          "ALTER TABLE yard_listings ADD COLUMN is_nft INTEGER NOT NULL DEFAULT 0",
+        );
+        await ensureColumn(
+          "ALTER TABLE yard_listings ADD COLUMN fulfillment_mode TEXT NOT NULL DEFAULT 'escrow'",
+        );
         await query(`CREATE TABLE IF NOT EXISTS yard_escrow (
           id INTEGER PRIMARY KEY, listing_id INTEGER NOT NULL, yard_id TEXT NOT NULL,
           buyer_handle TEXT NOT NULL, seller_handle TEXT NOT NULL, amount INTEGER NOT NULL,
@@ -169,6 +212,27 @@ export function createYardDesk(env) {
           yard_id TEXT NOT NULL, handle TEXT NOT NULL, school TEXT NOT NULL DEFAULT '',
           short_name TEXT NOT NULL, created_at TEXT NOT NULL,
           PRIMARY KEY (yard_id, handle))`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_boards (
+          id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, title TEXT NOT NULL,
+          author_handle TEXT NOT NULL, created_at TEXT NOT NULL)`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_pins (
+          id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, board_id TEXT NOT NULL,
+          title TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', image TEXT NOT NULL,
+          author_handle TEXT NOT NULL, created_at TEXT NOT NULL)`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_mixtapes (
+          id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, title TEXT NOT NULL,
+          body TEXT NOT NULL DEFAULT '', tracks TEXT NOT NULL, author_handle TEXT NOT NULL,
+          author_display TEXT NOT NULL DEFAULT '', price_wb INTEGER NOT NULL DEFAULT 0,
+          edition_size INTEGER NOT NULL DEFAULT 1, set_kind TEXT NOT NULL DEFAULT 'songs',
+          created_at TEXT NOT NULL)`);
+        await ensureColumn(
+          "ALTER TABLE yard_mixtapes ADD COLUMN set_kind TEXT NOT NULL DEFAULT 'songs'",
+        );
+        await query(`CREATE TABLE IF NOT EXISTS yard_dj_battles (
+          id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, title TEXT NOT NULL,
+          mix_id TEXT NOT NULL, mix_title TEXT NOT NULL, set_kind TEXT NOT NULL DEFAULT 'songs',
+          call_url TEXT NOT NULL DEFAULT '', jitsi_slug TEXT NOT NULL,
+          host_handle TEXT NOT NULL, created_at TEXT NOT NULL)`);
       })();
     }
     await ready;
@@ -477,11 +541,14 @@ export function createYardDesk(env) {
       id: num(row.id),
       sellerHandle: String(row.seller_handle),
       itemType: String(row.item_type || "item"),
+      itemRef: row.item_ref ? String(row.item_ref) : null,
       price: num(row.price),
       title: String(row.title),
       description: String(row.description || ""),
+      isNft: num(row.is_nft) === 1,
       townTag: String(row.yard_id),
-      fulfillmentMode: "escrow",
+      fulfillmentMode: String(row.fulfillment_mode || "escrow"),
+      deliveryHint: row.delivery_hint ? String(row.delivery_hint) : null,
       soldTo: row.sold_to ? String(row.sold_to) : null,
       createdAt: String(row.created_at || ""),
     };
@@ -510,12 +577,20 @@ export function createYardDesk(env) {
     if (!Number.isInteger(price) || price < 1 || price > 100000) {
       throw new HttpError(400, "Price must be a whole WeixBucks amount from 1 to 100000.");
     }
+    const itemType = String(body.itemType || body.item_type || "item").slice(0, 40);
+    const itemRef = optionalRef(body.itemRef || body.item_ref);
+    const deliveryHint = optionalRef(body.deliveryHint || body.delivery_hint);
+    const requested = String(body.fulfillmentMode || body.fulfillment_mode || "");
+    const fulfillment =
+      itemType === "mix" && requested === "instant" ? "instant" : "escrow";
+    const isNft = body.isNft === true && itemType !== "mix" ? 1 : 0;
     const createdAt = new Date().toISOString();
     const inserted = (
       await query(
         `INSERT INTO yard_listings
-          (id, yard_id, seller_handle, title, description, price, item_type, created_at)
-         VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)
+          (id, yard_id, seller_handle, title, description, price, item_type, created_at,
+           item_ref, delivery_hint, is_nft, fulfillment_mode)
+         VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          RETURNING id`,
         [
           yard,
@@ -523,8 +598,12 @@ export function createYardDesk(env) {
           title,
           description,
           price,
-          String(body.itemType || body.item_type || "item").slice(0, 40),
+          itemType,
           createdAt,
+          itemRef || null,
+          deliveryHint || null,
+          isNft,
+          fulfillment,
         ],
       )
     )[0];
@@ -548,6 +627,43 @@ export function createYardDesk(env) {
     const sellerNet = price - fee;
     if ((await balanceOf(yard, who)) < price) {
       throw new HttpError(400, "Not enough WeixBucks in this yard.");
+    }
+    if (String(listing.fulfillment_mode || "escrow") === "instant") {
+      const now = new Date().toISOString();
+      await query(
+        "UPDATE yard_listings SET sold_to = ? WHERE id = ? AND sold_to IS NULL",
+        [who, num(listing.id)],
+      );
+      const claimed = (
+        await query("SELECT sold_to FROM yard_listings WHERE id = ?", [num(listing.id)])
+      )[0];
+      if (String(claimed?.sold_to || "") !== who) {
+        throw new HttpError(404, "Listing not found.");
+      }
+      await query(
+        `INSERT INTO yard_wb (id, yard_id, handle, amount, reason, ref, created_at)
+         VALUES (NULL, ?, ?, ?, ?, ?, ?)`,
+        [yard, who, -price, `Yard Sale: ${listing.title}`, `sale:${listing.id}`, now],
+      );
+      await credit(
+        yard,
+        String(listing.seller_handle),
+        sellerNet,
+        `Yard Sale release: ${listing.title}`,
+        `sale-net:${listing.id}`,
+      );
+      await maybeGrantMark(yard, who);
+      return {
+        ok: true,
+        listingId: num(listing.id),
+        status: "released",
+        fulfillmentMode: "instant",
+        amount: price,
+        platformFee: fee,
+        sellerNet,
+        title: String(listing.title),
+        deliveryHint: listing.delivery_hint ? String(listing.delivery_hint) : "",
+      };
     }
     const now = new Date().toISOString();
     await query("UPDATE yard_listings SET sold_to = ? WHERE id = ? AND sold_to IS NULL", [who, num(listing.id)]);
@@ -661,6 +777,334 @@ export function createYardDesk(env) {
     };
   }
 
+  function stamp(value) {
+    const raw = String(value || "").trim();
+    const time = Date.parse(raw);
+    if (!raw || Number.isNaN(time)) return new Date().toISOString();
+    return new Date(time).toISOString();
+  }
+
+  function rowId(value, label) {
+    const id = String(value || "").trim();
+    if (!/^[a-z][a-z0-9_]{3,64}$/i.test(id)) {
+      throw new HttpError(400, `${label} id is not valid.`);
+    }
+    return id;
+  }
+
+  function trackSrc(value) {
+    const out = String(value || "").trim();
+    if (/^verse:[A-Za-z0-9][A-Za-z0-9 .:'-]{1,78}$/.test(out)) return out;
+    return mediaRef(out);
+  }
+
+  function setKindOf(value) {
+    return value === "verses" || value === "logos" ? value : "songs";
+  }
+
+  function mediaRef(value) {
+    const out = String(value || "").trim();
+    if (!out) throw new HttpError(400, "Add a photo, a track, or an https link.");
+    if (out.length > 500) throw new HttpError(400, "That media link is too long.");
+    if (/^web_[a-z0-9]+$/i.test(out)) return out;
+    let url;
+    try {
+      url = new URL(out);
+    } catch {
+      throw new HttpError(400, "Add a photo, a track, or an https link.");
+    }
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new HttpError(400, "Add a photo, a track, or an https link.");
+    }
+    return out;
+  }
+
+  function optionalText(value, max) {
+    const out = String(value || "").trim();
+    if (out.length > max) throw new HttpError(400, "That note is too long.");
+    return out;
+  }
+
+  function mapBoard(row) {
+    return {
+      id: String(row.id),
+      yardId: String(row.yard_id),
+      title: String(row.title),
+      authorHandle: String(row.author_handle),
+      createdAt: String(row.created_at),
+    };
+  }
+
+  function mapPin(row) {
+    return {
+      id: String(row.id),
+      yardId: String(row.yard_id),
+      boardId: String(row.board_id),
+      title: String(row.title),
+      note: String(row.note || ""),
+      image: String(row.image),
+      authorHandle: String(row.author_handle),
+      createdAt: String(row.created_at),
+      hubItemId: null,
+    };
+  }
+
+  function mapMixtape(row) {
+    let tracks = [];
+    try {
+      const parsed = JSON.parse(String(row.tracks || "[]"));
+      if (Array.isArray(parsed)) tracks = parsed;
+    } catch {
+      tracks = [];
+    }
+    return {
+      id: String(row.id),
+      yardId: String(row.yard_id),
+      title: String(row.title),
+      body: String(row.body || ""),
+      tracks,
+      authorHandle: String(row.author_handle),
+      authorDisplayName: String(row.author_display || row.author_handle),
+      createdAt: String(row.created_at),
+      priceWb: num(row.price_wb),
+      editionSize: num(row.edition_size) || 1,
+      setKind: setKindOf(row.set_kind),
+      listingId: null,
+      hubItemId: null,
+    };
+  }
+
+  function mapBattle(row) {
+    return {
+      id: String(row.id),
+      yardId: String(row.yard_id),
+      title: String(row.title),
+      mixId: String(row.mix_id),
+      mixTitle: String(row.mix_title),
+      setKind: setKindOf(row.set_kind),
+      callUrl: String(row.call_url || ""),
+      jitsiSlug: String(row.jitsi_slug),
+      hostHandle: String(row.host_handle),
+      createdAt: String(row.created_at),
+    };
+  }
+
+  async function boards(yard) {
+    const id = yardId(yard);
+    await ensure();
+    const rows = await query(
+      "SELECT id, yard_id, title, author_handle, created_at FROM yard_boards WHERE yard_id = ? ORDER BY created_at ASC",
+      [id],
+    );
+    return { ok: true, boards: rows.map(mapBoard) };
+  }
+
+  async function saveBoard(body, pubkey) {
+    const yard = yardId(body.yardId);
+    const who = await actor(pubkey);
+    await requireMember(yard, who);
+    const id = rowId(body.id, "Board");
+    const title = text(body.title, "Board name", 40);
+    const existing = (
+      await query("SELECT id FROM yard_boards WHERE id = ? LIMIT 1", [id])
+    )[0];
+    if (!existing) {
+      const count = (
+        await query(
+          "SELECT COUNT(*) AS n FROM yard_boards WHERE yard_id = ?",
+          [yard],
+        )
+      )[0];
+      if (num(count?.n) >= 24) throw new HttpError(400, "This yard already has 24 boards");
+      const dup = (
+        await query(
+          "SELECT id FROM yard_boards WHERE yard_id = ? AND lower(title) = lower(?) LIMIT 1",
+          [yard, title],
+        )
+      )[0];
+      if (dup) throw new HttpError(400, "That board already exists");
+      await query(
+        `INSERT INTO yard_boards (id, yard_id, title, author_handle, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [id, yard, title, who, stamp(body.createdAt)],
+      );
+    }
+    const row = (
+      await query(
+        "SELECT id, yard_id, title, author_handle, created_at FROM yard_boards WHERE id = ? LIMIT 1",
+        [id],
+      )
+    )[0];
+    return { ok: true, board: mapBoard(row) };
+  }
+
+  async function pins(yard) {
+    const id = yardId(yard);
+    await ensure();
+    const rows = await query(
+      "SELECT id, yard_id, board_id, title, note, image, author_handle, created_at FROM yard_pins WHERE yard_id = ? ORDER BY created_at DESC",
+      [id],
+    );
+    return { ok: true, pins: rows.map(mapPin) };
+  }
+
+  async function savePin(body, pubkey) {
+    const yard = yardId(body.yardId);
+    const who = await actor(pubkey);
+    await requireMember(yard, who);
+    const id = rowId(body.id, "Pin");
+    const boardId = rowId(body.boardId, "Board");
+    const title = text(body.title, "Title", 80);
+    const note = optionalText(body.note, 280);
+    const image = mediaRef(body.image);
+    const board = (
+      await query(
+        "SELECT id FROM yard_boards WHERE id = ? AND yard_id = ? LIMIT 1",
+        [boardId, yard],
+      )
+    )[0];
+    if (!board) throw new HttpError(400, "Pick a board on this yard");
+    const existing = (
+      await query("SELECT id FROM yard_pins WHERE id = ? LIMIT 1", [id])
+    )[0];
+    if (!existing) {
+      const count = (
+        await query(
+          "SELECT COUNT(*) AS n FROM yard_pins WHERE yard_id = ?",
+          [yard],
+        )
+      )[0];
+      if (num(count?.n) >= 200) throw new HttpError(400, "This yard board is full");
+      await query(
+        `INSERT INTO yard_pins (id, yard_id, board_id, title, note, image, author_handle, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, yard, boardId, title, note, image, who, stamp(body.createdAt)],
+      );
+    }
+    const row = (
+      await query(
+        "SELECT id, yard_id, board_id, title, note, image, author_handle, created_at FROM yard_pins WHERE id = ? LIMIT 1",
+        [id],
+      )
+    )[0];
+    return { ok: true, pin: mapPin(row) };
+  }
+
+  async function mixtapes(yard) {
+    const id = yard ? yardId(yard) : "";
+    await ensure();
+    const rows = id
+      ? await query(
+          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, created_at FROM yard_mixtapes WHERE yard_id = ? ORDER BY created_at DESC",
+          [id],
+        )
+      : await query(
+          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, created_at FROM yard_mixtapes ORDER BY created_at DESC",
+        );
+    return { ok: true, mixtapes: rows.map(mapMixtape) };
+  }
+
+  async function saveMixtape(body, pubkey) {
+    const yard = yardId(body.yardId);
+    const who = await actor(pubkey);
+    await requireMember(yard, who);
+    const id = rowId(body.id, "Mixtape");
+    const title = text(body.title, "Title", 80);
+    const blurb = optionalText(body.body, 500);
+    const tracks = Array.isArray(body.tracks) ? body.tracks : [];
+    if (!tracks.length) throw new HttpError(400, "Add at least one track");
+    if (tracks.length > 12) throw new HttpError(400, "A mixtape holds up to 12 tracks");
+    const clean = tracks.map((track, index) => {
+      const raw = String(track?.id || "").trim();
+      const id = /^[a-z0-9_.:-]{1,64}$/i.test(raw) ? raw : `track_${index}`;
+      return {
+        id,
+        title: text(track?.title, "Track", 80),
+        src: trackSrc(track?.src),
+      };
+    });
+    const packed = JSON.stringify(clean);
+    if (packed.length > 8000) throw new HttpError(400, "That mixtape is too large to share.");
+    const setKind = setKindOf(body.setKind);
+    if (setKind === "songs" && clean.some((track) => String(track.src).startsWith("verse:"))) {
+      throw new HttpError(400, "A song set needs an audio file or an https link on every row.");
+    }
+    const priceWb = Math.max(0, Math.min(100000, Math.floor(num(body.priceWb))));
+    const editionSize = Math.max(1, Math.min(100, Math.floor(num(body.editionSize) || 1)));
+    const display = optionalText(body.authorDisplayName, 40) || who;
+    const existing = (
+      await query("SELECT id FROM yard_mixtapes WHERE id = ? LIMIT 1", [id])
+    )[0];
+    if (!existing) {
+      await query(
+        `INSERT INTO yard_mixtapes (
+           id, yard_id, title, body, tracks, author_handle, author_display,
+           price_wb, edition_size, set_kind, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, yard, title, blurb, packed, who, display, priceWb, editionSize, setKind, stamp(body.createdAt)],
+      );
+    }
+    const row = (
+      await query(
+        "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, created_at FROM yard_mixtapes WHERE id = ? LIMIT 1",
+        [id],
+      )
+    )[0];
+    return { ok: true, mixtape: mapMixtape(row) };
+  }
+
+  async function battles(yard) {
+    const id = yard ? yardId(yard) : "";
+    await ensure();
+    const rows = id
+      ? await query(
+          "SELECT id, yard_id, title, mix_id, mix_title, set_kind, call_url, jitsi_slug, host_handle, created_at FROM yard_dj_battles WHERE yard_id = ? ORDER BY created_at DESC",
+          [id],
+        )
+      : await query(
+          "SELECT id, yard_id, title, mix_id, mix_title, set_kind, call_url, jitsi_slug, host_handle, created_at FROM yard_dj_battles ORDER BY created_at DESC",
+        );
+    return { ok: true, battles: rows.map(mapBattle) };
+  }
+
+  async function saveBattle(body, pubkey) {
+    const yard = yardId(body.yardId);
+    const who = await actor(pubkey);
+    await requireMember(yard, who);
+    const id = rowId(body.id, "Battle");
+    const title = text(body.title, "Battle name", 80);
+    const mixId = rowId(body.mixId, "Mix");
+    const mixTitle = text(body.mixTitle, "Mix", 80);
+    const setKind = setKindOf(body.setKind);
+    const call = body.callUrl ? externalUrl(body.callUrl) : "";
+    const slugRaw = String(body.jitsiSlug || "").trim();
+    const slug = /^BkspcBattle[A-Za-z0-9]{4,48}$/.test(slugRaw)
+      ? slugRaw
+      : `BkspcBattle${yard.replace(/[^a-z0-9]/gi, "").slice(0, 12)}${Date.now().toString(36)}`;
+    const existing = (
+      await query("SELECT id FROM yard_dj_battles WHERE id = ? LIMIT 1", [id])
+    )[0];
+    if (!existing) {
+      const count = (
+        await query("SELECT COUNT(*) AS n FROM yard_dj_battles WHERE yard_id = ?", [yard])
+      )[0];
+      if (num(count?.n) >= 24) throw new HttpError(400, "This yard battle list is full.");
+      await query(
+        `INSERT INTO yard_dj_battles (
+           id, yard_id, title, mix_id, mix_title, set_kind, call_url, jitsi_slug, host_handle, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, yard, title, mixId, mixTitle, setKind, call, slug, who, stamp(body.createdAt)],
+      );
+    }
+    const row = (
+      await query(
+        "SELECT id, yard_id, title, mix_id, mix_title, set_kind, call_url, jitsi_slug, host_handle, created_at FROM yard_dj_battles WHERE id = ? LIMIT 1",
+        [id],
+      )
+    )[0];
+    return { ok: true, battle: mapBattle(row) };
+  }
+
   return {
     rooms,
     createRoom,
@@ -675,5 +1119,13 @@ export function createYardDesk(env) {
     deliver,
     release,
     myEscrows,
+    boards,
+    saveBoard,
+    pins,
+    savePin,
+    mixtapes,
+    saveMixtape,
+    battles,
+    saveBattle,
   };
 }

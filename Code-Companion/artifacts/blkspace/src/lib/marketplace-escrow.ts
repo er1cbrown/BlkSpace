@@ -288,10 +288,30 @@ async function salePost(
   return json;
 }
 
+/** Shared board wins. A mix saved only on this device still appears. */
+export function mergeMarketplaceBoards(
+  remote: MarketplaceListing[] | null,
+  local: MarketplaceListing[],
+): MarketplaceListing[] {
+  const open = local.filter((row) => !row.soldTo);
+  if (!remote) return open;
+  const seen = new Set(
+    remote
+      .map((row) => row.itemRef)
+      .filter((ref): ref is string => Boolean(ref)),
+  );
+  const extra = open.filter(
+    (row) => row.itemType === "mix" && !!row.itemRef && !seen.has(row.itemRef),
+  );
+  return [...extra, ...remote];
+}
+
 export async function listMarketplace(): Promise<MarketplaceListing[]> {
   if (!isTauri()) {
     const remote = await saleGet("/api/yards/sale");
-    if (Array.isArray(remote?.listings)) return remote.listings;
+    if (Array.isArray(remote?.listings)) {
+      return mergeMarketplaceBoards(remote.listings, load().listings);
+    }
   }
   if (isTauri()) {
     const token = getSessionToken() || "";
@@ -321,6 +341,10 @@ export async function createMarketplaceListing(args: {
         description: args.description,
         price: args.price,
         itemType: args.itemType,
+        itemRef: args.itemRef,
+        isNft: args.isNft,
+        fulfillmentMode: args.fulfillmentMode,
+        deliveryHint: args.deliveryHint,
       });
       return Number(saved.id);
     } catch (err) {

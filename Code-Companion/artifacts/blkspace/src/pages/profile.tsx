@@ -90,7 +90,7 @@ import {
 } from "@/components/profile/ProfileAestheticShell";
 import { ProfileGallery } from "@/components/profile/ProfileGallery";
 import { CustomizeStation } from "@/components/profile/CustomizeStation";
-import { useLabUnlocked } from "@/components/lab/LabGate";
+
 import { YardCredCard } from "@/components/profile/YardCredCard";
 
 type ThemeKey = "classic" | "pro" | "vibrant" | "myspace";
@@ -107,7 +107,6 @@ export default function ProfilePage() {
   const handle = params?.handle || "";
 
   const { isGuest } = useGuestMode();
-  const lab = useLabUnlocked();
   const { requireWallet } = useRequiresWallet();
   const currentUser = getCurrentHandle();
   const isOwnProfile = !isGuest && (handle === currentUser || !handle);
@@ -1088,39 +1087,19 @@ export default function ProfilePage() {
 
                 {isOwnProfile && (
                   <TabsContent value="customize" className="space-y-4">
-                    {!lab ? (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base">
-                            Customize stays closed
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-sm text-muted-foreground space-y-3">
-                          <p>
-                            The public hub door is open. Deeper MyYard packs
-                            open after you accept the terms or reach Yard Cred
-                            15.
-                          </p>
-                          <Button asChild>
-                            <Link href="/terms">Read the terms</Link>
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <CustomizeStation
-                        key={`station-${profileHandle}`}
-                        layout={myyardLayout}
-                        profileTheme={profileTheme}
-                        profileSong={profileSong}
-                        audioBlobs={audioBlobs}
-                        imageBlobs={imageBlobs}
-                        saving={
-                          updateProfileLayout.isPending ||
-                          updateCustomization.isPending
-                        }
-                        onSave={saveStation}
-                      />
-                    )}
+                    <CustomizeStation
+                      key={`station-${profileHandle}`}
+                      layout={myyardLayout}
+                      profileTheme={profileTheme}
+                      profileSong={profileSong}
+                      audioBlobs={audioBlobs}
+                      imageBlobs={imageBlobs}
+                      saving={
+                        updateProfileLayout.isPending ||
+                        updateCustomization.isPending
+                      }
+                      onSave={saveStation}
+                    />
                     <Button variant="outline" size="sm" asChild>
                       <Link href="/wallet">
                         <Store className="w-4 h-4 mr-1" />

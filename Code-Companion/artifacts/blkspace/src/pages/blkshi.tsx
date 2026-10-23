@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SendmeLaneCard } from "@/components/weixnet/SendmeLaneCard";
+import { listMixtapes } from "@/lib/audio-mixtapes";
 
 type LaneStatus = {
   chainSocket: string;
@@ -84,6 +85,37 @@ export default function BlkshiPage() {
         </Card>
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">Audio editions</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground space-y-2">
+            <p>
+              A mixtape listed from Audio is a BlkCore catalog row: a copy count
+              priced in WeixBucks. BLKSHI shows that row. It does not take the
+              trade, and it does not mint a Solana NFT.
+            </p>
+            {listMixtapes().length === 0 ? (
+              <p>No audio editions on this device.</p>
+            ) : (
+              <ul className="space-y-1">
+                {listMixtapes().map((mix) => (
+                  <li key={mix.id}>
+                    {mix.title} ·{" "}
+                    {mix.priceWb > 0 ? `${mix.priceWb} WB` : "free"} ·{" "}
+                    {mix.editionSize} copies
+                    {mix.listingId
+                      ? ` · sale #${mix.listingId}`
+                      : " · not listed"}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link href="/audio" className="underline text-sm">
+              Open Audio
+            </Link>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">Two coins, still closed</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
@@ -98,9 +130,9 @@ export default function BlkshiPage() {
               WeixBucks.
             </p>
             <p>
-              BI9 is a separate coin on HyperEVM. WeixBucks do not convert into
-              BI9. The contract address is empty on this build, and the mint cap
-              stays 0. An empty address is not something you can buy.
+              BI9 is a separate ERC-20 on Ethereum. WeixBucks do not convert
+              into BI9. The contract address is empty on this build, and the
+              mint cap stays 0. An empty address is not something you can buy.
             </p>
             <p>
               BlkSpace will not ask you to send SOL, HYPE, or dollars to a
@@ -180,7 +212,7 @@ export default function BlkshiPage() {
                   {status.lane?.file || "unknown"}.
                 </li>
                 <li>
-                  BI9: HyperEVM{" "}
+                  BI9: Ethereum{" "}
                   {status.bi9?.reachable
                     ? `chain ${status.bi9.chainId} answered`
                     : "did not answer"}

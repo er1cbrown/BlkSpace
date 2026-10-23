@@ -16,29 +16,25 @@ import {
 import { BKSPC_GATES_COPY } from "@/lib/bkspc-config";
 import { BRAND } from "@/lib/brand";
 
-describe("Power of 2 — ERC-20 is canonical", () => {
-  it("exposes the canonical token distinctly from the Solana prototype", () => {
-    // Two coins coexist deliberately. They must stay DIFFERENT, so the canonical
-    // token cannot be reached through the prototype's ticker field.
-    expect(BRAND.canonicalTokenSymbol).toBe("BI9");
-    expect(BRAND.canonicalTokenName).toBe("BLACKINCCOIN");
-    expect(BRAND.canonicalTokenChain).toBe("HyperEVM");
-
-    // The prototype ticker still exists — BKSPC is a real, separate instrument.
+describe("Power of 2 — BKSPC is canonical", () => {
+  it("names BKSPC on Solana and keeps BI9 on Ethereum", () => {
+    expect(BRAND.canonicalTokenSymbol).toBe("BKSPC");
+    expect(BRAND.canonicalTokenName).toBe("BKSPC Coin");
+    expect(BRAND.canonicalTokenChain).toBe("Solana");
     expect(BRAND.symbol).toBe("BKSPC");
     expect(BRAND.coinName).toBe("BKSPC Coin");
-
-    // Both rails stay distinct instruments. BI9 is retained, not canonical.
-    expect(BRAND.canonicalTokenSymbol).not.toBe(BRAND.symbol);
-    expect(BRAND.canonicalTokenName).not.toBe(BRAND.coinName);
+    expect(BRAND.bi9Symbol).toBe("BI9");
+    expect(BRAND.bi9Name).toBe("BLACKINCCOIN");
+    expect(BRAND.bi9Chain).toBe("Ethereum");
+    expect(BRAND.bi9Chain).not.toBe("HyperEVM");
+    expect(BRAND.canonicalTokenSymbol).not.toBe(BRAND.bi9Symbol);
   });
 
-  it("keeps the product name separate from both token identities", () => {
-    // The nostalgic product mark may equal the prototype ticker, but it must
-    // never be described as the canonical token.
+  it("keeps the product name on the settlement coin", () => {
     expect(BRAND.name).toBe("BKSPC");
     expect(BRAND.product).toBe("BKSPC");
-    expect(BRAND.canonicalTokenSymbol).not.toBe(BRAND.name);
+    expect(BRAND.canonicalTokenSymbol).toBe(BRAND.name);
+    expect(BRAND.bi9Symbol).not.toBe(BRAND.name);
   });
 
   it("names BKSPC on Solana as the canonical on-chain asset", () => {
@@ -49,12 +45,11 @@ describe("Power of 2 — ERC-20 is canonical", () => {
     expect(solanaIsCanonicalMint()).toBe(true);
   });
 
-  it("marks BI9 on HyperEVM as retained and not deployable", () => {
-    // Hyperliquid geo-restricts the US, so chain 999 is unreachable for this
-    // operator. See docs/canonical-chain-decision.md
+  it("marks BI9 on Ethereum as not deployed", () => {
     expect(POWER_OF_2.retainedHyperEvm.canonical).toBe(false);
     expect(POWER_OF_2.retainedHyperEvm.token).toBe("BI9");
-    expect(POWER_OF_2.retainedHyperEvm.chain).toBe("hyperevm");
+    expect(POWER_OF_2.retainedHyperEvm.chain).toBe("ethereum");
+    expect(POWER_OF_2.retainedHyperEvm.pillarSub).toBe("Ethereum · BI9");
     expect(hyperEvmDeployable()).toBe(false);
   });
 
@@ -80,7 +75,8 @@ describe("Power of 2 — ERC-20 is canonical", () => {
   });
 
   it("keeps WeixBucks and BKSPC off the HyperEVM asset list", () => {
-    expect(HYPEREVM_ASSETS).toEqual(["HYPE", "BI9"]);
+    expect(HYPEREVM_ASSETS).toEqual(["HYPE"]);
+    expect(HYPEREVM_ASSETS).not.toContain("BI9");
     expect(HYPEREVM_ASSETS).not.toContain("BKSPC");
     expect(HYPEREVM_ASSETS).not.toContain("WB");
     expect(BRIDGE_EXCLUDED_ASSETS).toContain("WeixBucks");

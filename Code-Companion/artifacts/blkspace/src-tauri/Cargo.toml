@@ -115,6 +115,9 @@ rns-net = { version = "=0.7.2", optional = true, default-features = false, featu
 [features]
 default = ["iroh", "iroh-net", "rns-t3"]
 iroh = ["dep:iroh-blobs", "dep:iroh"]
+# Shipped Full installer. Same mesh as BLKSPACE_FULL_MESH=1, still off the UI thread.
+# Yard CI keeps `--no-default-features` and does not enable this.
+full-release = ["iroh", "iroh-net"]
 # Share-ticket P2P (`ticket_for_hash` / `download_ticket`). Yard omits both via --no-default-features.
 iroh-net = ["iroh"]
 bkspc-devnet = [

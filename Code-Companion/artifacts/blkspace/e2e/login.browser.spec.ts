@@ -5,17 +5,14 @@ test.describe("password-first sign in", () => {
     await page.goto("/login");
     await expect(page.getByText("Welcome back")).toBeVisible();
     await expect(page.getByLabel(/^handle$/i)).toBeVisible();
-    await expect(page.getByLabel(/^password$/i)).toBeVisible();
+    await expect(page.getByLabel(/^backup password$/i)).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /^sign in$/i }),
+      page.getByRole("button", { name: /sign in with backup/i }),
     ).toBeVisible();
-    await expect(page.getByText(/24 words \(advanced\)/i)).toBeVisible();
-    await expect(page.getByLabel(/recovery phrase or secret key/i)).toHaveCount(
-      0,
-    );
-    await page.getByText(/24 words \(advanced\)/i).click();
-    await expect(page.getByLabel(/recovery phrase/i)).toBeVisible();
-    await page.getByText(/back to password/i).click();
-    await expect(page.getByLabel(/^password$/i)).toBeVisible();
+    await expect(page.getByLabel(/recovery phrase or key/i)).toHaveCount(0);
+    await page.getByText(/use a recovery phrase instead/i).click();
+    await expect(page.getByLabel(/recovery phrase or key/i)).toBeVisible();
+    await page.getByText(/back to backup sign-in/i).click();
+    await expect(page.getByLabel(/^backup password$/i)).toBeVisible();
   });
 });

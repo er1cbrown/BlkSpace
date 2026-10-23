@@ -128,7 +128,29 @@ export async function webGetBlobAsync(
   id: string,
 ): Promise<WebBlobRecord | null> {
   await whenWebBlobsReady();
-  return store.get(id) ?? null;
+  const local = store.get(id);
+  if (local?.dataUrl) return local;
+  if (!isWebBlobId(id)) return local ?? null;
+  try {
+    const res = await fetch(`/api/portfolio/blob?id=${encodeURIComponent(id)}`);
+    if (!res.ok) return local ?? null;
+    const body = await res.json();
+    const row = body?.row;
+    const dataUrl = String(row?.data_url || row?.dataUrl || "");
+    if (!dataUrl.startsWith("data:")) return local ?? null;
+    const rec: WebBlobRecord = {
+      id,
+      filename: String(row.filename || "file"),
+      mime: String(row.mime || "application/octet-stream"),
+      size: Number(row.size) || 0,
+      dataUrl,
+    };
+    store.set(id, rec);
+    void idbPut(rec);
+    return rec;
+  } catch {
+    return local ?? null;
+  }
 }
 
 /** Drop a file the user removed before posting. Posted files stay. */

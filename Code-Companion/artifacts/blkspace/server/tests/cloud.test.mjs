@@ -131,6 +131,7 @@ beforeAll(async () => {
     env: {
       TURSO_DATABASE_URL: "libsql://test.turso",
       TURSO_AUTH_TOKEN: "test-only",
+      WRITE_LIMIT: "200",
       CLOUDFLARE_ACCOUNT_ID: "test-account",
       CLOUDFLARE_API_TOKEN: "test-only",
       R2_ACCESS_KEY_ID: "test-access",
@@ -341,6 +342,91 @@ describe("yard desk on the shared server", () => {
     expect((await post("/api/yards/join", { yardId: "desk" })).status).toBe(200);
     expect((await post("/api/yards/join", { yardId: "desk" }, bob)).status).toBe(200);
 
+    expect((await fetch(base + "/api/yards/boards", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status).toBe(401);
+    const fits = await post("/api/yards/boards", {
+      id: "board_fits_1",
+      yardId: "desk",
+      title: "Fits",
+      createdAt: "2026-10-20T12:00:00.000Z",
+    });
+    expect(fits.status).toBe(200);
+    const pin = await post("/api/yards/pins", {
+      id: "pin_jacket_1",
+      yardId: "desk",
+      boardId: "board_fits_1",
+      title: "Gold jacket",
+      note: "Homecoming.",
+      image: "https://media.example.test/jacket.jpg",
+      createdAt: "2026-10-20T12:01:00.000Z",
+    });
+    expect(pin.status).toBe(200);
+    const tape = await post("/api/yards/mixtapes", {
+      id: "mix_friday_1",
+      yardId: "desk",
+      title: "Friday lawn",
+      body: "Recorded in the yard.",
+      priceWb: 25,
+      editionSize: 10,
+      tracks: [{ id: "t1", title: "Intro", src: "https://media.example.test/a.mp3" }],
+      createdAt: "2026-10-20T12:02:00.000Z",
+    });
+    expect(tape.status).toBe(200);
+    const sharedBoards = await (await fetch(base + "/api/yards/boards?yard=desk")).json();
+    const sharedPins = await (await fetch(base + "/api/yards/pins?yard=desk")).json();
+    const sharedTapes = await (await fetch(base + "/api/yards/mixtapes?yard=desk")).json();
+    expect(sharedBoards.boards.map((row) => row.title)).toEqual(["Fits"]);
+    expect(sharedPins.pins.map((row) => row.title)).toEqual(["Gold jacket"]);
+    expect(sharedTapes.mixtapes[0].tracks[0].src).toBe("https://media.example.test/a.mp3");
+    expect(sharedTapes.mixtapes[0].authorHandle).toBe("alice");
+    expect(sharedTapes.mixtapes[0].setKind).toBe("songs");
+    const deck = await post("/api/yards/mixtapes", {
+      id: "mix_logos_1",
+      yardId: "desk",
+      title: "Servant set",
+      body: "Verses for the deck.",
+      setKind: "logos",
+      priceWb: 0,
+      editionSize: 1,
+      tracks: [{ id: "v1", title: "Isaiah 53:5", src: "verse:Isaiah 53:5" }],
+      createdAt: "2026-10-20T12:03:00.000Z",
+    });
+    expect(deck.status).toBe(200);
+    expect((await fetch(base + "/api/yards/battles", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status).toBe(401);
+    const battle = await post("/api/yards/battles", {
+      id: "battle_lawn_1",
+      yardId: "desk",
+      title: "Friday lawn battle",
+      mixId: "mix_friday_1",
+      mixTitle: "Friday lawn",
+      setKind: "songs",
+      callUrl: "https://discord.gg/yard",
+      jitsiSlug: "BkspcBattledeskfriday",
+      createdAt: "2026-10-20T12:04:00.000Z",
+    });
+    expect(battle.status).toBe(200);
+    const sharedDecks = await (await fetch(base + "/api/yards/mixtapes?yard=desk")).json();
+    const logos = sharedDecks.mixtapes.find((row) => row.id === "mix_logos_1");
+    expect(logos.setKind).toBe("logos");
+    expect(logos.tracks[0].src).toBe("verse:Isaiah 53:5");
+    const lobbies = await (await fetch(base + "/api/yards/battles?yard=desk")).json();
+    expect(lobbies.battles[0].title).toBe("Friday lawn battle");
+    expect(lobbies.battles[0].hostHandle).toBe("alice");
+    expect(lobbies.battles[0].callUrl).toContain("discord.gg");
+    const blob = await fetch(base + "/api/portfolio/blob", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: "web_abcdef1234567890",
+        filename: "jacket.jpg",
+        mime: "image/jpeg",
+        size: 12,
+        dataUrl: "data:image/jpeg;base64,AAAA",
+      }),
+    });
+    expect(blob.status).toBe(200);
+    const loaded = await (await fetch(base + "/api/portfolio/blob?id=web_abcdef1234567890")).json();
+    expect(loaded.row.data_url).toBe("data:image/jpeg;base64,AAAA");
+
     const aliceWb = await (
       await authorizedGet("/api/yards/wb?yard=desk")
     ).json();
@@ -381,6 +467,27 @@ describe("yard desk on the shared server", () => {
     expect(inbox.messages).toHaveLength(1);
     expect((await fetch(base + "/api/yards/messages?yard=desk")).status).toBe(401);
 
+    const mix = await post("/api/yards/sale", {
+      yardId: "desk",
+      title: "Friday lawn",
+      description: "BlkCore audio edition. Not a chain NFT.",
+      price: 25,
+      itemType: "mix",
+      itemRef: "mix_friday",
+      isNft: true,
+      fulfillmentMode: "instant",
+      deliveryHint: "mixtape:mix_friday",
+    });
+    expect(mix.status).toBe(200);
+    const mixId = (await mix.json()).id;
+    const audioBoard = await (await fetch(base + "/api/yards/sale?yard=desk")).json();
+    const audioRow = audioBoard.listings.find((row) => row.id === mixId);
+    expect(audioRow.itemType).toBe("mix");
+    expect(audioRow.itemRef).toBe("mix_friday");
+    expect(audioRow.isNft).toBe(false);
+    expect(audioRow.fulfillmentMode).toBe("instant");
+    expect(audioRow.deliveryHint).toBe("mixtape:mix_friday");
+
     const listing = await post("/api/yards/sale", {
       yardId: "desk",
       title: "Study notes",
@@ -409,6 +516,20 @@ describe("yard desk on the shared server", () => {
     expect(aliceAfter.mark.school).toBe("");
     const board = await (await fetch(base + "/api/yards/sale?yard=desk")).json();
     expect(board.listings.some((row) => row.id === listingId)).toBe(false);
+    expect(board.listings.some((row) => row.id === mixId)).toBe(true);
+
+    const boughtMix = await post("/api/yards/sale/buy", { listingId: mixId }, bob);
+    expect(boughtMix.status).toBe(200);
+    const mixSale = await boughtMix.json();
+    expect(mixSale.fulfillmentMode).toBe("instant");
+    expect(mixSale.escrowId).toBeUndefined();
+    expect(mixSale.sellerNet).toBe(24);
+    expect(
+      (await (await authorizedGet("/api/yards/wb?yard=desk", bob)).json()).balance,
+    ).toBe(5);
+    expect((await (await authorizedGet("/api/yards/wb?yard=desk")).json()).balance).toBe(93);
+    const afterAudio = await (await fetch(base + "/api/yards/sale?yard=desk")).json();
+    expect(afterAudio.listings.some((row) => row.id === mixId)).toBe(false);
   });
 });
 

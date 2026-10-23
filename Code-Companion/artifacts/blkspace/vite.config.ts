@@ -94,6 +94,26 @@ export default defineConfig({
           if (id.includes("/src/pages/communities")) {
             return "communities";
           }
+          if (id.includes("/src/pages/wallet")) return "wallet";
+          if (
+            id.includes("/src/pages/audio") ||
+            id.includes("/src/lib/audio-mixtapes")
+          ) {
+            return "audio";
+          }
+          if (
+            id.includes("/src/pages/typeverse") ||
+            id.includes("/src/lib/typeverse")
+          ) {
+            return "typeverse";
+          }
+          if (id.includes("/src/pages/hub")) return "hub";
+          if (
+            id.includes("/src/pages/ide") ||
+            id.includes("/src/lib/homework-notebook")
+          ) {
+            return "ide";
+          }
         },
       },
     },
