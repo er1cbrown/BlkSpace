@@ -506,6 +506,17 @@ fn ingest_validated_relay_event(
     created_at,
   );
   let _ = state.db.record_relay_consensus(event_id, relay_url, &content_hash);
+  // Signature and town tag already passed. Kind 1 is the only feed entity.
+  if kind_i64 == 1 {
+    let _ = state.db.materialize_kind1_note(
+      event_id,
+      pubkey,
+      content,
+      &tags_json,
+      relay_url,
+      created_at,
+    );
+  }
   true
 }
 
@@ -3207,6 +3218,7 @@ fn sync_town_events(
   get_handle_from_session(&state, &session_token)?;
   let town_tag = normalize_subscription_tag(&town);
   let town_id = town_id_from_tag(&town_tag);
+  let feed_cursor = state.db.relay_feed_cursor(&town_id).unwrap_or(0);
   let mut manager = state.relay_manager.lock().unwrap();
   if manager.relay_count() == 0 {
     return Err("No relays connected. Connect to a relay first.".to_string());
@@ -3219,17 +3231,23 @@ fn sync_town_events(
   };
   let rt = tokio::runtime::Runtime::new().map_err(|e| format!("Runtime error: {}", e))?;
   rt.block_on(async {
-    manager.subscribe_tag_filter("t", &town_tag, 3600).await?;
     let now = std::time::SystemTime::now()
       .duration_since(std::time::UNIX_EPOCH)
       .unwrap_or_default()
       .as_secs();
+    let catch_up = if feed_cursor > 0 {
+      feed_cursor as u64
+    } else {
+      now.saturating_sub(3600)
+    };
+    let subscribe_since = if feed_cursor > 0 { feed_cursor as u64 } else { 3600 };
+    manager.subscribe_tag_filter("t", &town_tag, subscribe_since).await?;
     let filter = nostr_sdk::prelude::Filter::new()
       .custom_tag(
         nostr_sdk::prelude::SingleLetterTag::lowercase(nostr_sdk::prelude::Alphabet::T),
         vec![town_tag.as_str()],
       )
-      .since(nostr_sdk::prelude::Timestamp::from_secs(now - 3600));
+      .since(nostr_sdk::prelude::Timestamp::from_secs(catch_up));
     let events = manager.sync_recent(filter, 5).await?;
 
     for event in &events {
@@ -6093,7 +6111,7 @@ pub fn run() {
           interval.tick().await;
 
           // Read state synchronously and release before awaiting
-          let (towns, relay_count, maybe_client) = {
+          let (towns, relay_count, maybe_client, cursors) = {
             let st = handle.state::<AppState>();
             let towns = st.relay_town_subscriptions.lock().unwrap().clone();
             let count = st.relay_manager.lock().unwrap().relay_count();
@@ -6102,7 +6120,15 @@ pub fn run() {
             } else {
               None
             };
-            (towns, count, client)
+            let cursors: Vec<i64> = towns
+              .iter()
+              .map(|town| {
+                st.db
+                  .relay_feed_cursor(&town_id_from_tag(town))
+                  .unwrap_or(0)
+              })
+              .collect();
+            (towns, count, client, cursors)
           };
 
           if relay_count == 0 || towns.is_empty() || maybe_client.is_none() {
@@ -6111,15 +6137,20 @@ pub fn run() {
 
           let client = maybe_client.unwrap();
 
-          for town in &towns {
+          for (town, cursor) in towns.iter().zip(cursors.iter()) {
             let now_secs = std::time::SystemTime::now()
               .duration_since(std::time::UNIX_EPOCH)
               .unwrap_or_default()
               .as_secs();
+            let since = if *cursor > 0 {
+              *cursor as u64
+            } else {
+              now_secs.saturating_sub(7200)
+            };
 
             let filter = Filter::new()
               .custom_tag(SingleLetterTag::lowercase(Alphabet::T), vec![town.as_str()])
-              .since(Timestamp::from_secs(now_secs - 7200));
+              .since(Timestamp::from_secs(since));
 
             if client.subscribe(vec![filter], None).await.is_err() {
               continue;

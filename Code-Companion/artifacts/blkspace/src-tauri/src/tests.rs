@@ -997,6 +997,117 @@ mod tests {
   }
 
   #[test]
+  fn kind1_note_appears_in_the_feed_once() {
+    let db = setup_test_db();
+    let event_id = "ab".repeat(32);
+    let pubkey = "cd".repeat(32);
+    let tags = r#"[["t","hbcu-town:tsu"]]"#;
+
+    assert!(!db
+      .materialize_kind1_note(&event_id, &pubkey, "no town tag", r#"[["t","tsu"]]"#, "wss://relay.example", 1_700_000_000)
+      .unwrap());
+
+    let wrote = db
+      .materialize_kind1_note(
+        &event_id,
+        &pubkey,
+        "from the other yard",
+        tags,
+        "wss://relay.example",
+        1_700_000_000,
+      )
+      .unwrap();
+    assert!(wrote);
+    let again = db
+      .materialize_kind1_note(
+        &event_id,
+        &pubkey,
+        "from the other yard",
+        tags,
+        "wss://other.example",
+        1_700_000_000,
+      )
+      .unwrap();
+    assert!(!again);
+
+    let page = db.list_posts(Some("tsu"), None, None, None).unwrap();
+    assert_eq!(page.posts.len(), 1);
+    assert_eq!(page.posts[0].content, "from the other yard");
+    assert_eq!(page.posts[0].nostr_event_id, event_id);
+    assert_eq!(page.posts[0].town_tag, "tsu");
+    assert_eq!(page.posts[0].relay_url, "wss://relay.example");
+
+    let author = db.get_user(&page.posts[0].author_handle).unwrap().unwrap();
+    assert_eq!(author.pubkey, pubkey);
+    assert_eq!(author.weix_bucks, 0);
+    assert_eq!(author.display_name, &pubkey[..8]);
+    assert_eq!(db.relay_feed_cursor("tsu").unwrap(), 1_700_000_000);
+
+    let later = "ef".repeat(32);
+    assert!(db
+      .materialize_kind1_note(
+        &later,
+        &pubkey,
+        "second note",
+        tags,
+        "wss://relay.example",
+        1_700_000_100,
+      )
+      .unwrap());
+    let page = db.list_posts(Some("tsu"), None, None, None).unwrap();
+    assert_eq!(page.posts.len(), 2);
+    assert_eq!(page.posts[0].author_handle, page.posts[1].author_handle);
+    assert_eq!(db.relay_feed_cursor("tsu").unwrap(), 1_700_000_100);
+
+    assert!(!db
+      .materialize_kind1_note(
+        &event_id,
+        &pubkey,
+        "from the other yard",
+        tags,
+        "wss://other.example",
+        1_700_000_000,
+      )
+      .unwrap());
+    assert_eq!(db.list_posts(Some("tsu"), None, None, None).unwrap().posts.len(), 2);
+    assert_eq!(db.relay_feed_cursor("tsu").unwrap(), 1_700_000_100);
+  }
+
+  #[test]
+  fn kind1_echo_keeps_the_local_post() {
+    let db = setup_test_db();
+    let pubkey = "11".repeat(32);
+    db.create_user("author", "Author", &pubkey).unwrap();
+    let post = db
+      .create_post("author", "mine", "tsu", NO_CHANNEL, &[])
+      .unwrap()
+      .post;
+    let event_id = "22".repeat(32);
+    db.queue_nostr_event(&event_id, post.id, "author", "{}").unwrap();
+    let before = db.get_user("author").unwrap().unwrap().weix_bucks;
+
+    let wrote = db
+      .materialize_kind1_note(
+        &event_id,
+        &pubkey,
+        "mine",
+        r#"[["t","hbcu-town:tsu"]]"#,
+        "wss://relay.example",
+        1_700_000_050,
+      )
+      .unwrap();
+    assert!(!wrote);
+
+    let page = db.list_posts(Some("tsu"), None, None, None).unwrap();
+    assert_eq!(page.posts.len(), 1);
+    assert_eq!(page.posts[0].id, post.id);
+    assert_eq!(page.posts[0].nostr_event_id, event_id);
+    assert_eq!(page.posts[0].author_handle, "author");
+    assert_eq!(db.get_user("author").unwrap().unwrap().weix_bucks, before);
+    assert_eq!(db.relay_feed_cursor("tsu").unwrap(), 1_700_000_050);
+  }
+
+  #[test]
   fn test_relay_connections() {
     let db = setup_test_db();
     
