@@ -11,6 +11,15 @@ mod tests {
 
   const NO_CHANNEL: &str = "";
 
+  /// Bare ledger-only database, no app schema.
+  fn ledger_only_db() -> crate::sqlite::Connection {
+    let dir = std::env::temp_dir().join(format!("blkspace_ledger_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let conn = crate::sqlite::Connection::open(dir.join("ledger.db")).unwrap();
+    crate::ledger::Ledger::ensure_schema(&conn).unwrap();
+    conn
+  }
+
   fn setup_test_db() -> Database {
     let temp_dir = std::env::temp_dir().join(format!("blkspace_test_{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -654,6 +663,133 @@ mod tests {
     assert!(result.is_err());
   }
 
+  // ─── Ledger invariants ───────────────────────────────────────────────
+
+  /// The journal must sum to zero after real activity. If this passes, no credits were
+  /// created or destroyed anywhere in the earn/spend/transfer paths.
+  #[test]
+  fn test_ledger_journal_balances_after_real_activity() {
+    let db = setup_test_db();
+    db.create_user("a", "A", "").unwrap();
+    db.create_user("b", "B", "").unwrap();
+    db.create_user("c", "C", "").unwrap();
+
+    // A newcomer grant is capped at 200, on top of the 100 starter.
+    db.grant_weix_bucks("a", 500, "post").unwrap();
+    db.grant_weix_bucks("b", 300, "post").unwrap();
+    db.transfer_weixbucks("a", "b", 40, crate::db::TIP_PLATFORM_FEE_BPS).unwrap();
+    let (_bal, row) = db
+      .deduct_weix_bucks("a", 50, "Withdrawn to Solana address: abc12345...")
+      .unwrap();
+    db.refund_weix_bucks("a", 50, row).unwrap();
+
+    let conn = db.conn.lock().unwrap();
+    let conn = &*conn;
+    assert_eq!(
+      crate::ledger::Ledger::journal_sum(&conn).unwrap(),
+      0,
+      "every journal entry must sum to zero"
+    );
+    assert!(
+      crate::ledger::Ledger::reconcile(&conn).unwrap().is_empty(),
+      "cached balances must match the journal"
+    );
+  }
+
+  /// The cached `users.weix_bucks` column and the ledger must never disagree.
+  #[test]
+  fn test_ledger_matches_users_column() {
+    let db = setup_test_db();
+    db.create_user("u", "U", "").unwrap();
+    db.grant_weix_bucks("u", 750, "post").unwrap();
+    db.transfer_weixbucks("u", "u2", 100, crate::db::TIP_PLATFORM_FEE_BPS).ok();
+
+    let conn = db.conn.lock().unwrap();
+    let conn = &*conn;
+    let mut stmt = conn
+      .prepare("SELECT handle, weix_bucks FROM users WHERE weix_bucks != 0")
+      .unwrap();
+    let rows: Vec<(String, i64)> = stmt
+      .query_map(crate::params!(), |r| Ok((r.get(0)?, r.get(1)?)))
+      .unwrap()
+      .collect::<Result<Vec<_>, _>>()
+      .unwrap();
+
+    for (handle, cached) in rows {
+      let ledger = crate::ledger::Ledger::balance(&conn, &crate::ledger::account_of(&handle))
+        .unwrap();
+      assert_eq!(cached, ledger, "user:{} balance diverged", handle);
+    }
+  }
+
+  /// Total supply must be conserved: users + treasury equals everything ever granted.
+  #[test]
+  fn test_ledger_conserves_total_supply() {
+    let db = setup_test_db();
+    db.create_user("x", "X", "").unwrap();
+    db.create_user("y", "Y", "").unwrap();
+    let g = db.grant_weix_bucks("x", 1000, "post").unwrap();
+    let h = db.grant_weix_bucks("y", 500, "post").unwrap();
+    db.transfer_weixbucks("x", "y", 250, crate::db::TIP_PLATFORM_FEE_BPS).unwrap();
+    db.deduct_weix_bucks("y", 100, "Withdrawn to Solana address: abc12345...").unwrap();
+
+    let conn = db.conn.lock().unwrap();
+    let conn = &*conn;
+    let users_total: i64 = crate::ledger::Ledger::journal_balances(&conn)
+      .unwrap()
+      .iter()
+      .filter(|(a, _)| crate::ledger::is_user_account(a))
+      .map(|(_, v)| *v)
+      .sum();
+    let treasury = crate::ledger::Ledger::balance(&conn, crate::ledger::SYSTEM_TREASURY)
+      .unwrap();
+    let opening: i64 = conn
+      .query_row(
+        "SELECT COALESCE(SUM(p.amount), 0) FROM ledger_postings p
+         JOIN ledger_journal j ON j.id = p.journal_id
+         WHERE j.kind = 'opening' AND p.amount > 0",
+        crate::params!(),
+        |r| r.get(0),
+      )
+      .unwrap();
+    assert_eq!(
+      users_total + treasury,
+      g + h + opening,
+      "transfers must move value, never create it"
+    );
+  }
+
+  /// A replayed grant must not double-credit, when an idempotency key is supplied.
+  #[test]
+  fn test_ledger_idempotency_prevents_replay() {
+    let conn = ledger_only_db();
+    crate::ledger::Ledger::earn(&conn, "alice", 100, "post", "op-1").unwrap();
+    crate::ledger::Ledger::earn(&conn, "alice", 100, "post", "op-1").unwrap();
+    assert_eq!(
+      crate::ledger::Ledger::balance(&conn, "user:alice").unwrap(),
+      100
+    );
+  }
+
+  /// Reconciliation must detect corruption and repair it from the journal.
+  #[test]
+  fn test_ledger_detects_and_repairs_drift() {
+    let conn = ledger_only_db();
+    crate::ledger::Ledger::earn(&conn, "alice", 400, "post", "").unwrap();
+    conn.execute(
+      "UPDATE ledger_accounts SET balance = 1 WHERE account = 'user:alice'",
+      crate::params!(),
+    )
+    .unwrap();
+
+    let drift = crate::ledger::Ledger::reconcile(&conn).unwrap();
+    assert_eq!(drift.len(), 1, "corruption must be detected");
+
+    crate::ledger::Ledger::rebuild_balances(&conn).unwrap();
+    assert!(crate::ledger::Ledger::reconcile(&conn).unwrap().is_empty());
+    assert_eq!(crate::ledger::Ledger::balance(&conn, "user:alice").unwrap(), 400);
+  }
+
   #[test]
   fn test_refund_weix_bucks_restores_balance_and_voids_the_debit() {
     let db = setup_test_db();
@@ -978,6 +1114,7 @@ mod tests {
 
     {
       let conn = db.conn.lock().unwrap();
+    let conn = &*conn;
       conn.execute(
         "INSERT INTO notifications (user_handle, notification_type, from_handle, message) VALUES (?1, 'like', 'from', 'liked your post')",
         params!["user"],
@@ -1201,6 +1338,7 @@ mod tests {
 
     {
       let conn = db.conn.lock().unwrap();
+    let conn = &*conn;
       conn.execute(
         "UPDATE users SET engagement_quality = 0.6 WHERE handle = 'risky'",
         (),
@@ -1418,6 +1556,7 @@ mod tests {
     
     // Verify uptime (need to query it)
     let conn = db.conn.lock().unwrap();
+    let conn = &*conn;
     let hours: i64 = conn.query_row(
       "SELECT relay_uptime_hours FROM users WHERE handle = ?1",
       params!["demo_user"],
@@ -2543,6 +2682,7 @@ mod tests {
     // Minimal fashion club org
     {
       let conn = db.conn.lock().unwrap();
+    let conn = &*conn;
       crate::connect::ensure_schema(&conn).unwrap();
       crate::escrow::ensure_schema(&conn).unwrap();
       conn

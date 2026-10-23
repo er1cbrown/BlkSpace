@@ -824,7 +824,7 @@ pub struct Database {
 }
 
 /// Bump when additive migrations change; skips repeated ALTER TABLE on warm boot.
-const SCHEMA_VERSION: i32 = 13;
+const SCHEMA_VERSION: i32 = 14;
 
 /// Tier 0 page cache in KiB (negative PRAGMA cache_size = KiB).
 /// Default 8 MiB — was 64 MiB which is too heavy for 4 GB laptops.
@@ -1226,6 +1226,15 @@ impl Database {
       );
       ",
     )?;
+
+    // v13 — a withdrawn/debited row can be voided when the off-chain credit is returned
+    // after a failed on-chain settlement. Voided rows must not count toward the weekly
+    // withdrawal cap or the cooldown.
+    let _ = conn.execute("ALTER TABLE wallet_tx ADD COLUMN voided INTEGER DEFAULT 0", ());
+
+    // v14 — double-entry ledger. `users.weix_bucks` becomes a mirror of
+    // `ledger_accounts`; the journal is the source of truth. See src/ledger.rs.
+    crate::ledger::Ledger::ensure_schema(conn)?;
 
     conn.execute_batch(
       "
@@ -1752,6 +1761,10 @@ impl Database {
       Self::set_schema_version(&conn, SCHEMA_VERSION)?;
     }
 
+    // Carry any pre-ledger balances into the journal as opening entries. Runs once: the
+    // backfill is a no-op when the journal already has entries.
+    let _ = crate::ledger::Ledger::backfill_from_legacy(&conn);
+
     // Catalog seed is heavy (100+ upserts). Skip when already full so cold/warm
     // MSI boot does not block the window on every launch. Re-seed only if empty
     // or short (schema bump / partial install).
@@ -2100,11 +2113,38 @@ impl Database {
 
   pub fn create_user(&self, handle: &str, display_name: &str, pubkey: &str) -> Result<User> {
     let conn = self.conn.lock().unwrap();
-    conn.execute(
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(
       "INSERT INTO users (handle, display_name, pubkey) VALUES (?1, ?2, ?3)",
       params![handle, display_name, pubkey],
     )?;
-    let id = conn.last_insert_rowid();
+    let id = tx.last_insert_rowid();
+    // The schema default is the starter balance. It has to be a journal entry
+    // or later spends see a column the ledger does not have.
+    let balance: i64 = tx.query_row(
+      "SELECT COALESCE(weix_bucks, 0) FROM users WHERE handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    if balance != 0 {
+      crate::ledger::Ledger::post_tx(
+        &tx,
+        "opening",
+        "starting balance",
+        &format!("opening:user:{handle}"),
+        &[
+          crate::ledger::Posting {
+            account: crate::ledger::account_of(handle),
+            amount: balance,
+          },
+          crate::ledger::Posting {
+            account: crate::ledger::SYSTEM_FAUCET.to_string(),
+            amount: -balance,
+          },
+        ],
+      )?;
+    }
+    tx.commit()?;
     Ok(User {
       id,
       handle: handle.to_string(),
@@ -2115,7 +2155,7 @@ impl Database {
       town: "tsu".to_string(),
       followers_count: 0,
       following_count: 0,
-      weix_bucks: 100,
+      weix_bucks: balance,
       pubkey: pubkey.to_string(),
       engagement_quality: 1.0,
       theme_id: 0,
@@ -2576,6 +2616,12 @@ impl Database {
     // credit the balance without recording the earn, permanently inflating the daily-cap
     // denominator that the query above recomputes from `wallet_tx`.
     let tx = conn.unchecked_transaction()?;
+
+    // The journal is the source of truth. Posting inside this transaction means the ledger
+    // entry and the mirrored `users.weix_bucks` / `wallet_tx` rows commit or roll back
+    // together, so they cannot drift.
+    crate::ledger::Ledger::earn_tx(&tx, handle, grant, description, "")?;
+
     tx.execute(
       "UPDATE users SET weix_bucks = weix_bucks + ?1,
                         contribution_xp = COALESCE(contribution_xp, 0) + ?2
@@ -4098,6 +4144,10 @@ impl Database {
       return Err(crate::sqlite::Error::InvalidParameterName("Recipient not found".into()));
     }
 
+    crate::ledger::Ledger::transfer_with_fee_tx(
+      &tx, from_handle, to_handle, amount, fee, "transfer", "",
+    )?;
+
     tx.execute(
       "UPDATE users SET weix_bucks = weix_bucks - ?1 WHERE handle = ?2",
       params![amount, from_handle],
@@ -4311,10 +4361,23 @@ impl Database {
 
   pub fn test_set_weix_bucks(&self, handle: &str, amount: i64) -> Result<()> {
     let conn = self.conn.lock().unwrap();
-    conn.execute(
+    let tx = conn.unchecked_transaction()?;
+    let current: i64 = tx.query_row(
+      "SELECT COALESCE(weix_bucks, 0) FROM users WHERE handle = ?1",
+      params![handle],
+      |r| r.get(0),
+    )?;
+    let delta = amount - current;
+    if delta > 0 {
+      crate::ledger::Ledger::earn_tx(&tx, handle, delta, "test balance", "")?;
+    } else if delta < 0 {
+      crate::ledger::Ledger::spend_tx(&tx, handle, -delta, "test balance", "")?;
+    }
+    tx.execute(
       "UPDATE users SET weix_bucks = ?1 WHERE handle = ?2",
       params![amount, handle],
     )?;
+    tx.commit()?;
     Ok(())
   }
 
@@ -4333,6 +4396,8 @@ impl Database {
     if current_bucks < amount {
       return Err(crate::sqlite::Error::InvalidParameterName("Insufficient WeixBucks".into()));
     }
+
+    crate::ledger::Ledger::spend_tx(&tx, handle, amount, description, "")?;
 
     tx.execute(
       "UPDATE users SET weix_bucks = weix_bucks - ?1 WHERE handle = ?2",
@@ -4380,6 +4445,8 @@ impl Database {
         "No matching unvoided debit to refund".into(),
       ));
     }
+
+    crate::ledger::Ledger::earn_tx(&tx, handle, amount, "settlement refund", "")?;
 
     tx.execute(
       "UPDATE users SET weix_bucks = weix_bucks + ?1 WHERE handle = ?2",

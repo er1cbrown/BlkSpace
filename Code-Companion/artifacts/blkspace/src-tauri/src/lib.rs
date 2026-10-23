@@ -1,5 +1,6 @@
 #[macro_use]
 mod sqlite;
+pub mod ledger;
 mod db;
 mod hbcu_catalog_seed;
 mod connect;
