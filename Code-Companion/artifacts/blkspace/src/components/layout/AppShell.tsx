@@ -30,6 +30,7 @@ import {
   Joystick,
   Keyboard,
   Headphones,
+  Disc3,
   TerminalSquare,
 } from "lucide-react";
 import { getCurrentHandle } from "@/lib/auth";
@@ -181,6 +182,7 @@ export function AppShell({
     { href: "/messages", label: "Messages", icon: MessageCircle, show: true },
     { href: "/hub", label: "Hub", icon: Layers, show: true },
     { href: "/audio", label: "Audio", icon: Headphones, show: true },
+    { href: "/logosdecks", label: "LogosDecks", icon: Disc3, show: true },
     { href: "/ide", label: "Homework", icon: TerminalSquare, show: true },
     { href: "/arcade", label: "Arcade", icon: Joystick, show: true },
     { href: "/typeverse", label: "Typeverse", icon: Keyboard, show: true },

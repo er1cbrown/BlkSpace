@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { MixtapePlayer } from "@/components/media/MixtapePlayer";
 import { getMixtape, listMixtapes, syncMixtapes } from "@/lib/audio-mixtapes";
 import { useGuestMode } from "@/lib/guest-mode";
+import { logosDeckBattlePath } from "@/lib/logos-deck-mix";
 import {
   battleCallUrl,
   hostBattle,
@@ -73,7 +74,7 @@ export function DjBattlePanel({ yardId }: { yardId: string }) {
       setCallUrl("");
       setTick((n) => n + 1);
       void syncBattles(yardId).then(() => setTick((n) => n + 1));
-      toast.success("Lobby is open. Join the call and play the mix.");
+      toast.success("Lobby is open. The flow score decides it on LogosDecks.");
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Could not open the lobby",
@@ -86,12 +87,13 @@ export function DjBattlePanel({ yardId }: { yardId: string }) {
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <Radio className="w-4 h-4 text-fuchsia-400" />
-          DJ battle
+          Showcase battle
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Host a lobby for a song mix, a verse mix, or a Logos Deck. The call is
-          Jitsi, or a Discord or Slack link you paste. People in the lobby play
-          the same published set. BlkSpace does not run the voice server.
+          Host a showcase battle for a record or a reading. Join opens the voice
+          call. On LogosDecks the host set takes Deck A and the answer takes
+          Deck B. The flow score there decides the set. BlkSpace does not run
+          the voice server.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -161,6 +163,11 @@ export function DjBattlePanel({ yardId }: { yardId: string }) {
                       Join call
                     </Button>
                   </a>
+                  <Link href={logosDeckBattlePath(battle.id)}>
+                    <Button size="sm" variant="outline">
+                      Open this battle on LogosDecks
+                    </Button>
+                  </Link>
                 </div>
                 {mix ? <MixtapePlayer mixtape={mix} compact /> : null}
               </div>

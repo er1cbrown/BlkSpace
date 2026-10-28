@@ -279,9 +279,14 @@ export default function AudioPage() {
             <span>SoundCloud / YouTube — a list that plays in order.</span>
             <span>Newgrounds — you own the file, the yard can list it.</span>
           </div>
-          <Link href="/weixsound" className="text-sm underline">
-            {WEIXSOUND_LABEL} on WeixSound
-          </Link>
+          <div className="flex flex-wrap gap-4">
+            <Link href="/weixsound" className="text-sm underline">
+              {WEIXSOUND_LABEL} on WeixSound
+            </Link>
+            <Link href="/logosdecks" className="text-sm underline">
+              Play a set on LogosDecks
+            </Link>
+          </div>
         </div>
 
         <Card>

@@ -19,6 +19,7 @@ export function Navbar() {
     { href: "/hub", label: "Hub" },
     { href: "/audio", label: "Audio" },
     { href: "/weixsound", label: "WeixSound" },
+    { href: "/logosdecks", label: "LogosDecks" },
     { href: "/ide", label: "Homework" },
     { href: "/blkshi", label: "BLKSHI" },
     { href: "/arcade", label: "Arcade" },

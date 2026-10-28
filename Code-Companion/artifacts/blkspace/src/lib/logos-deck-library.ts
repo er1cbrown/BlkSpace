@@ -11,6 +11,10 @@ export interface LogosDeckTrack {
   crossRefs: string[];
 }
 
+/** Named passage with no row in the demo crate. Do not invent the verse. */
+export const UNLISTED_PASSAGE =
+  "This row names the passage. The deck does not invent the verse text.";
+
 export const LOGOS_DECK_DEMO_CRATE: LogosDeckTrack[] = [
   {
     id: "isa53-5",
@@ -92,7 +96,7 @@ export function tracksByIds(ids: string[]): LogosDeckTrack[] {
       out.push({
         id: reference,
         reference,
-        text: "This row names the passage. The deck does not invent the verse text.",
+        text: UNLISTED_PASSAGE,
         genre: "Set",
         author: "",
         spm: 0,

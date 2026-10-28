@@ -19,6 +19,7 @@ import {
   offerCopyPass,
   type CopyPass,
 } from "@/lib/marketplace-escrow";
+import { logosDeckMixPath } from "@/lib/logos-deck-mix";
 import {
   chainVerifiedSale,
   formatLabel,
@@ -180,9 +181,14 @@ export default function WeixSoundPage() {
             There is no price chart and no promise the next price is higher. A
             public disc can link to Audius, SoundCloud, Bandcamp, or Tidal.
           </p>
-          <Link href="/audio" className="text-sm underline">
-            Set the format and the split on Audio
-          </Link>
+          <div className="flex flex-wrap gap-4">
+            <Link href="/audio" className="text-sm underline">
+              Set the format and the split on Audio
+            </Link>
+            <Link href="/logosdecks" className="text-sm underline">
+              Play a release on LogosDecks
+            </Link>
+          </div>
         </div>
         {shelves.length === 0 && (
           <p className="text-sm text-muted-foreground">
@@ -224,6 +230,11 @@ export default function WeixSoundPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <Link href={logosDeckMixPath(mixtape.id)}>
+                      <Button size="sm" variant="outline">
+                        Play on LogosDecks
+                      </Button>
+                    </Link>
                     {mixtape.listingId ? (
                       <Button
                         size="sm"
