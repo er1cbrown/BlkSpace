@@ -21,7 +21,10 @@ import {
   Trash2,
   Users,
   MonitorPlay,
+  Film,
 } from "lucide-react";
+import { LiveStreamPlayer } from "@/components/media/LiveStreamPlayer";
+import { WatchTogether } from "@/components/community/WatchTogether";
 import {
   createLiveRoom,
   deleteLiveRoom,
@@ -33,6 +36,7 @@ import {
   type LiveRoomKind,
   type YardLiveRoom,
 } from "@/lib/yard-live-rooms";
+import { parseWatchSource } from "@/lib/yard-room-watch";
 import { getCurrentHandle } from "@/lib/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -56,6 +60,7 @@ export function YardLiveRooms({
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<LiveRoomKind>("stage");
   const [externalUrl, setExternalUrl] = useState("");
+  const [watchTicket, setWatchTicket] = useState("");
   const [active, setActive] = useState<YardLiveRoom | null>(null);
   const me = getCurrentHandle();
 
@@ -74,6 +79,13 @@ export function YardLiveRooms({
       );
       return;
     }
+    if (kind === "watch") {
+      const parsed = parseWatchSource(watchTicket);
+      if (!parsed.ok) {
+        toast.error(parsed.reason);
+        return;
+      }
+    }
     let room: YardLiveRoom;
     try {
       room = await createLiveRoom({
@@ -81,6 +93,7 @@ export function YardLiveRooms({
         title: title || `${communityName} stage`,
         kind,
         externalUrl: kind === "external" ? externalUrl : undefined,
+        watchTicket: kind === "watch" ? watchTicket : undefined,
       });
     } catch (err) {
       toast.error(
@@ -90,6 +103,7 @@ export function YardLiveRooms({
     }
     setTitle("");
     setExternalUrl("");
+    setWatchTicket("");
     refresh();
     toast.success(`Room “${room.title}” open`);
     openRoom(room);
@@ -119,11 +133,19 @@ export function YardLiveRooms({
     refresh();
   };
 
-  const joinHref =
-    active &&
-    (active.kind === "external" && active.externalUrl
-      ? active.externalUrl
-      : jitsiUrl(active));
+  const watchPlay = (() => {
+    if (active?.kind !== "watch" || !active.externalUrl) return "";
+    const parsed = parseWatchSource(active.externalUrl, { stored: true });
+    if (!parsed.ok) return "";
+    return parsed.ticket.playUrl || parsed.ticket.syncplayUrl || "";
+  })();
+  const joinHref = !active
+    ? ""
+    : active.kind === "watch"
+      ? watchPlay
+      : active.kind === "external" && active.externalUrl
+        ? active.externalUrl
+        : jitsiUrl(active);
 
   return (
     <div className="space-y-4">
@@ -134,9 +156,9 @@ export function YardLiveRooms({
             Live rooms
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Discord/Slack-style stages — join voice/video via free Jitsi, or
-            paste a Discord Stage / Zoom / YouTube link. Not full TikTok
-            broadcast ingest.
+            Voice and video stay on Jitsi. A YouTube or Twitch link plays in
+            the room. A library file plays together from the host's clock.
+            BlkSpace does not run the broadcast.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -165,19 +187,31 @@ export function YardLiveRooms({
                     Voice (Jitsi audio-first)
                   </SelectItem>
                   <SelectItem value="external">
-                    External (Discord / Zoom / YT)
+                    Live link (YouTube / Twitch / Zoom)
                   </SelectItem>
+                  <SelectItem value="watch">Watch together</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           {kind === "external" && (
             <div className="space-y-1.5">
-              <Label className="text-xs">External join URL</Label>
+              <Label className="text-xs">Live link</Label>
               <Input
                 value={externalUrl}
                 onChange={(e) => setExternalUrl(e.target.value)}
-                placeholder="https://discord.gg/… or zoom/youtube…"
+                placeholder="https://www.youtube.com/watch?v=… or twitch.tv/…"
+                className="h-9 text-xs"
+              />
+            </div>
+          )}
+          {kind === "watch" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Library file</Label>
+              <Input
+                value={watchTicket}
+                onChange={(e) => setWatchTicket(e.target.value)}
+                placeholder="http://127.0.0.1:8096/…/clip.mp4 or a watch ticket"
                 className="h-9 text-xs"
               />
             </div>
@@ -211,6 +245,8 @@ export function YardLiveRooms({
                     <Mic className="w-4 h-4 text-primary mt-0.5" />
                   ) : room.kind === "external" ? (
                     <Radio className="w-4 h-4 text-primary mt-0.5" />
+                  ) : room.kind === "watch" ? (
+                    <Film className="w-4 h-4 text-primary mt-0.5" />
                   ) : (
                     <MonitorPlay className="w-4 h-4 text-primary mt-0.5" />
                   )}
@@ -259,42 +295,31 @@ export function YardLiveRooms({
         })}
       </div>
 
-      {active && joinHref && (
+      {active && (
         <Card className="border-primary/25 overflow-hidden">
           <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
             <CardTitle className="text-base truncate">
               In room: {active.title}
             </CardTitle>
             <div className="flex gap-2 shrink-0">
-              <Button size="sm" variant="outline" className="gap-1" asChild>
-                <a href={joinHref} target="_blank" rel="noopener noreferrer">
-                  Open tab
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              </Button>
+              {joinHref.startsWith("http") && (
+                <Button size="sm" variant="outline" className="gap-1" asChild>
+                  <a href={joinHref} target="_blank" rel="noopener noreferrer">
+                    Open tab
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </Button>
+              )}
               <Button size="sm" variant="ghost" onClick={closeActive}>
                 Close
               </Button>
             </div>
           </CardHeader>
           <CardContent className="p-0 sm:p-2">
-            {active.kind === "external" && active.externalUrl ? (
-              <div className="p-6 text-center space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  External stage — join in Discord / Zoom / YouTube (Slack-style
-                  link).
-                </p>
-                <Button asChild>
-                  <a
-                    href={active.externalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Join external room
-                    <ExternalLink className="w-4 h-4 ml-2" />
-                  </a>
-                </Button>
-              </div>
+            {active.kind === "watch" ? (
+              <WatchTogether room={active} />
+            ) : active.kind === "external" && active.externalUrl ? (
+              <LiveStreamPlayer url={active.externalUrl} title={active.title} />
             ) : (
               <iframe
                 title={active.title}
@@ -304,8 +329,11 @@ export function YardLiveRooms({
               />
             )}
             <p className="text-[10px] text-muted-foreground px-3 py-2">
-              Powered by public Jitsi Meet (meet.jit.si) — no BKSPC media
-              server. Mute when idle; campus norms apply.
+              {active.kind === "watch"
+                ? "The library sends the file. This room only shares the clock."
+                : active.kind === "external"
+                  ? "The stage plays here when the link is YouTube, Twitch, or a media file."
+                  : "Voice and video use public Jitsi. Mute when idle."}
             </p>
           </CardContent>
         </Card>

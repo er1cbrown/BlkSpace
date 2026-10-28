@@ -6,8 +6,9 @@
 
 import { getCurrentHandle } from "@/lib/auth";
 import { hostedPost } from "@/lib/hosted-api";
+import { encodeWatchTicket, parseWatchSource } from "@/lib/yard-room-watch";
 
-export type LiveRoomKind = "stage" | "voice" | "external";
+export type LiveRoomKind = "stage" | "voice" | "external" | "watch";
 
 export interface YardLiveRoom {
   id: string;
@@ -84,18 +85,37 @@ export function jitsiUrl(room: YardLiveRoom): string {
   return `https://meet.jit.si/${encodeURIComponent(room.jitsiSlug)}`;
 }
 
+function keepLocal(message: string): boolean {
+  return !(
+    message.includes("Paste the Discord") ||
+    message.includes("watch") ||
+    message.includes("scrape") ||
+    message.includes("Jellyfin") ||
+    message.includes("Syncplay") ||
+    message.includes("iroh")
+  );
+}
+
 export async function createLiveRoom(input: {
   yardId: string;
   title: string;
   kind: LiveRoomKind;
   externalUrl?: string;
+  watchTicket?: string;
 }): Promise<YardLiveRoom> {
+  let externalUrl = input.externalUrl?.trim() || "";
+  if (input.kind === "watch") {
+    const parsed = parseWatchSource(input.watchTicket || "");
+    if (!parsed.ok) throw new Error(parsed.reason);
+    externalUrl = encodeWatchTicket(parsed.ticket);
+  }
   try {
     const res = await hostedPost("/api/yards/rooms", {
       yardId: input.yardId,
       title: input.title,
       kind: input.kind,
-      externalUrl: input.externalUrl,
+      externalUrl,
+      watchTicket: input.kind === "watch" ? externalUrl : undefined,
     });
     const body = await res.json().catch(() => null);
     if (!res.ok || body?.ok === false) {
@@ -104,9 +124,9 @@ export async function createLiveRoom(input: {
     if (body?.room) return body.room as YardLiveRoom;
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
-    // A bad external link is the student's input. Every other refusal
-    // (no desk, not a member yet, signed out) still opens a room here.
-    if (message.includes("Paste the Discord")) throw err;
+    // A bad link or ticket is the student's input. A missing desk still
+    // opens a room on this device.
+    if (!keepLocal(message)) throw err;
   }
   const title = input.title.trim() || "Yard stage";
   const id = `live_${Date.now().toString(36)}`;
@@ -117,7 +137,7 @@ export async function createLiveRoom(input: {
     yardId: input.yardId,
     title,
     kind: input.kind,
-    externalUrl: input.externalUrl?.trim() || undefined,
+    externalUrl: externalUrl || undefined,
     jitsiSlug,
     createdBy: handle,
     createdAt: new Date().toISOString(),

@@ -200,6 +200,22 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (req.method === "GET" && path === "/api/yards/rooms") {
         return json(res, 200, await desk.rooms(url.searchParams.get("yard") || ""));
       }
+      if (req.method === "GET" && path === "/api/yards/rooms/watch") {
+        const pubkey = authenticate(req, "", allowed);
+        return json(res, 200, await desk.readWatch(pubkey, url.searchParams.get("room") || ""));
+      }
+      if (req.method === "GET" && path === "/api/yards/messages/key") {
+        const pubkey = authenticate(req, "", allowed);
+        return json(
+          res,
+          200,
+          await desk.dmKey(
+            pubkey,
+            url.searchParams.get("yard") || "",
+            url.searchParams.get("handle") || "",
+          ),
+        );
+      }
       if (req.method === "GET" && path === "/api/yards/boards") {
         return json(res, 200, await desk.boards(url.searchParams.get("yard") || ""));
       }
@@ -412,6 +428,8 @@ export function createApiHandler(env, { origins, development = false } = {}) {
             "/api/yards/channels",
             "/api/yards/rooms",
             "/api/yards/rooms/close",
+            "/api/yards/rooms/watch",
+            "/api/yards/messages/key",
             "/api/yards/boards",
             "/api/yards/pins",
             "/api/yards/mixtapes",
@@ -526,6 +544,12 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       }
       if (path === "/api/yards/rooms/close") {
         return json(res, 200, await desk.closeRoom(body, pubkey));
+      }
+      if (path === "/api/yards/rooms/watch") {
+        return json(res, 200, await desk.pushWatch(body, pubkey));
+      }
+      if (path === "/api/yards/messages/key") {
+        return json(res, 200, await desk.saveDmKey(body, pubkey));
       }
       if (path === "/api/yards/messages") {
         return json(res, 200, await desk.sendMessage(body, pubkey));

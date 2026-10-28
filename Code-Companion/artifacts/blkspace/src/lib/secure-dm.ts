@@ -4,13 +4,22 @@
  * - Identity = existing BlkSpace handle (same as rest of app).
  * - Requires No-PHI + ethics ack before send.
  * - Blocks supported. Not a hospital EMR / not HIPAA covered entity.
- * - Persistence: plaintext localStorage in web; plaintext Tauri table when available.
- * - This is not NIP-44 or other encrypted direct messaging.
+ * - The yard copy is sealed on this device (P-256, then AES-GCM).
+ * - The private key stays in this browser. A lost browser cannot open old notes.
+ * - Clinical-looking text is refused before it is sealed.
  */
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "@/lib/tauri-api";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { hostedPost } from "@/lib/hosted-api";
+import {
+  DM_PREFIX,
+  ensureDmKey,
+  openDm,
+  publicJwkOf,
+  sealDm,
+  type DmPublicJwk,
+} from "@/lib/dm-seal";
 import { hasEthicsAck, loadInstitutionalClaim } from "@/lib/identity-ethics";
 import { loadUiPrefs } from "@/lib/ui-prefs";
 
@@ -94,6 +103,53 @@ export function blockHandle(peer: string) {
   const key = `${me}->${peer}`;
   if (!b.includes(key)) b.push(key);
   saveBlocks(b);
+}
+
+export async function prepareDmKey(): Promise<void> {
+  const pub = await ensureDmKey();
+  try {
+    await hostedPost("/api/yards/messages/key", { publicJwk: pub });
+  } catch {
+    /* the next send publishes the key again */
+  }
+}
+
+async function peerDmKey(
+  handle: string,
+  yardId: string,
+): Promise<{ key: DmPublicJwk | null; reachable: boolean }> {
+  const path = `/api/yards/messages/key?yard=${encodeURIComponent(yardId)}&handle=${encodeURIComponent(handle)}`;
+  try {
+    const { createHttpAuthHeader } = await import("@/lib/auth");
+    const res = await fetch(path, {
+      headers: { authorization: createHttpAuthHeader(path, "GET", "") },
+    });
+    if (res.status === 401 || res.status === 503) return { key: null, reachable: false };
+    if (!res.ok) return { key: null, reachable: true };
+    const body = await res.json();
+    return { key: publicJwkOf(body.publicJwk), reachable: true };
+  } catch {
+    return { key: null, reachable: false };
+  }
+}
+
+async function reveal(rows: SecureDmMessage[]): Promise<SecureDmMessage[]> {
+  const me = getCurrentHandle();
+  return Promise.all(
+    rows.map(async (row) => {
+      if (!row.body.startsWith(DM_PREFIX)) return row;
+      try {
+        const text = await openDm(row.body, row.fromHandle, row.toHandle, me);
+        return { ...row, body: text };
+      } catch {
+        return { ...row, body: "Sealed for another device." };
+      }
+    }),
+  );
+}
+
+function preview(body: string): string {
+  return body.startsWith(DM_PREFIX) ? "Encrypted message" : body.slice(0, 120);
 }
 
 export function canSendSecureDm(): { ok: boolean; reason?: string } {
@@ -196,7 +252,7 @@ export async function listThreads(
       map.set(tid, {
         threadId: tid,
         peerHandle: peer,
-        lastBody: m.body.slice(0, 120),
+        lastBody: preview(m.body),
         lastAt: m.createdAt,
         unread: 0,
       });
@@ -224,7 +280,7 @@ export async function listThreadMessages(
     }
   }
   const remote = await sharedMessages(yardId, peerHandle);
-  if (remote) return remote;
+  if (remote) return reveal(remote);
   const tid = threadIdFor(me, peerHandle);
   return load()
     .messages.filter((m) => m.threadId === tid)
@@ -256,17 +312,28 @@ export async function sendSecureDm(input: {
     );
   }
 
+  let outbound = body;
+  const yardId = homeYard();
+  const peer = await peerDmKey(to, yardId);
+  if (peer.reachable && !peer.key) {
+    throw new Error("Open Messages on both handles so the note can be sealed.");
+  }
+  if (peer.key) {
+    await ensureDmKey();
+    outbound = await sealDm({ text: body, from: me, to, toPub: peer.key });
+  }
+
   try {
     const res = await hostedPost("/api/yards/messages", {
-      yardId: homeYard(),
+      yardId,
       toHandle: to,
-      body,
+      body: outbound,
     });
     const json = await res.json().catch(() => null);
     if (!res.ok || json?.ok === false) {
       throw new Error(json?.error || "Could not send that message.");
     }
-    if (json?.message) return json.message as SecureDmMessage;
+    if (json?.message) return { ...(json.message as SecureDmMessage), body };
   } catch (err) {
     if (!signedOut(err)) throw err;
   }
@@ -276,7 +343,7 @@ export async function sendSecureDm(input: {
       return await invoke("send_secure_dm", {
         sessionToken: getSessionToken() || "",
         toHandle: to,
-        body,
+        body: outbound,
         phiAck: true,
         ethicalAck: true,
       });

@@ -8,6 +8,8 @@ import {
   stemsOf,
   trackListHash,
 } from "../src/lib/weixsound.ts";
+import { encodeWatchTicket, parseWatchSource } from "../src/lib/yard-room-watch.ts";
+import { assertSealedEnvelope, DM_PREFIX } from "../src/lib/dm-seal.ts";
 
 export const JOIN_GRANT_WB = 50;
 export const YARD_CRED_GATE = 15;
@@ -124,6 +126,10 @@ export function createYardDesk(env) {
     .replace(/^libsql:\/\//, "https://")
     .replace(/\/$/, "");
   const token = (env.TURSO_AUTH_TOKEN || "").trim();
+  const jellyfinOrigins = String(env.JELLYFIN_ORIGINS || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
   let ready;
 
   async function pipeline(sql, args = []) {
@@ -193,6 +199,11 @@ export function createYardDesk(env) {
         await query(`CREATE TABLE IF NOT EXISTS yard_messages (
           id INTEGER PRIMARY KEY, yard_id TEXT NOT NULL, from_handle TEXT NOT NULL,
           to_handle TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL)`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_dm_keys (
+          handle TEXT PRIMARY KEY, public_jwk TEXT NOT NULL, updated_at TEXT NOT NULL)`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_watch_clock (
+          room_id INTEGER PRIMARY KEY, host_handle TEXT NOT NULL,
+          position_ms INTEGER NOT NULL, playing INTEGER NOT NULL, updated_at TEXT NOT NULL)`);
         await query(`CREATE TABLE IF NOT EXISTS yard_wb (
           id INTEGER PRIMARY KEY, yard_id TEXT NOT NULL, handle TEXT NOT NULL,
           amount INTEGER NOT NULL, reason TEXT NOT NULL, ref TEXT NOT NULL,
@@ -449,10 +460,21 @@ export function createYardDesk(env) {
     const yard = yardId(body.yardId || body.yard_id || body.communityId);
     await requireMember(yard, who);
     const title = text(body.title, "Room name", 80);
-    const kind = ["stage", "voice", "external"].includes(body.kind) ? body.kind : "stage";
-    const link = kind === "external" ? externalUrl(body.externalUrl || body.external_url) : "";
-    if (kind === "external" && !link) {
-      throw new HttpError(400, "Paste the Discord, Zoom, or YouTube link.");
+    const kind = ["stage", "voice", "external", "watch"].includes(body.kind)
+      ? body.kind
+      : "stage";
+    let link = "";
+    if (kind === "external") {
+      link = externalUrl(body.externalUrl || body.external_url);
+      if (!link) throw new HttpError(400, "Paste the Discord, Zoom, or YouTube link.");
+    }
+    if (kind === "watch") {
+      const parsed = parseWatchSource(
+        String(body.watchTicket || body.externalUrl || body.external_url || ""),
+        { jellyfinOrigins },
+      );
+      if (!parsed.ok) throw new HttpError(400, parsed.reason);
+      link = encodeWatchTicket(parsed.ticket);
     }
     const slug = `BkspcYard${yard.replace(/-/g, "")}${title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 24)}${Date.now().toString(36)}`;
     const createdAt = new Date().toISOString();
@@ -519,10 +541,11 @@ export function createYardDesk(env) {
     for (const row of rows) {
       const peerHandle = row.from_handle === who ? String(row.to_handle) : String(row.from_handle);
       if (threads.has(peerHandle)) continue;
+      const rawBody = String(row.body);
       threads.set(peerHandle, {
         threadId: [yard, who, peerHandle].sort().join(":"),
         peerHandle,
-        lastBody: String(row.body).slice(0, 120),
+        lastBody: rawBody.startsWith(DM_PREFIX) ? "Encrypted message" : rawBody.slice(0, 120),
         lastAt: String(row.created_at),
         unread: 0,
         yardId: yard,
@@ -539,9 +562,22 @@ export function createYardDesk(env) {
     const to = handleOf(body.toHandle || body.to);
     if (to === who) throw new HttpError(400, "Choose someone else in this yard.");
     await requireMember(yard, to);
-    const message = text(body.body, "Message", 2000);
-    if (looksLikePhi(message)) {
-      throw new HttpError(400, "Message blocked: looks like clinical or patient information. Use the hospital system.");
+    const rawBody = String(body.body || "").trim();
+    let message;
+    if (rawBody.startsWith(DM_PREFIX)) {
+      try {
+        message = assertSealedEnvelope(rawBody);
+      } catch (err) {
+        throw new HttpError(
+          400,
+          err instanceof Error ? err.message : "That sealed message is not valid.",
+        );
+      }
+    } else {
+      message = text(body.body, "Message", 2000);
+      if (looksLikePhi(message)) {
+        throw new HttpError(400, "Message blocked: looks like clinical or patient information. Use the hospital system.");
+      }
     }
     const createdAt = new Date().toISOString();
     const inserted = (
@@ -568,6 +604,122 @@ export function createYardDesk(env) {
     };
     await maybeGrantMark(yard, who);
     return sent;
+  }
+
+  function roomNumber(value) {
+    const id = num(String(value || "").replace(/^live_/, ""));
+    if (!id) throw new HttpError(400, "Room not found.");
+    return id;
+  }
+
+  async function pushWatch(body, pubkey) {
+    await ensure();
+    const who = await actor(pubkey);
+    const id = roomNumber(body.roomId || body.id);
+    const row = (
+      await query("SELECT * FROM yard_rooms WHERE id = ? AND closed = 0", [id])
+    )[0];
+    if (!row) throw new HttpError(404, "Room not found.");
+    if (String(row.kind) !== "watch") throw new HttpError(400, "That room is not a watch room.");
+    await requireMember(String(row.yard_id), who);
+    if (String(row.created_by) !== who) throw new HttpError(403, "Only the host sets the picture.");
+    const position = Math.max(0, Math.min(12 * 60 * 60 * 1000, Math.floor(num(body.positionMs))));
+    const playing = body.playing === true || body.playing === 1 ? 1 : 0;
+    const now = new Date().toISOString();
+    const existing = (
+      await query("SELECT room_id FROM yard_watch_clock WHERE room_id = ?", [id])
+    )[0];
+    if (existing) {
+      await query(
+        "UPDATE yard_watch_clock SET position_ms = ?, playing = ?, updated_at = ? WHERE room_id = ?",
+        [position, playing, now, id],
+      );
+    } else {
+      await query(
+        `INSERT INTO yard_watch_clock (room_id, host_handle, position_ms, playing, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [id, who, position, playing, now],
+      );
+    }
+    return {
+      ok: true,
+      clock: { positionMs: position, playing: playing === 1, updatedAt: now, hostHandle: who },
+    };
+  }
+
+  async function readWatch(pubkey, roomRaw) {
+    await ensure();
+    const who = await actor(pubkey);
+    const id = roomNumber(roomRaw);
+    const row = (
+      await query("SELECT * FROM yard_rooms WHERE id = ? AND closed = 0", [id])
+    )[0];
+    if (!row) throw new HttpError(404, "Room not found.");
+    await requireMember(String(row.yard_id), who);
+    const clock = (
+      await query("SELECT * FROM yard_watch_clock WHERE room_id = ?", [id])
+    )[0];
+    if (!clock) return { ok: true, clock: null };
+    return {
+      ok: true,
+      clock: {
+        positionMs: num(clock.position_ms),
+        playing: num(clock.playing) === 1,
+        updatedAt: String(clock.updated_at),
+        hostHandle: String(clock.host_handle),
+      },
+    };
+  }
+
+  function messageKey(value) {
+    if (!value || typeof value !== "object") return "";
+    if (value.kty !== "EC" || value.crv !== "P-256") return "";
+    if (typeof value.x !== "string" || typeof value.y !== "string" || value.d) return "";
+    if (value.x.length < 8 || value.x.length > 200 || value.y.length < 8 || value.y.length > 200) {
+      return "";
+    }
+    return JSON.stringify({ kty: "EC", crv: "P-256", x: value.x, y: value.y });
+  }
+
+  async function saveDmKey(body, pubkey) {
+    await ensure();
+    const who = await actor(pubkey);
+    const stored = messageKey(body.publicJwk);
+    if (!stored) throw new HttpError(400, "That message key is not valid.");
+    const now = new Date().toISOString();
+    const existing = (
+      await query("SELECT handle FROM yard_dm_keys WHERE handle = ? LIMIT 1", [who])
+    )[0];
+    if (existing) {
+      await query("UPDATE yard_dm_keys SET public_jwk = ?, updated_at = ? WHERE handle = ?", [
+        stored,
+        now,
+        who,
+      ]);
+    } else {
+      await query(
+        "INSERT INTO yard_dm_keys (handle, public_jwk, updated_at) VALUES (?, ?, ?)",
+        [who, stored, now],
+      );
+    }
+    return { ok: true };
+  }
+
+  async function dmKey(pubkey, yardRaw, handleRaw) {
+    await ensure();
+    const who = await actor(pubkey);
+    const yard = yardId(yardRaw);
+    await requireMember(yard, who);
+    const peer = handleOf(handleRaw);
+    await requireMember(yard, peer);
+    const row = (
+      await query("SELECT public_jwk FROM yard_dm_keys WHERE handle = ? LIMIT 1", [peer])
+    )[0];
+    return {
+      ok: true,
+      handle: peer,
+      publicJwk: row ? JSON.parse(String(row.public_jwk)) : null,
+    };
   }
 
   async function wb(pubkey, yardRaw) {
@@ -1789,8 +1941,12 @@ export function createYardDesk(env) {
     rooms,
     createRoom,
     closeRoom,
+    pushWatch,
+    readWatch,
     messages,
     sendMessage,
+    saveDmKey,
+    dmKey,
     wb,
     grantJoin,
     listings,

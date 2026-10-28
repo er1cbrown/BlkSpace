@@ -1665,3 +1665,85 @@ describe("weixnet relay notes", () => {
     db.run("DELETE FROM portfolio_posts WHERE author_handle = ?", ["relaynote"]);
   });
 });
+
+describe("watch room and sealed messages", () => {
+  test("a library file follows the host and a note stays sealed", async () => {
+    const faye = generateSecretKey();
+    const glen = generateSecretKey();
+    expect((await post("/api/portfolio/identity", { handle: "faye" }, faye)).status).toBe(200);
+    expect((await post("/api/portfolio/identity", { handle: "glen" }, glen)).status).toBe(200);
+    expect((await post("/api/yards/join", { yardId: "watchlab" }, faye)).status).toBe(200);
+    expect((await post("/api/yards/join", { yardId: "watchlab" }, glen)).status).toBe(200);
+
+    const scrape = await post(
+      "/api/yards/rooms",
+      { yardId: "watchlab", title: "Nope", kind: "watch", watchTicket: "https://hianime.at/watch/x" },
+      faye,
+    );
+    expect(scrape.status).toBe(400);
+
+    const opened = await post(
+      "/api/yards/rooms",
+      {
+        yardId: "watchlab",
+        title: "Short",
+        kind: "watch",
+        watchTicket: "http://127.0.0.1:8096/Videos/clip.mp4",
+      },
+      faye,
+    );
+    expect(opened.status).toBe(200);
+    const room = (await opened.json()).room;
+    expect(room.kind).toBe("watch");
+    expect(room.externalUrl.startsWith("blkspace-watch.v1.")).toBe(true);
+
+    expect(
+      (await post("/api/yards/rooms/watch", { roomId: room.id, positionMs: 1000, playing: true }, glen)).status,
+    ).toBe(403);
+    const hostClock = await post(
+      "/api/yards/rooms/watch",
+      { roomId: room.id, positionMs: 2500, playing: true },
+      faye,
+    );
+    expect(hostClock.status).toBe(200);
+    const clock = await (
+      await authorizedGet(`/api/yards/rooms/watch?room=${encodeURIComponent(room.id)}`, glen)
+    ).json();
+    expect(clock.clock.positionMs).toBe(2500);
+    expect(clock.clock.playing).toBe(true);
+
+    expect(
+      (
+        await post(
+          "/api/yards/messages/key",
+          { publicJwk: { kty: "EC", crv: "P-256", x: "abcdefghijk", y: "lmnopqrstuv" } },
+          faye,
+        )
+      ).status,
+    ).toBe(200);
+    const loaded = await (
+      await authorizedGet("/api/yards/messages/key?yard=watchlab&handle=faye", glen)
+    ).json();
+    expect(loaded.publicJwk.crv).toBe("P-256");
+
+    const pub = { kty: "EC", crv: "P-256", x: "abcdefghijk", y: "lmnopqrstuv" };
+    const packed = Buffer.from(
+      JSON.stringify({ v: 1, iv: "aaaaaaaaaaaa", ct: "bbbbbbbbbbbb", fromPub: pub, toPub: pub }),
+    ).toString("base64url");
+    const sealed = await post(
+      "/api/yards/messages",
+      { yardId: "watchlab", toHandle: "glen", body: `blkspace-dm.v1.${packed}` },
+      faye,
+    );
+    expect(sealed.status).toBe(200);
+    expect((await sealed.json()).message.body.startsWith("blkspace-dm.v1.")).toBe(true);
+    const phi = await post(
+      "/api/yards/messages",
+      { yardId: "watchlab", toHandle: "glen", body: "patient name is hidden" },
+      faye,
+    );
+    expect(phi.status).toBe(400);
+    const threads = await (await authorizedGet("/api/yards/messages?yard=watchlab", glen)).json();
+    expect(threads.threads.find((row) => row.peerHandle === "faye").lastBody).toBe("Encrypted message");
+  });
+});

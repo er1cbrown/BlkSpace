@@ -14,6 +14,8 @@ export interface WatchTicket {
   title?: string;
   origin?: string;
   itemId?: string;
+  /** Direct media file on the Jellyfin origin. The room can play this together. */
+  playUrl?: string;
   ticket?: string;
   cid?: string;
   mime?: string;
@@ -27,6 +29,8 @@ export type WatchParseResult = WatchParseOk | WatchParseErr;
 export interface WatchParseOptions {
   /** Extra Jellyfin HTTPS origins, e.g. https://media.example.com */
   jellyfinOrigins?: string[];
+  /** A ticket the yard already saved. HTTPS origins that are not scrape hosts may play. */
+  stored?: boolean;
 }
 
 const SCRAPE_HOST_RE =
@@ -68,11 +72,23 @@ function isMediaMime(mime: string | undefined): boolean {
   return mime.startsWith("video/") || mime.startsWith("audio/");
 }
 
-function hostLooksLikeScrape(host: string): boolean {
+export function isScrapeWatchHost(host: string): boolean {
   return SCRAPE_HOST_RE.test(host);
 }
 
-function isAllowedJellyfinOrigin(origin: string, extra: string[]): boolean {
+function hostLooksLikeScrape(host: string): boolean {
+  return isScrapeWatchHost(host);
+}
+
+function isDirectMediaPath(pathname: string): boolean {
+  return /\.(mp4|webm|ogg|m4v)$/i.test(pathname);
+}
+
+function isAllowedJellyfinOrigin(
+  origin: string,
+  extra: string[],
+  stored = false,
+): boolean {
   let u: URL;
   try {
     u = new URL(origin);
@@ -82,17 +98,24 @@ function isAllowedJellyfinOrigin(origin: string, extra: string[]): boolean {
   if (isLoopback(u.hostname)) {
     return u.protocol === "http:" || u.protocol === "https:";
   }
+  if (stored && u.protocol === "https:" && !hostLooksLikeScrape(u.hostname)) {
+    return true;
+  }
   if (u.protocol !== "https:") return false;
   const allowed = extra.map((o) => o.replace(/\/$/, "").toLowerCase());
   return allowed.includes(origin.replace(/\/$/, "").toLowerCase());
 }
 
-function jellyfinFromUrl(url: URL, extra: string[]): WatchParseResult {
+function jellyfinFromUrl(
+  url: URL,
+  extra: string[],
+  stored = false,
+): WatchParseResult {
   if (hostLooksLikeScrape(url.hostname)) {
     return { ok: false, reason: "scrape CDN hosts are not watch sources" };
   }
   const origin = originOf(url);
-  if (!isAllowedJellyfinOrigin(origin, extra)) {
+  if (!isAllowedJellyfinOrigin(origin, extra, stored)) {
     return {
       ok: false,
       reason:
@@ -119,6 +142,7 @@ function jellyfinFromUrl(url: URL, extra: string[]): WatchParseResult {
       kind: "jellyfin",
       origin,
       itemId,
+      playUrl: isDirectMediaPath(url.pathname) ? url.toString() : undefined,
     },
   };
 }
@@ -143,7 +167,11 @@ function syncplayFromUrl(url: URL): WatchParseResult {
   };
 }
 
-function parseObject(raw: unknown, extra: string[]): WatchParseResult {
+function parseObject(
+  raw: unknown,
+  extra: string[],
+  stored = false,
+): WatchParseResult {
   if (!raw || typeof raw !== "object") {
     return { ok: false, reason: "watch ticket is not an object" };
   }
@@ -171,8 +199,23 @@ function parseObject(raw: unknown, extra: string[]): WatchParseResult {
   if (kind === "jellyfin") {
     if (!ticket.origin)
       return { ok: false, reason: "jellyfin ticket missing origin" };
-    if (!isAllowedJellyfinOrigin(ticket.origin, extra)) {
+    if (!isAllowedJellyfinOrigin(ticket.origin, extra, stored)) {
       return { ok: false, reason: "Jellyfin origin is not on the allowlist" };
+    }
+    if (typeof o.playUrl === "string") {
+      try {
+        const play = new URL(o.playUrl);
+        if (
+          isAllowedJellyfinOrigin(originOf(play), extra, stored) &&
+          originOf(play).replace(/\/$/, "").toLowerCase() ===
+            ticket.origin.replace(/\/$/, "").toLowerCase() &&
+          isDirectMediaPath(play.pathname)
+        ) {
+          ticket.playUrl = play.toString();
+        }
+      } catch {
+        /* a bad play url is dropped; the ticket can still name the item */
+      }
     }
   }
   if (kind === "iroh") {
@@ -214,11 +257,12 @@ export function parseWatchSource(
   const text = raw.trim();
   if (!text) return { ok: false, reason: "empty watch source" };
   const extra = opts.jellyfinOrigins ?? [];
+  const stored = opts.stored === true;
 
   if (text.startsWith(WATCH_TICKET_PREFIX)) {
     try {
       const json = b64urlDecode(text.slice(WATCH_TICKET_PREFIX.length));
-      return parseObject(JSON.parse(json), extra);
+      return parseObject(JSON.parse(json), extra, stored);
     } catch {
       return { ok: false, reason: "watch ticket is not valid base64 json" };
     }
@@ -261,10 +305,10 @@ export function parseWatchSource(
 
   const path = url.pathname.toLowerCase();
   if (path.endsWith(".m3u8") || path.endsWith(".mpd")) {
-    if (!isAllowedJellyfinOrigin(originOf(url), extra)) {
+    if (!isAllowedJellyfinOrigin(originOf(url), extra, stored)) {
       return { ok: false, reason: "bare HLS/DASH is not a watch source" };
     }
   }
 
-  return jellyfinFromUrl(url, extra);
+  return jellyfinFromUrl(url, extra, stored);
 }

@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* wss://* https://* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:*; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob: data:; form-action 'self'; object-src 'none'; base-uri 'self'",
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* wss://* https://* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:*; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob: data: https: http://127.0.0.1:* http://localhost:*; frame-src 'self' https://meet.jit.si https://www.youtube-nocookie.com https://www.youtube.com https://player.twitch.tv; form-action 'self'; object-src 'none'; base-uri 'self'",
       "capabilities": ["default"]
     }
   },

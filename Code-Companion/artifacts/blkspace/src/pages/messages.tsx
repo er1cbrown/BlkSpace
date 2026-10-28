@@ -21,6 +21,7 @@ import {
   canSendSecureDm,
   listThreadMessages,
   listThreads,
+  prepareDmKey,
   sendSecureDm,
   type SecureDmMessage,
   type SecureDmThread,
@@ -69,6 +70,10 @@ export default function MessagesPage() {
   };
 
   useEffect(() => {
+    void prepareDmKey();
+  }, []);
+
+  useEffect(() => {
     void refresh();
   }, [peer]);
 
@@ -114,7 +119,7 @@ export default function MessagesPage() {
       });
       setBody("");
       await refresh();
-      toast.success("Message sent (handle-to-handle)");
+      toast.success("Message sealed and sent.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }
@@ -136,10 +141,10 @@ export default function MessagesPage() {
           )}
         </div>
         <p className="text-sm text-muted-foreground max-w-2xl">
-          Messages stay inside {loadUiPrefs().homeYardId || "tsu"}. Every user
-          already has a <strong className="text-foreground">@handle</strong>.
-          Messaging is handle-to-handle with ethical security: No-PHI, consent,
-          blocks, rate limits. Institutional tags are{" "}
+          Messages stay inside {loadUiPrefs().homeYardId || "tsu"}. The note is
+          sealed on this device. The yard stores the sealed text, not the words.
+          A lost browser cannot open old notes. Clinical text is refused before
+          it is sealed. Institutional tags are{" "}
           <strong className="text-foreground">
             self-attested or domain-declared
           </strong>{" "}
