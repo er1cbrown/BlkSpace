@@ -20,8 +20,9 @@ export function WalletDisclaimer() {
           (ProjectConnect), not spendable credit.{" "}
           <strong className="text-foreground">Cash-out</strong> is not offered.
           The chain socket is not connected.{" "}
-          <strong className="text-foreground">BI9</strong> is a separate asset —
-          holding WeixBucks does not mint or convert into it. You hold identity
+          <strong className="text-foreground">BI9</strong> is a separate
+          undeployed ERC-20 on Ethereum. Holding WeixBucks does not mint or
+          convert into it. You hold identity
           keys; the app never holds settlement longer than escrow. Save your
           recovery phrase in Settings before you care about balances.
         </span>

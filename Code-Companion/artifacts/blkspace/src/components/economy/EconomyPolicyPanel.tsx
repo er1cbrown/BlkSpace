@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTauriGetTokenomicsPolicy } from "@/hooks/use-app-data";
+import { BRAND } from "@/lib/brand";
 import { formatFeePercent } from "@/lib/tokenomics";
 import { BookOpen } from "lucide-react";
 
@@ -26,7 +27,7 @@ const FALLBACK_POLICY = {
   cashOutAsset: "BKSPC",
   cashOutNetwork: "solana-devnet",
   separateAsset: "BI9",
-  separateAssetChain: "hyperevm",
+  separateAssetChain: BRAND.bi9Chain,
   wbConvertsToSeparateAsset: false,
   neverRules: [] as string[],
 };
@@ -96,7 +97,9 @@ export function EconomyPolicyPanel() {
           </span>
           <span>{p.separateAsset}</span>
           <span className="font-medium text-foreground text-right">
-            {p.separateAssetChain}
+            {p.separateAsset === BRAND.bi9Symbol
+              ? BRAND.bi9Chain
+              : p.separateAssetChain}
             {p.wbConvertsToSeparateAsset ? "" : " · not a WB cash-out"}
           </span>
           <span>Treasury mint</span>

@@ -48,5 +48,12 @@ test.describe("Canonical on-chain copy", () => {
     });
     await expect(page.getByText(/ERC-20 on Ethereum/i).first()).toBeVisible();
     await expect(page.getByText(/never automatically/i).first()).toBeVisible();
+    await expect(
+      page.getByText(/undeployed ERC-20 on Ethereum/i).first(),
+    ).toBeVisible();
+    await expect(page.getByText("Read HYPE / BI9")).toHaveCount(0);
+    await expect(page.getByText("hyperevm", { exact: true })).toHaveCount(0);
+    await page.getByRole("tab", { name: /how to earn/i }).click();
+    await expect(page.getByText(/Ethereum · not a WB cash-out/)).toBeVisible();
   });
 });

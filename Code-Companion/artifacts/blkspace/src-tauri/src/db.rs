@@ -738,7 +738,7 @@ impl TokenomicsPolicy {
       cash_out_asset: BKSPC_SYMBOL.into(),
       cash_out_network: "solana-devnet".into(),
       separate_asset: "BI9".into(),
-      separate_asset_chain: "hyperevm".into(),
+      separate_asset_chain: "Ethereum".into(),
       wb_converts_to_separate_asset: false,
       never_rules: vec![
         "WB is earn-only — not sold for USD".into(),

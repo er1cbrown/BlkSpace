@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/select";
 import { ChevronDown, ExternalLink, Shield, AlertTriangle } from "lucide-react";
 import {
-  explorerAddressUrl,
   fetchHyperevmBalances,
   formatWei,
   getHyperevmConfig,
@@ -46,19 +45,16 @@ export function HyperEvmPanel({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const [cfg, setCfg] = useState(() => getHyperevmConfig());
   const [accountDraft, setAccountDraft] = useState(cfg.account);
-  const [bi9Draft, setBi9Draft] = useState(cfg.bi9);
   const [networkDraft, setNetworkDraft] = useState<HyperevmNetwork>(
     cfg.network,
   );
   const [hype, setHype] = useState<string | null>(null);
-  const [bi9, setBi9] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showOps, setShowOps] = useState(false);
 
   const apply = () => {
     const next = saveHyperevmOperatorConfig({
       network: networkDraft,
-      bi9: bi9Draft,
       account: accountDraft,
     });
     setCfg(next);
@@ -80,7 +76,6 @@ export function HyperEvmPanel({ className }: { className?: string }) {
     try {
       const bal = await fetchHyperevmBalances(next);
       setHype(formatWei(bal.hypeWei));
-      setBi9(bal.bi9Wei == null ? null : formatWei(bal.bi9Wei));
     } catch (e) {
       toast.error(String(e));
     } finally {
@@ -121,27 +116,16 @@ export function HyperEvmPanel({ className }: { className?: string }) {
                 <Badge variant={cfg.isMainnet ? "default" : "secondary"}>
                   {cfg.isMainnet ? "mainnet 999" : "testnet 998"}
                 </Badge>
-                {cfg.isBi9Deployed ? (
-                  <Badge
-                    variant="outline"
-                    className="text-emerald-600 border-emerald-600/40"
-                  >
-                    BI9 set
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="outline"
-                    className="text-amber-600 border-amber-600/40"
-                  >
-                    BI9 not deployed
-                  </Badge>
-                )}
               </CardTitle>
               <ChevronDown
                 className={`w-4 h-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
               />
             </button>
           </CollapsibleTrigger>
+          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+            This card reads native HYPE. BI9 is an undeployed ERC-20 on
+            Ethereum.
+          </p>
         </CardHeader>
         <CollapsibleContent>
           <CardContent className="space-y-4 text-sm">
@@ -190,7 +174,7 @@ export function HyperEvmPanel({ className }: { className?: string }) {
 
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={() => void refresh()} disabled={busy}>
-                {busy ? "Reading…" : "Read HYPE / BI9"}
+                {busy ? "Reading…" : "Read HYPE"}
               </Button>
               <Button
                 size="sm"
@@ -211,7 +195,7 @@ export function HyperEvmPanel({ className }: { className?: string }) {
               </Button>
             </div>
 
-            {(hype !== null || bi9 !== null) && (
+            {hype !== null && (
               <div className="rounded-xl border bg-muted/30 p-3 space-y-1">
                 <p className="text-xs text-muted-foreground">
                   Balances (read-only)
@@ -222,27 +206,10 @@ export function HyperEvmPanel({ className }: { className?: string }) {
                     HYPE
                   </span>
                 </p>
-                <p className="font-bold">
-                  {bi9 ?? "not deployed"}{" "}
-                  <span className="text-sm font-normal text-muted-foreground">
-                    BI9
-                  </span>
+                <p className="text-xs text-muted-foreground">
+                  BI9 is not read here. It is an undeployed ERC-20 on Ethereum.
                 </p>
               </div>
-            )}
-
-            {cfg.isBi9Deployed && (
-              <p className="text-[10px] font-mono text-muted-foreground break-all">
-                BI9{" "}
-                <a
-                  className="underline"
-                  href={explorerAddressUrl(cfg.bi9, cfg.explorer)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {cfg.bi9}
-                </a>
-              </p>
             )}
 
             <Button
@@ -271,16 +238,10 @@ export function HyperEvmPanel({ className }: { className?: string }) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bi9-addr">BI9 address</Label>
-                  <Input
-                    id="bi9-addr"
-                    placeholder="0x… after DeployMainnet"
-                    value={bi9Draft}
-                    onChange={(e) => setBi9Draft(e.target.value)}
-                    className="font-mono text-xs"
-                  />
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  BI9 has no address on chain 999. Its home is Ethereum, and
+                  that contract is not deployed.
+                </p>
                 <Button size="sm" onClick={apply}>
                   Save
                 </Button>
