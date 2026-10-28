@@ -42,9 +42,9 @@ describe("audio mixtapes", () => {
     expect(
       audioFileOk({ type: "audio/mpeg", name: "set.mp3", size: 1000 }),
     ).toBe(null);
-    expect(coverFileOk({ type: "image/png", name: "front.png", size: 1000 })).toBe(
-      null,
-    );
+    expect(
+      coverFileOk({ type: "image/png", name: "front.png", size: 1000 }),
+    ).toBe(null);
     expect(coverSrcOk("https://media.example.test/front.jpg")).toBe(true);
     expect(coverSrcOk("data:image/png;base64,aaaa")).toBe(false);
   });
@@ -77,12 +77,15 @@ describe("audio mixtapes", () => {
     const layout = loadLocalMyYard("dj_yard");
     expect(layout?.modules?.logosDeck).toBe(true);
     expect(layout?.logosDeck?.setTitle).toBe("Servant set");
-    expect(tracksByIds(layout?.logosDeck?.trackIds ?? []).map((row) => row.reference)).toEqual([
-      "Isaiah 53:5",
-      "John 1:1",
-    ]);
+    expect(
+      tracksByIds(layout?.logosDeck?.trackIds ?? []).map(
+        (row) => row.reference,
+      ),
+    ).toEqual(["Isaiah 53:5", "John 1:1"]);
     expect(tracksByIds(["John 1:1"])[0].crossRefs).toEqual([]);
-    expect(holdLogosEdition({ handle: "dj_yard", setKind: "songs" })).toBe(false);
+    expect(holdLogosEdition({ handle: "dj_yard", setKind: "songs" })).toBe(
+      false,
+    );
     expect(() =>
       publishMixtape({
         title: "Songs only",
@@ -106,7 +109,11 @@ describe("audio mixtapes", () => {
           title: "Intro",
           src: "https://media.example.test/a.mp3",
           stems: [
-            { id: "vox", lane: "vocals", src: "https://media.example.test/vox.mp3" },
+            {
+              id: "vox",
+              lane: "vocals",
+              src: "https://media.example.test/vox.mp3",
+            },
           ],
         },
         { id: "t2", title: "Outro", src: "web_track2" },
@@ -142,7 +149,7 @@ describe("audio mixtapes", () => {
     expect(mixtape.tracks[0].stems).toEqual([
       { id: "vox", lane: "vocals", src: "https://media.example.test/vox.mp3" },
     ]);
-    expect(mixtape.label).toBe("Bermuda Boyz");
+    expect(mixtape.label).toBe("Bermuda Boyz Records");
     const single = publishMixtape({
       title: "Lawn single",
       format: "single",
@@ -150,7 +157,9 @@ describe("audio mixtapes", () => {
       rightsAttested: true,
       writeReceipt: true,
       storeUrl: "https://tidal.com/browse/track/1",
-      tracks: [{ id: "t1", title: "Intro", src: "https://media.example.test/a.mp3" }],
+      tracks: [
+        { id: "t1", title: "Intro", src: "https://media.example.test/a.mp3" },
+      ],
     });
     expect(single.format).toBe("single");
     expect(single.writeReceipt).toBe(true);

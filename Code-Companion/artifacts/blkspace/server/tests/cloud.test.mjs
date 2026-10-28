@@ -394,7 +394,7 @@ describe("yard desk on the shared server", () => {
     expect(sharedTapes.mixtapes[0].credits).toBe("Produced in the yard.");
     expect(sharedTapes.mixtapes[0].format).toBe("single");
     expect(sharedTapes.mixtapes[0].visibility).toBe("yard");
-    expect(sharedTapes.mixtapes[0].label).toBe("Bermuda Boyz");
+    expect(sharedTapes.mixtapes[0].label).toBe("Bermuda Boyz Records");
     expect(sharedTapes.mixtapes[0].writeReceipt).toBe(true);
     const publicVerse = await post("/api/yards/mixtapes", {
       id: "mix_public_verse",
@@ -704,7 +704,111 @@ describe("yard desk on the shared server", () => {
     expect(pubBody.discAnchor.callsConvertWbToBkspc).toBe(false);
     expect(pubBody.discAnchor.programId).toContain("Memo");
     expect(pubBody.sellerNet).toBe(19);
+    expect(pubBody.payouts).toEqual([{ handle: "dina", amount: 19 }]);
     expect((await (await authorizedGet("/api/yards/wb?yard=desk")).json()).balance).toBe(97);
+
+    const nova = generateSecretKey();
+    const opus = generateSecretKey();
+    const pike = generateSecretKey();
+    const quin = generateSecretKey();
+    await post("/api/portfolio/identity", { handle: "nova" }, nova);
+    await post("/api/portfolio/identity", { handle: "opus" }, opus);
+    await post("/api/portfolio/identity", { handle: "pike" }, pike);
+    await post("/api/portfolio/identity", { handle: "quin" }, quin);
+    expect((await post("/api/yards/join", { yardId: "desk" }, nova)).status).toBe(200);
+    expect((await post("/api/yards/join", { yardId: "desk" }, opus)).status).toBe(200);
+    expect((await post("/api/yards/join", { yardId: "desk" }, pike)).status).toBe(200);
+    expect((await post("/api/yards/join", { yardId: "desk" }, quin)).status).toBe(200);
+    const splitTape = await post(
+      "/api/yards/mixtapes",
+      {
+        id: "mix_nova_room",
+        yardId: "desk",
+        title: "Nova room",
+        label: "Nova Room",
+        format: "single",
+        priceWb: 20,
+        editionSize: 2,
+        splits: [
+          { handle: "nova", percent: 70 },
+          { handle: "opus", percent: 25 },
+        ],
+        tracks: [{ id: "t1", title: "Room", src: "https://media.example.test/nova.mp3" }],
+        createdAt: "2026-10-28T15:00:00.000Z",
+      },
+      nova,
+    );
+    expect(splitTape.status).toBe(200);
+    expect((await splitTape.json()).mixtape.label).toBe("Bermuda Boyz Records");
+    const splitList = await post(
+      "/api/yards/sale",
+      {
+        yardId: "desk",
+        title: "Nova room",
+        description: "Campus edition. Not a chain NFT.",
+        price: 20,
+        itemType: "mix",
+        itemRef: "mix_nova_room",
+        isNft: true,
+        fulfillmentMode: "instant",
+        deliveryHint: "mixtape:mix_nova_room",
+      },
+      nova,
+    );
+    expect(splitList.status).toBe(200);
+    const splitId = (await splitList.json()).id;
+    const pikeBuy = await post("/api/yards/sale/buy", { listingId: splitId }, pike);
+    expect(pikeBuy.status).toBe(200);
+    const pikeBody = await pikeBuy.json();
+    expect(pikeBody.sellerNet).toBe(19);
+    expect(pikeBody.payouts).toEqual([
+      { handle: "nova", amount: 14 },
+      { handle: "opus", amount: 5 },
+    ]);
+    expect(pikeBody.receipt.copyNumber).toBe(1);
+    expect((await (await authorizedGet("/api/yards/wb?yard=desk", pike)).json()).balance).toBe(30);
+    expect((await (await authorizedGet("/api/yards/wb?yard=desk", nova)).json()).balance).toBe(64);
+    expect((await (await authorizedGet("/api/yards/wb?yard=desk", opus)).json()).balance).toBe(55);
+    const offered = await post(
+      "/api/yards/sale/pass",
+      { listingId: splitId, price: 10 },
+      pike,
+    );
+    expect(offered.status).toBe(200);
+    expect((await offered.json()).holderPaid).toBe(false);
+    const boardPasses = await (await fetch(base + "/api/yards/sale?yard=desk")).json();
+    expect(boardPasses.passes).toEqual([
+      expect.objectContaining({
+        listingId: splitId,
+        holder: "pike",
+        askWb: 10,
+        itemRef: "mix_nova_room",
+        copyNumber: 1,
+      }),
+    ]);
+    const quinBuy = await post(
+      "/api/yards/sale/pass/buy",
+      { listingId: splitId, holder: "pike" },
+      quin,
+    );
+    expect(quinBuy.status).toBe(200);
+    const quinBody = await quinBuy.json();
+    expect(quinBody.passed).toBe(true);
+    expect(quinBody.holderPaid).toBe(false);
+    expect(quinBody.copyNumber).toBe(1);
+    expect(quinBody.payouts).toEqual([
+      { handle: "nova", amount: 8 },
+      { handle: "opus", amount: 2 },
+    ]);
+    expect((await (await authorizedGet("/api/yards/wb?yard=desk", pike)).json()).balance).toBe(30);
+    expect((await (await authorizedGet("/api/yards/wb?yard=desk", quin)).json()).balance).toBe(40);
+    expect((await (await authorizedGet("/api/yards/wb?yard=desk", nova)).json()).balance).toBe(72);
+    expect((await (await authorizedGet("/api/yards/wb?yard=desk", opus)).json()).balance).toBe(57);
+    const pikeCopies = await (await authorizedGet("/api/yards/sale/copies", pike)).json();
+    expect(pikeCopies.copies).toEqual([]);
+    const quinCopies = await (await authorizedGet("/api/yards/sale/copies", quin)).json();
+    expect(quinCopies.copies[0].copyNumber).toBe(1);
+    expect(quinCopies.copies[0].askWb).toBe(0);
 
     const verse = "In the beginning God created the heaven and the earth.";
     expect((await fetch(base + "/api/yards/typeverse/races", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status).toBe(401);

@@ -4,19 +4,32 @@
  * convert_wb_to_bkspc and it never prices the copy.
  */
 
-export const WEIXSOUND_LABEL = "Bermuda Boyz";
+/** Bermuda Boyz Records is the BlkSpace music license. It is stamped on every disc. */
+export const WEIXSOUND_LABEL = "Bermuda Boyz Records";
 export const YARD_KEEP_PERCENT = 5;
 export const ARTIST_POOL_PERCENT = 95;
 export const SOLANA_MEMO_PROGRAM =
   "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 
-export const DISC_FORMATS = ["single", "vinyl", "ep", "mixtape", "album", "cd"] as const;
+export const DISC_FORMATS = [
+  "single",
+  "vinyl",
+  "ep",
+  "mixtape",
+  "album",
+  "cd",
+] as const;
 export const STEM_LANES = ["vocals", "drums", "bass", "music"] as const;
 export type StemLane = (typeof STEM_LANES)[number];
 export type DiscFormat = (typeof DISC_FORMATS)[number];
 export type ReleaseVisibility = "yard" | "public";
 
-const STORE_HOSTS = ["audius.co", "soundcloud.com", "bandcamp.com", "tidal.com"];
+const STORE_HOSTS = [
+  "audius.co",
+  "soundcloud.com",
+  "bandcamp.com",
+  "tidal.com",
+];
 const HANDLE_RE = /^[a-z0-9_-]{3,30}$/i;
 const MASTER_RE = /^[a-z][a-z0-9_]{3,64}$/i;
 
@@ -98,7 +111,9 @@ export function discFormatOf(value: unknown, trackCount: number): DiscFormat {
     named || (trackCount <= 1 ? "single" : trackCount <= 6 ? "ep" : "mixtape");
   if ((format === "single" || format === "vinyl") && trackCount !== 1) {
     throw new Error(
-      format === "vinyl" ? "A vinyl holds one track." : "A single holds one track.",
+      format === "vinyl"
+        ? "A vinyl holds one track."
+        : "A single holds one track.",
     );
   }
   if (format === "ep" && (trackCount < 2 || trackCount > 6)) {
@@ -128,6 +143,32 @@ export function storeUrlOf(value: unknown): string {
     );
   }
   return url.toString();
+}
+
+/**
+ * Pay the printed sleeve. Percents are of the price. Rounding dust goes to the
+ * first name. The yard's share is the remainder, and it is not a flip.
+ */
+export function sleevePayout(price: number, splits: ReleaseSplit[]) {
+  const whole = Math.max(0, Math.floor(Number(price) || 0));
+  const rows = splits.map((split) => ({
+    handle: split.handle,
+    amount: Math.floor((whole * split.percent) / 100),
+  }));
+  const fee = Math.floor((whole * YARD_KEEP_PERCENT) / 100);
+  const named = rows.reduce((sum, row) => sum + row.amount, 0);
+  const dust = whole - fee - named;
+  if (dust > 0 && rows[0]) rows[0].amount += dust;
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    totals.set(row.handle, (totals.get(row.handle) || 0) + row.amount);
+  }
+  const payouts = [...totals.entries()].map(([handle, amount]) => ({
+    handle,
+    amount,
+  }));
+  const sellerNet = payouts.reduce((sum, row) => sum + row.amount, 0);
+  return { fee: whole - sellerNet, payouts, sellerNet };
 }
 
 export function splitsOf(value: unknown, author: string): ReleaseSplit[] {
@@ -162,7 +203,9 @@ export function parseSplitLines(text: string, author: string): ReleaseSplit[] {
   const rows = lines.map((line) => {
     const match = /^([a-z0-9_-]{3,30})\s+(\d{1,2})$/i.exec(line);
     if (!match) {
-      throw new Error("Write each split as a handle and a percent, like dj_yard 95.");
+      throw new Error(
+        "Write each split as a handle and a percent, like dj_yard 95.",
+      );
     }
     return { handle: match[1], percent: Number(match[2]) };
   });
@@ -274,10 +317,15 @@ export function rememberVerifiedCopy(id: string): void {
   const key = id.trim();
   if (!key) return;
   try {
-    const raw = JSON.parse(localStorage.getItem(VERIFIED_HOLDS) || "[]") as unknown;
+    const raw = JSON.parse(
+      localStorage.getItem(VERIFIED_HOLDS) || "[]",
+    ) as unknown;
     const ids = Array.isArray(raw) ? raw.map(String) : [];
     if (ids.includes(key)) return;
-    localStorage.setItem(VERIFIED_HOLDS, JSON.stringify([key, ...ids].slice(0, 200)));
+    localStorage.setItem(
+      VERIFIED_HOLDS,
+      JSON.stringify([key, ...ids].slice(0, 200)),
+    );
   } catch {
     localStorage.setItem(VERIFIED_HOLDS, JSON.stringify([key]));
   }
@@ -285,7 +333,9 @@ export function rememberVerifiedCopy(id: string): void {
 
 export function holdsVerifiedCopy(id: string): boolean {
   try {
-    const raw = JSON.parse(localStorage.getItem(VERIFIED_HOLDS) || "[]") as unknown;
+    const raw = JSON.parse(
+      localStorage.getItem(VERIFIED_HOLDS) || "[]",
+    ) as unknown;
     return Array.isArray(raw) && raw.map(String).includes(id);
   } catch {
     return false;

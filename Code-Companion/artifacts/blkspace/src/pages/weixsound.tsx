@@ -5,33 +5,57 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlbumSleeve } from "@/components/media/AlbumSleeve";
 import { MixtapePlayer } from "@/components/media/MixtapePlayer";
-import { listMixtapes, syncMixtapes, type AudioMixtape } from "@/lib/audio-mixtapes";
+import {
+  listMixtapes,
+  syncMixtapes,
+  type AudioMixtape,
+} from "@/lib/audio-mixtapes";
 import { getCurrentHandle } from "@/lib/auth";
-import { buyMarketplaceListing } from "@/lib/marketplace-escrow";
+import {
+  buyCopyPass,
+  buyMarketplaceListing,
+  listCopyPasses,
+  listMyCopies,
+  offerCopyPass,
+  type CopyPass,
+} from "@/lib/marketplace-escrow";
 import {
   chainVerifiedSale,
-  DISC_FORMATS,
   formatLabel,
   holdsVerifiedCopy,
   rememberVerifiedCopy,
   WEIXSOUND_LABEL,
-  type DiscFormat,
 } from "@/lib/weixsound";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 
 /**
- * Bermuda Boyz storefront. Free play. One copy in WeixBucks.
- * No price chart and no perpetual.
+ * Yard record shop. Every member releases under their own name.
+ * Free play. One numbered copy in WeixBucks. Passing a copy pays the sleeve.
  */
 export default function WeixSoundPage() {
   const [tick, setTick] = useState(0);
   const [buying, setBuying] = useState("");
   const [autoId, setAutoId] = useState("");
   const [handle] = useState(getCurrentHandle);
+  const [passes, setPasses] = useState<CopyPass[]>([]);
+  const [mine, setMine] = useState<CopyPass[]>([]);
+  const [ask, setAsk] = useState<Record<string, string>>({});
+
+  const refresh = async () => {
+    await syncMixtapes();
+    const [board, copies] = await Promise.all([
+      listCopyPasses(),
+      listMyCopies().catch(() => [] as CopyPass[]),
+    ]);
+    setPasses(board);
+    setMine(copies);
+    setTick((n) => n + 1);
+  };
 
   useEffect(() => {
     let cancel = false;
-    void syncMixtapes().then(() => {
+    void refresh().catch(() => {
       if (!cancel) setTick((n) => n + 1);
     });
     return () => {
@@ -41,11 +65,14 @@ export default function WeixSoundPage() {
 
   const shelves = useMemo(() => {
     void tick;
-    const rows = listMixtapes().filter((row) => row.label === WEIXSOUND_LABEL);
-    return DISC_FORMATS.map((format) => ({
-      format,
-      rows: rows.filter((row) => row.format === format),
-    })).filter((shelf) => shelf.rows.length > 0);
+    const rows = listMixtapes();
+    const artists = [
+      ...new Set(rows.map((row) => row.authorHandle || "artist")),
+    ];
+    return artists.map((artist) => ({
+      artist,
+      rows: rows.filter((row) => (row.authorHandle || "artist") === artist),
+    }));
   }, [tick]);
 
   const buyCopy = async (mixtape: AudioMixtape) => {
@@ -53,9 +80,13 @@ export default function WeixSoundPage() {
     setBuying(mixtape.id);
     try {
       const sale = await buyMarketplaceListing(mixtape.listingId);
-      const receipt = sale.receipt as { copyNumber?: number; anchorStatus?: string } | undefined;
-      const anchor = sale.discAnchor as { callsConvertWbToBkspc?: boolean } | null;
-      const salePrice = Number(sale.amount ?? sale.price ?? mixtape.priceWb) || 0;
+      const receipt = sale.receipt as
+        { copyNumber?: number; anchorStatus?: string } | undefined;
+      const anchor = sale.discAnchor as {
+        callsConvertWbToBkspc?: boolean;
+      } | null;
+      const salePrice =
+        Number(sale.amount ?? sale.price ?? mixtape.priceWb) || 0;
       const verified =
         sale.status !== "funds_locked" &&
         (receipt?.anchorStatus === "pending" ||
@@ -68,7 +99,9 @@ export default function WeixSoundPage() {
         rememberVerifiedCopy(mixtape.id);
         setAutoId(mixtape.id);
       }
-      const copyLabel = receipt?.copyNumber ? `Copy ${receipt.copyNumber}. ` : "";
+      const copyLabel = receipt?.copyNumber
+        ? `Copy ${receipt.copyNumber}. `
+        : "";
       toast.success(
         verified
           ? `${copyLabel}Paid in WeixBucks. Stems and credits are on.`
@@ -77,13 +110,58 @@ export default function WeixSoundPage() {
             : "Copy bought with WeixBucks.",
       );
       if (receipt?.anchorStatus === "pending") {
-        toast("The label can anchor a Solana memo later. This sale did not wait on it.");
+        toast(
+          "The label can anchor a Solana memo later. This sale did not wait on it.",
+        );
       }
       if (anchor?.callsConvertWbToBkspc) {
         toast.error("The receipt tried to mint. That sale should be reviewed.");
       }
+      await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "The copy did not sell");
+    } finally {
+      setBuying("");
+    }
+  };
+
+  const passCopy = async (listingId: number, mixtapeId: string) => {
+    if (listingId < 1) {
+      toast.error("Buy the copy on this yard before passing it");
+      return;
+    }
+    const price = Number.parseInt(ask[mixtapeId] || "", 10);
+    if (!Number.isInteger(price) || price < 1) {
+      toast.error("Set a whole WeixBucks price of at least 1");
+      return;
+    }
+    setBuying(mixtapeId);
+    try {
+      await offerCopyPass(listingId, price);
+      toast.success("Offered. A sale pays the people on the sleeve, not you.");
+      await refresh();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "The copy was not offered",
+      );
+    } finally {
+      setBuying("");
+    }
+  };
+
+  const takeCopy = async (offer: CopyPass) => {
+    setBuying(`pass-${offer.listingId}`);
+    try {
+      const sale = await buyCopyPass(offer.listingId, offer.holder);
+      if (sale.passed) rememberVerifiedCopy(offer.itemRef);
+      toast.success(
+        `Copy ${sale.copyNumber || offer.copyNumber}. Paid the sleeve ${sale.amount} WB.`,
+      );
+      await refresh();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "The copy was not passed",
+      );
     } finally {
       setBuying("");
     }
@@ -95,11 +173,12 @@ export default function WeixSoundPage() {
         <div className="space-y-2">
           <h1 className="text-2xl font-bold font-serif">WeixSound</h1>
           <p className="text-sm text-muted-foreground">
-            {WEIXSOUND_LABEL}. Play a release free. A vinyl, or any paid song
-            copy, is the verified sale. The buyer then streams the stems and
-            the credits. A free play stays the master. The yard keeps 5 percent.
-            A public disc can link to Audius, SoundCloud, Bandcamp, or Tidal.
-            There is no price chart.
+            {WEIXSOUND_LABEL} is the license on every disc. The artist is the
+            member who released it. Play a release free. A priced copy is a
+            numbered disc paid in WeixBucks. The names on the sleeve are paid,
+            and the yard keeps 5 percent. Passing a copy pays that sleeve again.
+            There is no price chart and no promise the next price is higher. A
+            public disc can link to Audius, SoundCloud, Bandcamp, or Tidal.
           </p>
           <Link href="/audio" className="text-sm underline">
             Set the format and the split on Audio
@@ -107,20 +186,20 @@ export default function WeixSoundPage() {
         </div>
         {shelves.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            No Bermuda Boyz releases on this device yet.
+            No {WEIXSOUND_LABEL} releases on this device yet.
           </p>
         )}
         {shelves.map((shelf) => (
-          <section key={shelf.format} className="space-y-3">
-            <h2 className="text-lg font-semibold">{formatLabel(shelf.format as DiscFormat)}</h2>
+          <section key={shelf.artist} className="space-y-3">
+            <h2 className="text-lg font-semibold">@{shelf.artist}</h2>
             {shelf.rows.map((mixtape) => (
               <Card key={mixtape.id}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">{mixtape.title}</CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    {formatLabel(mixtape.format)} ·{" "}
-                    {mixtape.visibility === "public" ? "public" : "yard only"} · @
-                    {mixtape.authorHandle} · {mixtape.editionSize} copies ·{" "}
+                    {WEIXSOUND_LABEL} · {formatLabel(mixtape.format)} ·{" "}
+                    {mixtape.visibility === "public" ? "public" : "yard only"} ·
+                    @{mixtape.authorHandle} · {mixtape.editionSize} copies ·{" "}
                     {mixtape.priceWb > 0 ? `${mixtape.priceWb} WB` : "free"}
                   </p>
                 </CardHeader>
@@ -161,13 +240,67 @@ export default function WeixSoundPage() {
                       </Link>
                     )}
                     {mixtape.storeUrl && (
-                      <a href={mixtape.storeUrl} target="_blank" rel="noreferrer">
+                      <a
+                        href={mixtape.storeUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
                         <Button size="sm" variant="outline">
                           Store link
                         </Button>
                       </a>
                     )}
+                    {passes
+                      .filter(
+                        (row) =>
+                          row.itemRef === mixtape.id && row.holder !== handle,
+                      )
+                      .map((offer) => (
+                        <Button
+                          key={`${offer.listingId}-${offer.copyNumber}`}
+                          size="sm"
+                          variant="outline"
+                          disabled={buying === `pass-${offer.listingId}`}
+                          onClick={() => void takeCopy(offer)}
+                        >
+                          Take copy {offer.copyNumber} · {offer.askWb} WB
+                        </Button>
+                      ))}
                   </div>
+                  {(mine.some((row) => row.itemRef === mixtape.id) ||
+                    (holdsVerifiedCopy(mixtape.id) && mixtape.listingId)) && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        inputMode="numeric"
+                        className="h-8 w-28"
+                        placeholder="Pass price"
+                        aria-label={`Pass price for ${mixtape.title}`}
+                        value={ask[mixtape.id] || ""}
+                        onChange={(event) =>
+                          setAsk((current) => ({
+                            ...current,
+                            [mixtape.id]: event.target.value,
+                          }))
+                        }
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={buying === mixtape.id}
+                        onClick={() =>
+                          void passCopy(
+                            mine.find((row) => row.itemRef === mixtape.id)
+                              ?.listingId ||
+                              mixtape.listingId ||
+                              0,
+                            mixtape.id,
+                          )
+                        }
+                      >
+                        Pass this copy
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}

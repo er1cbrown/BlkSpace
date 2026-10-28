@@ -24,6 +24,7 @@ import {
 import {
   formatLabel,
   STEM_LANES,
+  WEIXSOUND_LABEL,
   type DiscFormat,
   type ReleaseVisibility,
   type StemLane,
@@ -264,12 +265,14 @@ export default function AudioPage() {
             <Badge variant="outline">BlkCore</Badge>
           </div>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            Publish a song mix, a verse mix, or a Logos Deck. The sleeve works
-            like a vinyl or a CD: artwork on the front, credits and the track
-            list on the back. A priced set sits on Yard Sale as a campus
-            edition, a copy count paid in WeixBucks. Buying a Logos Deck turns
-            that set on for the buyer. It is not a Solana NFT, and BLKSHI does
-            not take the trade.
+            Publish a song mix, a verse mix, or a Logos Deck. {WEIXSOUND_LABEL}{" "}
+            is the license stamped on the disc. You stay the artist. The sleeve
+            works like a vinyl or a CD: artwork on the front, credits and the
+            track list on the back. A priced set is a numbered campus copy paid
+            in WeixBucks. The names on the sleeve are who gets paid. The yard
+            keeps 5 percent. Buying a Logos Deck turns that set on for the
+            buyer. It is not a chain NFT, and passing a copy pays the sleeve
+            again.
           </p>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             <span>MySpace — one song on your page.</span>
@@ -277,7 +280,7 @@ export default function AudioPage() {
             <span>Newgrounds — you own the file, the yard can list it.</span>
           </div>
           <Link href="/weixsound" className="text-sm underline">
-            Bermuda Boyz storefront
+            {WEIXSOUND_LABEL} on WeixSound
           </Link>
         </div>
 
@@ -343,8 +346,11 @@ export default function AudioPage() {
               rows={2}
               aria-label="Credits"
             />
+            <p className="text-xs text-muted-foreground">
+              Licensed {WEIXSOUND_LABEL}. The split below is the artist pay.
+            </p>
             <Textarea
-              placeholder="Splits, one per line: handle percent. Empty gives the artist 95. The yard keeps 5."
+              placeholder="Splits, one per line: handle percent. Empty gives you 95. The yard keeps 5."
               value={splitsText}
               onChange={(e) => setSplitsText(e.target.value)}
               rows={2}
@@ -379,14 +385,17 @@ export default function AudioPage() {
                   <input
                     type="checkbox"
                     checked={rightsAttested}
-                    onChange={(event) => setRightsAttested(event.target.checked)}
+                    onChange={(event) =>
+                      setRightsAttested(event.target.checked)
+                    }
                   />
                   I hold the rights to this recording
                 </label>
                 <p className="text-[11px] text-muted-foreground">
-                  A vinyl, and any paid song copy, writes a Solana receipt when
-                  it sells. The buyer then streams the stems and the credits.
-                  A free play stays the master.
+                  A vinyl, and any paid song copy, records a yard receipt. A
+                  Solana memo can be anchored later and does not mint. The buyer
+                  then streams the stems and the credits. A free play stays the
+                  master.
                 </p>
               </div>
             )}
@@ -494,7 +503,9 @@ export default function AudioPage() {
                   <select
                     aria-label="Stem lane"
                     value={stemLane}
-                    onChange={(event) => setStemLane(event.target.value as StemLane)}
+                    onChange={(event) =>
+                      setStemLane(event.target.value as StemLane)
+                    }
                     className="h-9 rounded-md border bg-background px-2 text-sm"
                   >
                     {STEM_LANES.map((lane) => (
@@ -572,7 +583,8 @@ export default function AudioPage() {
                     : mixtape.setKind === "verses"
                       ? "Verse mix"
                       : "Song mix"}{" "}
-                  · {mixtape.visibility === "public" ? "public" : "yard"} · @
+                  · {mixtape.label} ·{" "}
+                  {mixtape.visibility === "public" ? "public" : "yard"} · @
                   {mixtape.authorHandle} · {mixtape.editionSize} copies ·{" "}
                   {mixtape.priceWb > 0 ? `${mixtape.priceWb} WB` : "free"}
                   {mixtape.listingId
@@ -590,8 +602,7 @@ export default function AudioPage() {
                   {mixtape.splits
                     .map((row) => `${row.handle} ${row.percent}`)
                     .join(" · ")}{" "}
-                  · yard 5
-                  {mixtape.storeUrl ? ` · ${mixtape.storeUrl}` : ""}
+                  · yard 5{mixtape.storeUrl ? ` · ${mixtape.storeUrl}` : ""}
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                   <AlbumSleeve mixtape={mixtape} />

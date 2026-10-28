@@ -12,10 +12,7 @@ import { getCurrentDisplayName, getCurrentHandle } from "@/lib/auth";
 import { listHubItems, publishHubItem } from "@/lib/content-hub";
 import { hostedPost } from "@/lib/hosted-api";
 import { isWebBlobId } from "@/lib/media-web-store";
-import {
-  DEFAULT_MYYARD_LAYOUT,
-  mergeMyYardLayout,
-} from "@/lib/myyard-layout";
+import { DEFAULT_MYYARD_LAYOUT, mergeMyYardLayout } from "@/lib/myyard-layout";
 import { loadLocalMyYard, saveLocalMyYard } from "@/lib/myyard-storage";
 import { loadUiPrefs } from "@/lib/ui-prefs";
 import {
@@ -215,7 +212,8 @@ function withKind(row: AudioMixtape): AudioMixtape {
   try {
     format = discFormatOf(row.format, Math.max(1, tracks.length));
   } catch {
-    format = tracks.length <= 1 ? "single" : tracks.length <= 6 ? "ep" : "mixtape";
+    format =
+      tracks.length <= 1 ? "single" : tracks.length <= 6 ? "ep" : "mixtape";
   }
   return {
     ...row,
@@ -227,11 +225,12 @@ function withKind(row: AudioMixtape): AudioMixtape {
     storeUrl: typeof row.storeUrl === "string" ? row.storeUrl : "",
     writeReceipt: row.writeReceipt === true,
     rightsAttested: row.rightsAttested === true,
-    splits: Array.isArray(row.splits) && row.splits.length
-      ? row.splits
-      : [{ handle: row.authorHandle || "artist", percent: 95 }],
+    splits:
+      Array.isArray(row.splits) && row.splits.length
+        ? row.splits
+        : [{ handle: row.authorHandle || "artist", percent: 95 }],
     masterId: typeof row.masterId === "string" ? row.masterId : "",
-    label: typeof row.label === "string" && row.label ? row.label : WEIXSOUND_LABEL,
+    label: WEIXSOUND_LABEL,
   };
 }
 
@@ -363,7 +362,8 @@ export function holdLogosEdition(input: {
     .map((row) => row.trim())
     .filter(Boolean)
     .slice(0, MAX_TRACKS);
-  const current = loadLocalMyYard(handle) ?? structuredClone(DEFAULT_MYYARD_LAYOUT);
+  const current =
+    loadLocalMyYard(handle) ?? structuredClone(DEFAULT_MYYARD_LAYOUT);
   saveLocalMyYard(
     handle,
     mergeMyYardLayout(current, {

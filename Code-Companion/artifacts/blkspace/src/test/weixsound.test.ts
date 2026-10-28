@@ -5,7 +5,9 @@ import {
   discFormatOf,
   holdsVerifiedCopy,
   releaseFields,
+  WEIXSOUND_LABEL,
   rememberVerifiedCopy,
+  sleevePayout,
   SOLANA_MEMO_PROGRAM,
   stemsOf,
   streamMetadata,
@@ -79,9 +81,27 @@ describe("WeixSound label switches", () => {
       { handle: "dj_yard", percent: 70 },
       { handle: "engineer", percent: 25 },
     ]);
-    expect(release.label).toBe("Bermuda Boyz");
+    expect(release.label).toBe(WEIXSOUND_LABEL);
+    expect(
+      sleevePayout(20, [
+        { handle: "faye", percent: 70 },
+        { handle: "gian", percent: 25 },
+      ]),
+    ).toEqual({
+      fee: 1,
+      sellerNet: 19,
+      payouts: [
+        { handle: "faye", amount: 14 },
+        { handle: "gian", amount: 5 },
+      ],
+    });
+    expect(
+      sleevePayout(25, [{ handle: "dj_yard", percent: 95 }]).sellerNet,
+    ).toBe(24);
     const plan = discAnchorPlan({
-      trackHash: trackListHash([{ id: "t1", src: "https://media.example.test/a.mp3" }]),
+      trackHash: trackListHash([
+        { id: "t1", src: "https://media.example.test/a.mp3" },
+      ]),
       copyNumber: 1,
       priceWb: 25,
       anchorStatus: "pending",
@@ -101,10 +121,18 @@ describe("WeixSound label switches", () => {
   });
 
   it("treats a vinyl and a paid song as the verified sale", () => {
-    expect(chainVerifiedSale({ setKind: "songs", format: "vinyl", priceWb: 0 })).toBe(true);
-    expect(chainVerifiedSale({ setKind: "songs", format: "album", priceWb: 25 })).toBe(true);
-    expect(chainVerifiedSale({ setKind: "songs", format: "album", priceWb: 0 })).toBe(false);
-    expect(chainVerifiedSale({ setKind: "logos", format: "vinyl", priceWb: 20 })).toBe(false);
+    expect(
+      chainVerifiedSale({ setKind: "songs", format: "vinyl", priceWb: 0 }),
+    ).toBe(true);
+    expect(
+      chainVerifiedSale({ setKind: "songs", format: "album", priceWb: 25 }),
+    ).toBe(true);
+    expect(
+      chainVerifiedSale({ setKind: "songs", format: "album", priceWb: 0 }),
+    ).toBe(false);
+    expect(
+      chainVerifiedSale({ setKind: "logos", format: "vinyl", priceWb: 20 }),
+    ).toBe(false);
     expect(discFormatOf("vinyl", 1)).toBe("vinyl");
     expect(() => discFormatOf("vinyl", 2)).toThrow(/one track/);
 
@@ -174,7 +202,9 @@ describe("WeixSound label switches", () => {
       stemsOf([{ lane: "guitar", src: "https://media.example.test/g.mp3" }]),
     ).toThrow(/vocals, drums, bass, or music/);
 
-    const bare = trackListHash([{ id: "t1", src: "https://media.example.test/a.mp3" }]);
+    const bare = trackListHash([
+      { id: "t1", src: "https://media.example.test/a.mp3" },
+    ]);
     const withStem = trackListHash([
       {
         id: "t1",
@@ -191,7 +221,7 @@ describe("WeixSound label switches", () => {
         authorHandle: "dj_yard",
         format: "vinyl",
         credits: "Produced in the yard.",
-        label: "Bermuda Boyz",
+        label: "Bermuda Boyz Records",
         tracks: [{ title: "A side" }],
         index: 0,
       }),
@@ -200,7 +230,7 @@ describe("WeixSound label switches", () => {
       artist: "dj_yard",
       release: "Friday",
       format: "Vinyl",
-      label: "Bermuda Boyz",
+      label: "Bermuda Boyz Records",
       credits: "Produced in the yard.",
       trackNumber: 1,
       trackCount: 1,

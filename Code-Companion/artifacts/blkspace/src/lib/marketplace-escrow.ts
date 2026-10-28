@@ -395,6 +395,35 @@ export async function createMarketplaceListing(args: {
   return id;
 }
 
+export interface CopyPass {
+  listingId: number;
+  holder: string;
+  copyNumber: number;
+  askWb: number;
+  itemRef: string;
+  title: string;
+  yardId?: string;
+}
+
+export async function listCopyPasses(): Promise<CopyPass[]> {
+  const remote = await saleGet("/api/yards/sale");
+  return Array.isArray(remote?.passes) ? remote.passes : [];
+}
+
+export async function listMyCopies(): Promise<CopyPass[]> {
+  const remote = await saleGet("/api/yards/sale/copies", true);
+  return Array.isArray(remote?.copies) ? remote.copies : [];
+}
+
+/** Offer the copy you hold. The sleeve is paid again. You are not. */
+export async function offerCopyPass(listingId: number, price: number) {
+  return salePost("/api/yards/sale/pass", { listingId, price });
+}
+
+export async function buyCopyPass(listingId: number, holder: string) {
+  return salePost("/api/yards/sale/pass/buy", { listingId, holder });
+}
+
 export async function buyMarketplaceListing(
   listingId: number,
 ): Promise<Record<string, unknown>> {

@@ -5,8 +5,10 @@ import {
   discAnchorPlan,
   discFormatOf,
   releaseFields,
+  sleevePayout,
   stemsOf,
   trackListHash,
+  WEIXSOUND_LABEL,
 } from "../src/lib/weixsound.ts";
 import { encodeWatchTicket, parseWatchSource } from "../src/lib/yard-room-watch.ts";
 import { assertSealedEnvelope, DM_PREFIX } from "../src/lib/dm-seal.ts";
@@ -286,7 +288,14 @@ export function createYardDesk(env) {
           PRIMARY KEY (listing_id, buyer_handle))`);
         await query(`CREATE TABLE IF NOT EXISTS yard_edition_claims (
           listing_id INTEGER NOT NULL, buyer_handle TEXT NOT NULL, created_at TEXT NOT NULL,
+          copy_number INTEGER NOT NULL DEFAULT 0, ask_wb INTEGER NOT NULL DEFAULT 0,
           PRIMARY KEY (listing_id, buyer_handle))`);
+        await ensureColumn(
+          "ALTER TABLE yard_edition_claims ADD COLUMN copy_number INTEGER NOT NULL DEFAULT 0",
+        );
+        await ensureColumn(
+          "ALTER TABLE yard_edition_claims ADD COLUMN ask_wb INTEGER NOT NULL DEFAULT 0",
+        );
         await query(`CREATE TABLE IF NOT EXISTS yard_dj_battles (
           id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, title TEXT NOT NULL,
           mix_id TEXT NOT NULL, mix_title TEXT NOT NULL, set_kind TEXT NOT NULL DEFAULT 'songs',
@@ -775,7 +784,43 @@ export function createYardDesk(env) {
       : await query(`SELECT * FROM yard_listings WHERE sold_to IS NULL ORDER BY created_at DESC`);
     const listings = [];
     for (const row of rows) listings.push(await withEdition(mapListing(row)));
-    return { ok: true, listings };
+    return { ok: true, listings, passes: await openPasses(yard) };
+  }
+
+  async function openPasses(yard) {
+    const rows = yard
+      ? await query(
+          `SELECT c.listing_id AS listing_id, c.buyer_handle AS holder,
+                  c.copy_number AS copy_number, c.ask_wb AS ask_wb,
+                  l.item_ref AS item_ref, l.title AS title, l.yard_id AS yard_id
+             FROM yard_edition_claims c
+             JOIN yard_listings l ON l.id = c.listing_id
+            WHERE c.ask_wb > 0 AND l.yard_id = ?
+            ORDER BY c.created_at DESC`,
+          [yard],
+        )
+      : await query(
+          `SELECT c.listing_id AS listing_id, c.buyer_handle AS holder,
+                  c.copy_number AS copy_number, c.ask_wb AS ask_wb,
+                  l.item_ref AS item_ref, l.title AS title, l.yard_id AS yard_id
+             FROM yard_edition_claims c
+             JOIN yard_listings l ON l.id = c.listing_id
+            WHERE c.ask_wb > 0
+            ORDER BY c.created_at DESC`,
+        );
+    return rows.map(mapPass);
+  }
+
+  function mapPass(row) {
+    return {
+      listingId: num(row.listing_id),
+      holder: String(row.holder),
+      copyNumber: num(row.copy_number),
+      askWb: num(row.ask_wb),
+      itemRef: row.item_ref ? String(row.item_ref) : "",
+      title: String(row.title || ""),
+      yardId: String(row.yard_id || ""),
+    };
   }
 
   async function createListing(body, pubkey) {
@@ -828,7 +873,7 @@ export function createYardDesk(env) {
     if (String(listing.item_type) !== "mix" || !listing.item_ref) return null;
     const row = (
       await query(
-        "SELECT edition_size, set_kind, tracks, title, disc_format, write_receipt FROM yard_mixtapes WHERE id = ? LIMIT 1",
+        "SELECT edition_size, set_kind, tracks, title, disc_format, write_receipt, splits, author_handle FROM yard_mixtapes WHERE id = ? LIMIT 1",
         [String(listing.item_ref)],
       )
     )[0];
@@ -851,6 +896,14 @@ export function createYardDesk(env) {
     } catch {
       format = tracks.length <= 1 ? "single" : tracks.length <= 6 ? "ep" : "mixtape";
     }
+    let splits = [];
+    try {
+      const parsed = JSON.parse(String(row.splits || "[]"));
+      if (Array.isArray(parsed)) splits = parsed;
+    } catch {
+      splits = [];
+    }
+    const author = String(row.author_handle || listing.seller_handle || "");
     return {
       editionSize: Math.max(1, Math.min(100, num(row.edition_size) || 1)),
       setKind: setKindOf(row.set_kind),
@@ -859,6 +912,12 @@ export function createYardDesk(env) {
       tracks,
       format,
       writeReceipt: num(row.write_receipt) === 1,
+      splits: splits.length
+        ? splits.map((item) => ({
+            handle: String(item?.handle || author),
+            percent: num(item?.percent),
+          }))
+        : [{ handle: author, percent: 95 }],
     };
   }
 
@@ -896,7 +955,22 @@ export function createYardDesk(env) {
     );
   }
 
-  async function sellEditionCopy(listing, who, price, fee, sellerNet, edition) {
+  async function paySleeve(yard, title, refPrefix, price, splits) {
+    const paid = sleevePayout(price, splits);
+    for (const row of paid.payouts) {
+      if (row.amount < 1) continue;
+      await credit(
+        yard,
+        row.handle,
+        row.amount,
+        `Yard Sale release: ${title}`,
+        `${refPrefix}:${row.handle}`,
+      );
+    }
+    return paid;
+  }
+
+  async function sellEditionCopy(listing, who, price, edition) {
     const now = new Date().toISOString();
     const listingId = num(listing.id);
     const already = (
@@ -944,12 +1018,12 @@ export function createYardDesk(env) {
           now,
         ],
       );
-      await credit(
+      await paySleeve(
         String(listing.yard_id),
-        String(listing.seller_handle),
-        sellerNet,
-        `Yard Sale release: ${listing.title}`,
+        String(listing.title),
         `sale-net:${listingId}:${who}`,
+        price,
+        edition.splits,
       );
     } catch (err) {
       await query(
@@ -958,6 +1032,11 @@ export function createYardDesk(env) {
       );
       throw err;
     }
+    const paid = sleevePayout(price, edition.splits);
+    await query(
+      "UPDATE yard_edition_claims SET copy_number = ? WHERE listing_id = ? AND buyer_handle = ?",
+      [rank, listingId, who],
+    );
     if (rank >= edition.editionSize) {
       await query(
         "UPDATE yard_listings SET sold_to = ? WHERE id = ? AND sold_to IS NULL",
@@ -983,8 +1062,8 @@ export function createYardDesk(env) {
     const receipt = {
       copyNumber: rank,
       priceWb: price,
-      platformFee: fee,
-      sellerNet,
+      platformFee: paid.fee,
+      sellerNet: paid.sellerNet,
       format: edition.format,
       trackHash,
       anchorStatus,
@@ -1002,8 +1081,8 @@ export function createYardDesk(env) {
           String(listing.yard_id),
           rank,
           price,
-          fee,
-          sellerNet,
+          paid.fee,
+          paid.sellerNet,
           edition.format,
           trackHash,
           anchorStatus,
@@ -1019,8 +1098,9 @@ export function createYardDesk(env) {
       status: "released",
       fulfillmentMode: "instant",
       amount: price,
-      platformFee: fee,
-      sellerNet,
+      platformFee: paid.fee,
+      sellerNet: paid.sellerNet,
+      payouts: paid.payouts,
       title: String(listing.title),
       deliveryHint: listing.delivery_hint ? String(listing.delivery_hint) : "",
       editionSize: edition.editionSize,
@@ -1056,7 +1136,7 @@ export function createYardDesk(env) {
     }
     if (String(listing.fulfillment_mode || "escrow") === "instant") {
       const edition = await editionFor(listing);
-      if (edition) return sellEditionCopy(listing, who, price, fee, sellerNet, edition);
+      if (edition) return sellEditionCopy(listing, who, price, edition);
       const now = new Date().toISOString();
       await query(
         "UPDATE yard_listings SET sold_to = ? WHERE id = ? AND sold_to IS NULL",
@@ -1135,6 +1215,147 @@ export function createYardDesk(env) {
     };
     await maybeGrantMark(yard, who);
     return bought;
+  }
+
+  async function offerPass(body, pubkey) {
+    await ensure();
+    const who = await actor(pubkey);
+    const listingId = num(body.listingId || body.id);
+    const price = num(body.price);
+    if (!Number.isInteger(price) || price < 1 || price > 100000) {
+      throw new HttpError(400, "Price must be a whole WeixBucks amount from 1 to 100000.");
+    }
+    const claim = (
+      await query(
+        "SELECT copy_number FROM yard_edition_claims WHERE listing_id = ? AND buyer_handle = ?",
+        [listingId, who],
+      )
+    )[0];
+    if (!claim) throw new HttpError(404, "You do not hold a copy to pass.");
+    await query(
+      "UPDATE yard_edition_claims SET ask_wb = ? WHERE listing_id = ? AND buyer_handle = ?",
+      [price, listingId, who],
+    );
+    return {
+      ok: true,
+      listingId,
+      askWb: price,
+      copyNumber: num(claim.copy_number),
+      holderPaid: false,
+    };
+  }
+
+  async function buyPass(body, pubkey) {
+    await ensure();
+    const who = await actor(pubkey);
+    const holder = handleOf(body.holder);
+    const listingId = num(body.listingId || body.id);
+    if (holder === who) throw new HttpError(400, "You already hold this copy.");
+    const listing = (
+      await query("SELECT * FROM yard_listings WHERE id = ?", [listingId])
+    )[0];
+    if (!listing) throw new HttpError(404, "Listing not found.");
+    const yard = String(listing.yard_id);
+    await requireMember(yard, who);
+    const claim = (
+      await query(
+        `SELECT buyer_handle, copy_number, ask_wb, created_at
+           FROM yard_edition_claims WHERE listing_id = ? AND buyer_handle = ?`,
+        [listingId, holder],
+      )
+    )[0];
+    const price = num(claim?.ask_wb);
+    if (!claim || price < 1) throw new HttpError(404, "That copy is not being passed.");
+    const already = (
+      await query(
+        "SELECT 1 AS ok FROM yard_edition_claims WHERE listing_id = ? AND buyer_handle = ?",
+        [listingId, who],
+      )
+    )[0];
+    if (already) throw new HttpError(400, "You already hold a copy of this edition.");
+    if ((await balanceOf(yard, who)) < price) {
+      throw new HttpError(400, "Not enough WeixBucks in this yard.");
+    }
+    const edition = await editionFor(listing);
+    if (!edition) throw new HttpError(404, "That copy is not being passed.");
+    await query(
+      `UPDATE yard_edition_claims SET buyer_handle = ?, ask_wb = 0
+        WHERE listing_id = ? AND buyer_handle = ? AND ask_wb = ?`,
+      [who, listingId, holder, price],
+    );
+    const moved = (
+      await query(
+        "SELECT copy_number FROM yard_edition_claims WHERE listing_id = ? AND buyer_handle = ?",
+        [listingId, who],
+      )
+    )[0];
+    if (!moved) throw new HttpError(404, "That copy is not being passed.");
+    const now = new Date().toISOString();
+    try {
+      await query(
+        `INSERT INTO yard_wb (id, yard_id, handle, amount, reason, ref, created_at)
+         VALUES (NULL, ?, ?, ?, ?, ?, ?)`,
+        [
+          yard,
+          who,
+          -price,
+          `Yard Sale pass: ${listing.title}`,
+          `pass:${listingId}:${who}`,
+          now,
+        ],
+      );
+      await paySleeve(
+        yard,
+        String(listing.title),
+        `pass-net:${listingId}:${who}`,
+        price,
+        edition.splits,
+      );
+    } catch (err) {
+      await query(
+        "DELETE FROM yard_wb WHERE yard_id = ? AND (ref = ? OR ref LIKE ?)",
+        [yard, `pass:${listingId}:${who}`, `pass-net:${listingId}:${who}:%`],
+      );
+      await query(
+        `UPDATE yard_edition_claims SET buyer_handle = ?, ask_wb = ?
+          WHERE listing_id = ? AND buyer_handle = ?`,
+        [holder, price, listingId, who],
+      );
+      throw err;
+    }
+    const paid = sleevePayout(price, edition.splits);
+    const copyNumber = num(moved.copy_number) || num(claim.copy_number);
+    return {
+      ok: true,
+      listingId,
+      status: "released",
+      fulfillmentMode: "instant",
+      passed: true,
+      holderPaid: false,
+      amount: price,
+      platformFee: paid.fee,
+      sellerNet: paid.sellerNet,
+      payouts: paid.payouts,
+      copyNumber,
+      title: String(listing.title),
+      setKind: edition.setKind,
+    };
+  }
+
+  async function myCopies(pubkey) {
+    await ensure();
+    const who = await actor(pubkey);
+    const rows = await query(
+      `SELECT c.listing_id AS listing_id, c.buyer_handle AS holder,
+              c.copy_number AS copy_number, c.ask_wb AS ask_wb,
+              l.item_ref AS item_ref, l.title AS title, l.yard_id AS yard_id
+         FROM yard_edition_claims c
+         JOIN yard_listings l ON l.id = c.listing_id
+        WHERE c.buyer_handle = ?
+        ORDER BY c.created_at DESC`,
+      [who],
+    );
+    return { ok: true, copies: rows.map(mapPass) };
   }
 
   async function escrowRow(id) {
@@ -1253,6 +1474,7 @@ export function createYardDesk(env) {
           rightsAttested: body.rightsAttested,
           splits: body.splits,
           masterId: body.masterId,
+          label: body.label,
           priceWb,
           setKind,
           tracks,
@@ -1354,7 +1576,7 @@ export function createYardDesk(env) {
       rightsAttested: num(row.rights_attested) === 1,
       splits: splits.length ? splits : [{ handle: author, percent: 95 }],
       masterId: String(row.master_id || ""),
-      label: String(row.label_name || "Bermuda Boyz"),
+      label: WEIXSOUND_LABEL,
       listingId: null,
       hubItemId: null,
     };
@@ -1952,6 +2174,9 @@ export function createYardDesk(env) {
     listings,
     createListing,
     buy,
+    offerPass,
+    buyPass,
+    myCopies,
     deliver,
     release,
     myEscrows,

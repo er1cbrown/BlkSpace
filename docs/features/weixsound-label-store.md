@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-28
 **Status:** Decision. Model A. Perpetuals stay off.
-**Label:** Bermuda Boyz Musix
+**Label:** Bermuda Boyz Records
 **Product:** WeixSound
 
 WeixSound is the record store. A student plays a release free and buys one numbered copy with earned WeixBucks. The stream is the listening room. The sale is the disc. One master audio file backs every format. The format is the sleeve, the length, and the edition.

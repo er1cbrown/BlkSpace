@@ -261,6 +261,10 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         const pubkey = authenticate(req, "", allowed);
         return json(res, 200, await desk.myEscrows(pubkey));
       }
+      if (req.method === "GET" && path === "/api/yards/sale/copies") {
+        const pubkey = authenticate(req, "", allowed);
+        return json(res, 200, await desk.myCopies(pubkey));
+      }
       if (req.method === "GET" && path === "/api/yards/channels") {
         return json(res, 200, await yards.channels(url.searchParams.get("yard") || ""));
       }
@@ -441,6 +445,8 @@ export function createApiHandler(env, { origins, development = false } = {}) {
             "/api/yards/messages",
             "/api/yards/sale",
             "/api/yards/sale/buy",
+            "/api/yards/sale/pass",
+            "/api/yards/sale/pass/buy",
             "/api/yards/sale/deliver",
             "/api/yards/sale/release",
             "/api/yards/events",
@@ -559,6 +565,12 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       }
       if (path === "/api/yards/sale/buy") {
         return json(res, 200, await desk.buy(body, pubkey));
+      }
+      if (path === "/api/yards/sale/pass") {
+        return json(res, 200, await desk.offerPass(body, pubkey));
+      }
+      if (path === "/api/yards/sale/pass/buy") {
+        return json(res, 200, await desk.buyPass(body, pubkey));
       }
       if (path === "/api/yards/sale/deliver") {
         return json(res, 200, await desk.deliver(body, pubkey));
