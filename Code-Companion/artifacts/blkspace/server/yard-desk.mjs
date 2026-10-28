@@ -1,5 +1,13 @@
 import { HttpError } from "./http.mjs";
 import { getHbcu } from "../src/lib/hbcu-catalog.ts";
+import {
+  chainVerifiedSale,
+  discAnchorPlan,
+  discFormatOf,
+  releaseFields,
+  stemsOf,
+  trackListHash,
+} from "../src/lib/weixsound.ts";
 
 export const JOIN_GRANT_WB = 50;
 export const YARD_CRED_GATE = 15;
@@ -235,6 +243,36 @@ export function createYardDesk(env) {
         await ensureColumn(
           "ALTER TABLE yard_mixtapes ADD COLUMN credits TEXT NOT NULL DEFAULT ''",
         );
+        await ensureColumn(
+          "ALTER TABLE yard_mixtapes ADD COLUMN disc_format TEXT NOT NULL DEFAULT ''",
+        );
+        await ensureColumn(
+          "ALTER TABLE yard_mixtapes ADD COLUMN visibility TEXT NOT NULL DEFAULT 'yard'",
+        );
+        await ensureColumn(
+          "ALTER TABLE yard_mixtapes ADD COLUMN store_url TEXT NOT NULL DEFAULT ''",
+        );
+        await ensureColumn(
+          "ALTER TABLE yard_mixtapes ADD COLUMN write_receipt INTEGER NOT NULL DEFAULT 0",
+        );
+        await ensureColumn(
+          "ALTER TABLE yard_mixtapes ADD COLUMN rights_attested INTEGER NOT NULL DEFAULT 0",
+        );
+        await ensureColumn(
+          "ALTER TABLE yard_mixtapes ADD COLUMN splits TEXT NOT NULL DEFAULT ''",
+        );
+        await ensureColumn(
+          "ALTER TABLE yard_mixtapes ADD COLUMN master_id TEXT NOT NULL DEFAULT ''",
+        );
+        await ensureColumn(
+          "ALTER TABLE yard_mixtapes ADD COLUMN label_name TEXT NOT NULL DEFAULT ''",
+        );
+        await query(`CREATE TABLE IF NOT EXISTS yard_sale_receipts (
+          listing_id INTEGER NOT NULL, buyer_handle TEXT NOT NULL, seller_handle TEXT NOT NULL,
+          yard_id TEXT NOT NULL, copy_number INTEGER NOT NULL, price_wb INTEGER NOT NULL,
+          platform_fee INTEGER NOT NULL, seller_net INTEGER NOT NULL, disc_format TEXT NOT NULL,
+          track_hash TEXT NOT NULL, anchor_status TEXT NOT NULL, created_at TEXT NOT NULL,
+          PRIMARY KEY (listing_id, buyer_handle))`);
         await query(`CREATE TABLE IF NOT EXISTS yard_edition_claims (
           listing_id INTEGER NOT NULL, buyer_handle TEXT NOT NULL, created_at TEXT NOT NULL,
           PRIMARY KEY (listing_id, buyer_handle))`);
@@ -638,7 +676,7 @@ export function createYardDesk(env) {
     if (String(listing.item_type) !== "mix" || !listing.item_ref) return null;
     const row = (
       await query(
-        "SELECT edition_size, set_kind, tracks, title FROM yard_mixtapes WHERE id = ? LIMIT 1",
+        "SELECT edition_size, set_kind, tracks, title, disc_format, write_receipt FROM yard_mixtapes WHERE id = ? LIMIT 1",
         [String(listing.item_ref)],
       )
     )[0];
@@ -655,11 +693,20 @@ export function createYardDesk(env) {
       .filter((src) => src.startsWith("verse:"))
       .map((src) => src.slice(6))
       .slice(0, 12);
+    let format = "mixtape";
+    try {
+      format = discFormatOf(row.disc_format, Math.max(1, tracks.length));
+    } catch {
+      format = tracks.length <= 1 ? "single" : tracks.length <= 6 ? "ep" : "mixtape";
+    }
     return {
       editionSize: Math.max(1, Math.min(100, num(row.edition_size) || 1)),
       setKind: setKindOf(row.set_kind),
       title: String(row.title || listing.title || ""),
       passages,
+      tracks,
+      format,
+      writeReceipt: num(row.write_receipt) === 1,
     };
   }
 
@@ -767,6 +814,53 @@ export function createYardDesk(env) {
     }
     await maybeGrantMark(String(listing.yard_id), who);
     const copiesLeft = edition.editionSize - rank;
+    const anchorStatus = chainVerifiedSale({
+      setKind: edition.setKind,
+      format: edition.format,
+      priceWb: price,
+    })
+      ? "pending"
+      : "off";
+    const trackHash = trackListHash(
+      (edition.tracks || []).map((track) => ({
+        id: String(track.id || ""),
+        src: String(track.src || ""),
+        stems: Array.isArray(track.stems) ? track.stems : [],
+      })),
+    );
+    const receipt = {
+      copyNumber: rank,
+      priceWb: price,
+      platformFee: fee,
+      sellerNet,
+      format: edition.format,
+      trackHash,
+      anchorStatus,
+    };
+    try {
+      await query(
+        `INSERT INTO yard_sale_receipts (
+           listing_id, buyer_handle, seller_handle, yard_id, copy_number, price_wb,
+           platform_fee, seller_net, disc_format, track_hash, anchor_status, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          listingId,
+          who,
+          String(listing.seller_handle),
+          String(listing.yard_id),
+          rank,
+          price,
+          fee,
+          sellerNet,
+          edition.format,
+          trackHash,
+          anchorStatus,
+          now,
+        ],
+      );
+    } catch {
+      /* The copy and the WeixBucks move already stand. */
+    }
     return {
       ok: true,
       listingId,
@@ -782,6 +876,13 @@ export function createYardDesk(env) {
       setKind: edition.setKind,
       passages: edition.setKind === "logos" ? edition.passages : [],
       applied: edition.setKind === "logos" ? { logosDeck: true } : undefined,
+      receipt,
+      discAnchor: discAnchorPlan({
+        trackHash,
+        copyNumber: rank,
+        priceWb: price,
+        anchorStatus,
+      }),
     };
   }
 
@@ -986,6 +1087,31 @@ export function createYardDesk(env) {
     return value === "verses" || value === "logos" ? value : "songs";
   }
 
+  const MIXTAPE_COLUMNS =
+    "id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, cover_url, credits, created_at, disc_format, visibility, store_url, write_receipt, rights_attested, splits, master_id, label_name";
+
+  function asRelease(body, setKind, tracks, author, priceWb) {
+    try {
+      return releaseFields(
+        {
+          format: body.format,
+          visibility: body.visibility,
+          storeUrl: body.storeUrl,
+          writeReceipt: body.writeReceipt,
+          rightsAttested: body.rightsAttested,
+          splits: body.splits,
+          masterId: body.masterId,
+          priceWb,
+          setKind,
+          tracks,
+        },
+        author,
+      );
+    } catch (err) {
+      throw new HttpError(400, err instanceof Error ? err.message : "That release is not valid.");
+    }
+  }
+
   function mediaRef(value) {
     const out = String(value || "").trim();
     if (!out) throw new HttpError(400, "Add a photo, a track, or an https link.");
@@ -1041,20 +1167,42 @@ export function createYardDesk(env) {
     } catch {
       tracks = [];
     }
+    const author = String(row.author_handle);
+    let splits = [];
+    try {
+      const parsed = JSON.parse(String(row.splits || "[]"));
+      if (Array.isArray(parsed)) splits = parsed;
+    } catch {
+      splits = [];
+    }
+    let format = "mixtape";
+    try {
+      format = discFormatOf(row.disc_format, Math.max(1, tracks.length));
+    } catch {
+      format = tracks.length <= 1 ? "single" : tracks.length <= 6 ? "ep" : "mixtape";
+    }
     return {
       id: String(row.id),
       yardId: String(row.yard_id),
       title: String(row.title),
       body: String(row.body || ""),
       tracks,
-      authorHandle: String(row.author_handle),
-      authorDisplayName: String(row.author_display || row.author_handle),
+      authorHandle: author,
+      authorDisplayName: String(row.author_display || author),
       createdAt: String(row.created_at),
       priceWb: num(row.price_wb),
       editionSize: num(row.edition_size) || 1,
       setKind: setKindOf(row.set_kind),
       cover: String(row.cover_url || ""),
       credits: String(row.credits || ""),
+      format,
+      visibility: row.visibility === "public" ? "public" : "yard",
+      storeUrl: String(row.store_url || ""),
+      writeReceipt: num(row.write_receipt) === 1,
+      rightsAttested: num(row.rights_attested) === 1,
+      splits: splits.length ? splits : [{ handle: author, percent: 95 }],
+      masterId: String(row.master_id || ""),
+      label: String(row.label_name || "Bermuda Boyz"),
       listingId: null,
       hubItemId: null,
     };
@@ -1181,11 +1329,11 @@ export function createYardDesk(env) {
     await ensure();
     const rows = id
       ? await query(
-          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, cover_url, credits, created_at FROM yard_mixtapes WHERE yard_id = ? ORDER BY created_at DESC",
+          `SELECT ${MIXTAPE_COLUMNS} FROM yard_mixtapes WHERE yard_id = ? ORDER BY created_at DESC`,
           [id],
         )
       : await query(
-          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, cover_url, credits, created_at FROM yard_mixtapes ORDER BY created_at DESC",
+          `SELECT ${MIXTAPE_COLUMNS} FROM yard_mixtapes ORDER BY created_at DESC`,
         );
     return { ok: true, mixtapes: rows.map(mapMixtape) };
   }
@@ -1203,10 +1351,20 @@ export function createYardDesk(env) {
     const clean = tracks.map((track, index) => {
       const raw = String(track?.id || "").trim();
       const id = /^[a-z0-9_.:-]{1,64}$/i.test(raw) ? raw : `track_${index}`;
+      let stems = [];
+      try {
+        stems = stemsOf(track?.stems).map((stem) => ({
+          ...stem,
+          src: trackSrc(stem.src),
+        }));
+      } catch (err) {
+        throw new HttpError(400, err instanceof Error ? err.message : "That stem is not valid.");
+      }
       return {
         id,
         title: text(track?.title, "Track", 80),
         src: trackSrc(track?.src),
+        stems,
       };
     });
     const packed = JSON.stringify(clean);
@@ -1220,6 +1378,7 @@ export function createYardDesk(env) {
     const display = optionalText(body.authorDisplayName, 40) || who;
     const cover = coverRef(body.cover);
     const credits = optionalText(body.credits, 800);
+    const release = asRelease(body, setKind, clean, who, priceWb);
     const existing = (
       await query("SELECT id FROM yard_mixtapes WHERE id = ? LIMIT 1", [id])
     )[0];
@@ -1227,8 +1386,10 @@ export function createYardDesk(env) {
       await query(
         `INSERT INTO yard_mixtapes (
            id, yard_id, title, body, tracks, author_handle, author_display,
-           price_wb, edition_size, set_kind, cover_url, credits, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           price_wb, edition_size, set_kind, cover_url, credits, created_at,
+           disc_format, visibility, store_url, write_receipt, rights_attested,
+           splits, master_id, label_name
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           yard,
@@ -1243,12 +1404,20 @@ export function createYardDesk(env) {
           cover,
           credits,
           stamp(body.createdAt),
+          release.format,
+          release.visibility,
+          release.storeUrl,
+          release.writeReceipt ? 1 : 0,
+          release.rightsAttested ? 1 : 0,
+          JSON.stringify(release.splits),
+          release.masterId,
+          release.label,
         ],
       );
     }
     const row = (
       await query(
-        "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, cover_url, credits, created_at FROM yard_mixtapes WHERE id = ? LIMIT 1",
+        `SELECT ${MIXTAPE_COLUMNS} FROM yard_mixtapes WHERE id = ? LIMIT 1`,
         [id],
       )
     )[0];

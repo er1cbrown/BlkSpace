@@ -101,7 +101,14 @@ describe("audio mixtapes", () => {
       priceWb: 25,
       editionSize: 40,
       tracks: [
-        { id: "t1", title: "Intro", src: "https://media.example.test/a.mp3" },
+        {
+          id: "t1",
+          title: "Intro",
+          src: "https://media.example.test/a.mp3",
+          stems: [
+            { id: "vox", lane: "vocals", src: "https://media.example.test/vox.mp3" },
+          ],
+        },
         { id: "t2", title: "Outro", src: "web_track2" },
       ],
       cover: "https://media.example.test/front.jpg",
@@ -129,6 +136,34 @@ describe("audio mixtapes", () => {
       isNft: false,
       fulfillmentMode: "instant",
     });
+    expect(mixtape.format).toBe("ep");
+    expect(mixtape.visibility).toBe("yard");
+    expect(mixtape.writeReceipt).toBe(true);
+    expect(mixtape.tracks[0].stems).toEqual([
+      { id: "vox", lane: "vocals", src: "https://media.example.test/vox.mp3" },
+    ]);
+    expect(mixtape.label).toBe("Bermuda Boyz");
+    const single = publishMixtape({
+      title: "Lawn single",
+      format: "single",
+      visibility: "public",
+      rightsAttested: true,
+      writeReceipt: true,
+      storeUrl: "https://tidal.com/browse/track/1",
+      tracks: [{ id: "t1", title: "Intro", src: "https://media.example.test/a.mp3" }],
+    });
+    expect(single.format).toBe("single");
+    expect(single.writeReceipt).toBe(true);
+    expect(single.storeUrl).toContain("tidal.com");
+    expect(() =>
+      publishMixtape({
+        title: "Public blob",
+        format: "single",
+        visibility: "public",
+        rightsAttested: true,
+        tracks: [{ id: "t1", title: "Intro", src: "web_onlyhere" }],
+      }),
+    ).toThrow(/https audio file/);
   });
 
   it("keeps a device-only mix on the yard sale board", () => {

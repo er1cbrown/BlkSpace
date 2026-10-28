@@ -392,6 +392,43 @@ describe("yard desk on the shared server", () => {
     expect(sharedTapes.mixtapes[0].setKind).toBe("songs");
     expect(sharedTapes.mixtapes[0].cover).toBe("https://media.example.test/front.jpg");
     expect(sharedTapes.mixtapes[0].credits).toBe("Produced in the yard.");
+    expect(sharedTapes.mixtapes[0].format).toBe("single");
+    expect(sharedTapes.mixtapes[0].visibility).toBe("yard");
+    expect(sharedTapes.mixtapes[0].label).toBe("Bermuda Boyz");
+    expect(sharedTapes.mixtapes[0].writeReceipt).toBe(true);
+    const publicVerse = await post("/api/yards/mixtapes", {
+      id: "mix_public_verse",
+      yardId: "desk",
+      title: "Public verse",
+      setKind: "logos",
+      visibility: "public",
+      rightsAttested: true,
+      format: "single",
+      tracks: [{ id: "v1", title: "Isaiah 53:5", src: "verse:Isaiah 53:5" }],
+      createdAt: "2026-10-20T12:02:40.000Z",
+    });
+    expect(publicVerse.status).toBe(400);
+    const publicBlob = await post("/api/yards/mixtapes", {
+      id: "mix_public_blob",
+      yardId: "desk",
+      title: "Public blob",
+      visibility: "public",
+      rightsAttested: true,
+      format: "single",
+      tracks: [{ id: "web_trackblob1", title: "Intro", src: "web_trackblob1" }],
+      createdAt: "2026-10-20T12:02:45.000Z",
+    });
+    expect(publicBlob.status).toBe(400);
+    const spotify = await post("/api/yards/mixtapes", {
+      id: "mix_spotify",
+      yardId: "desk",
+      title: "Spotify",
+      format: "single",
+      storeUrl: "https://open.spotify.com/track/abc",
+      tracks: [{ id: "t1", title: "Intro", src: "https://media.example.test/a.mp3" }],
+      createdAt: "2026-10-20T12:02:50.000Z",
+    });
+    expect(spotify.status).toBe(400);
     const deck = await post("/api/yards/mixtapes", {
       id: "mix_logos_1",
       yardId: "desk",
@@ -588,6 +625,9 @@ describe("yard desk on the shared server", () => {
     expect(firstBody.copiesLeft).toBe(1);
     expect(firstBody.applied.logosDeck).toBe(true);
     expect(firstBody.passages).toEqual(["Isaiah 53:5", "John 1:1"]);
+    expect(firstBody.receipt.copyNumber).toBe(1);
+    expect(firstBody.receipt.anchorStatus).toBe("off");
+    expect(firstBody.discAnchor).toBeNull();
     expect(firstBody.sellerNet).toBe(2);
     expect(
       (await (await fetch(base + "/api/yards/sale?yard=desk")).json()).listings.some(
@@ -609,6 +649,61 @@ describe("yard desk on the shared server", () => {
     expect(
       (await (await authorizedGet("/api/yards/wb?yard=desk", cara)).json()).balance,
     ).toBe(48);
+    expect((await (await authorizedGet("/api/yards/wb?yard=desk")).json()).balance).toBe(97);
+
+    const dina = generateSecretKey();
+    const erin = generateSecretKey();
+    await post("/api/portfolio/identity", { handle: "dina" }, dina);
+    await post("/api/portfolio/identity", { handle: "erin" }, erin);
+    expect((await post("/api/yards/join", { yardId: "desk" }, dina)).status).toBe(200);
+    expect((await post("/api/yards/join", { yardId: "desk" }, erin)).status).toBe(200);
+    const pub = await post(
+      "/api/yards/mixtapes",
+      {
+        id: "mix_public_single",
+        yardId: "desk",
+        title: "Public single",
+        format: "single",
+        visibility: "public",
+        rightsAttested: true,
+        writeReceipt: true,
+        storeUrl: "https://soundcloud.com/bermuda-boyz/public",
+        tracks: [{ id: "t1", title: "Intro", src: "https://media.example.test/public.mp3" }],
+        createdAt: "2026-10-27T13:00:00.000Z",
+      },
+      dina,
+    );
+    expect(pub.status).toBe(200);
+    expect((await pub.json()).mixtape.writeReceipt).toBe(true);
+    const pubList = await post(
+      "/api/yards/sale",
+      {
+        yardId: "desk",
+        title: "Public single",
+        description: "Campus edition. Not a chain NFT.",
+        price: 20,
+        itemType: "mix",
+        itemRef: "mix_public_single",
+        isNft: true,
+        fulfillmentMode: "instant",
+        deliveryHint: "mixtape:mix_public_single",
+      },
+      dina,
+    );
+    expect(pubList.status).toBe(200);
+    const pubBuy = await post(
+      "/api/yards/sale/buy",
+      { listingId: (await pubList.json()).id },
+      erin,
+    );
+    expect(pubBuy.status).toBe(200);
+    const pubBody = await pubBuy.json();
+    expect(pubBody.receipt.copyNumber).toBe(1);
+    expect(pubBody.receipt.anchorStatus).toBe("pending");
+    expect(pubBody.receipt.format).toBe("single");
+    expect(pubBody.discAnchor.callsConvertWbToBkspc).toBe(false);
+    expect(pubBody.discAnchor.programId).toContain("Memo");
+    expect(pubBody.sellerNet).toBe(19);
     expect((await (await authorizedGet("/api/yards/wb?yard=desk")).json()).balance).toBe(97);
 
     const verse = "In the beginning God created the heaven and the earth.";

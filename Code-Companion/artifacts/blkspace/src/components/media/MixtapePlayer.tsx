@@ -8,6 +8,7 @@ import {
   type AudioMixtape,
 } from "@/lib/audio-mixtapes";
 import { webGetBlobAsync } from "@/lib/media-web-store";
+import { streamMetadata, type StemLane } from "@/lib/weixsound";
 
 /**
  * One audio element for the whole mixtape. preload stays none until play
@@ -16,26 +17,45 @@ import { webGetBlobAsync } from "@/lib/media-web-store";
 export function MixtapePlayer({
   mixtape,
   compact = false,
+  pro = false,
+  autoPlay = false,
 }: {
   mixtape: AudioMixtape;
   compact?: boolean;
+  /** Artist or verified buyer: credits and stem lanes. */
+  pro?: boolean;
+  /** Start the owned copy after a sale. The browser can still block it. */
+  autoPlay?: boolean;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [index, setIndex] = useState(0);
+  const [lane, setLane] = useState<"master" | StemLane>("master");
   const [src, setSrc] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [missing, setMissing] = useState(false);
   const [verseLine, setVerseLine] = useState("");
   const track = mixtape.tracks[index];
+  const stem = track?.stems?.find((row) => row.lane === lane);
+  const playSrc = lane === "master" || !stem ? track?.src || "" : stem.src;
+  const meta = streamMetadata({
+    title: mixtape.title,
+    authorHandle: mixtape.authorHandle,
+    format: mixtape.format,
+    credits: mixtape.credits,
+    label: mixtape.label,
+    tracks: mixtape.tracks,
+    index,
+  });
 
   useEffect(() => {
     setIndex(0);
-    setPlaying(false);
-  }, [mixtape.id]);
+    setLane("master");
+    setPlaying(autoPlay);
+  }, [mixtape.id, autoPlay]);
 
   useEffect(() => {
     let cancel = false;
-    const raw = track?.src || "";
+    const raw = playSrc;
     if (isVerseSrc(raw)) {
       setSrc(null);
       setMissing(false);
@@ -62,7 +82,7 @@ export function MixtapePlayer({
     return () => {
       cancel = true;
     };
-  }, [track?.src]);
+  }, [playSrc]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -142,13 +162,52 @@ export function MixtapePlayer({
             {track?.title || "No tracks"}
           </p>
           <p className="text-[11px] text-muted-foreground truncate">
-            {index + 1} / {mixtape.tracks.length}
-            {mixtape.priceWb > 0
-              ? ` · ${mixtape.priceWb} WB edition`
-              : " · free play"}
+            {meta.artist} · {meta.release} · {meta.format} · {meta.trackNumber} /{" "}
+            {meta.trackCount}
+            {lane !== "master" ? ` · ${lane}` : ""}
           </p>
         </div>
       </div>
+      {pro && (
+        <p className="text-[11px] text-muted-foreground">
+          {meta.label}
+          {meta.credits ? ` · ${meta.credits}` : ""}
+          {mixtape.splits?.length
+            ? ` · ${mixtape.splits.map((row) => `${row.handle} ${row.percent}`).join(", ")} · yard 5`
+            : ""}
+        </p>
+      )}
+      {pro && (track?.stems?.length || 0) > 0 && (
+        <div className="flex flex-wrap gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={lane === "master" ? "default" : "outline"}
+            className="h-7 text-[11px]"
+            onClick={() => {
+              setLane("master");
+              setPlaying(true);
+            }}
+          >
+            Master
+          </Button>
+          {track?.stems?.map((row) => (
+            <Button
+              key={row.id}
+              type="button"
+              size="sm"
+              variant={lane === row.lane ? "default" : "outline"}
+              className="h-7 text-[11px]"
+              onClick={() => {
+                setLane(row.lane);
+                setPlaying(true);
+              }}
+            >
+              {row.lane}
+            </Button>
+          ))}
+        </div>
+      )}
       <audio
         ref={audioRef}
         src={src || undefined}

@@ -18,6 +18,17 @@ import {
 } from "@/lib/myyard-layout";
 import { loadLocalMyYard, saveLocalMyYard } from "@/lib/myyard-storage";
 import { loadUiPrefs } from "@/lib/ui-prefs";
+import {
+  discFormatOf,
+  formatLabel,
+  releaseFields,
+  stemsOf,
+  WEIXSOUND_LABEL,
+  type DiscFormat,
+  type ReleaseSplit,
+  type ReleaseVisibility,
+  type TrackStem,
+} from "@/lib/weixsound";
 
 export const MIXTAPE_STORE = "blkspace_audio_mixtapes_v1";
 /** Keep phone IndexedDB usable. Longer sets belong on an https host. */
@@ -48,6 +59,8 @@ export interface MixtapeTrack {
   title: string;
   /** `web_` blob id or an http(s) URL. Never a data URL. */
   src: string;
+  /** Vocals, drums, bass, and music. Heard by the artist and a verified buyer. */
+  stems?: TrackStem[];
 }
 
 export interface AudioMixtape {
@@ -68,6 +81,19 @@ export interface AudioMixtape {
   cover: string;
   /** Back of the sleeve: who made it. The track list is printed under this. */
   credits: string;
+  /** single, vinyl, ep, mixtape, album, or cd. One master, different sleeve. */
+  format: DiscFormat;
+  visibility: ReleaseVisibility;
+  /** https link on Audius, SoundCloud, Bandcamp, or Tidal. Empty stays on the yard. */
+  storeUrl: string;
+  /** Vinyl, or any paid song copy. The sale does not wait on the Solana memo. */
+  writeReceipt: boolean;
+  rightsAttested: boolean;
+  /** Named shares of the 95. The yard keeps 5. */
+  splits: ReleaseSplit[];
+  /** Album and CD can name the same master. Empty means this row is the file. */
+  masterId: string;
+  label: string;
   listingId: number | null;
   hubItemId: string | null;
 }
@@ -184,11 +210,28 @@ function save(items: AudioMixtape[]) {
 }
 
 function withKind(row: AudioMixtape): AudioMixtape {
+  const tracks = Array.isArray(row.tracks) ? row.tracks : [];
+  let format: DiscFormat;
+  try {
+    format = discFormatOf(row.format, Math.max(1, tracks.length));
+  } catch {
+    format = tracks.length <= 1 ? "single" : tracks.length <= 6 ? "ep" : "mixtape";
+  }
   return {
     ...row,
     setKind: mixSetKind(row.setKind),
     cover: typeof row.cover === "string" ? row.cover : "",
     credits: typeof row.credits === "string" ? row.credits : "",
+    format,
+    visibility: row.visibility === "public" ? "public" : "yard",
+    storeUrl: typeof row.storeUrl === "string" ? row.storeUrl : "",
+    writeReceipt: row.writeReceipt === true,
+    rightsAttested: row.rightsAttested === true,
+    splits: Array.isArray(row.splits) && row.splits.length
+      ? row.splits
+      : [{ handle: row.authorHandle || "artist", percent: 95 }],
+    masterId: typeof row.masterId === "string" ? row.masterId : "",
+    label: typeof row.label === "string" && row.label ? row.label : WEIXSOUND_LABEL,
   };
 }
 
@@ -215,6 +258,14 @@ export function publishMixtape(input: {
   setKind?: MixSetKind;
   cover?: string;
   credits?: string;
+  format?: DiscFormat;
+  visibility?: ReleaseVisibility;
+  storeUrl?: string;
+  writeReceipt?: boolean;
+  rightsAttested?: boolean;
+  splits?: ReleaseSplit[];
+  splitsText?: string;
+  masterId?: string;
 }): AudioMixtape {
   const title = input.title.trim();
   if (!title) throw new Error("Title required");
@@ -224,6 +275,7 @@ export function publishMixtape(input: {
       id: track.id,
       title: track.title.trim() || "Untitled track",
       src: track.src.trim(),
+      stems: stemsOf(track.stems),
     }))
     .filter((track) => track.src);
   if (setKind === "songs" && tracks.some((track) => isVerseSrc(track.src))) {
@@ -251,6 +303,7 @@ export function publishMixtape(input: {
     Math.max(1, Math.floor(input.editionSize ?? 1)),
   );
   const handle = getCurrentHandle() || "guest";
+  const release = releaseFields({ ...input, setKind, tracks }, handle);
   const yardId = loadUiPrefs().homeYardId || "tsu";
   const mixtape: AudioMixtape = {
     id: `mix_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
@@ -266,6 +319,14 @@ export function publishMixtape(input: {
     editionSize,
     cover,
     credits,
+    format: release.format,
+    visibility: release.visibility,
+    storeUrl: release.storeUrl,
+    writeReceipt: release.writeReceipt,
+    rightsAttested: release.rightsAttested,
+    splits: release.splits,
+    masterId: release.masterId,
+    label: release.label,
     listingId: null,
     hubItemId: null,
   };
@@ -275,12 +336,12 @@ export function publishMixtape(input: {
     title,
     body:
       input.body ||
-      `${kindLabel(setKind)} · ${tracks.length} track${tracks.length === 1 ? "" : "s"}`,
+      `${formatLabel(release.format)} · ${kindLabel(setKind)} · ${tracks.length} track${tracks.length === 1 ? "" : "s"}`,
     mediaUrl: mixtapeRef(mixtape.id),
     yardId,
     earnHint:
       priceWb > 0
-        ? `BlkCore edition · ${priceWb} WB · ${editionSize} copies · not a chain NFT`
+        ? `BlkCore ${formatLabel(release.format)} · ${priceWb} WB · ${editionSize} copies · not a chain NFT`
         : "Play on the hub · list a BlkCore edition later",
   });
   mixtape.hubItemId = hub.id;
@@ -343,7 +404,7 @@ export function mixtapeListingArgs(mixtape: AudioMixtape) {
     title: mixtape.title,
     description:
       mixtape.body ||
-      `BlkCore ${kindLabel(mixSetKind(mixtape.setKind)).toLowerCase()} edition (${mixtape.editionSize} copies). Not a chain NFT.`,
+      `BlkCore ${formatLabel(mixtape.format || "mixtape")} · ${kindLabel(mixSetKind(mixtape.setKind)).toLowerCase()} · ${mixtape.editionSize} copies. Not a chain NFT.`,
     isNft: false,
     townTag: mixtape.yardId,
     fulfillmentMode: "instant" as const,
