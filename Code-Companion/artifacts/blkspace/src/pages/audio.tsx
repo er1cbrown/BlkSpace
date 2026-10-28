@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AlbumSleeve } from "@/components/media/AlbumSleeve";
 import { MixtapePlayer } from "@/components/media/MixtapePlayer";
 import { useGuestMode } from "@/lib/guest-mode";
 import {
   audioFileOk,
+  coverFileOk,
   listMixtapes,
   markMixtapeListed,
   mixtapeListingArgs,
@@ -51,6 +53,8 @@ export default function AudioPage() {
   const [setKind, setSetKind] = useState<MixSetKind>("songs");
   const [verseRef, setVerseRef] = useState("");
   const [tracks, setTracks] = useState<MixtapeTrack[]>([]);
+  const [cover, setCover] = useState("");
+  const [credits, setCredits] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -109,6 +113,27 @@ export default function AudioPage() {
     }
   };
 
+  const addCoverFile = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    const problem = coverFileOk(file);
+    if (problem) {
+      toast.error(problem);
+      return;
+    }
+    setBusy(true);
+    try {
+      const dataUrl = await readFile(file);
+      const saved = await webStoreFile(file, dataUrl);
+      setCover(saved.id);
+      if (!saved.synced) {
+        toast("Cover saved on this device. Other phones need an https link.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const addLink = () => {
     const url = linkUrl.trim();
     if (!url) return;
@@ -160,10 +185,14 @@ export default function AudioPage() {
         priceWb: Number.parseInt(price, 10) || 0,
         editionSize: Number.parseInt(edition, 10) || 1,
         setKind,
+        cover,
+        credits,
       });
       setTitle("");
       setBody("");
       setTracks([]);
+      setCover("");
+      setCredits("");
       setTick((n) => n + 1);
       void syncMixtapes().then(() => setTick((n) => n + 1));
       toast.success("On the hub. Play it from Music.");
@@ -207,10 +236,12 @@ export default function AudioPage() {
             <Badge variant="outline">BlkCore</Badge>
           </div>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            Publish a song mix, a verse mix, or a Logos Deck. People play an
-            audio file here, or read a verse row. A priced set can sit on Yard
-            Sale as a BlkCore edition (a copy count in WeixBucks). That is not a
-            Solana NFT, and BLKSHI does not take the trade.
+            Publish a song mix, a verse mix, or a Logos Deck. The sleeve works
+            like a vinyl or a CD: artwork on the front, credits and the track
+            list on the back. A priced set sits on Yard Sale as a campus
+            edition, a copy count paid in WeixBucks. Buying a Logos Deck turns
+            that set on for the buyer. It is not a Solana NFT, and BLKSHI does
+            not take the trade.
           </p>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             <span>MySpace — one song on your page.</span>
@@ -261,6 +292,42 @@ export default function AudioPage() {
                 aria-label="Edition size"
               />
             </div>
+            <Textarea
+              placeholder="Credits for the back of the sleeve"
+              value={credits}
+              onChange={(e) => setCredits(e.target.value)}
+              rows={2}
+              aria-label="Credits"
+            />
+            {cover.startsWith("web_") ? (
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Cover saved on this device.</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setCover("")}
+                >
+                  Remove cover
+                </Button>
+              </div>
+            ) : (
+              <Input
+                placeholder="https:// link to cover art"
+                value={cover}
+                onChange={(e) => setCover(e.target.value)}
+                aria-label="Cover art link"
+              />
+            )}
+            <Input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+              aria-label="Cover image"
+              onChange={(e) => {
+                void addCoverFile(e.target.files);
+                e.target.value = "";
+              }}
+            />
             <Input
               type="file"
               accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.webm"
@@ -354,7 +421,12 @@ export default function AudioPage() {
                     {mixtape.body}
                   </p>
                 )}
-                <MixtapePlayer mixtape={mixtape} />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                  <AlbumSleeve mixtape={mixtape} />
+                  <div className="min-w-0 flex-1">
+                    <MixtapePlayer mixtape={mixtape} />
+                  </div>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <Link href="/hub">
                     <Button size="sm" variant="outline">

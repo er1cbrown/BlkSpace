@@ -224,10 +224,20 @@ export function createYardDesk(env) {
           body TEXT NOT NULL DEFAULT '', tracks TEXT NOT NULL, author_handle TEXT NOT NULL,
           author_display TEXT NOT NULL DEFAULT '', price_wb INTEGER NOT NULL DEFAULT 0,
           edition_size INTEGER NOT NULL DEFAULT 1, set_kind TEXT NOT NULL DEFAULT 'songs',
+          cover_url TEXT NOT NULL DEFAULT '', credits TEXT NOT NULL DEFAULT '',
           created_at TEXT NOT NULL)`);
         await ensureColumn(
           "ALTER TABLE yard_mixtapes ADD COLUMN set_kind TEXT NOT NULL DEFAULT 'songs'",
         );
+        await ensureColumn(
+          "ALTER TABLE yard_mixtapes ADD COLUMN cover_url TEXT NOT NULL DEFAULT ''",
+        );
+        await ensureColumn(
+          "ALTER TABLE yard_mixtapes ADD COLUMN credits TEXT NOT NULL DEFAULT ''",
+        );
+        await query(`CREATE TABLE IF NOT EXISTS yard_edition_claims (
+          listing_id INTEGER NOT NULL, buyer_handle TEXT NOT NULL, created_at TEXT NOT NULL,
+          PRIMARY KEY (listing_id, buyer_handle))`);
         await query(`CREATE TABLE IF NOT EXISTS yard_dj_battles (
           id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, title TEXT NOT NULL,
           mix_id TEXT NOT NULL, mix_title TEXT NOT NULL, set_kind TEXT NOT NULL DEFAULT 'songs',
@@ -563,7 +573,9 @@ export function createYardDesk(env) {
           [yard],
         )
       : await query(`SELECT * FROM yard_listings WHERE sold_to IS NULL ORDER BY created_at DESC`);
-    return { ok: true, listings: rows.map(mapListing) };
+    const listings = [];
+    for (const row of rows) listings.push(await withEdition(mapListing(row)));
+    return { ok: true, listings };
   }
 
   async function createListing(body, pubkey) {
@@ -612,6 +624,157 @@ export function createYardDesk(env) {
     return { ok: true, id };
   }
 
+  async function editionFor(listing) {
+    if (String(listing.item_type) !== "mix" || !listing.item_ref) return null;
+    const row = (
+      await query(
+        "SELECT edition_size, set_kind, tracks, title FROM yard_mixtapes WHERE id = ? LIMIT 1",
+        [String(listing.item_ref)],
+      )
+    )[0];
+    if (!row) return null;
+    let tracks = [];
+    try {
+      const parsed = JSON.parse(String(row.tracks || "[]"));
+      if (Array.isArray(parsed)) tracks = parsed;
+    } catch {
+      tracks = [];
+    }
+    const passages = tracks
+      .map((track) => String(track?.src || ""))
+      .filter((src) => src.startsWith("verse:"))
+      .map((src) => src.slice(6))
+      .slice(0, 12);
+    return {
+      editionSize: Math.max(1, Math.min(100, num(row.edition_size) || 1)),
+      setKind: setKindOf(row.set_kind),
+      title: String(row.title || listing.title || ""),
+      passages,
+    };
+  }
+
+  async function withEdition(listing) {
+    const edition = await editionFor({
+      item_type: listing.itemType,
+      item_ref: listing.itemRef,
+    });
+    if (!edition) return listing;
+    const taken = num(
+      (
+        await query(
+          "SELECT COUNT(*) AS n FROM yard_edition_claims WHERE listing_id = ?",
+          [listing.id],
+        )
+      )[0]?.n,
+    );
+    return {
+      ...listing,
+      editionSize: edition.editionSize,
+      copiesLeft: Math.max(0, edition.editionSize - taken),
+      setKind: edition.setKind,
+    };
+  }
+
+  async function claimRank(listingId, buyer, createdAt) {
+    return num(
+      (
+        await query(
+          `SELECT COUNT(*) AS n FROM yard_edition_claims
+           WHERE listing_id = ? AND (created_at < ? OR (created_at = ? AND buyer_handle <= ?))`,
+          [listingId, createdAt, createdAt, buyer],
+        )
+      )[0]?.n,
+    );
+  }
+
+  async function sellEditionCopy(listing, who, price, fee, sellerNet, edition) {
+    const now = new Date().toISOString();
+    const listingId = num(listing.id);
+    const already = (
+      await query(
+        "SELECT buyer_handle FROM yard_edition_claims WHERE listing_id = ? AND buyer_handle = ?",
+        [listingId, who],
+      )
+    )[0];
+    if (already) throw new HttpError(400, "You already hold a copy of this edition.");
+    await query(
+      "INSERT OR IGNORE INTO yard_edition_claims (listing_id, buyer_handle, created_at) VALUES (?, ?, ?)",
+      [listingId, who, now],
+    );
+    const mine = (
+      await query(
+        "SELECT created_at FROM yard_edition_claims WHERE listing_id = ? AND buyer_handle = ?",
+        [listingId, who],
+      )
+    )[0];
+    if (String(mine?.created_at || "") !== now) {
+      throw new HttpError(400, "You already hold a copy of this edition.");
+    }
+    const rank = await claimRank(listingId, who, now);
+    if (rank > edition.editionSize) {
+      await query(
+        "DELETE FROM yard_edition_claims WHERE listing_id = ? AND buyer_handle = ?",
+        [listingId, who],
+      );
+      await query(
+        "UPDATE yard_listings SET sold_to = ? WHERE id = ? AND sold_to IS NULL",
+        ["edition-closed", listingId],
+      );
+      throw new HttpError(400, "That edition is sold out.");
+    }
+    try {
+      await query(
+        `INSERT INTO yard_wb (id, yard_id, handle, amount, reason, ref, created_at)
+         VALUES (NULL, ?, ?, ?, ?, ?, ?)`,
+        [
+          String(listing.yard_id),
+          who,
+          -price,
+          `Yard Sale: ${listing.title}`,
+          `sale:${listingId}:${who}`,
+          now,
+        ],
+      );
+      await credit(
+        String(listing.yard_id),
+        String(listing.seller_handle),
+        sellerNet,
+        `Yard Sale release: ${listing.title}`,
+        `sale-net:${listingId}:${who}`,
+      );
+    } catch (err) {
+      await query(
+        "DELETE FROM yard_edition_claims WHERE listing_id = ? AND buyer_handle = ?",
+        [listingId, who],
+      );
+      throw err;
+    }
+    if (rank >= edition.editionSize) {
+      await query(
+        "UPDATE yard_listings SET sold_to = ? WHERE id = ? AND sold_to IS NULL",
+        ["edition-closed", listingId],
+      );
+    }
+    await maybeGrantMark(String(listing.yard_id), who);
+    const copiesLeft = edition.editionSize - rank;
+    return {
+      ok: true,
+      listingId,
+      status: "released",
+      fulfillmentMode: "instant",
+      amount: price,
+      platformFee: fee,
+      sellerNet,
+      title: String(listing.title),
+      deliveryHint: listing.delivery_hint ? String(listing.delivery_hint) : "",
+      editionSize: edition.editionSize,
+      copiesLeft,
+      setKind: edition.setKind,
+      passages: edition.setKind === "logos" ? edition.passages : [],
+      applied: edition.setKind === "logos" ? { logosDeck: true } : undefined,
+    };
+  }
+
   async function buy(body, pubkey) {
     await ensure();
     const who = await actor(pubkey);
@@ -629,6 +792,8 @@ export function createYardDesk(env) {
       throw new HttpError(400, "Not enough WeixBucks in this yard.");
     }
     if (String(listing.fulfillment_mode || "escrow") === "instant") {
+      const edition = await editionFor(listing);
+      if (edition) return sellEditionCopy(listing, who, price, fee, sellerNet, edition);
       const now = new Date().toISOString();
       await query(
         "UPDATE yard_listings SET sold_to = ? WHERE id = ? AND sold_to IS NULL",
@@ -792,6 +957,15 @@ export function createYardDesk(env) {
     return id;
   }
 
+  function coverRef(value) {
+    const out = String(value || "").trim();
+    if (!out) return "";
+    if (out.startsWith("data:") || out.startsWith("verse:")) {
+      throw new HttpError(400, "Cover art needs an image file or an https link.");
+    }
+    return mediaRef(out);
+  }
+
   function trackSrc(value) {
     const out = String(value || "").trim();
     if (/^verse:[A-Za-z0-9][A-Za-z0-9 .:'-]{1,78}$/.test(out)) return out;
@@ -869,6 +1043,8 @@ export function createYardDesk(env) {
       priceWb: num(row.price_wb),
       editionSize: num(row.edition_size) || 1,
       setKind: setKindOf(row.set_kind),
+      cover: String(row.cover_url || ""),
+      credits: String(row.credits || ""),
       listingId: null,
       hubItemId: null,
     };
@@ -995,11 +1171,11 @@ export function createYardDesk(env) {
     await ensure();
     const rows = id
       ? await query(
-          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, created_at FROM yard_mixtapes WHERE yard_id = ? ORDER BY created_at DESC",
+          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, cover_url, credits, created_at FROM yard_mixtapes WHERE yard_id = ? ORDER BY created_at DESC",
           [id],
         )
       : await query(
-          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, created_at FROM yard_mixtapes ORDER BY created_at DESC",
+          "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, cover_url, credits, created_at FROM yard_mixtapes ORDER BY created_at DESC",
         );
     return { ok: true, mixtapes: rows.map(mapMixtape) };
   }
@@ -1032,6 +1208,8 @@ export function createYardDesk(env) {
     const priceWb = Math.max(0, Math.min(100000, Math.floor(num(body.priceWb))));
     const editionSize = Math.max(1, Math.min(100, Math.floor(num(body.editionSize) || 1)));
     const display = optionalText(body.authorDisplayName, 40) || who;
+    const cover = coverRef(body.cover);
+    const credits = optionalText(body.credits, 800);
     const existing = (
       await query("SELECT id FROM yard_mixtapes WHERE id = ? LIMIT 1", [id])
     )[0];
@@ -1039,14 +1217,28 @@ export function createYardDesk(env) {
       await query(
         `INSERT INTO yard_mixtapes (
            id, yard_id, title, body, tracks, author_handle, author_display,
-           price_wb, edition_size, set_kind, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, yard, title, blurb, packed, who, display, priceWb, editionSize, setKind, stamp(body.createdAt)],
+           price_wb, edition_size, set_kind, cover_url, credits, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          yard,
+          title,
+          blurb,
+          packed,
+          who,
+          display,
+          priceWb,
+          editionSize,
+          setKind,
+          cover,
+          credits,
+          stamp(body.createdAt),
+        ],
       );
     }
     const row = (
       await query(
-        "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, created_at FROM yard_mixtapes WHERE id = ? LIMIT 1",
+        "SELECT id, yard_id, title, body, tracks, author_handle, author_display, price_wb, edition_size, set_kind, cover_url, credits, created_at FROM yard_mixtapes WHERE id = ? LIMIT 1",
         [id],
       )
     )[0];

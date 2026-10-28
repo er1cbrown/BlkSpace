@@ -1,17 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   audioFileOk,
+  coverFileOk,
+  coverSrcOk,
   listMixtapes,
   mixtapeListingArgs,
   mixtapeRef,
   parseMixtapeRef,
+  holdLogosEdition,
   publishMixtape,
   syncMixtapes,
   trackSrcOk,
   verseTrackSrc,
 } from "@/lib/audio-mixtapes";
 import { listHubItems } from "@/lib/content-hub";
+import { tracksByIds } from "@/lib/logos-deck-library";
 import { mergeMarketplaceBoards } from "@/lib/marketplace-escrow";
+import { loadLocalMyYard } from "@/lib/myyard-storage";
 
 vi.mock("@/lib/auth", () => ({
   getCurrentHandle: () => "dj_yard",
@@ -37,6 +42,11 @@ describe("audio mixtapes", () => {
     expect(
       audioFileOk({ type: "audio/mpeg", name: "set.mp3", size: 1000 }),
     ).toBe(null);
+    expect(coverFileOk({ type: "image/png", name: "front.png", size: 1000 })).toBe(
+      null,
+    );
+    expect(coverSrcOk("https://media.example.test/front.jpg")).toBe(true);
+    expect(coverSrcOk("data:image/png;base64,aaaa")).toBe(false);
   });
 
   it("accepts a blob id or https link and refuses a data url", () => {
@@ -56,6 +66,23 @@ describe("audio mixtapes", () => {
     });
     expect(deck.setKind).toBe("logos");
     expect(mixtapeListingArgs(deck).isNft).toBe(false);
+    expect(
+      holdLogosEdition({
+        handle: "dj_yard",
+        setKind: "logos",
+        title: deck.title,
+        passages: ["Isaiah 53:5", "John 1:1"],
+      }),
+    ).toBe(true);
+    const layout = loadLocalMyYard("dj_yard");
+    expect(layout?.modules?.logosDeck).toBe(true);
+    expect(layout?.logosDeck?.setTitle).toBe("Servant set");
+    expect(tracksByIds(layout?.logosDeck?.trackIds ?? []).map((row) => row.reference)).toEqual([
+      "Isaiah 53:5",
+      "John 1:1",
+    ]);
+    expect(tracksByIds(["John 1:1"])[0].crossRefs).toEqual([]);
+    expect(holdLogosEdition({ handle: "dj_yard", setKind: "songs" })).toBe(false);
     expect(() =>
       publishMixtape({
         title: "Songs only",
@@ -77,7 +104,20 @@ describe("audio mixtapes", () => {
         { id: "t1", title: "Intro", src: "https://media.example.test/a.mp3" },
         { id: "t2", title: "Outro", src: "web_track2" },
       ],
+      cover: "https://media.example.test/front.jpg",
+      credits: "Produced in the yard.",
     });
+    expect(mixtape.cover).toBe("https://media.example.test/front.jpg");
+    expect(mixtape.credits).toBe("Produced in the yard.");
+    expect(() =>
+      publishMixtape({
+        title: "Bad sleeve",
+        cover: "data:image/png;base64,aaaa",
+        tracks: [
+          { id: "t1", title: "Intro", src: "https://media.example.test/a.mp3" },
+        ],
+      }),
+    ).toThrow(/Cover art/);
     expect(parseMixtapeRef(mixtapeRef(mixtape.id))).toBe(mixtape.id);
     expect(listMixtapes()).toHaveLength(1);
     const hub = listHubItems("music").find((item) => item.kind === "audio");

@@ -22,7 +22,12 @@ import {
   themeLabelFromRef,
 } from "@/lib/myyard-catalog";
 import { getYardTheme } from "@/lib/yard-themes";
-import { getMixtape, parseMixtapeRef } from "@/lib/audio-mixtapes";
+import {
+  getMixtape,
+  holdLogosEdition,
+  parseMixtapeRef,
+} from "@/lib/audio-mixtapes";
+import { AlbumSleeve } from "@/components/media/AlbumSleeve";
 import { MixtapePlayer } from "@/components/media/MixtapePlayer";
 
 type Listing = {
@@ -41,6 +46,9 @@ type Listing = {
   orgName?: string | null;
   orgSplitBps?: number;
   deliveryHint?: string | null;
+  editionSize?: number | null;
+  copiesLeft?: number | null;
+  setKind?: string | null;
 };
 
 interface YardSaleListingsProps {
@@ -67,8 +75,11 @@ function MixPreview({
     );
   }
   return (
-    <div className="mt-2">
-      <MixtapePlayer mixtape={mixtape} compact />
+    <div className="mt-2 flex items-start gap-3">
+      <AlbumSleeve mixtape={mixtape} compact />
+      <div className="min-w-0 flex-1">
+        <MixtapePlayer mixtape={mixtape} compact />
+      </div>
     </div>
   );
 }
@@ -283,14 +294,23 @@ export function YardSaleListings({
                   disabled={item.sellerHandle === me || buyListing.isPending}
                   onClick={async () => {
                     try {
-                      const result = await buyListing.mutateAsync(item.id);
-                      afterPurchase(
-                        result as {
-                          applied?: Record<string, unknown>;
-                          fulfillmentMode?: string;
-                          escrowId?: number;
-                        },
-                      );
+                      const result = (await buyListing.mutateAsync(item.id)) as {
+                        applied?: Record<string, unknown>;
+                        fulfillmentMode?: string;
+                        escrowId?: number;
+                        setKind?: string;
+                        title?: string;
+                        passages?: string[];
+                      };
+                      if (result.setKind === "logos") {
+                        holdLogosEdition({
+                          handle: me || handle,
+                          setKind: result.setKind,
+                          title: result.title || item.title,
+                          passages: result.passages,
+                        });
+                      }
+                      afterPurchase(result);
                       if (
                         !(result as { escrowId?: number }).escrowId &&
                         (result as { fulfillmentMode?: string })

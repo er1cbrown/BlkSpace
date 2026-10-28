@@ -93,12 +93,19 @@ export function sortShopListings<
 export function shopBuyerLine(item: {
   itemType: string;
   fulfillmentMode?: string | null;
+  copiesLeft?: number | null;
+  editionSize?: number | null;
 }): string {
   if (shopShelf(item) === "order") {
     return "You pay, they deliver, then you release.";
   }
   if (item.itemType === "mix" || item.itemType === "logos-deck") {
-    return "You get the set right away.";
+    const counted =
+      typeof item.copiesLeft === "number" &&
+      typeof item.editionSize === "number"
+        ? ` ${item.copiesLeft} of ${item.editionSize} left.`
+        : "";
+    return `Campus edition in WeixBucks.${counted} Not a chain NFT.`;
   }
   if (item.itemType === "theme") return "It applies to your yard right away.";
   return "You get it right away.";

@@ -41,6 +41,9 @@ export interface MarketplaceListing {
   deliveryHint?: string | null;
   soldTo?: string | null;
   createdAt?: string;
+  editionSize?: number | null;
+  copiesLeft?: number | null;
+  setKind?: string | null;
 }
 
 export interface EscrowTrade {

@@ -60,11 +60,11 @@ describe("yard sale shop shelf", () => {
 
   it("uses one buyer sentence", () => {
     expect(shopBuyerLine({ itemType: "mix" })).toBe(
-      "You get the set right away.",
+      "Campus edition in WeixBucks. Not a chain NFT.",
     );
-    expect(shopBuyerLine({ itemType: "logos-deck" })).toBe(
-      "You get the set right away.",
-    );
+    expect(
+      shopBuyerLine({ itemType: "logos-deck", copiesLeft: 3, editionSize: 10 }),
+    ).toBe("Campus edition in WeixBucks. 3 of 10 left. Not a chain NFT.");
     expect(shopBuyerLine({ itemType: "theme" })).toBe(
       "It applies to your yard right away.",
     );

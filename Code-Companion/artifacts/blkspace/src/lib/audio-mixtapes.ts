@@ -12,12 +12,19 @@ import { getCurrentDisplayName, getCurrentHandle } from "@/lib/auth";
 import { listHubItems, publishHubItem } from "@/lib/content-hub";
 import { hostedPost } from "@/lib/hosted-api";
 import { isWebBlobId } from "@/lib/media-web-store";
+import {
+  DEFAULT_MYYARD_LAYOUT,
+  mergeMyYardLayout,
+} from "@/lib/myyard-layout";
+import { loadLocalMyYard, saveLocalMyYard } from "@/lib/myyard-storage";
 import { loadUiPrefs } from "@/lib/ui-prefs";
 
 export const MIXTAPE_STORE = "blkspace_audio_mixtapes_v1";
 /** Keep phone IndexedDB usable. Longer sets belong on an https host. */
 export const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
+export const MAX_COVER_BYTES = 2 * 1024 * 1024;
 export const MAX_TRACKS = 12;
+export const MAX_CREDITS = 800;
 
 export type MixSetKind = "songs" | "verses" | "logos";
 
@@ -57,6 +64,10 @@ export interface AudioMixtape {
   priceWb: number;
   /** How many copies the yard sale catalog offers. Not minted on a chain. */
   editionSize: number;
+  /** Front of the sleeve. https link or a web_ image id. Empty shows a title plate. */
+  cover: string;
+  /** Back of the sleeve: who made it. The track list is printed under this. */
+  credits: string;
   listingId: number | null;
   hubItemId: string | null;
 }
@@ -88,6 +99,36 @@ export function audioFileOk(file: {
   }
   if (file.size <= 0) return "That file is empty.";
   return null;
+}
+
+const IMAGE_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
+export function coverFileOk(file: {
+  type: string;
+  name: string;
+  size: number;
+}): string | null {
+  const type = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+  const mimeOk = IMAGE_MIME.has(type) || /\.(jpe?g|png|webp|gif)$/.test(name);
+  if (!mimeOk) return "Use a cover image (jpg, png, webp, or gif).";
+  if (file.size > MAX_COVER_BYTES) return "That cover is over 2 MB.";
+  if (file.size <= 0) return "That cover is empty.";
+  return null;
+}
+
+/** Empty is allowed. A data URL is not shared. */
+export function coverSrcOk(src: string): boolean {
+  const value = src.trim();
+  if (!value) return true;
+  if (value.startsWith("data:") || value.startsWith("verse:")) return false;
+  if (isWebBlobId(value)) return true;
+  return isSafeHttpUrl(value);
 }
 
 export function mixSetKind(value: unknown): MixSetKind {
@@ -143,7 +184,12 @@ function save(items: AudioMixtape[]) {
 }
 
 function withKind(row: AudioMixtape): AudioMixtape {
-  return { ...row, setKind: mixSetKind(row.setKind) };
+  return {
+    ...row,
+    setKind: mixSetKind(row.setKind),
+    cover: typeof row.cover === "string" ? row.cover : "",
+    credits: typeof row.credits === "string" ? row.credits : "",
+  };
 }
 
 export function listMixtapes(): AudioMixtape[] {
@@ -167,6 +213,8 @@ export function publishMixtape(input: {
   priceWb?: number;
   editionSize?: number;
   setKind?: MixSetKind;
+  cover?: string;
+  credits?: string;
 }): AudioMixtape {
   const title = input.title.trim();
   if (!title) throw new Error("Title required");
@@ -192,6 +240,11 @@ export function publishMixtape(input: {
       "Each row needs an uploaded file, an https link, or a verse reference.",
     );
   }
+  const cover = (input.cover || "").trim();
+  if (!coverSrcOk(cover)) {
+    throw new Error("Cover art needs an image file or an https link.");
+  }
+  const credits = (input.credits || "").trim().slice(0, MAX_CREDITS);
   const priceWb = Math.max(0, Math.floor(input.priceWb ?? 0));
   const editionSize = Math.min(
     100,
@@ -211,6 +264,8 @@ export function publishMixtape(input: {
     setKind,
     priceWb,
     editionSize,
+    cover,
+    credits,
     listingId: null,
     hubItemId: null,
   };
@@ -231,6 +286,40 @@ export function publishMixtape(input: {
   mixtape.hubItemId = hub.id;
   save([mixtape, ...load()]);
   return mixtape;
+}
+
+/** A bought Logos Deck turns the profile module on. It does not mint a token. */
+export function holdLogosEdition(input: {
+  handle: string;
+  setKind?: string | null;
+  title?: string | null;
+  passages?: string[] | null;
+}): boolean {
+  if (input.setKind !== "logos") return false;
+  const handle = input.handle.trim();
+  if (!handle) return false;
+  const passages = (input.passages || [])
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .slice(0, MAX_TRACKS);
+  const current = loadLocalMyYard(handle) ?? structuredClone(DEFAULT_MYYARD_LAYOUT);
+  saveLocalMyYard(
+    handle,
+    mergeMyYardLayout(current, {
+      modules: { logosDeck: true, bibleNlp: current.modules?.bibleNlp },
+      logosDeck: {
+        setTitle:
+          (input.title || "").trim() ||
+          current.logosDeck?.setTitle ||
+          "Logos Deck",
+        audioHash: current.logosDeck?.audioHash ?? null,
+        trackIds: passages.length
+          ? passages
+          : (current.logosDeck?.trackIds ?? []),
+      },
+    }),
+  );
+  return true;
 }
 
 export function markMixtapeListed(

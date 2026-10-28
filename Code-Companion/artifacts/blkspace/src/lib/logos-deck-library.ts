@@ -75,8 +75,33 @@ export const LOGOS_DECK_DEMO_CRATE: LogosDeckTrack[] = [
 ];
 
 export function tracksByIds(ids: string[]): LogosDeckTrack[] {
-  const map = new Map(LOGOS_DECK_DEMO_CRATE.map((t) => [t.id, t]));
-  return ids.map((id) => map.get(id)).filter(Boolean) as LogosDeckTrack[];
+  const out: LogosDeckTrack[] = [];
+  for (const id of ids) {
+    const found = LOGOS_DECK_DEMO_CRATE.find(
+      (track) => track.id === id || track.reference === id,
+    );
+    if (found) {
+      out.push(found);
+      continue;
+    }
+    const reference = id.trim();
+    if (
+      /^[A-Za-z0-9][A-Za-z0-9 .:'-]{1,78}$/.test(reference) &&
+      /\d+:\d+$/.test(reference)
+    ) {
+      out.push({
+        id: reference,
+        reference,
+        text: "This row names the passage. The deck does not invent the verse text.",
+        genre: "Set",
+        author: "",
+        spm: 0,
+        theologicalKey: "",
+        crossRefs: [],
+      });
+    }
+  }
+  return out;
 }
 
 export function crossRefsFor(track: LogosDeckTrack): LogosDeckTrack[] {

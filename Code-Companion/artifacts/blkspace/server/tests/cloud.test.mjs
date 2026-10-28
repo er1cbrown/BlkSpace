@@ -368,9 +368,20 @@ describe("yard desk on the shared server", () => {
       priceWb: 25,
       editionSize: 10,
       tracks: [{ id: "t1", title: "Intro", src: "https://media.example.test/a.mp3" }],
+      cover: "https://media.example.test/front.jpg",
+      credits: "Produced in the yard.",
       createdAt: "2026-10-20T12:02:00.000Z",
     });
     expect(tape.status).toBe(200);
+    const bareSleeve = await post("/api/yards/mixtapes", {
+      id: "mix_bad_cover",
+      yardId: "desk",
+      title: "No sleeve",
+      tracks: [{ id: "t1", title: "Intro", src: "https://media.example.test/a.mp3" }],
+      cover: "data:image/png;base64,aaaa",
+      createdAt: "2026-10-20T12:02:30.000Z",
+    });
+    expect(bareSleeve.status).toBe(400);
     const sharedBoards = await (await fetch(base + "/api/yards/boards?yard=desk")).json();
     const sharedPins = await (await fetch(base + "/api/yards/pins?yard=desk")).json();
     const sharedTapes = await (await fetch(base + "/api/yards/mixtapes?yard=desk")).json();
@@ -379,6 +390,8 @@ describe("yard desk on the shared server", () => {
     expect(sharedTapes.mixtapes[0].tracks[0].src).toBe("https://media.example.test/a.mp3");
     expect(sharedTapes.mixtapes[0].authorHandle).toBe("alice");
     expect(sharedTapes.mixtapes[0].setKind).toBe("songs");
+    expect(sharedTapes.mixtapes[0].cover).toBe("https://media.example.test/front.jpg");
+    expect(sharedTapes.mixtapes[0].credits).toBe("Produced in the yard.");
     const deck = await post("/api/yards/mixtapes", {
       id: "mix_logos_1",
       yardId: "desk",
@@ -530,6 +543,73 @@ describe("yard desk on the shared server", () => {
     expect((await (await authorizedGet("/api/yards/wb?yard=desk")).json()).balance).toBe(93);
     const afterAudio = await (await fetch(base + "/api/yards/sale?yard=desk")).json();
     expect(afterAudio.listings.some((row) => row.id === mixId)).toBe(false);
+
+    const cara = generateSecretKey();
+    await post("/api/portfolio/identity", { handle: "cara" }, cara);
+    expect((await post("/api/yards/join", { yardId: "desk" }, cara)).status).toBe(200);
+    const logosTape = await post("/api/yards/mixtapes", {
+      id: "mix_logos_edition",
+      yardId: "desk",
+      title: "Servant set",
+      body: "Verses for the deck.",
+      setKind: "logos",
+      priceWb: 2,
+      editionSize: 2,
+      tracks: [
+        { id: "v1", title: "Isaiah 53:5", src: "verse:Isaiah 53:5" },
+        { id: "v2", title: "John 1:1", src: "verse:John 1:1" },
+      ],
+      createdAt: "2026-10-27T12:00:00.000Z",
+    });
+    expect(logosTape.status).toBe(200);
+    const logosList = await post("/api/yards/sale", {
+      yardId: "desk",
+      title: "Servant set",
+      description: "Campus edition. Not a chain NFT.",
+      price: 2,
+      itemType: "mix",
+      itemRef: "mix_logos_edition",
+      isNft: true,
+      fulfillmentMode: "instant",
+      deliveryHint: "mixtape:mix_logos_edition",
+    });
+    expect(logosList.status).toBe(200);
+    const logosId = (await logosList.json()).id;
+    const openEdition = await (await fetch(base + "/api/yards/sale?yard=desk")).json();
+    const editionRow = openEdition.listings.find((row) => row.id === logosId);
+    expect(editionRow.isNft).toBe(false);
+    expect(editionRow.setKind).toBe("logos");
+    expect(editionRow.editionSize).toBe(2);
+    expect(editionRow.copiesLeft).toBe(2);
+    const firstCopy = await post("/api/yards/sale/buy", { listingId: logosId }, bob);
+    expect(firstCopy.status).toBe(200);
+    const firstBody = await firstCopy.json();
+    expect(firstBody.setKind).toBe("logos");
+    expect(firstBody.copiesLeft).toBe(1);
+    expect(firstBody.applied.logosDeck).toBe(true);
+    expect(firstBody.passages).toEqual(["Isaiah 53:5", "John 1:1"]);
+    expect(firstBody.sellerNet).toBe(2);
+    expect(
+      (await (await fetch(base + "/api/yards/sale?yard=desk")).json()).listings.some(
+        (row) => row.id === logosId,
+      ),
+    ).toBe(true);
+    expect((await post("/api/yards/sale/buy", { listingId: logosId }, bob)).status).toBe(400);
+    const secondCopy = await post("/api/yards/sale/buy", { listingId: logosId }, cara);
+    expect(secondCopy.status).toBe(200);
+    expect((await secondCopy.json()).copiesLeft).toBe(0);
+    expect(
+      (await (await fetch(base + "/api/yards/sale?yard=desk")).json()).listings.some(
+        (row) => row.id === logosId,
+      ),
+    ).toBe(false);
+    expect(
+      (await (await authorizedGet("/api/yards/wb?yard=desk", bob)).json()).balance,
+    ).toBe(3);
+    expect(
+      (await (await authorizedGet("/api/yards/wb?yard=desk", cara)).json()).balance,
+    ).toBe(48);
+    expect((await (await authorizedGet("/api/yards/wb?yard=desk")).json()).balance).toBe(97);
   });
 });
 
