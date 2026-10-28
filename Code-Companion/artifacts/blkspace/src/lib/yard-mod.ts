@@ -4,17 +4,26 @@
  * inside a fixed band so a mod cannot starve the yard or open a farm.
  */
 
-import { getCurrentHandle } from "@/lib/auth";
+import { createHttpAuthHeader, getCurrentHandle, hasWebKey } from "@/lib/auth";
+import { hostedPost } from "@/lib/hosted-api";
+import { getHomeYardId } from "@/lib/focus-mode";
+import {
+  EARN_CAP_DEFAULT,
+  EARN_CAP_MAX,
+  EARN_CAP_MIN,
+  EARN_CAP_STEP,
+  clampEarnCap,
+} from "@/lib/midf";
+
+export {
+  EARN_CAP_DEFAULT,
+  EARN_CAP_MAX,
+  EARN_CAP_MIN,
+  EARN_CAP_STEP,
+  clampEarnCap,
+};
 
 export const FOUNDER_MODS = ["er1cbrown"] as const;
-
-/** Default daily WeixBucks cap. Matches the desktop economy. */
-export const EARN_CAP_DEFAULT = 250;
-/** Floor. Below this, posting stops feeling worth it. */
-export const EARN_CAP_MIN = 100;
-/** Ceiling. Above this, repeat posting farms the yard. */
-export const EARN_CAP_MAX = 400;
-export const EARN_CAP_STEP = 25;
 
 const CAP_KEY = "blkspace_earn_cap_v1";
 const REPORTS_KEY = "blkspace_reports_v1";
@@ -56,12 +65,6 @@ export function isYardMod(handle = getCurrentHandle()): boolean {
   return (FOUNDER_MODS as readonly string[]).includes(normalizeHandle(handle));
 }
 
-export function clampEarnCap(value: number): number {
-  if (!Number.isFinite(value)) return EARN_CAP_DEFAULT;
-  const stepped = Math.round(value / EARN_CAP_STEP) * EARN_CAP_STEP;
-  return Math.min(EARN_CAP_MAX, Math.max(EARN_CAP_MIN, stepped));
-}
-
 export function getEarnCap(): number {
   const stored = Number(localStorage.getItem(CAP_KEY));
   if (!stored) return EARN_CAP_DEFAULT;
@@ -73,6 +76,7 @@ export function setEarnCap(value: number): number {
   const next = clampEarnCap(value);
   localStorage.setItem(CAP_KEY, String(next));
   window.dispatchEvent(new Event("blkspace-mod"));
+  shareLater("/api/yards/mod/cap", { yardId: getHomeYardId(), capWb: next });
   return next;
 }
 
@@ -108,6 +112,12 @@ export function reportPost(input: {
     status: "open",
   };
   writeJson(REPORTS_KEY, [report, ...reports].slice(0, 200));
+  shareLater("/api/yards/mod/report", {
+    yardId: getHomeYardId(),
+    postId: report.postId,
+    authorHandle: report.authorHandle,
+    reason: report.reason,
+  });
   return report;
 }
 
@@ -131,6 +141,11 @@ export function hidePost(postId: number, reportId?: string) {
   const ids = hiddenPostIds();
   if (!ids.includes(postId)) writeJson(HIDDEN_KEY, [...ids, postId]);
   if (reportId) patchReport(reportId, "hidden");
+  shareLater("/api/yards/mod/hide", {
+    yardId: getHomeYardId(),
+    postId,
+    reportId,
+  });
 }
 
 export function bannedHandles(): string[] {
@@ -150,11 +165,20 @@ export function banHandle(handle: string, reportId?: string) {
   const bans = bannedHandles();
   if (!bans.includes(h)) writeJson(BANS_KEY, [...bans, h]);
   if (reportId) patchReport(reportId, "banned");
+  shareLater("/api/yards/mod/ban", {
+    yardId: getHomeYardId(),
+    handle: h,
+    reportId,
+  });
 }
 
 export function dismissReport(reportId: string) {
   if (!isYardMod()) throw new Error("Only a yard mod can dismiss a report");
   patchReport(reportId, "dismissed");
+  shareLater("/api/yards/mod/dismiss", {
+    yardId: getHomeYardId(),
+    reportId,
+  });
 }
 
 export function postVisible(post: {
@@ -162,4 +186,89 @@ export function postVisible(post: {
   authorHandle: string;
 }): boolean {
   return !isPostHidden(post.id) && !isHandleBanned(post.authorHandle);
+}
+
+const SCORE_KEY = "blkspace_midf_you_v1";
+const APPEALS_KEY = "blkspace_mod_appeals_v1";
+
+export interface YardAppeal {
+  id: string;
+  handle: string;
+  note: string;
+  createdAt: string;
+}
+
+export interface YardScore {
+  overall: number;
+  risk: "low" | "medium" | "high";
+  paused: boolean;
+}
+
+interface SharedMod {
+  ok?: boolean;
+  earnCapWb?: number;
+  hiddenPostIds?: number[];
+  bannedHandles?: string[];
+  reports?: YardReport[];
+  appeals?: YardAppeal[];
+  you?: YardScore;
+}
+
+export function readYourScore(): YardScore | null {
+  return readJson<YardScore | null>(SCORE_KEY, null);
+}
+
+export function readAppeals(): YardAppeal[] {
+  return readJson<YardAppeal[]>(APPEALS_KEY, []);
+}
+
+function shareLater(path: string, input: unknown) {
+  if (!hasWebKey()) return;
+  void hostedPost(path, input)
+    .then(() => syncYardMod(getHomeYardId(), true))
+    .catch(() => undefined);
+}
+
+/** Pull the yard desk into this browser. A failed fetch leaves the local queue. */
+export async function syncYardMod(yardId: string, auth = false): Promise<void> {
+  const yard = yardId.trim().toLowerCase();
+  if (!/^[a-z0-9-]{2,40}$/.test(yard)) return;
+  const path = `/api/yards/mod?yard=${encodeURIComponent(yard)}`;
+  try {
+    const headers: Record<string, string> = {};
+    if (auth && hasWebKey()) {
+      headers.authorization = createHttpAuthHeader(path, "GET", "");
+    }
+    const res = await fetch(path, { headers });
+    if (!res.ok) return;
+    const body = (await res.json()) as SharedMod;
+    if (!body?.ok) return;
+    if (Array.isArray(body.hiddenPostIds)) {
+      writeJson(
+        HIDDEN_KEY,
+        body.hiddenPostIds.map((id) => Number(id)).filter((id) => id > 0),
+      );
+    }
+    if (Array.isArray(body.bannedHandles)) {
+      writeJson(
+        BANS_KEY,
+        body.bannedHandles
+          .map((handle) => normalizeHandle(handle))
+          .filter(Boolean),
+      );
+    }
+    if (typeof body.earnCapWb === "number") {
+      localStorage.setItem(CAP_KEY, String(clampEarnCap(body.earnCapWb)));
+    }
+    if (Array.isArray(body.reports)) {
+      writeJson(REPORTS_KEY, body.reports);
+    }
+    if (body.you && typeof body.you.overall === "number") {
+      writeJson(SCORE_KEY, body.you);
+    }
+    if (Array.isArray(body.appeals)) writeJson(APPEALS_KEY, body.appeals);
+    window.dispatchEvent(new Event("blkspace-mod"));
+  } catch {
+    return;
+  }
 }

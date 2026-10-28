@@ -89,7 +89,7 @@ import {
 } from "@/lib/tauri-api";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { postVisible } from "@/lib/yard-mod";
+import { postVisible, syncYardMod } from "@/lib/yard-mod";
 import { BETA_FEATURES } from "@/lib/beta-features";
 import { getHomeYardId, loadFocusPrefs } from "@/lib/focus-mode";
 import { HeartPulse, Briefcase } from "lucide-react";
@@ -415,6 +415,7 @@ export default function FeedPage() {
   useEffect(() => {
     const refresh = () => setModRev((n) => n + 1);
     window.addEventListener("blkspace-mod", refresh);
+    void syncYardMod(getHomeYardId());
     return () => window.removeEventListener("blkspace-mod", refresh);
   }, []);
 

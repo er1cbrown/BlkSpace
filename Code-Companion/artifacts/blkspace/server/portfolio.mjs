@@ -261,9 +261,15 @@ function canonicalPostUid(row) {
 
 function attachedNote(body, pubkey, content) {
   const event = body?.nostrEvent;
-  const relayUrl = typeof body?.relayUrl === "string" ? body.relayUrl.trim() : "";
+  const relayUrl =
+    typeof body?.relayUrl === "string" ? body.relayUrl.trim() : "";
   if (!event && !relayUrl) return { id: "", relay: "" };
-  if (!event || typeof event !== "object" || Array.isArray(event) || !relayUrl) {
+  if (
+    !event ||
+    typeof event !== "object" ||
+    Array.isArray(event) ||
+    !relayUrl
+  ) {
     throw new HttpError(
       400,
       "A relay note needs the signed event and a WeixNet relay.",
@@ -487,6 +493,12 @@ export function createPortfolio(env) {
         )`);
         await query(`CREATE TABLE IF NOT EXISTS portfolio_identities (
           handle TEXT PRIMARY KEY COLLATE NOCASE, pubkey TEXT NOT NULL)`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_hidden_posts (
+          yard_id TEXT NOT NULL, post_id INTEGER NOT NULL,
+          PRIMARY KEY (yard_id, post_id))`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_bans (
+          yard_id TEXT NOT NULL, handle TEXT NOT NULL, created_at TEXT NOT NULL,
+          PRIMARY KEY (yard_id, handle))`);
         await query(`CREATE TABLE IF NOT EXISTS portfolio_post_owners (
           post_id INTEGER PRIMARY KEY, pubkey TEXT NOT NULL)`);
         await query(`CREATE TABLE IF NOT EXISTS portfolio_blobs (
@@ -954,6 +966,16 @@ export function createPortfolio(env) {
     const note = attachedNote(body, pubkey, content);
 
     await ensure();
+    const town = townTag.trim().toLowerCase();
+    if (/^[a-z0-9-]{2,40}$/.test(town)) {
+      const banned = (
+        await query(
+          "SELECT 1 AS ok FROM yard_bans WHERE yard_id = ? AND handle = ? LIMIT 1",
+          [town, handle],
+        )
+      )[0];
+      if (banned) throw new HttpError(403, "This yard has banned that handle.");
+    }
 
     await query(
       "INSERT INTO portfolio_identities (handle, pubkey) VALUES (?, ?) ON CONFLICT(handle) DO NOTHING",
@@ -1028,7 +1050,10 @@ export function createPortfolio(env) {
         existing.nostr_event_id &&
         existing.nostr_event_id !== note.id
       ) {
-        throw new HttpError(409, "This post already has a different relay note.");
+        throw new HttpError(
+          409,
+          "This post already has a different relay note.",
+        );
       }
       if (note.id && !existing.nostr_event_id) {
         await query(
@@ -1965,7 +1990,10 @@ export function createPortfolio(env) {
         args.push(String(town));
       }
       if (channel) {
-        const channelId = String(channel).trim().toLowerCase().replace(/^#/, "");
+        const channelId = String(channel)
+          .trim()
+          .toLowerCase()
+          .replace(/^#/, "");
         if (channelId === "general") {
           where.push(
             "(p.channel_id = ? OR p.channel_id = '' OR p.channel_id IS NULL)",
@@ -1982,6 +2010,15 @@ export function createPortfolio(env) {
         );
         args.push(decoded.updatedAt, decoded.updatedAt, decoded.id);
       }
+      where.push(`NOT EXISTS (
+        SELECT 1 FROM yard_hidden_posts h
+        WHERE h.post_id = p.id AND h.yard_id = lower(COALESCE(p.town_tag, ''))
+      )`);
+      where.push(`NOT EXISTS (
+        SELECT 1 FROM yard_bans b
+        WHERE b.handle = lower(COALESCE(p.author_handle, ''))
+          AND b.yard_id = lower(COALESCE(p.town_tag, ''))
+      )`);
       const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
       const rows = await query(
         `${select}
@@ -2024,10 +2061,16 @@ export function createPortfolio(env) {
       }
       const dataUrl = String(body?.dataUrl || "");
       if (!dataUrl.startsWith("data:") || dataUrl.length > 12_000_000) {
-        throw new HttpError(400, "That file is too large to share. Use an https link.");
+        throw new HttpError(
+          400,
+          "That file is too large to share. Use an https link.",
+        );
       }
       const filename = String(body?.filename || "file").slice(0, 120);
-      const mime = String(body?.mime || "application/octet-stream").slice(0, 80);
+      const mime = String(body?.mime || "application/octet-stream").slice(
+        0,
+        80,
+      );
       const size = Math.max(0, Math.floor(Number(body?.size) || 0));
       await query(
         `INSERT OR REPLACE INTO portfolio_blobs (id, filename, mime, size, data_url)

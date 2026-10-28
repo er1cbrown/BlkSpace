@@ -7,7 +7,13 @@ import { createYardDesk } from "./yard-desk.mjs";
 import { createPortfolio } from "./portfolio.mjs";
 import { createHubs, termsDocument } from "./hubs.mjs";
 import { readYardFile, readYardManifest } from "./yard-photos.mjs";
-import { listOutboxFiles, receiveTicket, shareOutboxFile, weixnetStatus } from "./weixnet.mjs";
+import {
+  listOutboxFiles,
+  receiveTicket,
+  shareOutboxFile,
+  weixnetStatus,
+} from "./weixnet.mjs";
+import { readSwordVerses } from "./logos-sword.mjs";
 
 const interactionRoutes = new Map([
   // Canonical interaction routes.
@@ -139,7 +145,10 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         res.setHeader("access-control-allow-origin", requestOrigin);
         res.setHeader("vary", "Origin");
       }
-      res.setHeader("access-control-allow-headers", "authorization, content-type");
+      res.setHeader(
+        "access-control-allow-headers",
+        "authorization, content-type",
+      );
       res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
       if (req.method === "OPTIONS") {
         res.writeHead(204);
@@ -198,11 +207,19 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         return json(res, 200, await portfolio.following(pubkey));
       }
       if (req.method === "GET" && path === "/api/yards/rooms") {
-        return json(res, 200, await desk.rooms(url.searchParams.get("yard") || ""));
+        return json(
+          res,
+          200,
+          await desk.rooms(url.searchParams.get("yard") || ""),
+        );
       }
       if (req.method === "GET" && path === "/api/yards/rooms/watch") {
         const pubkey = authenticate(req, "", allowed);
-        return json(res, 200, await desk.readWatch(pubkey, url.searchParams.get("room") || ""));
+        return json(
+          res,
+          200,
+          await desk.readWatch(pubkey, url.searchParams.get("room") || ""),
+        );
       }
       if (req.method === "GET" && path === "/api/yards/messages/key") {
         const pubkey = authenticate(req, "", allowed);
@@ -217,16 +234,48 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         );
       }
       if (req.method === "GET" && path === "/api/yards/boards") {
-        return json(res, 200, await desk.boards(url.searchParams.get("yard") || ""));
+        return json(
+          res,
+          200,
+          await desk.boards(url.searchParams.get("yard") || ""),
+        );
       }
       if (req.method === "GET" && path === "/api/yards/pins") {
-        return json(res, 200, await desk.pins(url.searchParams.get("yard") || ""));
+        return json(
+          res,
+          200,
+          await desk.pins(url.searchParams.get("yard") || ""),
+        );
       }
       if (req.method === "GET" && path === "/api/yards/mixtapes") {
-        return json(res, 200, await desk.mixtapes(url.searchParams.get("yard") || ""));
+        return json(
+          res,
+          200,
+          await desk.mixtapes(url.searchParams.get("yard") || ""),
+        );
       }
       if (req.method === "GET" && path === "/api/yards/battles") {
-        return json(res, 200, await desk.battles(url.searchParams.get("yard") || ""));
+        return json(
+          res,
+          200,
+          await desk.battles(url.searchParams.get("yard") || ""),
+        );
+      }
+      if (req.method === "GET" && path === "/api/logos/sword") {
+        const row = await readSwordVerses(
+          url.searchParams.get("module") || "KJV",
+          url.searchParams.getAll("ref"),
+        );
+        return json(res, 200, row);
+      }
+      if (req.method === "GET" && path === "/api/yards/mod") {
+        let pubkey = "";
+        if (req.headers.authorization) pubkey = authenticate(req, "", allowed);
+        return json(
+          res,
+          200,
+          await desk.modDesk(pubkey, url.searchParams.get("yard") || ""),
+        );
       }
       if (req.method === "GET" && path === "/api/yards/typeverse/races") {
         return json(
@@ -252,10 +301,18 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       }
       if (req.method === "GET" && path === "/api/yards/wb") {
         const pubkey = authenticate(req, "", allowed);
-        return json(res, 200, await desk.wb(pubkey, url.searchParams.get("yard") || ""));
+        return json(
+          res,
+          200,
+          await desk.wb(pubkey, url.searchParams.get("yard") || ""),
+        );
       }
       if (req.method === "GET" && path === "/api/yards/sale") {
-        return json(res, 200, await desk.listings(url.searchParams.get("yard") || ""));
+        return json(
+          res,
+          200,
+          await desk.listings(url.searchParams.get("yard") || ""),
+        );
       }
       if (req.method === "GET" && path === "/api/yards/sale/escrows") {
         const pubkey = authenticate(req, "", allowed);
@@ -266,13 +323,21 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         return json(res, 200, await desk.myCopies(pubkey));
       }
       if (req.method === "GET" && path === "/api/yards/channels") {
-        return json(res, 200, await yards.channels(url.searchParams.get("yard") || ""));
+        return json(
+          res,
+          200,
+          await yards.channels(url.searchParams.get("yard") || ""),
+        );
       }
       if (req.method === "GET" && path === "/api/yards/counts") {
         return json(res, 200, await yards.counts());
       }
       if (req.method === "GET" && path === "/api/yards/members") {
-        return json(res, 200, await yards.members(url.searchParams.get("yard") || ""));
+        return json(
+          res,
+          200,
+          await yards.members(url.searchParams.get("yard") || ""),
+        );
       }
       if (req.method === "GET" && path === "/api/yards/mine") {
         const pubkey = authenticate(req, "", allowed);
@@ -281,10 +346,18 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (req.method === "GET" && path === "/api/yards/events") {
         let viewer = "";
         if (req.headers.authorization) viewer = authenticate(req, "", allowed);
-        return json(res, 200, await yards.events(url.searchParams.get("yard") || "", viewer));
+        return json(
+          res,
+          200,
+          await yards.events(url.searchParams.get("yard") || "", viewer),
+        );
       }
       if (req.method === "GET" && path === "/api/yards/guests") {
-        return json(res, 200, await yards.guests(url.searchParams.get("eventId") || ""));
+        return json(
+          res,
+          200,
+          await yards.guests(url.searchParams.get("eventId") || ""),
+        );
       }
       if (req.method === "GET" && path === "/api/connect/orgs") {
         return json(
@@ -294,7 +367,11 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         );
       }
       if (req.method === "GET" && path === "/api/connect/org") {
-        return json(res, 200, await connect.org(url.searchParams.get("id") || ""));
+        return json(
+          res,
+          200,
+          await connect.org(url.searchParams.get("id") || ""),
+        );
       }
       if (req.method === "GET" && path === "/api/connect/opportunities") {
         return json(
@@ -334,9 +411,15 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         return json(res, 200, await hubs.list());
       }
       if (req.method === "GET" && path === "/api/portfolio/gate") {
-        return json(res, 200, await hubs.gate(url.searchParams.get("handle") || ""));
+        return json(
+          res,
+          200,
+          await hubs.gate(url.searchParams.get("handle") || ""),
+        );
       }
-      const hubRead = path.match(/^\/api\/portfolio\/hub\/([^/]+)(?:\/([^/]+))?$/);
+      const hubRead = path.match(
+        /^\/api\/portfolio\/hub\/([^/]+)(?:\/([^/]+))?$/,
+      );
       if (req.method === "GET" && hubRead) {
         const handle = decodeURIComponent(hubRead[1]);
         return json(
@@ -442,6 +525,12 @@ export function createApiHandler(env, { origins, development = false } = {}) {
             "/api/yards/typeverse/races/join",
             "/api/yards/typeverse/races/progress",
             "/api/yards/typeverse/races/finish",
+            "/api/yards/mod/report",
+            "/api/yards/mod/hide",
+            "/api/yards/mod/ban",
+            "/api/yards/mod/dismiss",
+            "/api/yards/mod/cap",
+            "/api/yards/mod/appeal",
             "/api/yards/messages",
             "/api/yards/sale",
             "/api/yards/sale/buy",
@@ -547,6 +636,24 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       }
       if (path === "/api/yards/typeverse/races/finish") {
         return json(res, 200, await desk.finishTypeverseRace(body, pubkey));
+      }
+      if (path === "/api/yards/mod/report") {
+        return json(res, 200, await desk.fileReport(body, pubkey));
+      }
+      if (path === "/api/yards/mod/hide") {
+        return json(res, 200, await desk.hideReported(body, pubkey));
+      }
+      if (path === "/api/yards/mod/ban") {
+        return json(res, 200, await desk.banReported(body, pubkey));
+      }
+      if (path === "/api/yards/mod/dismiss") {
+        return json(res, 200, await desk.dismissReported(body, pubkey));
+      }
+      if (path === "/api/yards/mod/cap") {
+        return json(res, 200, await desk.setEarnCap(body, pubkey));
+      }
+      if (path === "/api/yards/mod/appeal") {
+        return json(res, 200, await desk.fileAppeal(body, pubkey));
       }
       if (path === "/api/yards/rooms/close") {
         return json(res, 200, await desk.closeRoom(body, pubkey));

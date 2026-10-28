@@ -10,12 +10,25 @@ import {
   trackListHash,
   WEIXSOUND_LABEL,
 } from "../src/lib/weixsound.ts";
-import { encodeWatchTicket, parseWatchSource } from "../src/lib/yard-room-watch.ts";
+import {
+  encodeWatchTicket,
+  parseWatchSource,
+} from "../src/lib/yard-room-watch.ts";
 import { assertSealedEnvelope, DM_PREFIX } from "../src/lib/dm-seal.ts";
+import {
+  EARN_CAP_DEFAULT,
+  MIDF_EARN_PAUSE,
+  burstExcess,
+  clampEarnCap,
+  duplicatePostCount,
+  midfScore,
+} from "../src/lib/midf.ts";
 
 export const JOIN_GRANT_WB = 50;
 export const YARD_CRED_GATE = 15;
 
+const FOUNDER_MODS = new Set(["er1cbrown"]);
+const REPORT_REASONS = new Set(["spam", "harassment", "scam", "other"]);
 const YARD_RE = /^[a-z0-9-]{2,40}$/;
 const HANDLE_RE = /^[a-z0-9_-]{3,30}$/i;
 const PHI = [
@@ -48,7 +61,9 @@ function num(value) {
 }
 
 function yardId(value) {
-  const id = String(value || "").trim().toLowerCase();
+  const id = String(value || "")
+    .trim()
+    .toLowerCase();
   if (!YARD_RE.test(id)) throw new HttpError(400, "Yard id is not recognized.");
   return id;
 }
@@ -71,7 +86,8 @@ function optionalRef(value) {
   const out = String(value || "").trim();
   if (!out) return "";
   if (out.length > 200) throw new HttpError(400, "That reference is too long.");
-  if (/[\u0000-\u001f]/.test(out)) throw new HttpError(400, "That reference is not valid.");
+  if (/[\u0000-\u001f]/.test(out))
+    throw new HttpError(400, "That reference is not valid.");
   return out;
 }
 
@@ -117,7 +133,10 @@ function externalUrl(value) {
     host.endsWith(".slack.com") ||
     host.endsWith(".edu");
   if (!allowed) {
-    throw new HttpError(400, "Use a Discord, Slack, Zoom, YouTube, Meet, or .edu link.");
+    throw new HttpError(
+      400,
+      "Use a Discord, Slack, Zoom, YouTube, Meet, or .edu link.",
+    );
   }
   return url.href;
 }
@@ -160,7 +179,9 @@ export function createYardDesk(env) {
     const result = entry.response.result;
     return {
       rows: (result.rows || []).map((row) =>
-        Object.fromEntries(result.cols.map((col, i) => [col.name, row[i]?.value ?? null])),
+        Object.fromEntries(
+          result.cols.map((col, i) => [col.name, row[i]?.value ?? null]),
+        ),
       ),
       error: "",
     };
@@ -169,7 +190,10 @@ export function createYardDesk(env) {
   async function query(sql, args = []) {
     const result = await pipeline(sql, args);
     if (result.error) {
-      throw new HttpError(502, "Shared yard storage could not complete the request. Please retry.");
+      throw new HttpError(
+        502,
+        "Shared yard storage could not complete the request. Please retry.",
+      );
     }
     return result.rows;
   }
@@ -178,7 +202,10 @@ export function createYardDesk(env) {
     try {
       const result = await pipeline(sql);
       if (!result.error || /duplicate column/i.test(result.error)) return;
-      throw new HttpError(502, "Shared yard storage could not complete the request. Please retry.");
+      throw new HttpError(
+        502,
+        "Shared yard storage could not complete the request. Please retry.",
+      );
     } catch (err) {
       if (err instanceof HttpError) throw err;
       if (/duplicate column/i.test(String(err?.message || err))) return;
@@ -216,8 +243,12 @@ export function createYardDesk(env) {
           item_type TEXT NOT NULL DEFAULT 'item', sold_to TEXT, created_at TEXT NOT NULL,
           item_ref TEXT, delivery_hint TEXT, is_nft INTEGER NOT NULL DEFAULT 0,
           fulfillment_mode TEXT NOT NULL DEFAULT 'escrow')`);
-        await ensureColumn("ALTER TABLE yard_listings ADD COLUMN item_ref TEXT");
-        await ensureColumn("ALTER TABLE yard_listings ADD COLUMN delivery_hint TEXT");
+        await ensureColumn(
+          "ALTER TABLE yard_listings ADD COLUMN item_ref TEXT",
+        );
+        await ensureColumn(
+          "ALTER TABLE yard_listings ADD COLUMN delivery_hint TEXT",
+        );
         await ensureColumn(
           "ALTER TABLE yard_listings ADD COLUMN is_nft INTEGER NOT NULL DEFAULT 0",
         );
@@ -311,6 +342,24 @@ export function createYardDesk(env) {
           accuracy INTEGER NOT NULL DEFAULT 0, progress INTEGER NOT NULL DEFAULT 0,
           finished_at TEXT NOT NULL DEFAULT '',
           PRIMARY KEY (race_id, handle))`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_reports (
+          id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, post_id INTEGER NOT NULL,
+          author_handle TEXT NOT NULL, reporter_handle TEXT NOT NULL, reason TEXT NOT NULL,
+          status TEXT NOT NULL, created_at TEXT NOT NULL)`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_hidden_posts (
+          yard_id TEXT NOT NULL, post_id INTEGER NOT NULL,
+          PRIMARY KEY (yard_id, post_id))`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_bans (
+          yard_id TEXT NOT NULL, handle TEXT NOT NULL, created_at TEXT NOT NULL,
+          PRIMARY KEY (yard_id, handle))`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_earn_caps (
+          yard_id TEXT PRIMARY KEY, cap_wb INTEGER NOT NULL)`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_midf (
+          handle TEXT PRIMARY KEY, overall_score REAL NOT NULL, risk TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL)`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_appeals (
+          id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, handle TEXT NOT NULL,
+          note TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL)`);
       })();
     }
     await ready;
@@ -323,7 +372,8 @@ export function createYardDesk(env) {
         [pubkey],
       )
     )[0];
-    if (!row?.handle) throw new HttpError(400, "Save your handle before using this yard.");
+    if (!row?.handle)
+      throw new HttpError(400, "Save your handle before using this yard.");
     return handleOf(String(row.handle));
   }
 
@@ -335,6 +385,13 @@ export function createYardDesk(env) {
       )
     )[0];
     if (!row) throw new HttpError(403, "Join the yard first.");
+    const banned = (
+      await query(
+        "SELECT 1 AS ok FROM yard_bans WHERE yard_id = ? AND handle = ? LIMIT 1",
+        [yard, handle],
+      )
+    )[0];
+    if (banned) throw new HttpError(403, "This yard has banned that handle.");
   }
 
   async function nextId(table) {
@@ -373,12 +430,15 @@ export function createYardDesk(env) {
   function universityFor(yard) {
     const hit = getHbcu(yard);
     if (!hit) return { school: "", shortName: yard, yardLabel: `${yard} yard` };
-    return { school: hit.school, shortName: hit.shortName, yardLabel: hit.yardLabel };
+    return {
+      school: hit.school,
+      shortName: hit.shortName,
+      yardLabel: hit.yardLabel,
+    };
   }
 
   async function yardCred(yard, handle) {
-    const count = async (sql) =>
-      num((await query(sql, [yard, handle]))[0]?.n);
+    const count = async (sql) => num((await query(sql, [yard, handle]))[0]?.n);
     const messages = await count(
       "SELECT COUNT(*) AS n FROM yard_messages WHERE yard_id = ? AND from_handle = ?",
     );
@@ -435,6 +495,13 @@ export function createYardDesk(env) {
   async function openBalance(yard, handle) {
     // One disclosed grant for joining this yard. It does not refill, and it
     // is not the university mark. That mark waits for cred inside this yard.
+    const banned = (
+      await query(
+        "SELECT 1 AS ok FROM yard_bans WHERE yard_id = ? AND handle = ? LIMIT 1",
+        [yard, handle],
+      )
+    )[0];
+    if (banned) return balanceOf(yard, handle);
     return credit(yard, handle, JOIN_GRANT_WB, "Joining this yard", "join");
   }
 
@@ -475,7 +542,8 @@ export function createYardDesk(env) {
     let link = "";
     if (kind === "external") {
       link = externalUrl(body.externalUrl || body.external_url);
-      if (!link) throw new HttpError(400, "Paste the Discord, Zoom, or YouTube link.");
+      if (!link)
+        throw new HttpError(400, "Paste the Discord, Zoom, or YouTube link.");
     }
     if (kind === "watch") {
       const parsed = parseWatchSource(
@@ -485,7 +553,10 @@ export function createYardDesk(env) {
       if (!parsed.ok) throw new HttpError(400, parsed.reason);
       link = encodeWatchTicket(parsed.ticket);
     }
-    const slug = `BkspcYard${yard.replace(/-/g, "")}${title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 24)}${Date.now().toString(36)}`;
+    const slug = `BkspcYard${yard.replace(/-/g, "")}${title
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")
+      .slice(0, 24)}${Date.now().toString(36)}`;
     const createdAt = new Date().toISOString();
     const row = (
       await query(
@@ -506,7 +577,11 @@ export function createYardDesk(env) {
     const id = num(String(body.roomId || body.id || "").replace(/^live_/, ""));
     const row = (await query("SELECT * FROM yard_rooms WHERE id = ?", [id]))[0];
     if (!row) throw new HttpError(404, "Room not found.");
-    if (String(row.created_by) !== who) throw new HttpError(403, "Only the person who opened the room can close it.");
+    if (String(row.created_by) !== who)
+      throw new HttpError(
+        403,
+        "Only the person who opened the room can close it.",
+      );
     await query("UPDATE yard_rooms SET closed = 1 WHERE id = ?", [id]);
     return { ok: true, closed: true };
   }
@@ -548,13 +623,18 @@ export function createYardDesk(env) {
     }
     const threads = new Map();
     for (const row of rows) {
-      const peerHandle = row.from_handle === who ? String(row.to_handle) : String(row.from_handle);
+      const peerHandle =
+        row.from_handle === who
+          ? String(row.to_handle)
+          : String(row.from_handle);
       if (threads.has(peerHandle)) continue;
       const rawBody = String(row.body);
       threads.set(peerHandle, {
         threadId: [yard, who, peerHandle].sort().join(":"),
         peerHandle,
-        lastBody: rawBody.startsWith(DM_PREFIX) ? "Encrypted message" : rawBody.slice(0, 120),
+        lastBody: rawBody.startsWith(DM_PREFIX)
+          ? "Encrypted message"
+          : rawBody.slice(0, 120),
         lastAt: String(row.created_at),
         unread: 0,
         yardId: yard,
@@ -569,7 +649,8 @@ export function createYardDesk(env) {
     const yard = yardId(body.yardId || body.yard_id);
     await requireMember(yard, who);
     const to = handleOf(body.toHandle || body.to);
-    if (to === who) throw new HttpError(400, "Choose someone else in this yard.");
+    if (to === who)
+      throw new HttpError(400, "Choose someone else in this yard.");
     await requireMember(yard, to);
     const rawBody = String(body.body || "").trim();
     let message;
@@ -579,13 +660,18 @@ export function createYardDesk(env) {
       } catch (err) {
         throw new HttpError(
           400,
-          err instanceof Error ? err.message : "That sealed message is not valid.",
+          err instanceof Error
+            ? err.message
+            : "That sealed message is not valid.",
         );
       }
     } else {
       message = text(body.body, "Message", 2000);
       if (looksLikePhi(message)) {
-        throw new HttpError(400, "Message blocked: looks like clinical or patient information. Use the hospital system.");
+        throw new HttpError(
+          400,
+          "Message blocked: looks like clinical or patient information. Use the hospital system.",
+        );
       }
     }
     const createdAt = new Date().toISOString();
@@ -629,14 +715,21 @@ export function createYardDesk(env) {
       await query("SELECT * FROM yard_rooms WHERE id = ? AND closed = 0", [id])
     )[0];
     if (!row) throw new HttpError(404, "Room not found.");
-    if (String(row.kind) !== "watch") throw new HttpError(400, "That room is not a watch room.");
+    if (String(row.kind) !== "watch")
+      throw new HttpError(400, "That room is not a watch room.");
     await requireMember(String(row.yard_id), who);
-    if (String(row.created_by) !== who) throw new HttpError(403, "Only the host sets the picture.");
-    const position = Math.max(0, Math.min(12 * 60 * 60 * 1000, Math.floor(num(body.positionMs))));
+    if (String(row.created_by) !== who)
+      throw new HttpError(403, "Only the host sets the picture.");
+    const position = Math.max(
+      0,
+      Math.min(12 * 60 * 60 * 1000, Math.floor(num(body.positionMs))),
+    );
     const playing = body.playing === true || body.playing === 1 ? 1 : 0;
     const now = new Date().toISOString();
     const existing = (
-      await query("SELECT room_id FROM yard_watch_clock WHERE room_id = ?", [id])
+      await query("SELECT room_id FROM yard_watch_clock WHERE room_id = ?", [
+        id,
+      ])
     )[0];
     if (existing) {
       await query(
@@ -652,7 +745,12 @@ export function createYardDesk(env) {
     }
     return {
       ok: true,
-      clock: { positionMs: position, playing: playing === 1, updatedAt: now, hostHandle: who },
+      clock: {
+        positionMs: position,
+        playing: playing === 1,
+        updatedAt: now,
+        hostHandle: who,
+      },
     };
   }
 
@@ -683,8 +781,14 @@ export function createYardDesk(env) {
   function messageKey(value) {
     if (!value || typeof value !== "object") return "";
     if (value.kty !== "EC" || value.crv !== "P-256") return "";
-    if (typeof value.x !== "string" || typeof value.y !== "string" || value.d) return "";
-    if (value.x.length < 8 || value.x.length > 200 || value.y.length < 8 || value.y.length > 200) {
+    if (typeof value.x !== "string" || typeof value.y !== "string" || value.d)
+      return "";
+    if (
+      value.x.length < 8 ||
+      value.x.length > 200 ||
+      value.y.length < 8 ||
+      value.y.length > 200
+    ) {
       return "";
     }
     return JSON.stringify({ kty: "EC", crv: "P-256", x: value.x, y: value.y });
@@ -697,14 +801,15 @@ export function createYardDesk(env) {
     if (!stored) throw new HttpError(400, "That message key is not valid.");
     const now = new Date().toISOString();
     const existing = (
-      await query("SELECT handle FROM yard_dm_keys WHERE handle = ? LIMIT 1", [who])
+      await query("SELECT handle FROM yard_dm_keys WHERE handle = ? LIMIT 1", [
+        who,
+      ])
     )[0];
     if (existing) {
-      await query("UPDATE yard_dm_keys SET public_jwk = ?, updated_at = ? WHERE handle = ?", [
-        stored,
-        now,
-        who,
-      ]);
+      await query(
+        "UPDATE yard_dm_keys SET public_jwk = ?, updated_at = ? WHERE handle = ?",
+        [stored, now, who],
+      );
     } else {
       await query(
         "INSERT INTO yard_dm_keys (handle, public_jwk, updated_at) VALUES (?, ?, ?)",
@@ -722,7 +827,10 @@ export function createYardDesk(env) {
     const peer = handleOf(handleRaw);
     await requireMember(yard, peer);
     const row = (
-      await query("SELECT public_jwk FROM yard_dm_keys WHERE handle = ? LIMIT 1", [peer])
+      await query(
+        "SELECT public_jwk FROM yard_dm_keys WHERE handle = ? LIMIT 1",
+        [peer],
+      )
     )[0];
     return {
       ok: true,
@@ -781,7 +889,9 @@ export function createYardDesk(env) {
           `SELECT * FROM yard_listings WHERE yard_id = ? AND sold_to IS NULL ORDER BY created_at DESC`,
           [yard],
         )
-      : await query(`SELECT * FROM yard_listings WHERE sold_to IS NULL ORDER BY created_at DESC`);
+      : await query(
+          `SELECT * FROM yard_listings WHERE sold_to IS NULL ORDER BY created_at DESC`,
+        );
     const listings = [];
     for (const row of rows) listings.push(await withEdition(mapListing(row)));
     return { ok: true, listings, passes: await openPasses(yard) };
@@ -829,15 +939,25 @@ export function createYardDesk(env) {
     const yard = yardId(body.yardId || body.townTag || body.town_tag);
     await requireMember(yard, who);
     const title = text(body.title, "Title", 120);
-    const description = String(body.description || "").trim().slice(0, 2000);
+    const description = String(body.description || "")
+      .trim()
+      .slice(0, 2000);
     const price = num(body.price);
     if (!Number.isInteger(price) || price < 1 || price > 100000) {
-      throw new HttpError(400, "Price must be a whole WeixBucks amount from 1 to 100000.");
+      throw new HttpError(
+        400,
+        "Price must be a whole WeixBucks amount from 1 to 100000.",
+      );
     }
-    const itemType = String(body.itemType || body.item_type || "item").slice(0, 40);
+    const itemType = String(body.itemType || body.item_type || "item").slice(
+      0,
+      40,
+    );
     const itemRef = optionalRef(body.itemRef || body.item_ref);
     const deliveryHint = optionalRef(body.deliveryHint || body.delivery_hint);
-    const requested = String(body.fulfillmentMode || body.fulfillment_mode || "");
+    const requested = String(
+      body.fulfillmentMode || body.fulfillment_mode || "",
+    );
     const fulfillment =
       itemType === "mix" && requested === "instant" ? "instant" : "escrow";
     const isNft = body.isNft === true && itemType !== "mix" ? 1 : 0;
@@ -894,7 +1014,8 @@ export function createYardDesk(env) {
     try {
       format = discFormatOf(row.disc_format, Math.max(1, tracks.length));
     } catch {
-      format = tracks.length <= 1 ? "single" : tracks.length <= 6 ? "ep" : "mixtape";
+      format =
+        tracks.length <= 1 ? "single" : tracks.length <= 6 ? "ep" : "mixtape";
     }
     let splits = [];
     try {
@@ -979,7 +1100,8 @@ export function createYardDesk(env) {
         [listingId, who],
       )
     )[0];
-    if (already) throw new HttpError(400, "You already hold a copy of this edition.");
+    if (already)
+      throw new HttpError(400, "You already hold a copy of this edition.");
     await query(
       "INSERT OR IGNORE INTO yard_edition_claims (listing_id, buyer_handle, created_at) VALUES (?, ?, ?)",
       [listingId, who, now],
@@ -1122,10 +1244,14 @@ export function createYardDesk(env) {
     await ensure();
     const who = await actor(pubkey);
     const listing = (
-      await query("SELECT * FROM yard_listings WHERE id = ?", [num(body.listingId || body.id)])
+      await query("SELECT * FROM yard_listings WHERE id = ?", [
+        num(body.listingId || body.id),
+      ])
     )[0];
-    if (!listing || listing.sold_to) throw new HttpError(404, "Listing not found.");
-    if (String(listing.seller_handle) === who) throw new HttpError(400, "You cannot buy your own listing.");
+    if (!listing || listing.sold_to)
+      throw new HttpError(404, "Listing not found.");
+    if (String(listing.seller_handle) === who)
+      throw new HttpError(400, "You cannot buy your own listing.");
     const yard = String(listing.yard_id);
     await requireMember(yard, who);
     const price = num(listing.price);
@@ -1143,7 +1269,9 @@ export function createYardDesk(env) {
         [who, num(listing.id)],
       );
       const claimed = (
-        await query("SELECT sold_to FROM yard_listings WHERE id = ?", [num(listing.id)])
+        await query("SELECT sold_to FROM yard_listings WHERE id = ?", [
+          num(listing.id),
+        ])
       )[0];
       if (String(claimed?.sold_to || "") !== who) {
         throw new HttpError(404, "Listing not found.");
@@ -1151,7 +1279,14 @@ export function createYardDesk(env) {
       await query(
         `INSERT INTO yard_wb (id, yard_id, handle, amount, reason, ref, created_at)
          VALUES (NULL, ?, ?, ?, ?, ?, ?)`,
-        [yard, who, -price, `Yard Sale: ${listing.title}`, `sale:${listing.id}`, now],
+        [
+          yard,
+          who,
+          -price,
+          `Yard Sale: ${listing.title}`,
+          `sale:${listing.id}`,
+          now,
+        ],
       );
       await credit(
         yard,
@@ -1170,11 +1305,16 @@ export function createYardDesk(env) {
         platformFee: fee,
         sellerNet,
         title: String(listing.title),
-        deliveryHint: listing.delivery_hint ? String(listing.delivery_hint) : "",
+        deliveryHint: listing.delivery_hint
+          ? String(listing.delivery_hint)
+          : "",
       };
     }
     const now = new Date().toISOString();
-    await query("UPDATE yard_listings SET sold_to = ? WHERE id = ? AND sold_to IS NULL", [who, num(listing.id)]);
+    await query(
+      "UPDATE yard_listings SET sold_to = ? WHERE id = ? AND sold_to IS NULL",
+      [who, num(listing.id)],
+    );
     const inserted = (
       await query(
         `INSERT INTO yard_escrow
@@ -1200,7 +1340,14 @@ export function createYardDesk(env) {
     await query(
       `INSERT INTO yard_wb (id, yard_id, handle, amount, reason, ref, created_at)
        VALUES (NULL, ?, ?, ?, ?, ?, ?)`,
-      [yard, who, -price, `Yard Sale: ${listing.title}`, `escrow:${escrowId}`, now],
+      [
+        yard,
+        who,
+        -price,
+        `Yard Sale: ${listing.title}`,
+        `escrow:${escrowId}`,
+        now,
+      ],
     );
     const bought = {
       ok: true,
@@ -1223,7 +1370,10 @@ export function createYardDesk(env) {
     const listingId = num(body.listingId || body.id);
     const price = num(body.price);
     if (!Number.isInteger(price) || price < 1 || price > 100000) {
-      throw new HttpError(400, "Price must be a whole WeixBucks amount from 1 to 100000.");
+      throw new HttpError(
+        400,
+        "Price must be a whole WeixBucks amount from 1 to 100000.",
+      );
     }
     const claim = (
       await query(
@@ -1265,14 +1415,16 @@ export function createYardDesk(env) {
       )
     )[0];
     const price = num(claim?.ask_wb);
-    if (!claim || price < 1) throw new HttpError(404, "That copy is not being passed.");
+    if (!claim || price < 1)
+      throw new HttpError(404, "That copy is not being passed.");
     const already = (
       await query(
         "SELECT 1 AS ok FROM yard_edition_claims WHERE listing_id = ? AND buyer_handle = ?",
         [listingId, who],
       )
     )[0];
-    if (already) throw new HttpError(400, "You already hold a copy of this edition.");
+    if (already)
+      throw new HttpError(400, "You already hold a copy of this edition.");
     if ((await balanceOf(yard, who)) < price) {
       throw new HttpError(400, "Not enough WeixBucks in this yard.");
     }
@@ -1359,7 +1511,9 @@ export function createYardDesk(env) {
   }
 
   async function escrowRow(id) {
-    const row = (await query("SELECT * FROM yard_escrow WHERE id = ?", [id]))[0];
+    const row = (
+      await query("SELECT * FROM yard_escrow WHERE id = ?", [id])
+    )[0];
     if (!row) throw new HttpError(404, "Escrow not found.");
     return row;
   }
@@ -1368,33 +1522,57 @@ export function createYardDesk(env) {
     await ensure();
     const who = await actor(pubkey);
     const row = await escrowRow(num(body.escrowId || body.id));
-    if (String(row.seller_handle) !== who) throw new HttpError(403, "Only the seller can mark this delivered.");
-    if (String(row.status) !== "funds_locked") throw new HttpError(400, "This sale is not waiting on delivery.");
-    const deliveryRef = text(body.deliveryRef || body.delivery_ref, "Delivery reference", 200);
+    if (String(row.seller_handle) !== who)
+      throw new HttpError(403, "Only the seller can mark this delivered.");
+    if (String(row.status) !== "funds_locked")
+      throw new HttpError(400, "This sale is not waiting on delivery.");
+    const deliveryRef = text(
+      body.deliveryRef || body.delivery_ref,
+      "Delivery reference",
+      200,
+    );
     await query(
       "UPDATE yard_escrow SET status = 'delivered', delivery_ref = ?, updated_at = ? WHERE id = ?",
       [deliveryRef, new Date().toISOString(), num(row.id)],
     );
-    return { ok: true, escrowId: num(row.id), status: "delivered", deliveryRef };
+    return {
+      ok: true,
+      escrowId: num(row.id),
+      status: "delivered",
+      deliveryRef,
+    };
   }
 
   async function release(body, pubkey) {
     await ensure();
     const who = await actor(pubkey);
     const row = await escrowRow(num(body.escrowId || body.id));
-    if (String(row.buyer_handle) !== who) throw new HttpError(403, "Only the buyer can release payment.");
-    if (String(row.status) !== "delivered") throw new HttpError(400, "Wait until the seller marks it delivered.");
+    if (String(row.buyer_handle) !== who)
+      throw new HttpError(403, "Only the buyer can release payment.");
+    if (String(row.status) !== "delivered")
+      throw new HttpError(400, "Wait until the seller marks it delivered.");
     const yard = String(row.yard_id);
     const seller = String(row.seller_handle);
     const net = num(row.seller_net);
-    await credit(yard, seller, net, `Yard Sale release: ${row.title}`, `release:${row.id}`);
+    await credit(
+      yard,
+      seller,
+      net,
+      `Yard Sale release: ${row.title}`,
+      `release:${row.id}`,
+    );
     await query(
       "UPDATE yard_escrow SET status = 'released', updated_at = ? WHERE id = ?",
       [new Date().toISOString(), num(row.id)],
     );
     await maybeGrantMark(yard, seller);
     await maybeGrantMark(yard, who);
-    return { ok: true, escrowId: num(row.id), status: "released", sellerNet: net };
+    return {
+      ok: true,
+      escrowId: num(row.id),
+      status: "released",
+      sellerNet: net,
+    };
   }
 
   async function myEscrows(pubkey) {
@@ -1445,7 +1623,10 @@ export function createYardDesk(env) {
     const out = String(value || "").trim();
     if (!out) return "";
     if (out.startsWith("data:") || out.startsWith("verse:")) {
-      throw new HttpError(400, "Cover art needs an image file or an https link.");
+      throw new HttpError(
+        400,
+        "Cover art needs an image file or an https link.",
+      );
     }
     return mediaRef(out);
   }
@@ -1482,14 +1663,19 @@ export function createYardDesk(env) {
         author,
       );
     } catch (err) {
-      throw new HttpError(400, err instanceof Error ? err.message : "That release is not valid.");
+      throw new HttpError(
+        400,
+        err instanceof Error ? err.message : "That release is not valid.",
+      );
     }
   }
 
   function mediaRef(value) {
     const out = String(value || "").trim();
-    if (!out) throw new HttpError(400, "Add a photo, a track, or an https link.");
-    if (out.length > 500) throw new HttpError(400, "That media link is too long.");
+    if (!out)
+      throw new HttpError(400, "Add a photo, a track, or an https link.");
+    if (out.length > 500)
+      throw new HttpError(400, "That media link is too long.");
     if (/^web_[a-z0-9]+$/i.test(out)) return out;
     let url;
     try {
@@ -1553,7 +1739,8 @@ export function createYardDesk(env) {
     try {
       format = discFormatOf(row.disc_format, Math.max(1, tracks.length));
     } catch {
-      format = tracks.length <= 1 ? "single" : tracks.length <= 6 ? "ep" : "mixtape";
+      format =
+        tracks.length <= 1 ? "single" : tracks.length <= 6 ? "ep" : "mixtape";
     }
     return {
       id: String(row.id),
@@ -1618,12 +1805,12 @@ export function createYardDesk(env) {
     )[0];
     if (!existing) {
       const count = (
-        await query(
-          "SELECT COUNT(*) AS n FROM yard_boards WHERE yard_id = ?",
-          [yard],
-        )
+        await query("SELECT COUNT(*) AS n FROM yard_boards WHERE yard_id = ?", [
+          yard,
+        ])
       )[0];
-      if (num(count?.n) >= 24) throw new HttpError(400, "This yard already has 24 boards");
+      if (num(count?.n) >= 24)
+        throw new HttpError(400, "This yard already has 24 boards");
       const dup = (
         await query(
           "SELECT id FROM yard_boards WHERE yard_id = ? AND lower(title) = lower(?) LIMIT 1",
@@ -1677,12 +1864,12 @@ export function createYardDesk(env) {
     )[0];
     if (!existing) {
       const count = (
-        await query(
-          "SELECT COUNT(*) AS n FROM yard_pins WHERE yard_id = ?",
-          [yard],
-        )
+        await query("SELECT COUNT(*) AS n FROM yard_pins WHERE yard_id = ?", [
+          yard,
+        ])
       )[0];
-      if (num(count?.n) >= 200) throw new HttpError(400, "This yard board is full");
+      if (num(count?.n) >= 200)
+        throw new HttpError(400, "This yard board is full");
       await query(
         `INSERT INTO yard_pins (id, yard_id, board_id, title, note, image, author_handle, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1721,7 +1908,8 @@ export function createYardDesk(env) {
     const blurb = optionalText(body.body, 500);
     const tracks = Array.isArray(body.tracks) ? body.tracks : [];
     if (!tracks.length) throw new HttpError(400, "Add at least one track");
-    if (tracks.length > 12) throw new HttpError(400, "A mixtape holds up to 12 tracks");
+    if (tracks.length > 12)
+      throw new HttpError(400, "A mixtape holds up to 12 tracks");
     const clean = tracks.map((track, index) => {
       const raw = String(track?.id || "").trim();
       const id = /^[a-z0-9_.:-]{1,64}$/i.test(raw) ? raw : `track_${index}`;
@@ -1732,7 +1920,10 @@ export function createYardDesk(env) {
           src: trackSrc(stem.src),
         }));
       } catch (err) {
-        throw new HttpError(400, err instanceof Error ? err.message : "That stem is not valid.");
+        throw new HttpError(
+          400,
+          err instanceof Error ? err.message : "That stem is not valid.",
+        );
       }
       return {
         id,
@@ -1742,13 +1933,26 @@ export function createYardDesk(env) {
       };
     });
     const packed = JSON.stringify(clean);
-    if (packed.length > 8000) throw new HttpError(400, "That mixtape is too large to share.");
+    if (packed.length > 8000)
+      throw new HttpError(400, "That mixtape is too large to share.");
     const setKind = setKindOf(body.setKind);
-    if (setKind === "songs" && clean.some((track) => String(track.src).startsWith("verse:"))) {
-      throw new HttpError(400, "A song set needs an audio file or an https link on every row.");
+    if (
+      setKind === "songs" &&
+      clean.some((track) => String(track.src).startsWith("verse:"))
+    ) {
+      throw new HttpError(
+        400,
+        "A song set needs an audio file or an https link on every row.",
+      );
     }
-    const priceWb = Math.max(0, Math.min(100000, Math.floor(num(body.priceWb))));
-    const editionSize = Math.max(1, Math.min(100, Math.floor(num(body.editionSize) || 1)));
+    const priceWb = Math.max(
+      0,
+      Math.min(100000, Math.floor(num(body.priceWb))),
+    );
+    const editionSize = Math.max(
+      1,
+      Math.min(100, Math.floor(num(body.editionSize) || 1)),
+    );
     const display = optionalText(body.authorDisplayName, 40) || who;
     const cover = coverRef(body.cover);
     const credits = optionalText(body.credits, 800);
@@ -1831,14 +2035,29 @@ export function createYardDesk(env) {
     )[0];
     if (!existing) {
       const count = (
-        await query("SELECT COUNT(*) AS n FROM yard_dj_battles WHERE yard_id = ?", [yard])
+        await query(
+          "SELECT COUNT(*) AS n FROM yard_dj_battles WHERE yard_id = ?",
+          [yard],
+        )
       )[0];
-      if (num(count?.n) >= 24) throw new HttpError(400, "This yard battle list is full.");
+      if (num(count?.n) >= 24)
+        throw new HttpError(400, "This yard battle list is full.");
       await query(
         `INSERT INTO yard_dj_battles (
            id, yard_id, title, mix_id, mix_title, set_kind, call_url, jitsi_slug, host_handle, created_at
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, yard, title, mixId, mixTitle, setKind, call, slug, who, stamp(body.createdAt)],
+        [
+          id,
+          yard,
+          title,
+          mixId,
+          mixTitle,
+          setKind,
+          call,
+          slug,
+          who,
+          stamp(body.createdAt),
+        ],
       );
     }
     const row = (
@@ -1851,7 +2070,14 @@ export function createYardDesk(env) {
   }
 
   const RACE_BODIES = new Set(["coupe", "lowrider", "bus", "bike"]);
-  const RACE_PAINTS = new Set(["gold", "yard", "night", "cream", "cardinal", "royal"]);
+  const RACE_PAINTS = new Set([
+    "gold",
+    "yard",
+    "night",
+    "cream",
+    "cardinal",
+    "royal",
+  ]);
   const RACE_PACE = { cruise: 20, campus: 40, yard: 60, record: 90 };
   const RACE_PRIZE = { cruise: 4, campus: 8, yard: 12, record: 16, match: 12 };
   const RACE_CAP = 40;
@@ -1859,7 +2085,11 @@ export function createYardDesk(env) {
 
   function raceVehicle(raw) {
     const v = raw && typeof raw === "object" ? raw : {};
-    const name = String(v.name || "Racer").replace(/\s+/g, " ").trim().slice(0, 16) || "Racer";
+    const name =
+      String(v.name || "Racer")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 16) || "Racer";
     const number = Math.max(0, Math.min(99, Math.floor(Number(v.number) || 0)));
     return {
       name,
@@ -1947,11 +2177,16 @@ export function createYardDesk(env) {
         )
       )[0]?.n,
     );
-    const paid = Math.max(0, Math.min(prize, RACE_CAP - used));
+    const score = await midfFor(handle);
+    if (score.paused) {
+      return { paid: 0, paused: true, balance: await balanceOf(yard, handle) };
+    }
+    const cap = await earnCapOf(yard);
+    const paid = Math.max(0, Math.min(prize, RACE_CAP - used, cap - used));
     if (paid > 0) {
       await credit(yard, handle, paid, "Typeverse race", `typeverse:${id}`);
     }
-    return { paid, balance: await balanceOf(yard, handle) };
+    return { paid, paused: false, balance: await balanceOf(yard, handle) };
   }
 
   async function typeverseRaces(yardRaw, idRaw) {
@@ -1985,15 +2220,19 @@ export function createYardDesk(env) {
     const who = await actor(pubkey);
     await requireMember(yard, who);
     const id = rowId(body.id, "Race");
-    const mode = body.mode === "yard" ? "yard" : body.mode === "cpu" ? "cpu" : "";
+    const mode =
+      body.mode === "yard" ? "yard" : body.mode === "cpu" ? "cpu" : "";
     if (!mode) throw new HttpError(400, "Race the CPU or the yard.");
-    const difficulty = mode === "yard" ? "match" : String(body.difficulty || "");
+    const difficulty =
+      mode === "yard" ? "match" : String(body.difficulty || "");
     if (mode === "cpu" && !RACE_PACE[difficulty]) {
       throw new HttpError(400, "Pick a CPU difficulty.");
     }
     const verseText = text(body.verseText, "Verse", 280);
-    if (verseText.length < 40) throw new HttpError(400, "That verse is too short to race.");
-    if (/[\u0000-\u001f]/.test(verseText)) throw new HttpError(400, "That verse is not valid.");
+    if (verseText.length < 40)
+      throw new HttpError(400, "That verse is too short to race.");
+    if (/[\u0000-\u001f]/.test(verseText))
+      throw new HttpError(400, "That verse is not valid.");
     const verseRefText = text(body.verseRef, "Verse reference", 40);
     const existing = await raceRow(id);
     if (existing) return { ok: true, race: await mapRace(existing) };
@@ -2005,7 +2244,8 @@ export function createYardDesk(env) {
         )
       )[0]?.n,
     );
-    if (open >= 20) throw new HttpError(400, "This yard already has a full race list.");
+    if (open >= 20)
+      throw new HttpError(400, "This yard already has a full race list.");
     const now = new Date().toISOString();
     const started = mode === "cpu" ? now : "";
     await query(
@@ -2029,17 +2269,21 @@ export function createYardDesk(env) {
     const who = await actor(pubkey);
     await requireMember(yard, who);
     const row = await raceRow(rowId(body.raceId || body.id, "Race"));
-    if (!row || String(row.yard_id) !== yard) throw new HttpError(404, "That race is not on this yard.");
+    if (!row || String(row.yard_id) !== yard)
+      throw new HttpError(404, "That race is not on this yard.");
     if (String(row.mode) !== "yard" || String(row.status) !== "open") {
       throw new HttpError(400, "That race is not open.");
     }
     if (Date.now() - Date.parse(String(row.created_at)) > RACE_MS) {
       throw new HttpError(400, "That race closed.");
     }
-    if (String(row.host_handle) === who) return { ok: true, race: await mapRace(row) };
+    if (String(row.host_handle) === who)
+      return { ok: true, race: await mapRace(row) };
     const entries = await raceEntries(String(row.id));
-    if (entries.some((entry) => entry.handle === who)) return { ok: true, race: await mapRace(row) };
-    if (entries.length >= 2) throw new HttpError(400, "That race already has two racers.");
+    if (entries.some((entry) => entry.handle === who))
+      return { ok: true, race: await mapRace(row) };
+    if (entries.length >= 2)
+      throw new HttpError(400, "That race already has two racers.");
     const now = new Date().toISOString();
     await query(
       `INSERT INTO yard_typeverse_entries (race_id, handle, vehicle, accuracy, progress, finished_at)
@@ -2062,7 +2306,10 @@ export function createYardDesk(env) {
       return { ok: true };
     }
     const verseLen = String(row.verse_text || "").length;
-    const correct = Math.max(0, Math.min(verseLen, Math.floor(Number(body.correct) || 0)));
+    const correct = Math.max(
+      0,
+      Math.min(verseLen, Math.floor(Number(body.correct) || 0)),
+    );
     await query(
       `UPDATE yard_typeverse_entries
           SET progress = ?
@@ -2078,7 +2325,8 @@ export function createYardDesk(env) {
     const who = await actor(pubkey);
     await requireMember(yard, who);
     const row = await raceRow(rowId(body.raceId || body.id, "Race"));
-    if (!row || String(row.yard_id) !== yard) throw new HttpError(404, "That race is not on this yard.");
+    if (!row || String(row.yard_id) !== yard)
+      throw new HttpError(404, "That race is not on this yard.");
     const started = String(row.started_at || "");
     if (!started) throw new HttpError(400, "Wait for another racer.");
     if (Date.now() - Date.parse(String(row.created_at)) > RACE_MS) {
@@ -2094,7 +2342,10 @@ export function createYardDesk(env) {
         paid: 0,
         balance: await balanceOf(yard, who),
         accuracy: mine.accuracy,
-        reason: String(row.winner_handle) === who ? "You already finished this race." : "That race is already decided.",
+        reason:
+          String(row.winner_handle) === who
+            ? "You already finished this race."
+            : "That race is already decided.",
         race: await mapRace(await raceRow(String(row.id))),
       };
     }
@@ -2104,29 +2355,41 @@ export function createYardDesk(env) {
     const accuracy = raceAccuracy(typed, verse);
     const complete = typed.length === verse.length;
     const pace = RACE_PACE[String(row.difficulty)] || 40;
-    const cpuDone = String(row.mode) === "cpu" && elapsed >= racePaceMs(verse.length, pace);
+    const cpuDone =
+      String(row.mode) === "cpu" && elapsed >= racePaceMs(verse.length, pace);
     const tooFast =
       String(row.mode) === "cpu" &&
       complete &&
       accuracy >= 90 &&
       elapsed < racePaceMs(verse.length, 250);
     if (!complete && !cpuDone) throw new HttpError(400, "Finish the verse.");
-    if (tooFast) throw new HttpError(400, "That finish is faster than the race allows.");
+    if (tooFast)
+      throw new HttpError(400, "That finish is faster than the race allows.");
     const now = new Date().toISOString();
     await query(
       `UPDATE yard_typeverse_entries
           SET accuracy = ?, progress = ?, finished_at = ?
         WHERE race_id = ? AND handle = ? AND finished_at = ''`,
-      [accuracy, complete ? verse.length : Math.min(typed.length, verse.length), now, String(row.id), who],
+      [
+        accuracy,
+        complete ? verse.length : Math.min(typed.length, verse.length),
+        now,
+        String(row.id),
+        who,
+      ],
     );
     let won = false;
     let reason = "Finish the verse.";
     if (cpuDone) reason = "The CPU finished first.";
     else if (accuracy < 90) reason = "Accuracy under 90%.";
-    else if (String(row.winner_handle)) reason = "That race is already decided.";
+    else if (String(row.winner_handle))
+      reason = "That race is already decided.";
     else {
       won = true;
-      reason = String(row.mode) === "cpu" ? "You beat the CPU." : "You finished first.";
+      reason =
+        String(row.mode) === "cpu"
+          ? "You beat the CPU."
+          : "You finished first.";
     }
     if (won || cpuDone || accuracy < 90) {
       await query(
@@ -2146,7 +2409,9 @@ export function createYardDesk(env) {
       ? await payRace(yard, who, String(row.id), prize)
       : { paid: 0, balance: await balanceOf(yard, who) };
     if (won && purse.paid === 0) {
-      reason = "You won. The daily Typeverse purse is already used.";
+      reason = purse.paused
+        ? "The earn pause is on. This score is above 0.7."
+        : "You won. The daily Typeverse purse is already used.";
     }
     return {
       ok: true,
@@ -2157,6 +2422,330 @@ export function createYardDesk(env) {
       reason,
       race: await mapRace(await raceRow(String(row.id))),
     };
+  }
+
+  function requireMod(handle) {
+    if (!FOUNDER_MODS.has(handle)) {
+      throw new HttpError(403, "Only a yard mod can do that.");
+    }
+  }
+
+  async function earnCapOf(yard) {
+    const row = (
+      await query(
+        "SELECT cap_wb FROM yard_earn_caps WHERE yard_id = ? LIMIT 1",
+        [yard],
+      )
+    )[0];
+    return row ? clampEarnCap(num(row.cap_wb)) : EARN_CAP_DEFAULT;
+  }
+
+  function mapReport(row) {
+    return {
+      id: String(row.id),
+      yardId: String(row.yard_id),
+      postId: num(row.post_id),
+      authorHandle: String(row.author_handle),
+      reporterHandle: String(row.reporter_handle),
+      reason: String(row.reason),
+      status: String(row.status),
+      createdAt: String(row.created_at),
+    };
+  }
+
+  async function midfFor(handle) {
+    await ensure();
+    const empty = midfScore({
+      followerCount: 0,
+      lowFollowerCount: 0,
+      recentFollowerCount: 0,
+      selfLikes: 0,
+      totalLikes: 0,
+      selfReplies: 0,
+      totalReplies: 0,
+      totalPosts: 0,
+      duplicatePosts: 0,
+      burstExcess: 0,
+    });
+    let score = empty;
+    try {
+      const posts = await query(
+        `SELECT content, created_at FROM portfolio_posts
+          WHERE lower(author_handle) = ? ORDER BY created_at DESC LIMIT 200`,
+        [handle],
+      );
+      const contents = posts.map((row) => String(row.content || ""));
+      const stamps = posts.map((row) => String(row.created_at || ""));
+      const likes = (
+        await query(
+          `SELECT
+             SUM(CASE WHEN l.actor_pubkey = p.author_pubkey THEN 1 ELSE 0 END) AS self_likes,
+             COUNT(*) AS total_likes
+           FROM portfolio_likes l
+           JOIN portfolio_posts p ON p.id = l.post_id
+           WHERE lower(p.author_handle) = ? AND l.desired_state = 1`,
+          [handle],
+        )
+      )[0];
+      const replies = (
+        await query(
+          `SELECT
+             SUM(CASE WHEN lower(r.author_handle) = lower(p.author_handle) THEN 1 ELSE 0 END) AS self_replies,
+             COUNT(*) AS total_replies
+           FROM portfolio_replies r
+           JOIN portfolio_posts p ON p.id = r.post_id
+           WHERE lower(p.author_handle) = ?`,
+          [handle],
+        )
+      )[0];
+      const followers = await query(
+        `SELECT f.follower_pubkey AS follower, f.created_at AS created_at
+           FROM portfolio_follows f
+           JOIN portfolio_identities t ON t.pubkey = f.target_pubkey
+          WHERE lower(t.handle) = ? AND f.desired_state = 1
+          LIMIT 200`,
+        [handle],
+      );
+      const cutoff = new Date(
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      let lowFollowerCount = 0;
+      let recentFollowerCount = 0;
+      for (const follower of followers) {
+        const count = num(
+          (
+            await query(
+              `SELECT COUNT(*) AS n FROM portfolio_follows
+                WHERE target_pubkey = ? AND desired_state = 1`,
+              [String(follower.follower)],
+            )
+          )[0]?.n,
+        );
+        if (count < 3) lowFollowerCount += 1;
+        if (String(follower.created_at || "") >= cutoff)
+          recentFollowerCount += 1;
+      }
+      score = midfScore({
+        followerCount: followers.length,
+        lowFollowerCount,
+        recentFollowerCount,
+        selfLikes: num(likes?.self_likes),
+        totalLikes: num(likes?.total_likes),
+        selfReplies: num(replies?.self_replies),
+        totalReplies: num(replies?.total_replies),
+        totalPosts: contents.length,
+        duplicatePosts: duplicatePostCount(contents),
+        burstExcess: burstExcess(stamps),
+      });
+      score = { ...score, paused: score.overall > MIDF_EARN_PAUSE };
+    } catch (err) {
+      if (!(err instanceof HttpError) || err.status !== 502) throw err;
+      score = empty;
+    }
+    await query(
+      `INSERT INTO yard_midf (handle, overall_score, risk, detail, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(handle) DO UPDATE SET
+         overall_score = excluded.overall_score,
+         risk = excluded.risk,
+         detail = excluded.detail,
+         updated_at = excluded.updated_at`,
+      [
+        handle,
+        score.overall,
+        score.risk,
+        JSON.stringify(score.dimensions),
+        new Date().toISOString(),
+      ],
+    );
+    return score;
+  }
+
+  async function modDesk(pubkey, yardRaw) {
+    await ensure();
+    const yard = yardId(yardRaw);
+    const hidden = await query(
+      "SELECT post_id FROM yard_hidden_posts WHERE yard_id = ? ORDER BY post_id",
+      [yard],
+    );
+    const bans = await query(
+      "SELECT handle FROM yard_bans WHERE yard_id = ? ORDER BY handle",
+      [yard],
+    );
+    const body = {
+      ok: true,
+      yardId: yard,
+      earnCapWb: await earnCapOf(yard),
+      midfPause: MIDF_EARN_PAUSE,
+      hiddenPostIds: hidden.map((row) => num(row.post_id)),
+      bannedHandles: bans.map((row) => String(row.handle)),
+    };
+    if (!pubkey) return body;
+    let who = "";
+    try {
+      who = await actor(pubkey);
+    } catch {
+      return body;
+    }
+    body.you = await midfFor(who);
+    if (!FOUNDER_MODS.has(who)) return body;
+    const reports = await query(
+      `SELECT id, yard_id, post_id, author_handle, reporter_handle, reason, status, created_at
+         FROM yard_reports WHERE yard_id = ? AND status = 'open' ORDER BY created_at DESC`,
+      [yard],
+    );
+    const appeals = await query(
+      `SELECT id, handle, note, created_at FROM yard_appeals
+        WHERE yard_id = ? AND status = 'open' ORDER BY created_at DESC`,
+      [yard],
+    );
+    return {
+      ...body,
+      reports: reports.map(mapReport),
+      appeals: appeals.map((row) => ({
+        id: String(row.id),
+        handle: String(row.handle),
+        note: String(row.note),
+        createdAt: String(row.created_at),
+      })),
+    };
+  }
+
+  async function fileReport(body, pubkey) {
+    await ensure();
+    const who = await actor(pubkey);
+    const yard = yardId(body.yardId || body.yard);
+    await requireMember(yard, who);
+    const author = handleOf(body.authorHandle || body.author);
+    const postId = num(body.postId || body.post_id);
+    if (!Number.isInteger(postId) || postId < 1) {
+      throw new HttpError(400, "Name the post.");
+    }
+    const reason = REPORT_REASONS.has(body.reason) ? body.reason : "spam";
+    const existing = (
+      await query(
+        `SELECT id, yard_id, post_id, author_handle, reporter_handle, reason, status, created_at
+           FROM yard_reports
+          WHERE yard_id = ? AND post_id = ? AND reporter_handle = ? AND status = 'open'
+          LIMIT 1`,
+        [yard, postId, who],
+      )
+    )[0];
+    if (existing) return { ok: true, report: mapReport(existing) };
+    const id = `rep_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    const createdAt = new Date().toISOString();
+    await query(
+      `INSERT INTO yard_reports
+         (id, yard_id, post_id, author_handle, reporter_handle, reason, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`,
+      [id, yard, postId, author, who, reason, createdAt],
+    );
+    await midfFor(author);
+    return {
+      ok: true,
+      report: mapReport({
+        id,
+        yard_id: yard,
+        post_id: postId,
+        author_handle: author,
+        reporter_handle: who,
+        reason,
+        status: "open",
+        created_at: createdAt,
+      }),
+    };
+  }
+
+  async function hideReported(body, pubkey) {
+    await ensure();
+    const who = await actor(pubkey);
+    const yard = yardId(body.yardId || body.yard);
+    await requireMember(yard, who);
+    requireMod(who);
+    const postId = num(body.postId || body.post_id);
+    if (!Number.isInteger(postId) || postId < 1)
+      throw new HttpError(400, "Name the post.");
+    await query(
+      "INSERT OR IGNORE INTO yard_hidden_posts (yard_id, post_id) VALUES (?, ?)",
+      [yard, postId],
+    );
+    if (body.reportId) {
+      await query(
+        `UPDATE yard_reports SET status = 'hidden'
+          WHERE id = ? AND yard_id = ? AND status = 'open'`,
+        [String(body.reportId), yard],
+      );
+    }
+    return { ok: true, postId, hidden: true };
+  }
+
+  async function banReported(body, pubkey) {
+    await ensure();
+    const who = await actor(pubkey);
+    const yard = yardId(body.yardId || body.yard);
+    await requireMember(yard, who);
+    requireMod(who);
+    const handle = handleOf(body.handle || body.authorHandle);
+    if (FOUNDER_MODS.has(handle)) {
+      throw new HttpError(400, "The founder mod cannot be banned.");
+    }
+    await query(
+      "INSERT OR IGNORE INTO yard_bans (yard_id, handle, created_at) VALUES (?, ?, ?)",
+      [yard, handle, new Date().toISOString()],
+    );
+    if (body.reportId) {
+      await query(
+        `UPDATE yard_reports SET status = 'banned'
+          WHERE id = ? AND yard_id = ? AND status = 'open'`,
+        [String(body.reportId), yard],
+      );
+    }
+    return { ok: true, handle, banned: true };
+  }
+
+  async function dismissReported(body, pubkey) {
+    await ensure();
+    const who = await actor(pubkey);
+    const yard = yardId(body.yardId || body.yard);
+    await requireMember(yard, who);
+    requireMod(who);
+    const id = text(body.reportId || body.id, "Report", 80);
+    await query(
+      `UPDATE yard_reports SET status = 'dismissed'
+        WHERE id = ? AND yard_id = ? AND status = 'open'`,
+      [id, yard],
+    );
+    return { ok: true, reportId: id, dismissed: true };
+  }
+
+  async function setEarnCap(body, pubkey) {
+    await ensure();
+    const who = await actor(pubkey);
+    const yard = yardId(body.yardId || body.yard);
+    await requireMember(yard, who);
+    requireMod(who);
+    const cap = clampEarnCap(num(body.capWb ?? body.cap));
+    await query(
+      `INSERT INTO yard_earn_caps (yard_id, cap_wb) VALUES (?, ?)
+       ON CONFLICT(yard_id) DO UPDATE SET cap_wb = excluded.cap_wb`,
+      [yard, cap],
+    );
+    return { ok: true, yardId: yard, earnCapWb: cap };
+  }
+
+  async function fileAppeal(body, pubkey) {
+    await ensure();
+    const who = await actor(pubkey);
+    const yard = yardId(body.yardId || body.yard);
+    await requireMember(yard, who);
+    const note = text(body.note, "Note", 280);
+    const id = `appeal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    await query(
+      `INSERT INTO yard_appeals (id, yard_id, handle, note, status, created_at)
+       VALUES (?, ?, ?, ?, 'open', ?)`,
+      [id, yard, who, note, new Date().toISOString()],
+    );
+    return { ok: true, id, handle: who };
   }
 
   return {
@@ -2193,5 +2782,13 @@ export function createYardDesk(env) {
     joinTypeverseRace,
     typeverseProgress,
     finishTypeverseRace,
+    modDesk,
+    fileReport,
+    hideReported,
+    banReported,
+    dismissReported,
+    setEarnCap,
+    fileAppeal,
+    midfFor,
   };
 }

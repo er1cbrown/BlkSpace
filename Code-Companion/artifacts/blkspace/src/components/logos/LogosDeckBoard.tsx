@@ -975,6 +975,7 @@ function BookHost({
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [error, setError] = useState("");
+  const [swordModule, setSwordModule] = useState("KJV");
 
   const place = (side: "a" | "b") => {
     try {
@@ -985,6 +986,31 @@ function BookHost({
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Name the reading.");
+    }
+  };
+
+  const readSword = async () => {
+    const ref = title.trim();
+    if (!ref) {
+      setError("Name the verse, like John 3:16.");
+      return;
+    }
+    const params = new URLSearchParams({ module: swordModule, ref });
+    try {
+      const res = await fetch(`/api/logos/sword?${params}`);
+      const body = await res.json().catch(() => null);
+      const verse = body?.verses?.find((row: { text?: string }) =>
+        row?.text?.trim(),
+      );
+      if (!res.ok || !body?.ok || !verse?.text) {
+        setError(body?.error || "SWORD library is not on this host.");
+        return;
+      }
+      setText(verse.text);
+      if (verse.reference) setTitle(verse.reference);
+      setError("");
+    } catch {
+      setError("SWORD library is not on this host.");
     }
   };
 
@@ -1028,6 +1054,30 @@ function BookHost({
         className="min-h-16 w-full rounded-md border bg-background px-2 py-1 text-sm"
         onChange={(event) => setText(event.target.value)}
       />
+      {tradition === "Bible" && (
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label="SWORD module"
+            value={swordModule}
+            className="h-8 rounded-md border bg-background px-2 text-sm"
+            onChange={(event) => setSwordModule(event.target.value)}
+          >
+            {["KJV", "GNT", "RVG", "SpaRV"].map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void readSword()}
+          >
+            Read from SWORD
+          </Button>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"

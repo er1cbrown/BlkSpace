@@ -1851,3 +1851,164 @@ describe("watch room and sealed messages", () => {
     expect(threads.threads.find((row) => row.peerHandle === "faye").lastBody).toBe("Encrypted message");
   });
 });
+
+describe("yard mod on the shared server", () => {
+  test("a hide and a ban reach the other browser, and a farm pauses earn", async () => {
+    const mod = generateSecretKey();
+    const student = generateSecretKey();
+    const farmer = generateSecretKey();
+    expect((await post("/api/portfolio/identity", { handle: "er1cbrown" }, mod)).status).toBe(200);
+    expect((await post("/api/portfolio/identity", { handle: "reed" }, student)).status).toBe(200);
+    expect((await post("/api/portfolio/identity", { handle: "wynn" }, farmer)).status).toBe(200);
+    expect((await post("/api/yards/join", { yardId: "moddesk" }, mod)).status).toBe(200);
+    expect((await post("/api/yards/join", { yardId: "moddesk" }, student)).status).toBe(200);
+    expect((await post("/api/yards/join", { yardId: "moddesk" }, farmer)).status).toBe(200);
+
+    expect(
+      (
+        await post(
+          "/api/portfolio/interactions/follow",
+          { targetHandle: "wynn", desiredState: true, actionUid: "follow-reed-wynn-0001" },
+          student,
+        )
+      ).status,
+    ).toBe(200);
+    const farm = "farm note farm note farm note";
+    expect(
+      (
+        await post(
+          "/api/portfolio/post",
+          { id: 88001, authorHandle: "wynn", content: farm, townTag: "moddesk", mediaBlobs: [] },
+          farmer,
+        )
+      ).status,
+    ).toBe(200);
+    for (let i = 1; i < 5; i += 1) {
+      expect(
+        (
+          await post(
+            "/api/portfolio/post",
+            {
+              postUid: `moddesk-wynn-000${i}`,
+              authorHandle: "wynn",
+              content: farm,
+              townTag: "moddesk",
+              mediaBlobs: [],
+            },
+            farmer,
+          )
+        ).status,
+      ).toBe(200);
+    }
+
+    const scored = await (
+      await authorizedGet("/api/yards/mod?yard=moddesk", farmer)
+    ).json();
+    expect(scored.you.paused).toBe(true);
+    expect(scored.you.overall).toBeGreaterThan(0.7);
+    expect(scored.reports).toBeUndefined();
+
+    const verse = "In the beginning God created the heaven and the earth.";
+    const race = await post(
+      "/api/yards/typeverse/races",
+      {
+        id: "race_moddesk_wynn",
+        yardId: "moddesk",
+        mode: "cpu",
+        difficulty: "campus",
+        verseRef: "Genesis 1:1",
+        verseText: verse,
+      },
+      farmer,
+    );
+    expect(race.status).toBe(200);
+    const started = new Date(Date.now() - 8000).toISOString();
+    db.query("UPDATE yard_typeverse_races SET created_at = ?, started_at = ? WHERE id = ?").run(
+      started,
+      started,
+      "race_moddesk_wynn",
+    );
+    const paused = await post(
+      "/api/yards/typeverse/races/finish",
+      { raceId: "race_moddesk_wynn", yardId: "moddesk", typed: verse },
+      farmer,
+    );
+    expect(paused.status).toBe(200);
+    const pausedBody = await paused.json();
+    expect(pausedBody.won).toBe(true);
+    expect(pausedBody.paid).toBe(0);
+    expect(pausedBody.reason).toBe("The earn pause is on. This score is above 0.7.");
+
+    const appeal = await post(
+      "/api/yards/mod/appeal",
+      { yardId: "moddesk", note: "The score looks wrong." },
+      farmer,
+    );
+    expect(appeal.status).toBe(200);
+
+    const filed = await post(
+      "/api/yards/mod/report",
+      { yardId: "moddesk", postId: 88001, authorHandle: "wynn", reason: "spam" },
+      student,
+    );
+    expect(filed.status).toBe(200);
+    const reportId = (await filed.json()).report.id;
+    const queue = await (await authorizedGet("/api/yards/mod?yard=moddesk", mod)).json();
+    expect(queue.reports.some((row) => row.id === reportId)).toBe(true);
+    expect(queue.appeals[0].handle).toBe("wynn");
+    expect((await post("/api/yards/mod/hide", { yardId: "moddesk", postId: 88001, reportId }, student)).status).toBe(403);
+    expect((await post("/api/yards/mod/hide", { yardId: "moddesk", postId: 88001, reportId }, mod)).status).toBe(200);
+    const listed = await (await fetch(base + "/api/portfolio/posts?town=moddesk")).json();
+    expect(listed.rows.some((row) => row.id === 88001 || row.id === "88001")).toBe(false);
+    const seen = await (await fetch(base + "/api/yards/mod?yard=moddesk")).json();
+    expect(seen.hiddenPostIds).toContain(88001);
+    expect(seen.reports).toBeUndefined();
+
+    expect((await post("/api/yards/mod/cap", { yardId: "moddesk", capWb: 20 }, mod)).status).toBe(200);
+    expect((await (await post("/api/yards/mod/cap", { yardId: "moddesk", capWb: 20 }, mod)).json()).earnCapWb).toBe(100);
+    expect((await post("/api/yards/mod/cap", { yardId: "moddesk", capWb: 400 }, student)).status).toBe(403);
+
+    expect((await post("/api/yards/mod/ban", { yardId: "moddesk", handle: "wynn", reportId }, mod)).status).toBe(200);
+    expect((await post("/api/yards/mod/ban", { yardId: "moddesk", handle: "er1cbrown" }, mod)).status).toBe(400);
+    const blocked = await post(
+      "/api/yards/messages",
+      { yardId: "moddesk", toHandle: "reed", body: "still here" },
+      farmer,
+    );
+    expect(blocked.status).toBe(403);
+    expect(
+      (
+        await post(
+          "/api/portfolio/post",
+          {
+            postUid: "moddesk-wynn-after-ban",
+            authorHandle: "wynn",
+            content: "one more",
+            townTag: "moddesk",
+            mediaBlobs: [],
+          },
+          farmer,
+        )
+      ).status,
+    ).toBe(403);
+  });
+});
+
+describe("local SWORD verse reader", () => {
+  test("refuses an unknown module and does not invent a verse", async () => {
+    const bad = await fetch(base + "/api/logos/sword?module=NIV&ref=John%203:16");
+    expect(bad.status).toBe(400);
+    const unnamed = await fetch(base + "/api/logos/sword?module=KJV");
+    expect(unnamed.status).toBe(400);
+    const row = await fetch(base + "/api/logos/sword?module=KJV&ref=John%203:16");
+    const body = await row.json();
+    if (row.status === 503) {
+      expect(body.ok).toBe(false);
+      expect(JSON.stringify(body)).not.toMatch(/loved the world/i);
+      return;
+    }
+    expect(row.status).toBe(200);
+    expect(body.module).toBe("KJV");
+    expect(body.verses[0].text.trim().length).toBeGreaterThan(0);
+  });
+});

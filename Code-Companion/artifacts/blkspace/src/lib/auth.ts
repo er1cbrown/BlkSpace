@@ -247,6 +247,15 @@ export function getSessionToken(): string | null {
   return localStorage.getItem(SESSION_KEY);
 }
 
+/** True when this browser can sign a yard request. The key stays in the tab. */
+export function hasWebKey(): boolean {
+  try {
+    return !!webSecretStorage().getItem(SECRET_KEY);
+  } catch {
+    return false;
+  }
+}
+
 export function getStoredPubkey(): string | null {
   return localStorage.getItem(PUBKEY_KEY);
 }
