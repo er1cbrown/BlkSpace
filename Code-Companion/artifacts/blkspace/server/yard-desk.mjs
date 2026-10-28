@@ -243,6 +243,16 @@ export function createYardDesk(env) {
           mix_id TEXT NOT NULL, mix_title TEXT NOT NULL, set_kind TEXT NOT NULL DEFAULT 'songs',
           call_url TEXT NOT NULL DEFAULT '', jitsi_slug TEXT NOT NULL,
           host_handle TEXT NOT NULL, created_at TEXT NOT NULL)`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_typeverse_races (
+          id TEXT PRIMARY KEY, yard_id TEXT NOT NULL, host_handle TEXT NOT NULL,
+          mode TEXT NOT NULL, difficulty TEXT NOT NULL, verse_ref TEXT NOT NULL,
+          verse_text TEXT NOT NULL, status TEXT NOT NULL, winner_handle TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL, started_at TEXT NOT NULL DEFAULT '')`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_typeverse_entries (
+          race_id TEXT NOT NULL, handle TEXT NOT NULL, vehicle TEXT NOT NULL DEFAULT '',
+          accuracy INTEGER NOT NULL DEFAULT 0, progress INTEGER NOT NULL DEFAULT 0,
+          finished_at TEXT NOT NULL DEFAULT '',
+          PRIMARY KEY (race_id, handle))`);
       })();
     }
     await ready;
@@ -1297,6 +1307,315 @@ export function createYardDesk(env) {
     return { ok: true, battle: mapBattle(row) };
   }
 
+  const RACE_BODIES = new Set(["coupe", "lowrider", "bus", "bike"]);
+  const RACE_PAINTS = new Set(["gold", "yard", "night", "cream", "cardinal", "royal"]);
+  const RACE_PACE = { cruise: 20, campus: 40, yard: 60, record: 90 };
+  const RACE_PRIZE = { cruise: 4, campus: 8, yard: 12, record: 16, match: 12 };
+  const RACE_CAP = 40;
+  const RACE_MS = 15 * 60 * 1000;
+
+  function raceVehicle(raw) {
+    const v = raw && typeof raw === "object" ? raw : {};
+    const name = String(v.name || "Racer").replace(/\s+/g, " ").trim().slice(0, 16) || "Racer";
+    const number = Math.max(0, Math.min(99, Math.floor(Number(v.number) || 0)));
+    return {
+      name,
+      body: RACE_BODIES.has(v.body) ? v.body : "coupe",
+      paint: RACE_PAINTS.has(v.paint) ? v.paint : "gold",
+      accent: RACE_PAINTS.has(v.accent) ? v.accent : "night",
+      number,
+    };
+  }
+
+  function raceAccuracy(typed, target) {
+    const text = String(typed || "");
+    const verse = String(target || "");
+    if (!verse.length || !text.length) return 0;
+    const n = Math.min(text.length, verse.length);
+    let hit = 0;
+    for (let i = 0; i < n; i++) if (text[i] === verse[i]) hit++;
+    return Math.round((100 * hit) / text.length);
+  }
+
+  function racePaceMs(length, wpm) {
+    return (length * 60_000) / (wpm * 5);
+  }
+
+  async function raceEntries(id) {
+    const rows = await query(
+      `SELECT handle, vehicle, accuracy, progress, finished_at
+         FROM yard_typeverse_entries WHERE race_id = ? ORDER BY handle`,
+      [id],
+    );
+    return rows.map((row) => {
+      let vehicle = null;
+      try {
+        vehicle = row.vehicle ? JSON.parse(String(row.vehicle)) : null;
+      } catch {
+        vehicle = null;
+      }
+      return {
+        handle: String(row.handle),
+        accuracy: num(row.accuracy),
+        progress: num(row.progress),
+        finishedAt: String(row.finished_at || ""),
+        vehicle,
+      };
+    });
+  }
+
+  async function mapRace(row) {
+    return {
+      id: String(row.id),
+      yardId: String(row.yard_id),
+      hostHandle: String(row.host_handle),
+      mode: String(row.mode),
+      difficulty: String(row.difficulty),
+      verseRef: String(row.verse_ref),
+      verseText: String(row.verse_text),
+      status: String(row.status),
+      winnerHandle: String(row.winner_handle || ""),
+      createdAt: String(row.created_at),
+      startedAt: String(row.started_at || ""),
+      entries: await raceEntries(String(row.id)),
+    };
+  }
+
+  async function raceRow(id) {
+    return (
+      await query(
+        `SELECT id, yard_id, host_handle, mode, difficulty, verse_ref, verse_text,
+                status, winner_handle, created_at, started_at
+           FROM yard_typeverse_races WHERE id = ? LIMIT 1`,
+        [id],
+      )
+    )[0];
+  }
+
+  async function payRace(yard, handle, id, prize) {
+    const day = new Date().toISOString().slice(0, 10);
+    const used = num(
+      (
+        await query(
+          `SELECT COALESCE(SUM(amount), 0) AS n FROM yard_wb
+            WHERE yard_id = ? AND handle = ? AND ref LIKE 'typeverse:%'
+              AND substr(created_at, 1, 10) = ?`,
+          [yard, handle, day],
+        )
+      )[0]?.n,
+    );
+    const paid = Math.max(0, Math.min(prize, RACE_CAP - used));
+    if (paid > 0) {
+      await credit(yard, handle, paid, "Typeverse race", `typeverse:${id}`);
+    }
+    return { paid, balance: await balanceOf(yard, handle) };
+  }
+
+  async function typeverseRaces(yardRaw, idRaw) {
+    await ensure();
+    if (idRaw) {
+      const id = rowId(idRaw, "Race");
+      const row = await raceRow(id);
+      if (!row) throw new HttpError(404, "That race is not on this yard.");
+      return { ok: true, race: await mapRace(row) };
+    }
+    const yard = yardId(yardRaw);
+    const rows = await query(
+      `SELECT id, yard_id, host_handle, mode, difficulty, verse_ref, verse_text,
+              status, winner_handle, created_at, started_at
+         FROM yard_typeverse_races
+        WHERE yard_id = ? AND mode = 'yard' AND status = 'open'
+        ORDER BY created_at DESC LIMIT 20`,
+      [yard],
+    );
+    const races = [];
+    for (const row of rows) {
+      const race = await mapRace(row);
+      races.push({ ...race, verseText: "" });
+    }
+    return { ok: true, races };
+  }
+
+  async function createTypeverseRace(body, pubkey) {
+    await ensure();
+    const yard = yardId(body.yardId);
+    const who = await actor(pubkey);
+    await requireMember(yard, who);
+    const id = rowId(body.id, "Race");
+    const mode = body.mode === "yard" ? "yard" : body.mode === "cpu" ? "cpu" : "";
+    if (!mode) throw new HttpError(400, "Race the CPU or the yard.");
+    const difficulty = mode === "yard" ? "match" : String(body.difficulty || "");
+    if (mode === "cpu" && !RACE_PACE[difficulty]) {
+      throw new HttpError(400, "Pick a CPU difficulty.");
+    }
+    const verseText = text(body.verseText, "Verse", 280);
+    if (verseText.length < 40) throw new HttpError(400, "That verse is too short to race.");
+    if (/[\u0000-\u001f]/.test(verseText)) throw new HttpError(400, "That verse is not valid.");
+    const verseRefText = text(body.verseRef, "Verse reference", 40);
+    const existing = await raceRow(id);
+    if (existing) return { ok: true, race: await mapRace(existing) };
+    const open = num(
+      (
+        await query(
+          "SELECT COUNT(*) AS n FROM yard_typeverse_races WHERE yard_id = ? AND status = 'open'",
+          [yard],
+        )
+      )[0]?.n,
+    );
+    if (open >= 20) throw new HttpError(400, "This yard already has a full race list.");
+    const now = new Date().toISOString();
+    const started = mode === "cpu" ? now : "";
+    await query(
+      `INSERT INTO yard_typeverse_races (
+         id, yard_id, host_handle, mode, difficulty, verse_ref, verse_text,
+         status, winner_handle, created_at, started_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, 'open', '', ?, ?)`,
+      [id, yard, who, mode, difficulty, verseRefText, verseText, now, started],
+    );
+    await query(
+      `INSERT INTO yard_typeverse_entries (race_id, handle, vehicle, accuracy, progress, finished_at)
+       VALUES (?, ?, ?, 0, 0, '')`,
+      [id, who, JSON.stringify(raceVehicle(body.vehicle))],
+    );
+    return { ok: true, race: await mapRace(await raceRow(id)) };
+  }
+
+  async function joinTypeverseRace(body, pubkey) {
+    await ensure();
+    const yard = yardId(body.yardId);
+    const who = await actor(pubkey);
+    await requireMember(yard, who);
+    const row = await raceRow(rowId(body.raceId || body.id, "Race"));
+    if (!row || String(row.yard_id) !== yard) throw new HttpError(404, "That race is not on this yard.");
+    if (String(row.mode) !== "yard" || String(row.status) !== "open") {
+      throw new HttpError(400, "That race is not open.");
+    }
+    if (Date.now() - Date.parse(String(row.created_at)) > RACE_MS) {
+      throw new HttpError(400, "That race closed.");
+    }
+    if (String(row.host_handle) === who) return { ok: true, race: await mapRace(row) };
+    const entries = await raceEntries(String(row.id));
+    if (entries.some((entry) => entry.handle === who)) return { ok: true, race: await mapRace(row) };
+    if (entries.length >= 2) throw new HttpError(400, "That race already has two racers.");
+    const now = new Date().toISOString();
+    await query(
+      `INSERT INTO yard_typeverse_entries (race_id, handle, vehicle, accuracy, progress, finished_at)
+       VALUES (?, ?, ?, 0, 0, '')`,
+      [String(row.id), who, JSON.stringify(raceVehicle(body.vehicle))],
+    );
+    await query(
+      "UPDATE yard_typeverse_races SET started_at = ? WHERE id = ? AND started_at = ''",
+      [now, String(row.id)],
+    );
+    return { ok: true, race: await mapRace(await raceRow(String(row.id))) };
+  }
+
+  async function typeverseProgress(body, pubkey) {
+    await ensure();
+    const yard = yardId(body.yardId);
+    const who = await actor(pubkey);
+    const row = await raceRow(rowId(body.raceId || body.id, "Race"));
+    if (!row || String(row.yard_id) !== yard || String(row.status) !== "open") {
+      return { ok: true };
+    }
+    const verseLen = String(row.verse_text || "").length;
+    const correct = Math.max(0, Math.min(verseLen, Math.floor(Number(body.correct) || 0)));
+    await query(
+      `UPDATE yard_typeverse_entries
+          SET progress = ?
+        WHERE race_id = ? AND handle = ? AND finished_at = '' AND progress < ?`,
+      [correct, String(row.id), who, correct],
+    );
+    return { ok: true };
+  }
+
+  async function finishTypeverseRace(body, pubkey) {
+    await ensure();
+    const yard = yardId(body.yardId);
+    const who = await actor(pubkey);
+    await requireMember(yard, who);
+    const row = await raceRow(rowId(body.raceId || body.id, "Race"));
+    if (!row || String(row.yard_id) !== yard) throw new HttpError(404, "That race is not on this yard.");
+    const started = String(row.started_at || "");
+    if (!started) throw new HttpError(400, "Wait for another racer.");
+    if (Date.now() - Date.parse(String(row.created_at)) > RACE_MS) {
+      throw new HttpError(400, "That race closed.");
+    }
+    const entries = await raceEntries(String(row.id));
+    const mine = entries.find((entry) => entry.handle === who);
+    if (!mine) throw new HttpError(403, "Join the race first.");
+    if (mine.finishedAt || String(row.status) === "done") {
+      return {
+        ok: true,
+        won: String(row.winner_handle) === who,
+        paid: 0,
+        balance: await balanceOf(yard, who),
+        accuracy: mine.accuracy,
+        reason: String(row.winner_handle) === who ? "You already finished this race." : "That race is already decided.",
+        race: await mapRace(await raceRow(String(row.id))),
+      };
+    }
+    const verse = String(row.verse_text);
+    const typed = String(body.typed || "");
+    const elapsed = Date.now() - Date.parse(started);
+    const accuracy = raceAccuracy(typed, verse);
+    const complete = typed.length === verse.length;
+    const pace = RACE_PACE[String(row.difficulty)] || 40;
+    const cpuDone = String(row.mode) === "cpu" && elapsed >= racePaceMs(verse.length, pace);
+    const tooFast =
+      String(row.mode) === "cpu" &&
+      complete &&
+      accuracy >= 90 &&
+      elapsed < racePaceMs(verse.length, 250);
+    if (!complete && !cpuDone) throw new HttpError(400, "Finish the verse.");
+    if (tooFast) throw new HttpError(400, "That finish is faster than the race allows.");
+    const now = new Date().toISOString();
+    await query(
+      `UPDATE yard_typeverse_entries
+          SET accuracy = ?, progress = ?, finished_at = ?
+        WHERE race_id = ? AND handle = ? AND finished_at = ''`,
+      [accuracy, complete ? verse.length : Math.min(typed.length, verse.length), now, String(row.id), who],
+    );
+    let won = false;
+    let reason = "Finish the verse.";
+    if (cpuDone) reason = "The CPU finished first.";
+    else if (accuracy < 90) reason = "Accuracy under 90%.";
+    else if (String(row.winner_handle)) reason = "That race is already decided.";
+    else {
+      won = true;
+      reason = String(row.mode) === "cpu" ? "You beat the CPU." : "You finished first.";
+    }
+    if (won || cpuDone || accuracy < 90) {
+      await query(
+        `UPDATE yard_typeverse_races
+            SET status = 'done', winner_handle = ?
+          WHERE id = ? AND status = 'open' AND winner_handle = ''`,
+        [won ? who : "", String(row.id)],
+      );
+      const fresh = await raceRow(String(row.id));
+      if (won && String(fresh?.winner_handle || "") !== who) {
+        won = false;
+        reason = "That race is already decided.";
+      }
+    }
+    const prize = won ? RACE_PRIZE[String(row.difficulty)] || 0 : 0;
+    const purse = won
+      ? await payRace(yard, who, String(row.id), prize)
+      : { paid: 0, balance: await balanceOf(yard, who) };
+    if (won && purse.paid === 0) {
+      reason = "You won. The daily Typeverse purse is already used.";
+    }
+    return {
+      ok: true,
+      won,
+      paid: purse.paid,
+      balance: purse.balance,
+      accuracy,
+      reason,
+      race: await mapRace(await raceRow(String(row.id))),
+    };
+  }
+
   return {
     rooms,
     createRoom,
@@ -1319,5 +1638,10 @@ export function createYardDesk(env) {
     saveMixtape,
     battles,
     saveBattle,
+    typeverseRaces,
+    createTypeverseRace,
+    joinTypeverseRace,
+    typeverseProgress,
+    finishTypeverseRace,
   };
 }

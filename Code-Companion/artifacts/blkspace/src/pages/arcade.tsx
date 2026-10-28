@@ -332,8 +332,8 @@ export default function ArcadePage() {
                 typeverse
               </CardTitle>
               <CardDescription className="text-xs">
-                Monkeytype-style Bible verses in the yard. KJV and Reina-Valera
-                1909. Tab for a new verse, Escape to restart.
+                Type a verse, or race the CPU and the yard. A clean win pays
+                practice WeixBucks. Your racer keeps its own paint and number.
               </CardDescription>
             </CardHeader>
           </Card>

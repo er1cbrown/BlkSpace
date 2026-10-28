@@ -610,6 +610,113 @@ describe("yard desk on the shared server", () => {
       (await (await authorizedGet("/api/yards/wb?yard=desk", cara)).json()).balance,
     ).toBe(48);
     expect((await (await authorizedGet("/api/yards/wb?yard=desk")).json()).balance).toBe(97);
+
+    const verse = "In the beginning God created the heaven and the earth.";
+    expect((await fetch(base + "/api/yards/typeverse/races", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status).toBe(401);
+    const tooFast = await post("/api/yards/typeverse/races", {
+      id: "race_cpu_fast",
+      yardId: "desk",
+      mode: "cpu",
+      difficulty: "campus",
+      verseRef: "Genesis 1:1",
+      verseText: verse,
+      vehicle: { name: "Nova", body: "lowrider", paint: "cardinal", accent: "gold", number: 12 },
+    });
+    expect(tooFast.status).toBe(200);
+    expect((await post("/api/yards/typeverse/races/finish", {
+      raceId: "race_cpu_fast",
+      yardId: "desk",
+      typed: verse,
+    })).status).toBe(400);
+    const cpu = await post("/api/yards/typeverse/races", {
+      id: "race_cpu_campus",
+      yardId: "desk",
+      mode: "cpu",
+      difficulty: "campus",
+      verseRef: "Genesis 1:1",
+      verseText: verse,
+      vehicle: { name: "Nova", body: "lowrider", paint: "cardinal", accent: "gold", number: 12 },
+    });
+    expect(cpu.status).toBe(200);
+    expect((await cpu.json()).race.entries[0].vehicle.body).toBe("lowrider");
+    const started = new Date(Date.now() - 8000).toISOString();
+    db.query("UPDATE yard_typeverse_races SET created_at = ?, started_at = ? WHERE id = ?").run(
+      started,
+      started,
+      "race_cpu_campus",
+    );
+    const beat = await post("/api/yards/typeverse/races/finish", {
+      raceId: "race_cpu_campus",
+      yardId: "desk",
+      typed: verse,
+    });
+    expect(beat.status).toBe(200);
+    const beatBody = await beat.json();
+    expect(beatBody.won).toBe(true);
+    expect(beatBody.paid).toBe(8);
+    expect(beatBody.balance).toBe(105);
+    const sloppy = await post("/api/yards/typeverse/races", {
+      id: "race_cpu_sloppy",
+      yardId: "desk",
+      mode: "cpu",
+      difficulty: "campus",
+      verseRef: "Genesis 1:1",
+      verseText: verse,
+    });
+    expect(sloppy.status).toBe(200);
+    db.query("UPDATE yard_typeverse_races SET created_at = ?, started_at = ? WHERE id = ?").run(
+      started,
+      started,
+      "race_cpu_sloppy",
+    );
+    const missed = await post("/api/yards/typeverse/races/finish", {
+      raceId: "race_cpu_sloppy",
+      yardId: "desk",
+      typed: `${"x".repeat(verse.length - 4)}arth`,
+    });
+    expect(missed.status).toBe(200);
+    expect((await missed.json()).paid).toBe(0);
+    const lobby = await post("/api/yards/typeverse/races", {
+      id: "race_yard_lawn",
+      yardId: "desk",
+      mode: "yard",
+      verseRef: "Genesis 1:1",
+      verseText: verse,
+      vehicle: { name: "Nova", body: "coupe", paint: "gold", accent: "night", number: 9 },
+    });
+    expect(lobby.status).toBe(200);
+    const listed = await (await fetch(base + "/api/yards/typeverse/races?yard=desk")).json();
+    expect(listed.races[0].id).toBe("race_yard_lawn");
+    expect(listed.races[0].verseText).toBe("");
+    const joined = await post("/api/yards/typeverse/races/join", {
+      raceId: "race_yard_lawn",
+      yardId: "desk",
+      vehicle: { name: "Bob", body: "bus", paint: "royal", accent: "cream", number: 3 },
+    }, bob);
+    expect(joined.status).toBe(200);
+    expect((await joined.json()).race.startedAt).not.toBe("");
+    db.query("UPDATE yard_typeverse_races SET started_at = ? WHERE id = ?").run(
+      started,
+      "race_yard_lawn",
+    );
+    const bobWin = await post("/api/yards/typeverse/races/finish", {
+      raceId: "race_yard_lawn",
+      yardId: "desk",
+      typed: verse,
+    }, bob);
+    expect(bobWin.status).toBe(200);
+    const bobBody = await bobWin.json();
+    expect(bobBody.won).toBe(true);
+    expect(bobBody.paid).toBe(12);
+    expect(bobBody.balance).toBe(15);
+    const late = await post("/api/yards/typeverse/races/finish", {
+      raceId: "race_yard_lawn",
+      yardId: "desk",
+      typed: verse,
+    });
+    expect(late.status).toBe(200);
+    expect((await late.json()).paid).toBe(0);
+    expect((await (await authorizedGet("/api/yards/wb?yard=desk")).json()).balance).toBe(105);
   });
 });
 

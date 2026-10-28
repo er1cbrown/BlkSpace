@@ -212,6 +212,16 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (req.method === "GET" && path === "/api/yards/battles") {
         return json(res, 200, await desk.battles(url.searchParams.get("yard") || ""));
       }
+      if (req.method === "GET" && path === "/api/yards/typeverse/races") {
+        return json(
+          res,
+          200,
+          await desk.typeverseRaces(
+            url.searchParams.get("yard") || "",
+            url.searchParams.get("id") || "",
+          ),
+        );
+      }
       if (req.method === "GET" && path === "/api/yards/messages") {
         const pubkey = authenticate(req, "", allowed);
         return json(
@@ -406,6 +416,10 @@ export function createApiHandler(env, { origins, development = false } = {}) {
             "/api/yards/pins",
             "/api/yards/mixtapes",
             "/api/yards/battles",
+            "/api/yards/typeverse/races",
+            "/api/yards/typeverse/races/join",
+            "/api/yards/typeverse/races/progress",
+            "/api/yards/typeverse/races/finish",
             "/api/yards/messages",
             "/api/yards/sale",
             "/api/yards/sale/buy",
@@ -497,6 +511,18 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       }
       if (path === "/api/yards/battles") {
         return json(res, 200, await desk.saveBattle(body, pubkey));
+      }
+      if (path === "/api/yards/typeverse/races") {
+        return json(res, 200, await desk.createTypeverseRace(body, pubkey));
+      }
+      if (path === "/api/yards/typeverse/races/join") {
+        return json(res, 200, await desk.joinTypeverseRace(body, pubkey));
+      }
+      if (path === "/api/yards/typeverse/races/progress") {
+        return json(res, 200, await desk.typeverseProgress(body, pubkey));
+      }
+      if (path === "/api/yards/typeverse/races/finish") {
+        return json(res, 200, await desk.finishTypeverseRace(body, pubkey));
       }
       if (path === "/api/yards/rooms/close") {
         return json(res, 200, await desk.closeRoom(body, pubkey));

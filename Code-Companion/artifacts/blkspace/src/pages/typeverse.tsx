@@ -28,6 +28,7 @@ import {
   type TypeverseModuleId,
   type Verse,
 } from "@/lib/typeverse";
+import { TypeverseRacePanel } from "@/components/typeverse/TypeverseRacePanel";
 import { ArrowLeft, Keyboard } from "lucide-react";
 
 /**
@@ -56,6 +57,7 @@ export default function TypeversePage() {
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [view, setView] = useState<"practice" | "racers">("practice");
   const [streak, setStreak] = useState(() =>
     readStreak(
       typeof localStorage === "undefined"
@@ -178,7 +180,7 @@ export default function TypeversePage() {
             share={{
               kind: "hub",
               title: "typeverse",
-              body: "Type a Bible verse. KJV and Reina-Valera 1909.",
+              body: "Type a Bible verse, or race it. KJV and Reina-Valera 1909.",
               path: "/typeverse",
             }}
           />
@@ -197,6 +199,22 @@ export default function TypeversePage() {
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant={view === "practice" ? "default" : "outline"}
+            onClick={() => setView("practice")}
+          >
+            practice
+          </Button>
+          <Button
+            size="sm"
+            variant={view === "racers" ? "default" : "outline"}
+            onClick={() => setView("racers")}
+          >
+            racers
+          </Button>
+          {view === "practice" ? (
+            <>
           <Button
             size="sm"
             variant={mode === "random" ? "default" : "outline"}
@@ -218,8 +236,13 @@ export default function TypeversePage() {
           >
             tab · next
           </Button>
+            </>
+          ) : null}
         </div>
 
+        {view === "racers" ? <TypeverseRacePanel moduleId={moduleId} /> : null}
+
+        {view === "practice" ? (
         <div className="rounded-xl bg-[#323437] text-[#d1d0c5] px-4 py-5 sm:px-6">
           <p
             className="text-sm text-[#646669] mb-3 min-h-5 font-mono"
@@ -313,6 +336,7 @@ export default function TypeversePage() {
             </div>
           </div>
         </div>
+        ) : null}
 
         <p className="text-xs text-muted-foreground max-w-xl">
           Type the verse. <kbd className="font-mono">Tab</kbd> loads a new
