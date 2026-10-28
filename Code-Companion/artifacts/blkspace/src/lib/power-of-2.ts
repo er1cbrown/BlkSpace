@@ -38,7 +38,7 @@ export const POWER_OF_2 = {
     interactsWithWeixBucks: false,
     deployable: false,
     pillarSub: "Ethereum · BI9",
-    pillarHref: "#hyperevm",
+    pillarHref: "#bi9",
   },
 } as const;
 

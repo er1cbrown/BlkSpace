@@ -64,6 +64,7 @@ import { toast } from "sonner";
 import { WalletContextProvider } from "@/components/WalletContextProvider";
 import { BkspcMainnetPanel } from "@/components/economy/BkspcMainnetPanel";
 import { HyperEvmPanel } from "@/components/economy/HyperEvmPanel";
+import { Bi9BookCard } from "@/components/economy/Bi9BookCard";
 import { getBkspcConfig } from "@/lib/bkspc-config";
 import { BETA_FEATURES } from "@/lib/beta-features";
 import { useTauriGetEarnSummary } from "@/hooks/use-app-data";
@@ -546,9 +547,12 @@ function WalletPageContent() {
         className="mb-4 text-xs text-muted-foreground"
       >
         BKSPC on Solana is the canonical on-chain asset — settlement, staking,
-        and governance. BI9 is an ERC-20 on Ethereum. It is not deployed.
-        WeixBucks reach BKSPC only by explicit withdrawal, never automatically.
+        and governance. WeixBucks reach BKSPC only by explicit withdrawal, never
+        automatically. The BI9 book below is recorded on this desk and does not
+        price a listing.
       </p>
+
+      <Bi9BookCard />
 
       {BETA_FEATURES.showBlkFinance() ? (
         <div className="mb-8">

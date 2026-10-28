@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SendmeLaneCard } from "@/components/weixnet/SendmeLaneCard";
 import { listMixtapes } from "@/lib/audio-mixtapes";
+import { Bi9BookCard } from "@/components/economy/Bi9BookCard";
 
 type LaneStatus = {
   chainSocket: string;
@@ -142,6 +143,7 @@ export default function BlkshiPage() {
             </p>
           </CardContent>
         </Card>
+        <Bi9BookCard className="border-primary/15" />
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Learn the real markets</CardTitle>
