@@ -16,11 +16,16 @@ import {
 } from "@/lib/media-upload";
 import { isWebBlobId, webGetBlobAsync } from "@/lib/media-web-store";
 import { isRemoteMediaUrl, isStreamUrl } from "@/lib/remote-media";
+import { InlineVideo } from "@/components/media/InlineVideo";
+import type { InlinePlayback } from "@/lib/inline-video";
 import { cn } from "@/lib/utils";
 
 interface MediaDisplayProps {
   hashes: string[];
   className?: string;
+  /** inline plays in the post. poster is a still. stage plays the snapped card. */
+  playback?: InlinePlayback;
+  active?: boolean;
 }
 
 interface MediaItem {
@@ -87,7 +92,12 @@ function KindIcon({
   return <Play className={className} />;
 }
 
-export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
+export function MediaDisplay({
+  hashes,
+  className = "",
+  playback = "inline",
+  active = false,
+}: MediaDisplayProps) {
   const [items, setItems] = useState<MediaItem[]>([]);
 
   useEffect(() => {
@@ -312,7 +322,8 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
   return (
     <div
       className={cn(
-        "grid gap-2 mt-3",
+        "grid gap-2",
+        playback === "inline" ? "mt-3" : "h-full w-full",
         hashes.length === 1 ? "grid-cols-1" : "grid-cols-2",
         className,
       )}
@@ -391,29 +402,15 @@ export function MediaDisplay({ hashes, className = "" }: MediaDisplayProps) {
           );
         }
         if (kind === "video" || mimeType.startsWith("video/")) {
-          if (isStreamUrl(item.src)) {
-            return (
-              <iframe
-                key={item.hash}
-                title={filename}
-                src={item.src}
-                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                allowFullScreen
-                className="w-full aspect-video rounded-xl bg-black"
-              />
-            );
-          }
           return (
-            <video
+            <InlineVideo
               key={item.hash}
               src={item.src}
-              controls
-              playsInline
-              preload="metadata"
-              className="w-full rounded-xl max-h-[min(28rem,70vh)] bg-black"
-            >
-              <source src={item.src} type={mimeType} />
-            </video>
+              title={filename}
+              mode={playback}
+              active={active}
+              stream={isStreamUrl(item.src)}
+            />
           );
         }
         if (kind === "audio" || mimeType.startsWith("audio/")) {

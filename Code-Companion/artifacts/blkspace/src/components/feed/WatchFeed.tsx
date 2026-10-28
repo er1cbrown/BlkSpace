@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useSyncExternalStore } from "react";
 import { Link } from "wouter";
 import {
   Flag,
@@ -14,6 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SafeContent } from "@/components/ui/safe-content";
 import { MediaDisplay } from "@/components/ui/media-display";
+import {
+  inlineSoundOn,
+  setInlineSound,
+  subscribeInlineSound,
+} from "@/lib/inline-video";
 import { TrustChip } from "@/components/ui/trust-chip";
 import { KarmaBadge } from "@/components/economy/KarmaBadge";
 import type { TauriPost } from "@/lib/tauri-api";
@@ -27,7 +32,7 @@ interface WatchFeedProps {
 /** TikTok-style vertical full-screen scroll */
 export function WatchFeed({ posts, authorKarma = {}, onLike }: WatchFeedProps) {
   const [index, setIndex] = useState(0);
-  const [muted, setMuted] = useState(true);
+  const sound = useSyncExternalStore(subscribeInlineSound, inlineSoundOn, () => false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const videoPosts = posts.filter(
@@ -62,7 +67,7 @@ export function WatchFeed({ posts, authorKarma = {}, onLike }: WatchFeedProps) {
         ref={containerRef}
         className="h-[72vh] overflow-y-scroll snap-y snap-mandatory scrollbar-hide rounded-2xl"
       >
-        {videoPosts.map((post) => {
+        {videoPosts.map((post, i) => {
           const karma = authorKarma[post.authorHandle];
           return (
             <div
@@ -73,6 +78,8 @@ export function WatchFeed({ posts, authorKarma = {}, onLike }: WatchFeedProps) {
                 {post.mediaBlobs?.length > 0 ? (
                   <MediaDisplay
                     hashes={post.mediaBlobs}
+                    playback="stage"
+                    active={i === index}
                     className="max-h-full max-w-full rounded-xl"
                   />
                 ) : (
@@ -177,12 +184,14 @@ export function WatchFeed({ posts, authorKarma = {}, onLike }: WatchFeedProps) {
         variant="ghost"
         size="icon"
         className="absolute top-3 right-3 z-30 rounded-full bg-background/70"
-        onClick={() => setMuted(!muted)}
+        aria-label={sound ? "Mute" : "Sound on"}
+        aria-pressed={sound}
+        onClick={() => setInlineSound(!sound)}
       >
-        {muted ? (
-          <VolumeX className="h-4 w-4" />
-        ) : (
+        {sound ? (
           <Volume2 className="h-4 w-4" />
+        ) : (
+          <VolumeX className="h-4 w-4" />
         )}
       </Button>
 

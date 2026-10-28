@@ -50,6 +50,7 @@ export function ProfileGrid({ posts, blobs = [], handle }: ProfileGridProps) {
                 {cell.hash ? (
                   <MediaDisplay
                     hashes={[cell.hash]}
+                    playback="poster"
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -75,6 +76,7 @@ export function ProfileGrid({ posts, blobs = [], handle }: ProfileGridProps) {
           >
             <MediaDisplay
               hashes={[cell.hash]}
+              playback="poster"
               className="w-full h-full object-cover"
             />
             <div className="absolute bottom-1 right-1">
