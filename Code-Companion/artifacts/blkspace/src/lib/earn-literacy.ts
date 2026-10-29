@@ -48,7 +48,7 @@ export const LITERACY_PATHS: LiteracyPath[] = [
     title: "Host live (link-out)",
     competitorAnalogy: "IG Live · TikTok Live · Twitch · Discord Stage",
     howYouEarn:
-      "Native stream ingest is later. Today: put your stream URL on an event or Hub live card; yard RSVPs still earn.",
+      "OBS on this PC publishes on the yard Live tab. A YouTube or Twitch link stays a link. Yard RSVPs still earn.",
     firstAction: "Create a Live event with stream URL or publish on Hub → Live",
     href: "/hub",
     wbExample: "RSVP earn · content engagement · tips later",

@@ -5,6 +5,7 @@ import { createConnect } from "./connect.mjs";
 import { createYards } from "./yards.mjs";
 import { createYardDesk } from "./yard-desk.mjs";
 import { createYardLive } from "./yard-live.mjs";
+import { createRtmpIngest } from "./rtmp-ingest.mjs";
 import { createPortfolio } from "./portfolio.mjs";
 import { createHubs, termsDocument } from "./hubs.mjs";
 import { readYardFile, readYardManifest } from "./yard-photos.mjs";
@@ -145,6 +146,7 @@ export function createApiHandler(env, { origins, development = false } = {}) {
   const yards = createYards(env);
   const desk = createYardDesk(env);
   const live = createYardLive();
+  const rtmp = createRtmpIngest();
   const configuredLimit = Number(env.WRITE_LIMIT);
   const limit = createWriteLimiter(
     Number.isInteger(configuredLimit) && configuredLimit > 0
@@ -223,6 +225,31 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (req.method === "GET" && followingListRoutes.has(path)) {
         const pubkey = authenticate(req, "", allowed);
         return json(res, 200, await portfolio.following(pubkey));
+      }
+      if (
+        req.method === "GET" &&
+        path.startsWith("/api/yards/rtmp/media/")
+      ) {
+        const match = path.match(
+          /^\/api\/yards\/rtmp\/media\/(rtmp_[0-9a-f]{16})\/([^/]+)$/,
+        );
+        if (!match) throw new HttpError(404, "Not found.");
+        const file = rtmp.media(match[1], match[2]);
+        res.writeHead(200, {
+          "content-type": file.mime,
+          "content-length": file.body.length,
+          "cache-control": "no-store",
+        });
+        res.end(file.body);
+        return;
+      }
+      if (req.method === "GET" && path === "/api/yards/rtmp") {
+        const id = url.searchParams.get("id") || "";
+        if (id) return json(res, 200, { ok: true, session: rtmp.read(id) });
+        return json(res, 200, {
+          ok: true,
+          sessions: rtmp.list(url.searchParams.get("yard") || ""),
+        });
       }
       if (req.method === "GET" && path === "/api/yards/live") {
         const id = url.searchParams.get("id") || "";
@@ -613,6 +640,7 @@ export function createApiHandler(env, { origins, development = false } = {}) {
             "/api/yards/channels",
             "/api/yards/rooms",
             "/api/yards/live",
+            "/api/yards/rtmp",
             "/api/yards/rooms/close",
             "/api/yards/rooms/watch",
             "/api/yards/messages/key",
@@ -736,6 +764,19 @@ export function createApiHandler(env, { origins, development = false } = {}) {
           return json(res, 200, { ok: true, ...live.end(body, pubkey) });
         }
         throw new HttpError(400, "Unknown live action.");
+      }
+      if (path === "/api/yards/rtmp") {
+        const action = String(body.action || "");
+        if (action === "start") {
+          return json(res, 200, {
+            ok: true,
+            session: await rtmp.start(body, pubkey),
+          });
+        }
+        if (action === "end") {
+          return json(res, 200, { ok: true, ...rtmp.end(body, pubkey) });
+        }
+        throw new HttpError(400, "Unknown ingest action.");
       }
       if (path === "/api/yards/boards") {
         return json(res, 200, await desk.saveBoard(body, pubkey));

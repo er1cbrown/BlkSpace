@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { LiveStreamPlayer } from "@/components/media/LiveStreamPlayer";
 import { YardLiveIngest } from "@/components/community/YardLiveIngest";
+import { YardRtmpIngest } from "@/components/community/YardRtmpIngest";
 import { WatchTogether } from "@/components/community/WatchTogether";
 import {
   createLiveRoom,
@@ -158,8 +159,8 @@ export function YardLiveRooms({
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Voice and video rooms stay on Jitsi. Camera live sends the picture
-            from the host's browser to people who join. A YouTube or Twitch link
-            plays in the room.
+            from the host's browser to people who join. RTMP ingest takes an OBS
+            publish from this PC. A YouTube or Twitch link plays in the room.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -225,6 +226,8 @@ export function YardLiveRooms({
       </Card>
 
       <YardLiveIngest yardId={yardId} />
+
+      <YardRtmpIngest yardId={yardId} />
 
       <div className="grid gap-2">
         {rooms.length === 0 && (

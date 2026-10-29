@@ -1,7 +1,7 @@
 /**
  * Discord/Slack-style live rooms per yard.
  * Connectivity: Jitsi Meet (public, no server) or external stage URL (Discord/Zoom/YT).
- * Not TikTok-style broadcast ingest.
+ * Not TikTok-style broadcast ingest. OBS RTMP is a separate listener.
  */
 
 import { getCurrentHandle } from "@/lib/auth";
