@@ -36,9 +36,15 @@ describe("twitter-style video attach", () => {
     expect(isAllowedUpload(file).ok).toBe(false);
   });
 
-  it("rejects oversized video over 50MB", () => {
+  it("accepts a phone mov that Windows labels as mp4", () => {
+    const file = new File(["qt"], "IMG_6755.MOV", { type: "video/mp4" });
+    expect(isAllowedUpload(file).ok).toBe(true);
+    expect(mediaKindFromFile(file)).toBe("video");
+  });
+
+  it("rejects oversized video over 150MB", () => {
     const file = new File(["x"], "big.mp4", { type: "video/mp4" });
-    Object.defineProperty(file, "size", { value: 51 * 1024 * 1024 });
+    Object.defineProperty(file, "size", { value: 151 * 1024 * 1024 });
     const check = isAllowedUpload(file);
     expect(check.ok).toBe(false);
   });

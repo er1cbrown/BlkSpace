@@ -547,7 +547,7 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         const bytes = await readLimited(
           req,
           YARD_VIDEO_MAX_BYTES,
-          "That video is over 50 MB.",
+          "That video is over 150 MB.",
         );
         const pubkey = authenticate(req, bytes, allowed);
         limit(`video:${pubkey}`);
@@ -814,7 +814,15 @@ export function createApiHandler(env, { origins, development = false } = {}) {
         return json(res, 200, await hubs.payout(body));
       }
       if (path === "/api/portfolio/post")
-        return json(res, 200, await portfolio.savePost(body, pubkey));
+        return json(
+          res,
+          200,
+          await portfolio.savePost(
+            body,
+            pubkey,
+            development ? req.headers.host || "" : "",
+          ),
+        );
       uploadLimit(pubkey);
       return json(res, 200, { ok: true, ...(await uploadTarget(env, body)) });
     } catch (err) {

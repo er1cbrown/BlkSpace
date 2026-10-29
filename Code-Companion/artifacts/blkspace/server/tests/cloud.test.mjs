@@ -2110,6 +2110,18 @@ describe("yard video upload", () => {
         { PUBLIC_ORIGINS: "https://bkspc.app" },
       ),
     ).toBe(true);
+    const lan =
+      "http://192.168.56.1:24442/api/yards/video/vid_0123456789abcdef.mp4";
+    expect(isAllowedHostedMediaUrl(lan)).toBe(false);
+    expect(
+      isAllowedHostedMediaUrl(lan, { REQUEST_HOST: "192.168.56.1:24442" }),
+    ).toBe(true);
+    expect(
+      isAllowedHostedMediaUrl(
+        "https://evil.example/api/yards/video/vid_0123456789abcdef.mp4",
+        { REQUEST_HOST: "192.168.56.1:24442" },
+      ),
+    ).toBe(false);
 
     const bytes = Buffer.from("mp4-yard-video");
     const route = "/api/yards/video?name=clip.mp4";
@@ -2140,6 +2152,18 @@ describe("yard video upload", () => {
     });
     expect(ranged.status).toBe(206);
     expect(Buffer.from(await ranged.arrayBuffer()).toString()).toBe("mp4");
+
+    const mov = await fetch(base + "/api/yards/video?name=clip.mov", {
+      method: "POST",
+      headers: {
+        "content-type": "video/mp4",
+        authorization: authorization("/api/yards/video?name=clip.mov", bytes),
+      },
+      body: bytes,
+    });
+    expect(mov.status).toBe(200);
+    const savedMov = await mov.json();
+    expect(savedMov.url).toMatch(/^\/api\/yards\/video\/vid_[a-f0-9]{16}\.mov$/);
 
     const notes = await fetch(base + "/api/yards/video?name=notes.txt", {
       method: "POST",

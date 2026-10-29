@@ -10,7 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { HttpError } from "./http.mjs";
 
-export const YARD_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+export const YARD_VIDEO_MAX_BYTES = 150 * 1024 * 1024;
 
 const EXT_MIME = {
   mp4: "video/mp4",
@@ -60,7 +60,7 @@ export async function saveYardVideo(env, { name, mime, bytes }) {
   }
   if (!bytes?.length) throw new HttpError(400, "That file is empty.");
   if (bytes.length > YARD_VIDEO_MAX_BYTES) {
-    throw new HttpError(413, "That video is over 50 MB.");
+    throw new HttpError(413, "That video is over 150 MB.");
   }
   const filename = `vid_${randomBytes(8).toString("hex")}.${ext}`;
   const dir = path.resolve(yardVideoDir(env));

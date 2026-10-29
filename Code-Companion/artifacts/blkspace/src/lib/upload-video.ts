@@ -21,15 +21,6 @@ function uploadName(file: File): string {
   return ext ? `${base.replace(/\.$/, "")}.${ext}` : base;
 }
 
-function unconfigured(message: string): boolean {
-  return (
-    message === "Cloud video uploads are not configured." ||
-    message === "stream not configured" ||
-    message === "Cloud file uploads are not configured." ||
-    message === "r2 not configured"
-  );
-}
-
 async function postYardVideo(file: File): Promise<string> {
   const name = uploadName(file);
   const route = `/api/yards/video?name=${encodeURIComponent(name)}`;
@@ -69,7 +60,6 @@ export async function uploadVideoFile(file: File): Promise<string> {
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
     if (message.startsWith("Sign in")) throw err;
-    if (!unconfigured(message)) throw err;
   }
   return postYardVideo(file);
 }

@@ -65,6 +65,22 @@ describe("video upload", () => {
     );
   });
 
+  it("uses the yard when Stream refuses the upload", async () => {
+    vi.mocked(uploadHostedMedia).mockRejectedValue(
+      new Error(
+        "Cloudflare Stream authorization failed (401). Check CLOUDFLARE_API_TOKEN has Account > Stream > Edit for CLOUDFLARE_ACCOUNT_ID.",
+      ),
+    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(Response.json({ ok: true, url: yardUrl }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(uploadVideoFile(file)).resolves.toBe(
+      `${window.location.origin}${yardUrl}`,
+    );
+    expect(fetchMock).toHaveBeenCalled();
+  });
+
   it("asks the member to sign in and does not store a local copy", async () => {
     vi.mocked(uploadHostedMedia).mockRejectedValue(
       new Error("Sign in again to save posts or upload media."),

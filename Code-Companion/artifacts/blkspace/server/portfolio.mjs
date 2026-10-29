@@ -919,7 +919,7 @@ export function createPortfolio(env) {
     );
   }
 
-  async function savePost(body, pubkey) {
+  async function savePost(body, pubkey, requestHost = "") {
     const {
       id,
       postUid: requestedPostUid,
@@ -950,7 +950,10 @@ export function createPortfolio(env) {
         (value) =>
           typeof value !== "string" ||
           value.length > 2048 ||
-          !isAllowedHostedMediaUrl(value, env),
+          !isAllowedHostedMediaUrl(
+            value,
+            requestHost ? { ...env, REQUEST_HOST: requestHost } : env,
+          ),
       ) ||
       (!content.trim() && !media.length) ||
       !postUid

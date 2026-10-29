@@ -86,7 +86,7 @@ const STREAM_HOSTS = new Set([
 ]);
 const MEDIA_LIMITS = {
   image: 15 * 1024 * 1024,
-  video: 50 * 1024 * 1024,
+  video: 150 * 1024 * 1024,
   audio: 25 * 1024 * 1024,
   pdf: 20 * 1024 * 1024,
   document: 15 * 1024 * 1024,
@@ -202,9 +202,21 @@ function classifyMedia(mime, filename) {
 const YARD_MEDIA_PATH =
   /^\/api\/yards\/(?:image\/img_[a-f0-9]{16}\.(?:jpe?g|png|gif|webp)|audio\/aud_[a-f0-9]{16}\.(?:mp3|m4a|aac|ogg|oga|opus|wav|flac|webm)|video\/vid_[a-f0-9]{16}\.(?:mp4|m4v|webm|mov|avi|mkv))$/;
 
+function requestHostname(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    return new URL(`http://${raw}`).hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
 function yardMediaHostOk(url, env) {
   const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
   if (host === "localhost" || host === "127.0.0.1" || host === "::1") return true;
+  const requestHost = requestHostname(env.REQUEST_HOST);
+  if (requestHost && host === requestHost) return true;
   const origins = String(env.PUBLIC_ORIGINS || "")
     .split(",")
     .map((item) => item.trim())

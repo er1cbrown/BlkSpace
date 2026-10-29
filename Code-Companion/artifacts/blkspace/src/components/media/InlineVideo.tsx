@@ -37,7 +37,11 @@ export function InlineVideo({
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [failed, setFailed] = useState(false);
-  const sound = useSyncExternalStore(subscribeInlineSound, inlineSoundOn, () => false);
+  const sound = useSyncExternalStore(
+    subscribeInlineSound,
+    inlineSoundOn,
+    () => false,
+  );
   const shouldPlay = shouldInlinePlay({
     mode,
     visible: visible || opened,
@@ -64,10 +68,8 @@ export function InlineVideo({
     const video = videoRef.current;
     if (!video || stream) return;
     if (!shouldPlay) {
-      const stop = () => video.pause();
       video.pause();
-      video.addEventListener("play", stop);
-      return () => video.removeEventListener("play", stop);
+      return;
     }
     video.muted = !sound;
     video.loop = video.duration > 0 && video.duration <= 90;
@@ -184,7 +186,11 @@ export function InlineVideo({
               setInlineSound(!sound);
             }}
           >
-            {sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            {sound ? (
+              <Volume2 className="h-4 w-4" />
+            ) : (
+              <VolumeX className="h-4 w-4" />
+            )}
           </Button>
           {!stream && !playing && (
             <button
@@ -214,14 +220,17 @@ export function InlineVideo({
           )}
           {!stream && (
             <div className="absolute bottom-0 left-0 right-0 z-10 h-1 bg-white/20">
-              <div className="h-full bg-primary" style={{ width: `${progress * 100}%` }} />
+              <div
+                className="h-full bg-primary"
+                style={{ width: `${progress * 100}%` }}
+              />
             </div>
           )}
         </>
       )}
       {failed && (
         <p className="absolute inset-x-0 bottom-3 text-center text-xs text-white">
-          This clip did not load.
+          This clip did not load. An H.264 mp4 plays in this browser.
         </p>
       )}
     </div>

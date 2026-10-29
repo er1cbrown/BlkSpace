@@ -8,7 +8,8 @@ export type MediaKind = "image" | "video" | "audio" | "pdf" | "doc" | "other";
 /** Max bytes by kind — Tier 0 friendly defaults. */
 export const MEDIA_SIZE_LIMITS: Record<MediaKind, number> = {
   image: 15 * 1024 * 1024, // 15 MB
-  video: 50 * 1024 * 1024, // 50 MB
+  // Phone and screen clips land past 50 MB. The desktop blob store stays at 50 MB.
+  video: 150 * 1024 * 1024,
   audio: 25 * 1024 * 1024, // 25 MB
   pdf: 20 * 1024 * 1024, // 20 MB
   doc: 15 * 1024 * 1024,
@@ -58,7 +59,7 @@ export const MEDIA_ACCEPT =
 
 /** X/Twitter-style: one video clip on a wall post (library picker, not Reels). */
 export const MEDIA_ACCEPT_VIDEO =
-  "video/mp4,video/webm,video/quicktime,video/x-m4v,.mp4,.m4v,.webm,.mov";
+  "video/mp4,video/webm,video/quicktime,video/x-m4v,video/x-msvideo,video/x-matroska,.mp4,.m4v,.webm,.mov,.avi,.mkv";
 
 export const MAX_VIDEOS_PER_POST = 1;
 
@@ -147,10 +148,20 @@ export function extensionOf(filename: string): string {
   return filename.slice(i + 1).toLowerCase();
 }
 
+const VIDEO_EXTENSIONS = new Set(["mp4", "m4v", "webm", "mov", "avi", "mkv"]);
+
 function mimeMatchesExtension(file: File): boolean {
   const mime = file.type.toLowerCase().split(";", 1)[0].trim();
   if (!mime || mime === "application/octet-stream") return true;
-  return EXT_MIME[extensionOf(file.name)]?.includes(mime) ?? false;
+  const extension = extensionOf(file.name);
+  // Windows and phones label a .mov as video/mp4, and an .mp4 as video/quicktime.
+  if (
+    VIDEO_EXTENSIONS.has(extension) &&
+    (mime.startsWith("video/") || mime === "application/mp4")
+  ) {
+    return true;
+  }
+  return EXT_MIME[extension]?.includes(mime) ?? false;
 }
 
 export function mediaKindFromFile(file: {
@@ -205,7 +216,7 @@ export function isAllowedUpload(
       reason: `${kind} max is ${Math.round(limit / (1024 * 1024))}MB (file is ${(file.size / (1024 * 1024)).toFixed(1)}MB)`,
     };
   }
-  if (file.size > MAX_UPLOAD_BYTES) {
+  if (file.size > MAX_UPLOAD_BYTES && limit <= MAX_UPLOAD_BYTES) {
     return { ok: false, reason: "File exceeds 50MB absolute limit" };
   }
   if (file.size === 0) {

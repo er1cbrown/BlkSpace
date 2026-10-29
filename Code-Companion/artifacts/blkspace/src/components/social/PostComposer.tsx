@@ -170,7 +170,7 @@ export function PostComposer({
     if (opts?.videoOnly) {
       list = list.filter((f) => mediaKindFromFile(f) === "video");
       if (list.length === 0) {
-        toast.error("Pick an mp4 / mov / webm clip");
+        toast.error("Pick an mp4, mov, webm, or mkv clip");
         return;
       }
       list = list.slice(0, MAX_VIDEOS_PER_POST);
@@ -541,8 +541,9 @@ export function PostComposer({
               </Button>
             </div>
             <p className="text-[10px] text-muted-foreground mt-2">
-              Video like X — one mp4/mov/webm, up to 50MB, plays on the wall.
-              Photos via Photo. Tap a photo to expand it. Drag & drop works too.
+              Video like X — one mp4, mov, webm, or mkv, up to 150MB, plays on
+              the wall. Photos via Photo. Tap a photo to expand it. Drag & drop
+              works too.
               {!isTauri() && " · browser session (desktop app keeps the file)"}
             </p>
           </div>
