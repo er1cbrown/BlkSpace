@@ -199,7 +199,41 @@ function classifyMedia(mime, filename) {
   return null;
 }
 
+const YARD_MEDIA_PATH =
+  /^\/api\/yards\/(?:image\/img_[a-f0-9]{16}\.(?:jpe?g|png|gif|webp)|audio\/aud_[a-f0-9]{16}\.(?:mp3|m4a|aac|ogg|oga|opus|wav|flac|webm))$/;
+
+function yardMediaHostOk(url, env) {
+  const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") return true;
+  const origins = String(env.PUBLIC_ORIGINS || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  for (const origin of origins) {
+    try {
+      if (new URL(origin).hostname.toLowerCase() === host) return true;
+    } catch {
+      /* skip a bad origin */
+    }
+  }
+  return false;
+}
+
+function isYardMediaUrl(value, env) {
+  let url;
+  try {
+    url = new URL(String(value));
+  } catch {
+    return false;
+  }
+  if (url.username || url.password || url.hash) return false;
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  if (!YARD_MEDIA_PATH.test(url.pathname)) return false;
+  return yardMediaHostOk(url, env);
+}
+
 export function isAllowedHostedMediaUrl(value, env = {}) {
+  if (isYardMediaUrl(value, env)) return true;
   if (!isHttpsUrl(value)) return false;
   const url = new URL(String(value));
   if (

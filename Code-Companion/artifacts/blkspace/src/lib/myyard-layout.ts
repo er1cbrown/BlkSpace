@@ -291,7 +291,9 @@ export function getBannerCss(a: MyYardAesthetic): string {
   if (a.bannerMode === "solid") return a.bannerSolid || "#ea580c";
   if (a.bannerMode === "image") {
     const src = a.bannerImageDataUrl;
-    if (src) return `center/cover no-repeat url(${src})`;
+    if (src) {
+      return `center/cover no-repeat url("${src.replace(/["\\\n\r]/g, "")}")`;
+    }
     // hash resolved by UI to data URL — fallback gradient
   }
   const g =

@@ -139,6 +139,7 @@ beforeAll(async () => {
       R2_BUCKET: "test",
       R2_PUBLIC_BASE_URL: "https://media.example.test",
       YARD_AUDIO_DIR: path.join(dir, "yard-audio"),
+      YARD_IMAGE_DIR: path.join(dir, "yard-image"),
     },
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -2042,6 +2043,52 @@ describe("yard audio upload", () => {
       body: bytes,
     });
     expect(notes.status).toBe(400);
+  });
+});
+
+describe("yard image upload", () => {
+  test("a signed image is served and a yard link can be posted", async () => {
+    const { isAllowedHostedMediaUrl } = await import("../media.mjs");
+    expect(
+      isAllowedHostedMediaUrl(
+        "http://127.0.0.1:24442/api/yards/image/img_0123456789abcdef.jpg",
+      ),
+    ).toBe(true);
+    expect(
+      isAllowedHostedMediaUrl(
+        "https://evil.example/api/yards/image/img_0123456789abcdef.jpg",
+      ),
+    ).toBe(false);
+    expect(
+      isAllowedHostedMediaUrl(
+        "https://bkspc.app/api/yards/image/img_0123456789abcdef.jpg",
+        { PUBLIC_ORIGINS: "https://bkspc.app" },
+      ),
+    ).toBe(true);
+
+    const bytes = Buffer.from("jpeg-bytes");
+    const route = "/api/yards/image?name=cover.jpg";
+    const denied = await fetch(base + route, {
+      method: "POST",
+      headers: { "content-type": "image/jpeg" },
+      body: bytes,
+    });
+    expect(denied.status).toBe(401);
+    const up = await fetch(base + route, {
+      method: "POST",
+      headers: {
+        "content-type": "image/jpeg",
+        authorization: authorization(route, bytes),
+      },
+      body: bytes,
+    });
+    expect(up.status).toBe(200);
+    const saved = await up.json();
+    expect(saved.url).toMatch(/^\/api\/yards\/image\/img_[a-f0-9]{16}\.jpg$/);
+    const loaded = await fetch(base + saved.url);
+    expect(loaded.status).toBe(200);
+    expect(loaded.headers.get("content-type")).toContain("image/jpeg");
+    expect(Buffer.from(await loaded.arrayBuffer()).equals(bytes)).toBe(true);
   });
 });
 

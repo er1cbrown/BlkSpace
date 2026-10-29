@@ -49,6 +49,7 @@ import {
 } from "@/lib/media-web-store";
 import { fitImageForUpload } from "@/lib/fit-image";
 import { uploadHostedMedia } from "@/lib/remote-media";
+import { uploadImageFile } from "@/lib/upload-image";
 import { cn } from "@/lib/utils";
 
 interface PostComposerProps {
@@ -244,6 +245,16 @@ export function PostComposer({
           } else {
             toast.success(`${file.name} attached`);
           }
+        } else if (kind === "image") {
+          const hosted = await uploadImageFile(file);
+          setPending((prev) =>
+            prev.map((p) =>
+              p.previewUrl === previewUrl
+                ? { ...p, hash: hosted, status: "ready" as const }
+                : p,
+            ),
+          );
+          toast.success(`${file.name} uploaded`);
         } else {
           const hosted = await uploadHostedMedia(file);
           if (hosted) {

@@ -53,6 +53,7 @@ import {
   loadWebProfileTape,
 } from "@/lib/profile-music-web";
 import { uploadAudioFile } from "@/lib/upload-audio";
+import { uploadImageFile } from "@/lib/upload-image";
 import { toast } from "sonner";
 import { MyYardLazyVimGuide } from "@/components/profile/MyYardLazyVimGuide";
 import { MyYardPimpStudio } from "@/components/profile/MyYardPimpStudio";
@@ -193,36 +194,58 @@ export function CustomizeStation({
     }
   };
 
-  const readFileAsDataUrl = (file: File) =>
-    new Promise<string>((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(String(r.result));
-      r.onerror = reject;
-      r.readAsDataURL(file);
-    });
-
   const addGalleryFromFile = async (file: File) => {
-    if (a.galleryHashes.length + Object.keys(a.galleryDataUrls).length >= 8)
+    if (a.galleryHashes.length >= 8) {
+      toast.error("The gallery holds 8 photos.");
       return;
-    const fitted = await fitImageForUpload(file);
-    if (!fitted.type.startsWith("image/")) return;
-    const dataUrl = await readFileAsDataUrl(fitted);
-    const id = `web_${Date.now()}_${fitted.name.slice(0, 12)}`;
-    patchA({
-      galleryDataUrls: { ...a.galleryDataUrls, [id]: dataUrl },
-      galleryHashes: [...a.galleryHashes, id].slice(0, 8),
-    });
+    }
+    if (!hasWebKey()) {
+      toast.error("Sign in to upload a photo.");
+      return;
+    }
+    try {
+      const fitted = await fitImageForUpload(file);
+      if (!fitted.type.startsWith("image/")) {
+        toast.error("Use a photo (jpg, png, webp, or gif).");
+        return;
+      }
+      const src = await uploadImageFile(fitted);
+      setA((prev) => ({
+        ...prev,
+        galleryDataUrls: { ...prev.galleryDataUrls, [src]: src },
+        galleryHashes: [...prev.galleryHashes, src].slice(0, 8),
+      }));
+      toast.success("Photo uploaded. Save MyYard to keep it on the page.");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "That photo did not upload.",
+      );
+    }
   };
 
   const addBannerFromFile = async (file: File) => {
-    const fitted = await fitImageForUpload(file);
-    if (!fitted.type.startsWith("image/")) return;
-    const dataUrl = await readFileAsDataUrl(fitted);
-    patchA({
-      bannerMode: "image",
-      bannerImageDataUrl: dataUrl,
-      bannerImageHash: null,
-    });
+    if (!hasWebKey()) {
+      toast.error("Sign in to upload a photo.");
+      return;
+    }
+    try {
+      const fitted = await fitImageForUpload(file);
+      if (!fitted.type.startsWith("image/")) {
+        toast.error("Use a photo (jpg, png, webp, or gif).");
+        return;
+      }
+      const src = await uploadImageFile(fitted);
+      patchA({
+        bannerMode: "image",
+        bannerImageDataUrl: src,
+        bannerImageHash: null,
+      });
+      toast.success("Banner uploaded. Save MyYard to keep it on the page.");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "That photo did not upload.",
+      );
+    }
   };
 
   const save = () => {

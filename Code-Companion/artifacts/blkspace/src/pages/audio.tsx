@@ -30,21 +30,11 @@ import {
 } from "@/lib/weixsound";
 import { trackSrcOk } from "@/lib/audio-mixtapes";
 import { createMarketplaceListing } from "@/lib/marketplace-escrow";
-import { webStoreFile } from "@/lib/media-web-store";
 import { uploadAudioFile } from "@/lib/upload-audio";
+import { uploadImageFile } from "@/lib/upload-image";
 import { publishAudioOnWeixNet, weixnetAudioLine } from "@/lib/weixnet-audio";
 import { Headphones } from "lucide-react";
 import { toast } from "sonner";
-
-function readFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () =>
-      reject(reader.error ?? new Error("Could not read file"));
-    reader.readAsDataURL(file);
-  });
-}
 
 /**
  * Audio shelf. One song is the MySpace profile track. A mixtape is the
@@ -157,12 +147,13 @@ export default function AudioPage() {
     }
     setBusy(true);
     try {
-      const dataUrl = await readFile(file);
-      const saved = await webStoreFile(file, dataUrl);
-      setCover(saved.id);
-      if (!saved.synced) {
-        toast("Cover saved on this device. Other phones need an https link.");
-      }
+      const src = await uploadImageFile(file);
+      setCover(src);
+      toast.success("Cover uploaded. Anyone on this yard can see it.");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "That cover did not upload.",
+      );
     } finally {
       setBusy(false);
     }

@@ -20,6 +20,11 @@ import {
   serveYardAudio,
   YARD_AUDIO_MAX_BYTES,
 } from "./yard-audio.mjs";
+import {
+  saveYardImage,
+  serveYardImage,
+  YARD_IMAGE_MAX_BYTES,
+} from "./yard-image.mjs";
 
 const interactionRoutes = new Map([
   // Canonical interaction routes.
@@ -499,6 +504,27 @@ export function createApiHandler(env, { origins, development = false } = {}) {
           res,
           200,
           await saveYardAudio(env, {
+            name: url.searchParams.get("name") || "",
+            mime: req.headers["content-type"] || "",
+            bytes,
+          }),
+        );
+      }
+      const yardImage = path.match(
+        /^\/api\/yards\/image\/(img_[a-f0-9]{16}\.(?:jpe?g|png|gif|webp))$/,
+      );
+      if (yardImage && (req.method === "GET" || req.method === "HEAD")) {
+        await serveYardImage(req, res, env, yardImage[1]);
+        return;
+      }
+      if (req.method === "POST" && path === "/api/yards/image") {
+        const bytes = await readLimited(req, YARD_IMAGE_MAX_BYTES);
+        const pubkey = authenticate(req, bytes, allowed);
+        limit(`image:${pubkey}`);
+        return json(
+          res,
+          200,
+          await saveYardImage(env, {
             name: url.searchParams.get("name") || "",
             mime: req.headers["content-type"] || "",
             bytes,
