@@ -37,6 +37,13 @@ function download(name: string, body: string) {
   URL.revokeObjectURL(url);
 }
 
+function cellExt(lang: CellLang): string {
+  if (lang === "python") return "py";
+  if (lang === "r") return "r";
+  if (lang === "tex") return "tex";
+  return "md";
+}
+
 /**
  * Web editor for the LazyVim homework stack.
  * The site edits and downloads Quarto or TeX. The Full app can run a cell
@@ -207,6 +214,15 @@ export default function IdePage() {
                       {running === cell.id ? "Running…" : "Run"}
                     </Button>
                   )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      download(`cell-${index + 1}.${cellExt(cell.lang)}`, cell.source)
+                    }
+                  >
+                    Download .{cellExt(cell.lang)}
+                  </Button>
                 </div>
                 <Textarea
                   aria-label={`Source for cell ${index + 1}`}
