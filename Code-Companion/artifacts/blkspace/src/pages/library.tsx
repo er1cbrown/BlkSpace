@@ -3,9 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAppCreatePost } from "@/hooks/use-app-data";
 import { fitImageForUpload } from "@/lib/fit-image";
-import { checkWebLocalLimit } from "@/lib/media-upload";
-import { webStoreFile } from "@/lib/media-web-store";
-import { uploadHostedMedia } from "@/lib/remote-media";
+import { uploadImageFile } from "@/lib/upload-image";
 import { loadUiPrefs } from "@/lib/ui-prefs";
 import {
   loadPostedYardIds,
@@ -29,27 +27,7 @@ async function fileFromPublish(item: YardPhotoItem): Promise<File> {
   const picked = new File([blob], item.file, {
     type: item.mime || "image/jpeg",
   });
-  const file = await fitImageForUpload(picked);
-  const local = checkWebLocalLimit(file);
-  if (!local.ok) throw new Error(local.reason);
-  return file;
-}
-
-async function storePic(file: File): Promise<string> {
-  try {
-    const hosted = await uploadHostedMedia(file);
-    if (hosted) return hosted;
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("Sign in")) throw err;
-  }
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error || new Error("Read failed"));
-    reader.readAsDataURL(file);
-  });
-  const saved = await webStoreFile(file, dataUrl);
-  return saved.id;
+  return fitImageForUpload(picked);
 }
 
 export default function LibraryPage() {
@@ -84,7 +62,7 @@ export default function LibraryPage() {
     setError("");
     try {
       const file = await fileFromPublish(item);
-      const hash = await storePic(file);
+      const hash = await uploadImageFile(file);
       await new Promise<void>((resolve, reject) => {
         createPost.mutate(
           {

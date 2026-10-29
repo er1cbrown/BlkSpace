@@ -29,9 +29,9 @@ describe("yard pins", () => {
       pinFileOk({
         type: "image/jpeg",
         name: "fit.jpg",
-        size: 5 * 1024 * 1024,
+        size: 16 * 1024 * 1024,
       }),
-    ).toMatch(/4 MB/);
+    ).toMatch(/15 MB/);
     expect(
       pinFileOk({ type: "image/png", name: "flyer.png", size: 1000 }),
     ).toBe(null);
@@ -40,6 +40,11 @@ describe("yard pins", () => {
   it("accepts a blob id or https image and refuses a data url", () => {
     expect(pinImageOk("web_abc123")).toBe(true);
     expect(pinImageOk("https://media.example.test/fit.jpg")).toBe(true);
+    expect(
+      pinImageOk(
+        "http://127.0.0.1:24442/api/yards/image/img_0123456789abcdef.jpg",
+      ),
+    ).toBe(true);
     expect(pinImageOk("data:image/png;base64,AAA")).toBe(false);
   });
 

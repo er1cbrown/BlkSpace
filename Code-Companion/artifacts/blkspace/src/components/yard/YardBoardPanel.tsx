@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PinImage } from "@/components/yard/PinImage";
+import { fitImageForUpload } from "@/lib/fit-image";
 import { useGuestMode } from "@/lib/guest-mode";
-import { webStoreFile } from "@/lib/media-web-store";
+import { uploadImageFile } from "@/lib/upload-image";
 import {
   addPin,
   createBoard,
@@ -15,16 +16,6 @@ import {
   syncYardBoard,
 } from "@/lib/yard-pins";
 import { toast } from "sonner";
-
-function readFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () =>
-      reject(reader.error ?? new Error("Could not read file"));
-    reader.readAsDataURL(file);
-  });
-}
 
 /**
  * Pinterest-style wall for one yard: boards are collections, pins are photos.
@@ -102,13 +93,15 @@ export function YardBoardPanel({
     }
     setBusy(true);
     try {
-      const dataUrl = await readFile(file);
-      const saved = await webStoreFile(file, dataUrl);
-      setImage(saved.id);
+      const fitted = await fitImageForUpload(file);
+      const hosted = await uploadImageFile(fitted);
+      setImage(hosted);
       if (!title.trim()) setTitle(file.name.replace(/\.[^.]+$/, ""));
-      if (!saved.synced) {
-        toast("Saved on this device. An https image shows on every phone.");
-      }
+      toast.success("Photo uploaded");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not upload that photo",
+      );
     } finally {
       setBusy(false);
     }

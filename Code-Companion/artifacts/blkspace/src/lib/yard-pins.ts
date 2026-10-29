@@ -10,7 +10,8 @@ import { hostedPost } from "@/lib/hosted-api";
 import { isWebBlobId } from "@/lib/media-web-store";
 
 export const YARD_PIN_STORE = "blkspace_yard_pins_v1";
-export const MAX_PIN_BYTES = 4 * 1024 * 1024;
+/** Same ceiling as a yard image. The bytes go to this host, not the browser box. */
+export const MAX_PIN_BYTES = 15 * 1024 * 1024;
 
 const IMAGE_MIME = new Set([
   "image/jpeg",
@@ -33,7 +34,7 @@ export interface YardPin {
   boardId: string;
   title: string;
   note: string;
-  /** `web_` blob id or an http(s) image URL. */
+  /** Yard image URL, an https link, or an older `web_` id. */
   image: string;
   authorHandle: string;
   createdAt: string;
@@ -86,7 +87,9 @@ export function pinFileOk(file: {
   const name = file.name.toLowerCase();
   const mimeOk = IMAGE_MIME.has(type) || /\.(jpe?g|png|webp|gif)$/.test(name);
   if (!mimeOk) return "Use a photo (jpg, png, webp, gif).";
-  if (file.size > MAX_PIN_BYTES) return "That photo is over 4 MB.";
+  if (file.size > MAX_PIN_BYTES) {
+    return `That photo is over ${Math.round(MAX_PIN_BYTES / (1024 * 1024))} MB.`;
+  }
   if (file.size <= 0) return "That file is empty.";
   return null;
 }
