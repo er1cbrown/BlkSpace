@@ -25,7 +25,6 @@ import {
   Palette,
   Users,
   Store,
-  BookOpen,
   Award,
   ExternalLink,
   Github,
@@ -82,6 +81,7 @@ import {
 import { loadLocalMyYard, saveLocalMyYard } from "@/lib/myyard-storage";
 import { getYardTheme } from "@/lib/yard-themes";
 import { LogosDeckPlayer } from "@/components/profile/LogosDeckPlayer";
+import { ScriptureStudyCard } from "@/components/profile/ScriptureStudyCard";
 import { StudioPanel } from "@/components/profile/StudioPanel";
 import { getFacultyBadge } from "@/lib/faculty-desk";
 import {
@@ -716,25 +716,10 @@ export default function ProfilePage() {
             )}
 
             {myyardLayout.modules?.bibleNlp && (
-              <Card className="mb-6 border-dashed border-primary/30">
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex items-center gap-2 font-medium text-sm mb-2">
-                    <BookOpen className="w-4 h-4 text-primary" />
-                    Bible NLP (opt-in study layer)
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    On-device scripture tags — separate from FYP. Suggested
-                    channels: #scripture, #study, cross-ref mixes.
-                  </p>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {["#scripture", "#study", "#cross-ref"].map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <ScriptureStudyCard
+                handle={user.handle || ""}
+                readOnly={!isOwnProfile}
+              />
             )}
 
             <div ref={profileTabsRef}>

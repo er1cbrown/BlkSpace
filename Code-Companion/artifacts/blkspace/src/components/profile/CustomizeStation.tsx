@@ -924,8 +924,13 @@ export function CustomizeStation({
           </Card>
           <Card className="border-dashed">
             <CardContent className="pt-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <BookOpen className="h-4 w-4 text-primary" /> Bible NLP
+              <div>
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <BookOpen className="h-4 w-4 text-primary" /> Scripture study
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Opt-in. Off the feed. No WeixBucks.
+                </p>
               </div>
               <Switch
                 checked={!!modules.bibleNlp}
