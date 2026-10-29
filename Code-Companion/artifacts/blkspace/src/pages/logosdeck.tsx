@@ -3,7 +3,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isTauri, tauriReadScripture } from "@/lib/tauri-api";
-import { Layers, Play, Pause, Plus, Trash2 } from "lucide-react";
+import { Layers, Play, Pause, Plus, Trash2, ArrowUp, ArrowDown, Download } from "lucide-react";
 
 type DeckItem = { ref: string; text: string };
 
@@ -74,6 +74,24 @@ export default function LogosDeckPage() {
 
   const remove = (i: number) =>
     setDeck((d) => d.filter((_, idx) => idx !== i));
+  const move = (i: number, dir: -1 | 1) =>
+    setDeck((d) => {
+      const j = i + dir;
+      if (j < 0 || j >= d.length) return d;
+      const next = [...d];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  const exportDeck = () => {
+    const text = deck.map((item, i) => `${i + 1}. ${item.ref}\n${item.text}`).join("\n\n");
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "logosdeck.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <AppShell>
@@ -104,6 +122,9 @@ export default function LogosDeckPage() {
           <Button variant="outline" onClick={() => { setDeck([]); setCursor(0); setPlaying(false); }} disabled={deck.length === 0}>
             Clear
           </Button>
+          <Button variant="outline" onClick={exportDeck} disabled={deck.length === 0}>
+            <Download className="h-4 w-4 mr-1" /> Export
+          </Button>
         </div>
         {playing && deck.length > 0 && (
           <div className="border-2 border-primary rounded p-4">
@@ -127,6 +148,12 @@ export default function LogosDeckPage() {
                 <div className="font-semibold text-sm">{item.ref}</div>
                 <div className="text-sm whitespace-pre-wrap">{item.text}</div>
               </div>
+              <Button variant="ghost" size="icon" onClick={() => move(i, -1)} aria-label="Move up" disabled={i === 0}>
+                <ArrowUp className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => move(i, 1)} aria-label="Move down" disabled={i === deck.length - 1}>
+                <ArrowDown className="h-4 w-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
