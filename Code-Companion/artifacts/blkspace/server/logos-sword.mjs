@@ -48,7 +48,7 @@ export async function readSwordVerses(module, refs) {
   for (const bin of pythonBins()) {
     try {
       const { stdout } = await exec(bin, [script, module, ...list], {
-        timeout: 20000,
+        timeout: 4000,
         maxBuffer: 256 * 1024,
         env: { ...process.env, SWORD_HOME: swordHome },
         windowsHide: true,

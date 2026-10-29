@@ -1668,8 +1668,8 @@ describe("public hub and practice ledger", () => {
   test("yard cred grants that university's mark and no extra WeixBucks", async () => {
     const cara = generateSecretKey();
     const dana = generateSecretKey();
-    expect((await post("/api/portfolio/identity", { handle: "cara" }, cara)).status).toBe(200);
-    expect((await post("/api/portfolio/identity", { handle: "dana" }, dana)).status).toBe(200);
+    expect((await post("/api/portfolio/identity", { handle: "carayard" }, cara)).status).toBe(200);
+    expect((await post("/api/portfolio/identity", { handle: "danayard" }, dana)).status).toBe(200);
     expect((await post("/api/yards/join", { yardId: "meharry" }, cara)).status).toBe(200);
     expect((await post("/api/yards/join", { yardId: "meharry" }, dana)).status).toBe(200);
     const joined = await (await authorizedGet("/api/yards/wb?yard=meharry", cara)).json();
@@ -1678,7 +1678,7 @@ describe("public hub and practice ledger", () => {
     expect(joined.mark).toBeNull();
 
     expect((await post("/api/yards/rooms", { yardId: "meharry", title: "Lab", kind: "stage" }, cara)).status).toBe(200);
-    expect((await post("/api/yards/messages", { yardId: "meharry", toHandle: "dana", body: "See you in lab." }, cara)).status).toBe(200);
+    expect((await post("/api/yards/messages", { yardId: "meharry", toHandle: "danayard", body: "See you in lab." }, cara)).status).toBe(200);
     expect((await post("/api/yards/sale", { yardId: "meharry", title: "Notes", price: 10 }, cara)).status).toBe(200);
 
     const marked = await (await authorizedGet("/api/yards/wb?yard=meharry", cara)).json();
