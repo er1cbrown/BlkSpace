@@ -222,8 +222,8 @@ function CreateEventDialog({
               onChange={(e) => setLiveUrl(e.target.value)}
             />
             <p className="text-[10px] text-muted-foreground">
-              Link-out live for now (IG/TikTok/Twitch class). Native ingest
-              later — yard RSVP + identity stay on BKSPC.
+              A Twitch or YouTube link stays a link. Camera live is on the yard
+              Live tab.
             </p>
           </div>
           <div className="space-y-1.5">

@@ -24,6 +24,7 @@ import {
   Film,
 } from "lucide-react";
 import { LiveStreamPlayer } from "@/components/media/LiveStreamPlayer";
+import { YardLiveIngest } from "@/components/community/YardLiveIngest";
 import { WatchTogether } from "@/components/community/WatchTogether";
 import {
   createLiveRoom,
@@ -156,9 +157,9 @@ export function YardLiveRooms({
             Live rooms
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Voice and video stay on Jitsi. A YouTube or Twitch link plays in
-            the room. A library file plays together from the host's clock.
-            BlkSpace does not run the broadcast.
+            Voice and video rooms stay on Jitsi. Camera live sends the picture
+            from the host's browser to people who join. A YouTube or Twitch link
+            plays in the room.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -222,6 +223,8 @@ export function YardLiveRooms({
           </Button>
         </CardContent>
       </Card>
+
+      <YardLiveIngest yardId={yardId} />
 
       <div className="grid gap-2">
         {rooms.length === 0 && (
