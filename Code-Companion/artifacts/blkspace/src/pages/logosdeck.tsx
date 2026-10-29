@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { isTauri, tauriReadScripture } from "@/lib/tauri-api";
 import { Layers, Play, Pause, Plus, Trash2, ArrowUp, ArrowDown, Download } from "lucide-react";
 
-type DeckItem = { ref: string; text: string };
+type DeckItem = { ref: string; text: string; note?: string };
 
 const STORAGE_KEY = "blkspace.logosdeck.v1";
 
@@ -218,6 +218,18 @@ export default function LogosDeckPage() {
               <div className="flex-1">
                 <div className="font-semibold text-sm">{item.ref}</div>
                 <div className="text-sm whitespace-pre-wrap">{item.text}</div>
+                <input
+                  className="mt-1 w-full text-xs border rounded px-2 py-1 bg-transparent"
+                  placeholder="Lyric/hymn note (bridge to music)"
+                  value={item.note || ""}
+                  onChange={(e) =>
+                    setDeck((d) =>
+                      d.map((x, idx) =>
+                        idx === i ? { ...x, note: e.target.value } : x,
+                      ),
+                    )
+                  }
+                />
               </div>
               <Button variant="ghost" size="icon" onClick={() => move(i, -1)} aria-label="Move up" disabled={i === 0}>
                 <ArrowUp className="h-4 w-4" />
