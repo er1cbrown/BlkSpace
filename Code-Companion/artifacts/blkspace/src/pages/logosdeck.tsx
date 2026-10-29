@@ -7,6 +7,14 @@ import { Layers, Play, Pause, Plus, Trash2, ArrowUp, ArrowDown, Download } from 
 
 type DeckItem = { ref: string; text: string; note?: string };
 
+const COMFORT_VERSES = [
+  "Psalm 23:1",
+  "Matthew 11:28",
+  "John 14:27",
+  "Philippians 4:7",
+  "Isaiah 41:10",
+];
+
 const STORAGE_KEY = "blkspace.logosdeck.v1";
 
 export default function LogosDeckPage() {
@@ -24,6 +32,7 @@ export default function LogosDeckPage() {
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
   const [audioUrl, setAudioUrl] = useState("");
+  const [reflection, setReflection] = useState(false);
   const [deckName, setDeckName] = useState("");
   const [savedDecks, setSavedDecks] = useState<Record<string, DeckItem[]>>(() => {
     try {
@@ -90,12 +99,14 @@ export default function LogosDeckPage() {
     }
   };
 
+
   const saveNamed = () => {
     const name = deckName.trim();
     if (!name || deck.length === 0) return;
     setSavedDecks((d) => ({ ...d, [name]: deck }));
     setDeckName("");
   };
+
   const loadNamed = (name: string) => {
     const d = savedDecks[name];
     if (d) {
@@ -104,6 +115,7 @@ export default function LogosDeckPage() {
       setPlaying(false);
     }
   };
+
   const deleteNamed = (name: string) => {
     setSavedDecks((d) => {
       const next = { ...d };
@@ -111,6 +123,7 @@ export default function LogosDeckPage() {
       return next;
     });
   };
+
 
   const remove = (i: number) =>
     setDeck((d) => d.filter((_, idx) => idx !== i));
@@ -131,6 +144,38 @@ export default function LogosDeckPage() {
     a.download = "logosdeck.txt";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+
+  const loadComfortDeck = async () => {
+    setLoading(true);
+    setError("");
+    const items: DeckItem[] = [];
+    for (const r of COMFORT_VERSES) {
+      try {
+        let text = "";
+        if (isTauri()) {
+          const out = await tauriReadScripture(r, "KJV", "auto", false, false);
+          try {
+            const json = JSON.parse(out);
+            text = json?.sword?.KJV || JSON.stringify(json?.sword || {});
+          } catch {
+            text = out;
+          }
+        } else {
+          const res = await fetch(`https://bible-api.com/${encodeURIComponent(r)}?translation=kjv`);
+          const body = await res.json();
+          text = body?.text || JSON.stringify(body);
+        }
+        items.push({ ref: r, text: String(text).trim(), note: "Comfort" });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    }
+    setDeck(items);
+    setCursor(0);
+    setPlaying(false);
+    setLoading(false);
   };
 
   return (
@@ -164,6 +209,12 @@ export default function LogosDeckPage() {
           </Button>
           <Button variant="outline" onClick={exportDeck} disabled={deck.length === 0}>
             <Download className="h-4 w-4 mr-1" /> Export
+          </Button>
+          <Button variant="outline" onClick={loadComfortDeck} disabled={loading}>
+            Comfort Deck
+          </Button>
+          <Button variant="outline" onClick={() => setReflection((r) => !r)} disabled={deck.length === 0}>
+            {reflection ? "Exit Reflection" : "Reflection Mode"}
           </Button>
         </div>
         {playing && deck.length > 0 && (
@@ -216,6 +267,18 @@ export default function LogosDeckPage() {
           />
           {audioUrl && <audio controls src={audioUrl} className="w-full" />}
         </div>
+        {reflection && deck.length > 0 && (
+          <div className="border-2 border-primary rounded p-6 text-center space-y-3">
+            <div className="text-xs text-muted-foreground">
+              {cursor + 1} / {deck.length}
+            </div>
+            <div className="text-xl font-semibold">{deck[cursor].ref}</div>
+            <div className="text-base whitespace-pre-wrap">{deck[cursor].text}</div>
+            {deck[cursor].note && (
+              <div className="text-sm text-muted-foreground">{deck[cursor].note}</div>
+            )}
+          </div>
+        )}
         <div className="space-y-3">
           {deck.map((item, i) => (
             <div
