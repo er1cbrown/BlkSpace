@@ -46,6 +46,10 @@ import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Heart, MessageSquare, Repeat2, MoreHorizontal } from "lucide-react";
 import { ShareCardButton } from "@/components/social/ShareCardButton";
+import {
+  PostExpand,
+  type ExpandablePost,
+} from "@/components/social/PostExpand";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -410,6 +414,7 @@ export default function FeedPage() {
     );
   };
 
+  const [expandedPost, setExpandedPost] = useState<ExpandablePost | null>(null);
   const [modRev, setModRev] = useState(0);
   useEffect(() => {
     const refresh = () => setModRev((n) => n + 1);
@@ -711,7 +716,12 @@ export default function FeedPage() {
         </Suspense>
       ) : activeTab === "blog" || activeTab === "read" ? (
         <Suspense fallback={feedPanelFallback}>
-          <ReadFeed posts={posts} onLike={handleLike} onRepost={handleRepost} />
+          <ReadFeed
+            posts={posts}
+            onLike={handleLike}
+            onRepost={handleRepost}
+            onExpand={setExpandedPost}
+          />
         </Suspense>
       ) : (
         <div className="space-y-4">
@@ -832,10 +842,46 @@ export default function FeedPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="pl-[3.25rem] pb-2">
-                    <SafeContent
-                      text={displayContent}
-                      className="text-[15px] sm:text-[16px] leading-snug"
-                    />
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="cursor-pointer text-left"
+                      aria-label="Expand post"
+                      onClick={() =>
+                        setExpandedPost({
+                          id: item.id,
+                          content: displayContent,
+                          authorHandle: isCrossTown
+                            ? undefined
+                            : (item as any).authorHandle,
+                          authorDisplayName: isCrossTown
+                            ? `${crossTownItem.pubkey.slice(0, 8)}…`
+                            : (item as any).authorDisplayName,
+                          townTag: isCrossTown
+                            ? crossTownItem.townTag
+                            : (item as any).townTag,
+                          createdAt: isCrossTown
+                            ? new Date(
+                                crossTownItem.createdAtUnix * 1000,
+                              ).toISOString()
+                            : (item as any).createdAt,
+                          mediaBlobs: (item as any).mediaBlobs || [],
+                          likesCount: (item as any).likesCount,
+                          repliesCount: (item as any).repliesCount,
+                          repostsCount: (item as any).repostsCount,
+                        })
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        event.preventDefault();
+                        (event.currentTarget as HTMLElement).click();
+                      }}
+                    >
+                      <SafeContent
+                        text={displayContent}
+                        className="text-[15px] sm:text-[16px] leading-snug"
+                      />
+                    </div>
                     <MediaDisplay hashes={(item as any).mediaBlobs || []} />
                   </CardContent>
                   <CardFooter className="pl-[3.25rem] pt-1 flex gap-1 sm:gap-4 text-sm text-muted-foreground border-none">
@@ -929,6 +975,9 @@ export default function FeedPage() {
             )}
         </div>
       )}
+      {expandedPost ? (
+        <PostExpand post={expandedPost} onClose={() => setExpandedPost(null)} />
+      ) : null}
     </AppShell>
   );
 }

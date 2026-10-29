@@ -20,6 +20,7 @@ interface ReadFeedProps {
   authorKarma?: Record<string, { post: number; comment: number }>;
   onLike?: (postId: number) => void;
   onRepost?: (postId: number) => void;
+  onExpand?: (post: TauriPost) => void;
 }
 
 /** Threads / Twitter text-first feed */
@@ -28,6 +29,7 @@ export function ReadFeed({
   authorKarma = {},
   onLike,
   onRepost,
+  onExpand,
 }: ReadFeedProps) {
   if (posts.length === 0) {
     return (
@@ -83,12 +85,32 @@ export function ReadFeed({
               </div>
             </CardHeader>
             <CardContent className="pl-[3.25rem] pt-0">
-              <Link href={`/posts/${post.id}`}>
-                <SafeContent
-                  text={text}
-                  className="text-[17px] leading-snug cursor-pointer hover:underline decoration-primary/30"
-                />
-              </Link>
+              {onExpand ? (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Expand post"
+                  className="cursor-pointer text-left"
+                  onClick={() => onExpand(post)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    onExpand(post);
+                  }}
+                >
+                  <SafeContent
+                    text={text}
+                    className="text-[17px] leading-snug"
+                  />
+                </div>
+              ) : (
+                <Link href={`/posts/${post.id}`}>
+                  <SafeContent
+                    text={text}
+                    className="text-[17px] leading-snug cursor-pointer hover:underline decoration-primary/30"
+                  />
+                </Link>
+              )}
             </CardContent>
             <CardFooter className="pl-[3.25rem] gap-4 text-muted-foreground text-sm py-2">
               <Button

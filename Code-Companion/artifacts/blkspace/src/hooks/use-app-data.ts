@@ -243,7 +243,7 @@ function getMockPost(id: number) {
   return (
     listWebUserPosts().find((post) => post.id === id) ||
     MOCK_POSTS.find((post) => post.id === id) ||
-    MOCK_POSTS[0]
+    null
   );
 }
 

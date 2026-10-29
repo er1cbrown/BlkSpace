@@ -19,6 +19,7 @@ import { isRemoteMediaUrl, isStreamUrl } from "@/lib/remote-media";
 import { InlineVideo } from "@/components/media/InlineVideo";
 import type { InlinePlayback } from "@/lib/inline-video";
 import { cn } from "@/lib/utils";
+import { ImageZoom } from "@/components/ui/image-zoom";
 
 interface MediaDisplayProps {
   hashes: string[];
@@ -99,6 +100,7 @@ export function MediaDisplay({
   active = false,
 }: MediaDisplayProps) {
   const [items, setItems] = useState<MediaItem[]>([]);
+  const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null);
 
   useEffect(() => {
     return () => {
@@ -392,13 +394,23 @@ export function MediaDisplay({
 
         if (kind === "image" || mimeType.startsWith("image/")) {
           return (
-            <img
+            <button
               key={item.hash}
-              src={item.src}
-              alt={filename}
-              className="w-full rounded-md object-cover max-h-96"
-              loading="lazy"
-            />
+              type="button"
+              className="block w-full cursor-zoom-in"
+              aria-label={`Expand ${filename}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (item.src) setZoom({ src: item.src, alt: filename });
+              }}
+            >
+              <img
+                src={item.src}
+                alt={filename}
+                className="pointer-events-none w-full rounded-md object-cover max-h-96"
+                loading="lazy"
+              />
+            </button>
           );
         }
         if (kind === "video" || mimeType.startsWith("video/")) {
@@ -482,6 +494,13 @@ export function MediaDisplay({
           </div>
         );
       })}
+      {zoom ? (
+        <ImageZoom
+          src={zoom.src}
+          alt={zoom.alt}
+          onClose={() => setZoom(null)}
+        />
+      ) : null}
     </div>
   );
 }

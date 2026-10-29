@@ -50,6 +50,7 @@ import {
 import { fitImageForUpload } from "@/lib/fit-image";
 import { uploadHostedMedia } from "@/lib/remote-media";
 import { uploadImageFile } from "@/lib/upload-image";
+import { ImageZoom } from "@/components/ui/image-zoom";
 import { cn } from "@/lib/utils";
 
 interface PostComposerProps {
@@ -105,6 +106,7 @@ export function PostComposer({
   const { data: user } = useAppGetUser(handle);
   const [pending, setPending] = useState<PendingAttach[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null);
 
   // Push ready hashes to parent (never clear pending from here)
   useEffect(() => {
@@ -383,11 +385,20 @@ export function PostComposer({
                     )}
                   >
                     {p.kind === "image" ? (
-                      <img
-                        src={p.previewUrl}
-                        alt={p.filename}
-                        className="w-full h-28 object-cover"
-                      />
+                      <button
+                        type="button"
+                        className="block w-full cursor-zoom-in"
+                        aria-label={`Expand ${p.filename}`}
+                        onClick={() =>
+                          setZoom({ src: p.previewUrl, alt: p.filename })
+                        }
+                      >
+                        <img
+                          src={p.previewUrl}
+                          alt={p.filename}
+                          className="pointer-events-none h-28 w-full object-cover"
+                        />
+                      </button>
                     ) : p.kind === "video" ? (
                       <video
                         src={p.previewUrl}
@@ -520,11 +531,18 @@ export function PostComposer({
             </div>
             <p className="text-[10px] text-muted-foreground mt-2">
               Video like X — one mp4/mov/webm, up to 50MB, plays on the wall.
-              Photos via Photo. Drag & drop works too.
+              Photos via Photo. Tap a photo to expand it. Drag & drop works too.
               {!isTauri() && " · browser session (desktop app keeps the file)"}
             </p>
           </div>
         </div>
+        {zoom ? (
+          <ImageZoom
+            src={zoom.src}
+            alt={zoom.alt}
+            onClose={() => setZoom(null)}
+          />
+        ) : null}
       </CardContent>
     </Card>
   );
