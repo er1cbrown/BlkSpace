@@ -70,7 +70,26 @@ export default function IdePage() {
 
   const runCell = async (id: string, lang: CellLang, source: string) => {
     if (!desktop) {
-      toast("Run this cell in the Full app. The site only edits.");
+      setRunning(id);
+      try {
+        const res = await fetch("/api/homework/run", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ lang, source }),
+        });
+        const body = await res.json();
+        setOutputs((prev) => ({
+          ...prev,
+          [id]: res.ok ? body.output || "(no output)" : body.error || "Run failed",
+        }));
+      } catch (err) {
+        setOutputs((prev) => ({
+          ...prev,
+          [id]: err instanceof Error ? err.message : String(err),
+        }));
+      } finally {
+        setRunning(null);
+      }
       return;
     }
     if (lang !== "python" && lang !== "r") {

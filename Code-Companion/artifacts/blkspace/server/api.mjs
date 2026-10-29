@@ -16,6 +16,7 @@ import {
   weixnetStatus,
 } from "./weixnet.mjs";
 import { readSwordVerses } from "./logos-sword.mjs";
+import { runHomeworkCell } from "./homework.mjs";
 import {
   readLimited,
   saveYardAudio,
@@ -315,6 +316,11 @@ export function createApiHandler(env, { origins, development = false } = {}) {
           200,
           await desk.battles(url.searchParams.get("yard") || ""),
         );
+      }
+      if (req.method === "POST" && path === "/api/homework/run") {
+        const parsed = await readJson(req);
+        const result = await runHomeworkCell(parsed.body.lang, parsed.body.source);
+        return json(res, 200, { output: result });
       }
       if (req.method === "GET" && path === "/api/logos/sword") {
         const row = await readSwordVerses(
