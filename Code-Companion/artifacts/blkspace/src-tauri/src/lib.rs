@@ -4715,6 +4715,107 @@ fn open_notebook_in_lazyvim(title: String, filename: String, body: String) -> Re
   Err("nvim was not found. Install Neovim and clone github.com/er1cbrown/lazyvim into the nvim config.".into())
 }
 
+/// Read scripture via the local bible-bridge tool (SWORD + Bible NLP + TSK + ML).
+#[tauri::command]
+fn read_scripture(
+  query: String,
+  versions: Option<String>,
+  engine: Option<String>,
+  xref: Option<bool>,
+  predict: Option<bool>,
+) -> Result<String, String> {
+  let script = std::env::var("BLKSPACE_BIBLE_BRIDGE")
+    .map(std::path::PathBuf::from)
+    .unwrap_or_else(|_| {
+      let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_default();
+      std::path::PathBuf::from(home).join("Desktop/bible-bridge/bible_bridge.py")
+    });
+  if !script.exists() {
+    return Err(format!("bible_bridge.py not found at {}", script.display()));
+  }
+  let mut args: Vec<String> = vec![script.to_string_lossy().to_string(), query, "--json".into()];
+  if let Some(v) = versions {
+    args.push("--versions".into());
+    args.push(v);
+  }
+  if let Some(e) = engine {
+    args.push("--engine".into());
+    args.push(e);
+  }
+  if xref == Some(false) {
+    args.push("--no-xref".into());
+  }
+  if predict == Some(true) {
+    args.push("--predict".into());
+  }
+  run_args_bounded(&homework_python(), &args)
+}
+
+fn run_args_bounded(program: &std::path::Path, args: &[String]) -> Result<String, String> {
+  use std::io::Read;
+  use std::process::{Command, Stdio};
+  use std::time::{Duration, Instant};
+  let mut child = Command::new(program)
+    .args(args)
+    .stdin(Stdio::null())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .map_err(|e| format!("Could not start {}: {e}", program.display()))?;
+  let mut stdout = child.stdout.take();
+  let mut stderr = child.stderr.take();
+  let out_thread = std::thread::spawn(move || {
+    let mut text = String::new();
+    if let Some(pipe) = stdout.as_mut() {
+      let _ = pipe.read_to_string(&mut text);
+    }
+    text
+  });
+  let err_thread = std::thread::spawn(move || {
+    let mut text = String::new();
+    if let Some(pipe) = stderr.as_mut() {
+      let _ = pipe.read_to_string(&mut text);
+    }
+    text
+  });
+  let deadline = Instant::now() + Duration::from_secs(8);
+  loop {
+    match child.try_wait() {
+      Ok(Some(status)) => {
+        let mut text = out_thread.join().unwrap_or_default();
+        let err = err_thread.join().unwrap_or_default();
+        if !err.is_empty() {
+          if !text.is_empty() {
+            text.push('\n');
+          }
+          text.push_str(&err);
+        }
+        if text.len() > 20_000 {
+          text.truncate(20_000);
+          text.push_str("\n…");
+        }
+        if status.success() {
+          return Ok(text);
+        }
+        return Err(if text.is_empty() {
+          format!("exit {}", status.code().unwrap_or(1))
+        } else {
+          text
+        });
+      }
+      Ok(None) if Instant::now() >= deadline => {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err("Stopped after 8 seconds".into());
+      }
+      Ok(None) => std::thread::sleep(Duration::from_millis(40)),
+      Err(e) => return Err(e.to_string()),
+    }
+  }
+}
+
 fn safe_notebook_filename(filename: &str, title: &str) -> String {
   let raw = filename.trim();
   let (stem_raw, ext) = if let Some(stem) = raw.strip_suffix(".tex") {
@@ -6293,6 +6394,7 @@ pub fn run() {
       get_blob_bytes,
       open_myyard_css,
       run_homework_cell,
+      read_scripture,
       open_notebook_in_lazyvim,
       list_user_blobs,
       delete_blob,

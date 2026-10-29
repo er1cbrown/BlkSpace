@@ -17,7 +17,7 @@ export function isStreamUrl(value: string): boolean {
 }
 
 export interface UploadTarget {
-  provider: "r2" | "stream";
+  provider: "r2" | "stream" | "gcs";
   method: "PUT" | "POST";
   uploadUrl: string;
   publicUrl: string;
@@ -71,8 +71,9 @@ export async function uploadHostedMedia(file: File): Promise<string | null> {
     !body?.uploadUrl ||
     !body.publicUrl ||
     (body.method !== "PUT" && body.method !== "POST") ||
-    (body.provider !== "r2" && body.provider !== "stream") ||
+    (body.provider !== "r2" && body.provider !== "stream" && body.provider !== "gcs") ||
     (body.provider === "r2" && body.method !== "PUT") ||
+    (body.provider === "gcs" && body.method !== "PUT") ||
     (body.provider === "stream" && body.method !== "POST")
   ) {
     throw new Error("Media upload service returned an invalid upload target.");

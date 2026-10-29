@@ -1522,6 +1522,16 @@ export function tauriOpenNotebookInLazyVim(
   return invoke("open_notebook_in_lazyvim", { title, filename, body });
 }
 
+export function tauriReadScripture(
+  query: string,
+  versions?: string,
+  engine?: string,
+  xref?: boolean,
+  predict?: boolean,
+): Promise<string> {
+  return invoke("read_scripture", { query, versions, engine, xref, predict });
+}
+
 export function tauriClaimNodeRewards(sessionToken: string): Promise<number> {
   return invoke("claim_node_rewards", { sessionToken });
 }

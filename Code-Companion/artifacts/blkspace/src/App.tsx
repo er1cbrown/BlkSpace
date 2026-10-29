@@ -47,6 +47,7 @@ const MessagesPage = React.lazy(() => import("@/pages/messages"));
 const PlayPage = React.lazy(() => import("@/pages/play"));
 const ArcadePage = React.lazy(() => import("@/pages/arcade"));
 const TypeversePage = React.lazy(() => import("@/pages/typeverse"));
+const ScripturePage = React.lazy(() => import("@/pages/scripture"));
 const AudioPage = React.lazy(() => import("@/pages/audio"));
 const WeixSoundPage = React.lazy(() => import("@/pages/weixsound"));
 const LogosDecksPage = React.lazy(() => import("@/pages/logosdecks"));
@@ -227,6 +228,7 @@ function Router() {
         <Route path="/hub" component={HubPage} />
         <Route path="/arcade" component={ArcadePage} />
         <Route path="/typeverse" component={TypeversePage} />
+        <Route path="/scripture" component={ScripturePage} />
         <Route path="/audio" component={AudioPage} />
         <Route path="/weixsound" component={WeixSoundPage} />
         <Route path="/logosdecks" component={LogosDecksPage} />

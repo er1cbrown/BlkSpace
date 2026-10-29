@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomUUID } from "node:crypto";
+import { createHash, createHmac, createSign, randomUUID } from "node:crypto";
 import { HttpError } from "./http.mjs";
 
 const IMAGE_MIME_TYPES = new Set([
@@ -127,6 +127,25 @@ const MIME_BY_EXTENSION = {
 
 function envOf(env) {
   const get = (key) => env[key] || "";
+  let gcsClientEmail = get("GCS_CLIENT_EMAIL").trim();
+  let gcsPrivateKey = get("GCS_PRIVATE_KEY").trim();
+  const gcsServiceAccountJson = get("GCS_SERVICE_ACCOUNT_JSON").trim();
+  if (gcsServiceAccountJson) {
+    try {
+      const parsed = JSON.parse(gcsServiceAccountJson);
+      gcsClientEmail = String(parsed.client_email || gcsClientEmail).trim();
+      gcsPrivateKey = String(parsed.private_key || gcsPrivateKey).trim();
+    } catch {
+      /* keep explicit fields */
+    }
+  }
+  const gcsBucket = get("GCS_BUCKET").trim();
+  const gcsPublicBaseRaw = get("GCS_PUBLIC_BASE_URL").trim();
+  const gcsPublicBase = gcsPublicBaseRaw
+    ? gcsPublicBaseRaw.replace(/\/$/, "")
+    : gcsBucket
+      ? `https://storage.googleapis.com/${gcsBucket}`
+      : "";
   return {
     accountId: get("CLOUDFLARE_ACCOUNT_ID").trim(),
     apiToken: get("CLOUDFLARE_API_TOKEN").trim(),
@@ -134,6 +153,10 @@ function envOf(env) {
     secretAccessKey: get("R2_SECRET_ACCESS_KEY").trim(),
     bucket: get("R2_BUCKET").trim(),
     publicBase: get("R2_PUBLIC_BASE_URL").trim().replace(/\/$/, ""),
+    gcsClientEmail,
+    gcsPrivateKey: gcsPrivateKey.replace(/\\n/g, "\n"),
+    gcsBucket,
+    gcsPublicBase,
   };
 }
 
@@ -253,22 +276,32 @@ export function isAllowedHostedMediaUrl(value, env = {}) {
     url.hostname.endsWith(".cloudflarestream.com")
   )
     return true;
-  const publicBase = String(env.R2_PUBLIC_BASE_URL || "")
+  const publicBases = [];
+  const r2Base = String(env.R2_PUBLIC_BASE_URL || "")
     .trim()
     .replace(/\/$/, "");
-  if (!publicBase || !isHttpsUrl(publicBase)) return false;
-  try {
-    const base = new URL(publicBase);
-    const basePath = base.pathname.replace(/\/$/, "");
-    return (
-      url.origin === base.origin &&
-      (basePath === "" ||
-        url.pathname === basePath ||
-        url.pathname.startsWith(`${basePath}/`))
-    );
-  } catch {
-    return false;
+  if (r2Base) publicBases.push(r2Base);
+  const gcsBaseRaw = String(env.GCS_PUBLIC_BASE_URL || "").trim().replace(/\/$/, "");
+  const gcsBase = gcsBaseRaw || (env.GCS_BUCKET ? `https://storage.googleapis.com/${env.GCS_BUCKET}` : "");
+  if (gcsBase) publicBases.push(gcsBase);
+  for (const publicBase of publicBases) {
+    if (!isHttpsUrl(publicBase)) continue;
+    try {
+      const base = new URL(publicBase);
+      const basePath = base.pathname.replace(/\/$/, "");
+      if (
+        url.origin === base.origin &&
+        (basePath === "" ||
+          url.pathname === basePath ||
+          url.pathname.startsWith(`${basePath}/`))
+      ) {
+        return true;
+      }
+    } catch {
+      /* skip */
+    }
   }
+  return false;
 }
 
 function hmac(key, value) {
@@ -333,6 +366,55 @@ function safeKey(filename) {
     .slice(0, 80);
   const day = new Date().toISOString().slice(0, 10);
   return `portfolio/${day}/${randomUUID()}-${base}`;
+}
+
+function gcsReady(cfg) {
+  return Boolean(
+    cfg.gcsClientEmail &&
+      cfg.gcsPrivateKey &&
+      cfg.gcsBucket &&
+      isHttpsUrl(cfg.gcsPublicBase),
+  );
+}
+
+/** Presigned PUT for Google Cloud Storage (V4, service account). */
+function presignGcsPut(cfg, key) {
+  const now = new Date();
+  const googDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
+  const dateStamp = googDate.slice(0, 8);
+  const credentialScope = `${dateStamp}/auto/storage/goog4_request`;
+  const host = "storage.googleapis.com";
+  const canonicalUri =
+    "/" + [cfg.gcsBucket, ...key.split("/")].map(encodeURIComponent).join("/");
+  const params = [
+    ["X-Goog-Algorithm", "GOOG4-RSA-SHA256"],
+    ["X-Goog-Credential", `${cfg.gcsClientEmail}/${credentialScope}`],
+    ["X-Goog-Date", googDate],
+    ["X-Goog-Expires", "3600"],
+    ["X-Goog-SignedHeaders", "host"],
+  ].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const canonicalQuery = params
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
+  const canonicalRequest = [
+    "PUT",
+    canonicalUri,
+    canonicalQuery,
+    `host:${host}\n`,
+    "host",
+    "UNSIGNED-PAYLOAD",
+  ].join("\n");
+  const stringToSign = [
+    "GOOG4-RSA-SHA256",
+    googDate,
+    credentialScope,
+    sha256Hex(canonicalRequest),
+  ].join("\n");
+  const signer = createSign("RSA-SHA256");
+  signer.update(stringToSign);
+  signer.end();
+  const signature = signer.sign(cfg.gcsPrivateKey, "hex");
+  return `https://${host}${canonicalUri}?${canonicalQuery}&X-Goog-Signature=${signature}`;
 }
 
 function r2Ready(cfg) {
@@ -411,9 +493,29 @@ export async function uploadTarget(env, body) {
     );
   }
   if (media.kind === "video") {
+    if (gcsReady(cfg)) {
+      const key = safeKey(filename);
+      return {
+        provider: "gcs",
+        method: "PUT",
+        uploadUrl: presignGcsPut(cfg, key),
+        publicUrl: `${cfg.gcsPublicBase}/${key.split("/").map(encodeURIComponent).join("/")}`,
+        headers: { "content-type": media.mime },
+      };
+    }
     if (!streamReady(cfg))
       throw new HttpError(503, "Cloud video uploads are not configured.");
     return streamUpload(cfg, filename);
+  }
+  if (gcsReady(cfg)) {
+    const key = safeKey(filename);
+    return {
+      provider: "gcs",
+      method: "PUT",
+      uploadUrl: presignGcsPut(cfg, key),
+      publicUrl: `${cfg.gcsPublicBase}/${key.split("/").map(encodeURIComponent).join("/")}`,
+      headers: { "content-type": media.mime },
+    };
   }
   if (!r2Ready(cfg))
     throw new HttpError(503, "Cloud file uploads are not configured.");
