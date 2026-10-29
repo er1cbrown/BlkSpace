@@ -96,7 +96,13 @@ function save(posts: WebUserPost[]) {
   localStorage.setItem(LS_KEY, JSON.stringify(posts.slice(0, 100)));
 }
 
-async function mirrorPost(post: WebUserPost, nostrEvent?: unknown) {
+async function mirrorPost(
+  post: WebUserPost,
+  nostrEvent?: unknown,
+): Promise<{
+  maliciousScore: number;
+  riskLevel: "low" | "medium" | "high";
+} | null> {
   const res = await hostedPost(
     "/api/portfolio/post",
     nostrEvent ? { ...post, nostrEvent } : post,
@@ -107,10 +113,12 @@ async function mirrorPost(post: WebUserPost, nostrEvent?: unknown) {
     (res.status === 404 ||
       (res.ok && res.headers.get("content-type")?.includes("text/html")))
   )
-    return;
+    return null;
   const body = (await res.json().catch(() => null)) as {
     ok?: boolean;
     error?: string;
+    maliciousScore?: number;
+    riskLevel?: string;
   } | null;
   // Tier 0 laptops run the API with no Turso URL. The pic still lives in
   // this browser, and hosted sync happens once storage is configured.
@@ -119,13 +127,14 @@ async function mirrorPost(post: WebUserPost, nostrEvent?: unknown) {
     res.status === 503 &&
     body?.error === "Shared post storage is not configured."
   ) {
-    return;
+    return null;
   }
   if (!res.ok || body?.ok !== true) {
     throw new Error(
       body?.error || "Post was not saved to the cloud. Please retry.",
     );
   }
+  return abuseFromRow(body || {});
 }
 
 type HostedPortfolioRow = {
@@ -157,7 +166,37 @@ type HostedPortfolioRow = {
   nostrEventId?: string;
   relay_url?: string;
   relayUrl?: string;
+  maliciousScore?: number;
+  malicious_score?: number;
+  riskLevel?: string;
+  risk_level?: string;
 };
+
+function abuseFromRow(row: {
+  maliciousScore?: number;
+  malicious_score?: number;
+  riskLevel?: string;
+  risk_level?: string;
+}): {
+  maliciousScore: number;
+  riskLevel: "low" | "medium" | "high";
+} {
+  const raw = row.maliciousScore ?? row.malicious_score ?? 0;
+  const score = Number(raw);
+  const maliciousScore = Number.isFinite(score)
+    ? Math.min(1, Math.max(0, score))
+    : 0;
+  const named = row.riskLevel ?? row.risk_level;
+  const riskLevel =
+    named === "high" || named === "medium" || named === "low"
+      ? named
+      : maliciousScore > 0.7
+        ? "high"
+        : maliciousScore > 0.4
+          ? "medium"
+          : "low";
+  return { maliciousScore, riskLevel };
+}
 
 function parseHostedMedia(value: unknown): string[] {
   const parsed =
@@ -255,8 +294,7 @@ export async function refreshPortfolioFromTurso(): Promise<void> {
         relayUrl: row.relayUrl || row.relay_url || "",
         createdAt,
         engagementQuality: 1,
-        maliciousScore: 0,
-        riskLevel: "low",
+        ...abuseFromRow(row),
       };
       if (existingIndex >= 0) {
         const existing = merged[existingIndex];
@@ -279,6 +317,7 @@ export async function refreshPortfolioFromTurso(): Promise<void> {
             row.nostrEventId || row.nostr_event_id || existing.nostrEventId,
           relayUrl: row.relayUrl || row.relay_url || existing.relayUrl,
           createdAt: existing.createdAt || createdAt,
+          ...abuseFromRow(row),
         };
       } else {
         merged.push(hostedPost);
@@ -355,7 +394,11 @@ export async function createWebUserPost(input: {
     riskLevel: "low",
   };
   // Await acknowledgement before showing success or granting local demo rewards.
-  await mirrorPost(post, nostrEvent);
+  const abuse = await mirrorPost(post, nostrEvent);
+  if (abuse) {
+    post.maliciousScore = abuse.maliciousScore;
+    post.riskLevel = abuse.riskLevel;
+  }
   const next = [post, ...load()];
   save(next);
   return post;

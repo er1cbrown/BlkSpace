@@ -1910,6 +1910,12 @@ describe("yard mod on the shared server", () => {
     expect(scored.you.paused).toBe(true);
     expect(scored.you.overall).toBeGreaterThan(0.7);
     expect(scored.reports).toBeUndefined();
+    const farmedList = await (
+      await authorizedGet("/api/portfolio/posts?town=moddesk")
+    ).json();
+    const farmed = farmedList.rows.find((row) => row.authorHandle === "wynn");
+    expect(farmed.maliciousScore).toBeGreaterThan(0.7);
+    expect(farmed.riskLevel).toBe("high");
 
     const verse = "In the beginning God created the heaven and the earth.";
     const race = await post(

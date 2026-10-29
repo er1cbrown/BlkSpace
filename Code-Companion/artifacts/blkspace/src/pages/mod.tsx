@@ -61,9 +61,11 @@ export default function ModPage() {
         <div>
           <h1 className="text-2xl font-bold">Yard mod</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Signed in as @{handle}. Founder mod is @er1cbrown. A score above 0.7
-            pauses Typeverse WeixBucks. A hide or a ban applies to this yard for
-            every browser.
+            Signed in as @{handle}. Founder mod is @er1cbrown. The anti-abuse
+            score uses the same five weights on every browser: star follows,
+            fast follows, self-likes, repeated text, and bursts. Above 0.7,
+            Typeverse WeixBucks pause and the feed ranks that account down. A
+            hide or a ban applies to this yard for every browser.
           </p>
           {score ? (
             <p className="text-sm mt-2">

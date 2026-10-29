@@ -892,16 +892,31 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (path === "/api/ledger/payout") {
         return json(res, 200, await hubs.payout(body));
       }
-      if (path === "/api/portfolio/post")
-        return json(
-          res,
-          200,
-          await portfolio.savePost(
-            body,
-            pubkey,
-            development ? req.headers.host || "" : "",
-          ),
+      if (path === "/api/portfolio/post") {
+        const saved = await portfolio.savePost(
+          body,
+          pubkey,
+          development ? req.headers.host || "" : "",
         );
+        const handle =
+          typeof body.authorHandle === "string"
+            ? body.authorHandle.trim().toLowerCase()
+            : "";
+        let abuse = null;
+        if (handle) {
+          try {
+            abuse = await desk.midfFor(handle);
+          } catch {
+            abuse = null;
+          }
+        }
+        return json(res, 200, {
+          ...saved,
+          maliciousScore: abuse?.overall ?? 0,
+          riskLevel: abuse?.risk ?? "low",
+          paused: Boolean(abuse?.paused),
+        });
+      }
       uploadLimit(pubkey);
       return json(res, 200, { ok: true, ...(await uploadTarget(env, body)) });
     } catch (err) {

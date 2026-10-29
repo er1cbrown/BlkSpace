@@ -301,6 +301,21 @@ function boundedPage(value, fallback, maximum) {
   return Math.min(maximum, Math.max(1, Math.floor(number)));
 }
 
+function abuseScore(value) {
+  const score = Number(value);
+  if (!Number.isFinite(score)) return 0;
+  return Math.min(1, Math.max(0, score));
+}
+
+function abuseRisk(named, score) {
+  const risk = String(named || "");
+  if (risk === "high" || risk === "medium" || risk === "low") return risk;
+  const overall = abuseScore(score);
+  if (overall > 0.7) return "high";
+  if (overall > 0.4) return "medium";
+  return "low";
+}
+
 function publicPost(row, viewerPubkey = "") {
   const remoteId = String(row.id);
   const postUid = row.post_uid || `legacy:${remoteId}`;
@@ -344,6 +359,8 @@ function publicPost(row, viewerPubkey = "") {
     reposted: viewerPubkey ? booleanValue(row.reposted) : false,
     nostrEventId: row.nostr_event_id || "",
     relayUrl: row.relay_url || "",
+    maliciousScore: abuseScore(row.malicious_score),
+    riskLevel: abuseRisk(row.risk_level, row.malicious_score),
   };
   if (viewerPubkey) {
     result.viewerState = {
@@ -499,6 +516,9 @@ export function createPortfolio(env) {
         await query(`CREATE TABLE IF NOT EXISTS yard_bans (
           yard_id TEXT NOT NULL, handle TEXT NOT NULL, created_at TEXT NOT NULL,
           PRIMARY KEY (yard_id, handle))`);
+        await query(`CREATE TABLE IF NOT EXISTS yard_midf (
+          handle TEXT PRIMARY KEY, overall_score REAL NOT NULL, risk TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL)`);
         await query(`CREATE TABLE IF NOT EXISTS portfolio_post_owners (
           post_id INTEGER PRIMARY KEY, pubkey TEXT NOT NULL)`);
         await query(`CREATE TABLE IF NOT EXISTS portfolio_blobs (
@@ -1977,7 +1997,13 @@ export function createPortfolio(env) {
                                WHERE r.post_uid = COALESCE(NULLIF(p.post_uid, ''), 'legacy:' || p.id)
                                  AND r.desired_state = 1) AS reposts_count,
                              (SELECT COUNT(*) FROM portfolio_replies q
-                               WHERE q.post_uid = COALESCE(NULLIF(p.post_uid, ''), 'legacy:' || p.id)) AS replies_count`;
+                               WHERE q.post_uid = COALESCE(NULLIF(p.post_uid, ''), 'legacy:' || p.id)) AS replies_count,
+                             (SELECT overall_score FROM yard_midf m
+                               WHERE m.handle = lower(COALESCE(p.author_handle, ''))
+                               LIMIT 1) AS malicious_score,
+                             (SELECT risk FROM yard_midf m
+                               WHERE m.handle = lower(COALESCE(p.author_handle, ''))
+                               LIMIT 1) AS risk_level`;
       if (viewer) {
         select += `,
                              (SELECT COUNT(*) FROM portfolio_likes l
