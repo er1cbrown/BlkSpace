@@ -23,6 +23,15 @@ export default function LogosDeckPage() {
   const [error, setError] = useState("");
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
+  const [deckName, setDeckName] = useState("");
+  const [savedDecks, setSavedDecks] = useState<Record<string, DeckItem[]>>(() => {
+    try {
+      const raw = localStorage.getItem("blkspace.logosdecks.saved.v1");
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
 
   useEffect(() => {
     try {
@@ -31,6 +40,14 @@ export default function LogosDeckPage() {
       /* ignore */
     }
   }, [deck]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("blkspace.logosdecks.saved.v1", JSON.stringify(savedDecks));
+    } catch {
+      /* ignore */
+    }
+  }, [savedDecks]);
 
   useEffect(() => {
     if (!playing || deck.length === 0) return;
@@ -70,6 +87,28 @@ export default function LogosDeckPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const saveNamed = () => {
+    const name = deckName.trim();
+    if (!name || deck.length === 0) return;
+    setSavedDecks((d) => ({ ...d, [name]: deck }));
+    setDeckName("");
+  };
+  const loadNamed = (name: string) => {
+    const d = savedDecks[name];
+    if (d) {
+      setDeck(d);
+      setCursor(0);
+      setPlaying(false);
+    }
+  };
+  const deleteNamed = (name: string) => {
+    setSavedDecks((d) => {
+      const next = { ...d };
+      delete next[name];
+      return next;
+    });
   };
 
   const remove = (i: number) =>
@@ -135,6 +174,38 @@ export default function LogosDeckPage() {
             <div className="text-sm whitespace-pre-wrap">{deck[cursor].text}</div>
           </div>
         )}
+        <div className="border rounded p-3 space-y-2">
+          <div className="text-sm font-semibold">Saved decks</div>
+          <div className="flex gap-2">
+            <Input
+              value={deckName}
+              onChange={(e) => setDeckName(e.target.value)}
+              placeholder="Deck name"
+            />
+            <Button onClick={saveNamed} disabled={!deckName.trim() || deck.length === 0}>
+              Save
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Object.keys(savedDecks).map((name) => (
+              <div key={name} className="flex items-center gap-1 border rounded px-2 py-1">
+                <button className="text-sm" onClick={() => loadNamed(name)}>
+                  {name}
+                </button>
+                <button
+                  className="text-xs text-muted-foreground"
+                  onClick={() => deleteNamed(name)}
+                  aria-label={`Delete ${name}`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {Object.keys(savedDecks).length === 0 && (
+              <span className="text-xs text-muted-foreground">No saved decks yet.</span>
+            )}
+          </div>
+        </div>
         <div className="space-y-3">
           {deck.map((item, i) => (
             <div
