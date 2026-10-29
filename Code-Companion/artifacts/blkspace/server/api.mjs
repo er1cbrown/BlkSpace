@@ -14,6 +14,12 @@ import {
   weixnetStatus,
 } from "./weixnet.mjs";
 import { readSwordVerses } from "./logos-sword.mjs";
+import {
+  readLimited,
+  saveYardAudio,
+  serveYardAudio,
+  YARD_AUDIO_MAX_BYTES,
+} from "./yard-audio.mjs";
 
 const interactionRoutes = new Map([
   // Canonical interaction routes.
@@ -474,6 +480,30 @@ export function createApiHandler(env, { origins, development = false } = {}) {
       if (req.method === "POST" && path === "/api/portfolio/blob") {
         const { body } = await readJson(req);
         return json(res, 200, await portfolio.saveBlob(body));
+      }
+      const yardAudio = path.match(
+        /^\/api\/yards\/audio\/(aud_[a-f0-9]{16}\.(?:mp3|m4a|aac|ogg|oga|opus|wav|flac|webm))$/,
+      );
+      if (
+        yardAudio &&
+        (req.method === "GET" || req.method === "HEAD")
+      ) {
+        await serveYardAudio(req, res, env, yardAudio[1]);
+        return;
+      }
+      if (req.method === "POST" && path === "/api/yards/audio") {
+        const bytes = await readLimited(req, YARD_AUDIO_MAX_BYTES);
+        const pubkey = authenticate(req, bytes, allowed);
+        limit(`audio:${pubkey}`);
+        return json(
+          res,
+          200,
+          await saveYardAudio(env, {
+            name: url.searchParams.get("name") || "",
+            mime: req.headers["content-type"] || "",
+            bytes,
+          }),
+        );
       }
 
       // Notification listing is intentionally authenticated even though the

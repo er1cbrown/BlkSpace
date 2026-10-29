@@ -138,6 +138,7 @@ beforeAll(async () => {
       R2_SECRET_ACCESS_KEY: "test-secret",
       R2_BUCKET: "test",
       R2_PUBLIC_BASE_URL: "https://media.example.test",
+      YARD_AUDIO_DIR: path.join(dir, "yard-audio"),
     },
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -1991,6 +1992,56 @@ describe("yard mod on the shared server", () => {
         )
       ).status,
     ).toBe(403);
+  });
+});
+
+describe("yard audio upload", () => {
+  test("a signed file plays back and an unsigned post is refused", async () => {
+    const bytes = Buffer.from("ID3yard-audio-bytes");
+    const route = "/api/yards/audio?name=lawn.mp3";
+    const denied = await fetch(base + route, {
+      method: "POST",
+      headers: { "content-type": "audio/mpeg" },
+      body: bytes,
+    });
+    expect(denied.status).toBe(401);
+
+    const up = await fetch(base + route, {
+      method: "POST",
+      headers: {
+        "content-type": "audio/mpeg",
+        authorization: authorization(route, bytes),
+      },
+      body: bytes,
+    });
+    expect(up.status).toBe(200);
+    const saved = await up.json();
+    expect(saved.url).toMatch(
+      /^\/api\/yards\/audio\/aud_[a-f0-9]{16}\.mp3$/,
+    );
+    const played = await fetch(base + saved.url);
+    expect(played.status).toBe(200);
+    expect(played.headers.get("content-type")).toContain("audio/mpeg");
+    expect(Buffer.from(await played.arrayBuffer()).equals(bytes)).toBe(true);
+
+    const ranged = await fetch(base + saved.url, {
+      headers: { range: "bytes=0-2" },
+    });
+    expect(ranged.status).toBe(206);
+    expect(Buffer.from(await ranged.arrayBuffer()).toString()).toBe("ID3");
+
+    const notes = await fetch(base + "/api/yards/audio?name=notes.txt", {
+      method: "POST",
+      headers: {
+        "content-type": "text/plain",
+        authorization: authorization(
+          "/api/yards/audio?name=notes.txt",
+          bytes,
+        ),
+      },
+      body: bytes,
+    });
+    expect(notes.status).toBe(400);
   });
 });
 

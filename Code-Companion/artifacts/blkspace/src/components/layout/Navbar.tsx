@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Bell, Search, Users, Wallet, Menu, X } from "lucide-react";
+import { Moon, Sun, Bell, Search, Wallet, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { getCurrentHandle } from "@/lib/auth";
 import { isYardMod } from "@/lib/yard-mod";
@@ -14,22 +14,24 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const lab = useLabUnlocked();
 
-  const navItems = [
+  const primary = [
     { href: "/feed", label: "Feed" },
-    { href: "/hub", label: "Hub" },
-    { href: "/audio", label: "Audio" },
+    { href: "/audio", label: "Records" },
+    { href: "/logosdecks", label: "Decks" },
+  ];
+  const extra = [
+    { href: "/communities", label: "Yards" },
     { href: "/weixsound", label: "WeixSound" },
-    { href: "/logosdecks", label: "LogosDecks" },
-    { href: "/ide", label: "Homework" },
-    { href: "/blkshi", label: "BLKSHI" },
-    { href: "/arcade", label: "Arcade" },
-    { href: "/typeverse", label: "Typeverse" },
-    { href: "/focus", label: "Focus" },
-    { href: "/faculty", label: "Faculty" },
     { href: "/messages", label: "Messages" },
     { href: "/connect", label: "Connect" },
+    { href: "/arcade", label: "Arcade" },
+    { href: "/typeverse", label: "Typeverse" },
+    { href: "/hub", label: "Hub" },
+    { href: "/ide", label: "Homework" },
+    { href: "/blkshi", label: "BLKSHI" },
+    { href: "/focus", label: "Focus" },
+    { href: "/faculty", label: "Faculty" },
     { href: "/media", label: "Media" },
-    { href: "/communities", label: "Communities" },
     ...(isYardMod(getCurrentHandle()) ? [{ href: "/mod", label: "Mod" }] : []),
     ...(lab
       ? [
@@ -47,8 +49,8 @@ export function Navbar() {
           <BrandMark className="cursor-pointer" size="md" />
         </Link>
 
-        <div className="hidden md:flex gap-6 items-center">
-          {navItems.map((item) => (
+        <div className="hidden md:flex gap-5 items-center">
+          {primary.map((item) => (
             <Link key={item.href} href={item.href}>
               <span
                 className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === item.href ? "text-primary" : "text-muted-foreground"}`}
@@ -100,7 +102,8 @@ export function Navbar() {
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden rounded-full"
+            className="rounded-full"
+            aria-label="More"
             onClick={() => setMobileOpen(!mobileOpen)}
           >
             {mobileOpen ? (
@@ -113,17 +116,19 @@ export function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden border-t bg-background p-4 space-y-3">
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href}>
-              <span
-                className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === item.href ? "text-primary" : "text-muted-foreground"}`}
-                onClick={() => setMobileOpen(false)}
-              >
-                {item.label}
-              </span>
-            </Link>
-          ))}
+        <div className="border-t bg-background p-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {[...primary, ...extra].map((item) => (
+              <Link key={item.href} href={item.href}>
+                <span
+                  className={`block rounded-md px-2 py-1.5 text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === item.href ? "text-primary" : "text-muted-foreground"}`}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            ))}
+          </div>
           <Link href={`/profile/${getCurrentHandle()}`}>
             <Button variant="outline" size="sm" className="w-full mt-2">
               Profile

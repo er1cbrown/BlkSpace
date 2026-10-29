@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   audioFileOk,
+  audioUploadOk,
   coverFileOk,
   coverSrcOk,
   listMixtapes,
@@ -41,6 +42,23 @@ describe("audio mixtapes", () => {
     ).toMatch(/8 MB/);
     expect(
       audioFileOk({ type: "audio/mpeg", name: "set.mp3", size: 1000 }),
+    ).toBe(null);
+    expect(
+      audioUploadOk({
+        type: "audio/mpeg",
+        name: "set.mp3",
+        size: 9 * 1024 * 1024,
+      }),
+    ).toBe(null);
+    expect(
+      audioUploadOk({
+        type: "audio/mpeg",
+        name: "set.mp3",
+        size: 26 * 1024 * 1024,
+      }),
+    ).toMatch(/25 MB/);
+    expect(
+      audioUploadOk({ type: "audio/opus", name: "set.opus", size: 1000 }),
     ).toBe(null);
     expect(
       coverFileOk({ type: "image/png", name: "front.png", size: 1000 }),

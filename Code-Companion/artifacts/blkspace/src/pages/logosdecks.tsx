@@ -22,15 +22,9 @@ export default function LogosDecksPage() {
             <Disc3 className="w-6 h-6 text-fuchsia-400" />
             <h1 className="text-2xl font-bold font-serif">LogosDecks</h1>
           </div>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            LogosDecks is the showcase for one member or a battle of many. A
-            track streams a record, under Bermuda Boyz Records or that
-            member&apos;s own name. A book streams a reading the same way:
-            Bible, Quran, Buddhist, esoteric, or other truth media that member
-            hosts. Two decks face each other. Each clean hit builds a combo and
-            the flow meter. A full meter doubles the hit. The higher score when
-            the set closes wins. Tradition does not change the score. The deck
-            does not write the reading.
+          <p className="text-sm text-muted-foreground">
+            Two decks. Load a record or a reading. The higher flow score wins
+            the set.
           </p>
           <div className="flex flex-wrap gap-4">
             <Link href="/audio" className="text-sm underline">

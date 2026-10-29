@@ -5,12 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { AlbumSleeve } from "@/components/media/AlbumSleeve";
 import { MixtapePlayer } from "@/components/media/MixtapePlayer";
 import { useGuestMode } from "@/lib/guest-mode";
 import {
-  audioFileOk,
+  audioUploadOk,
   coverFileOk,
   listMixtapes,
   markMixtapeListed,
@@ -32,6 +31,8 @@ import {
 import { trackSrcOk } from "@/lib/audio-mixtapes";
 import { createMarketplaceListing } from "@/lib/marketplace-escrow";
 import { webStoreFile } from "@/lib/media-web-store";
+import { uploadAudioFile } from "@/lib/upload-audio";
+import { publishAudioOnWeixNet, weixnetAudioLine } from "@/lib/weixnet-audio";
 import { Headphones } from "lucide-react";
 import { toast } from "sonner";
 
@@ -103,29 +104,44 @@ export default function AudioPage() {
 
   const addFiles = async (files: FileList | null) => {
     if (!files?.length) return;
+    if (isGuest) {
+      signIn();
+      return;
+    }
     setBusy(true);
     try {
       const next: MixtapeTrack[] = [];
       for (const file of Array.from(files)) {
-        const problem = audioFileOk(file);
+        const problem = audioUploadOk(file);
         if (problem) {
           toast.error(problem);
           continue;
         }
-        const dataUrl = await readFile(file);
-        const saved = await webStoreFile(file, dataUrl);
-        next.push({
-          id: saved.id,
-          title: file.name.replace(/\.[^.]+$/, ""),
-          src: saved.id,
-        });
-        if (!saved.synced) {
-          toast("Saved on this device. Other phones need an https link.", {
-            description: saved.syncError,
+        try {
+          const src = await uploadAudioFile(file);
+          const fileId = src.split("/").pop() || "";
+          next.push({
+            id: /^[a-z0-9_.:-]{1,64}$/i.test(fileId)
+              ? fileId
+              : `track_${next.length}`,
+            title: file.name.replace(/\.[^.]+$/, ""),
+            src,
           });
+        } catch (err) {
+          const message =
+            err instanceof Error ? err.message : "That audio did not upload.";
+          if (message.startsWith("Sign in")) signIn();
+          else toast.error(message);
         }
       }
-      setTracks((cur) => [...cur, ...next].slice(0, 12));
+      if (next.length) {
+        setTracks((cur) => [...cur, ...next].slice(0, 12));
+        toast.success(
+          next.length === 1
+            ? "Uploaded. Anyone on this yard can play it."
+            : `Uploaded ${next.length} files. Anyone on this yard can play them.`,
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -190,13 +206,14 @@ export default function AudioPage() {
     }
   };
 
-  const publish = () => {
+  const publish = async () => {
     if (isGuest) {
       signIn();
       return;
     }
+    let mixtape;
     try {
-      publishMixtape({
+      mixtape = publishMixtape({
         title,
         body,
         tracks,
@@ -212,21 +229,45 @@ export default function AudioPage() {
         masterId,
         rightsAttested: setKind === "songs" && rightsAttested,
       });
-      setTitle("");
-      setBody("");
-      setTracks([]);
-      setCover("");
-      setCredits("");
-      setStoreUrl("");
-      setSplitsText("");
-      setMasterId("");
-      setRightsAttested(false);
-      setStemUrl("");
-      setTick((n) => n + 1);
-      void syncMixtapes().then(() => setTick((n) => n + 1));
-      toast.success("On the hub. Play it from Music.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not publish");
+      toast.error(err instanceof Error ? err.message : "Could not release");
+      return;
+    }
+    setTitle("");
+    setBody("");
+    setTracks([]);
+    setCover("");
+    setCredits("");
+    setStoreUrl("");
+    setSplitsText("");
+    setMasterId("");
+    setRightsAttested(false);
+    setStemUrl("");
+    setTick((n) => n + 1);
+    toast.success("Released. It plays free on WeixSound.");
+    if (mixtape.priceWb >= 1) {
+      try {
+        const listingId = await createMarketplaceListing(
+          mixtapeListingArgs(mixtape),
+        );
+        markMixtapeListed(mixtape.id, listingId);
+        toast.success("The numbered copy is for sale in WeixBucks.");
+      } catch (err) {
+        toast.error(
+          err instanceof Error
+            ? err.message
+            : "The disc is up. The numbered copy was not listed.",
+        );
+      }
+    }
+    void syncMixtapes().then(() => setTick((n) => n + 1));
+    const sent = await publishAudioOnWeixNet(mixtape, "release");
+    if (sent.sent) {
+      toast.success(
+        sent.priceWb > 0
+          ? `WeixNet has the disc. The market asks ${sent.priceWb} WB.`
+          : "WeixNet has the disc. Play is free.",
+      );
     }
   };
 
@@ -247,7 +288,7 @@ export default function AudioPage() {
       );
       markMixtapeListed(id, listingId);
       setTick((n) => n + 1);
-      toast.success("Listed on Yard Sale as a BlkCore edition");
+      toast.success("The numbered copy is for sale in WeixBucks.");
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Yard Sale did not save it",
@@ -261,72 +302,33 @@ export default function AudioPage() {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Headphones className="w-6 h-6 text-primary" />
-            <h1 className="text-2xl font-bold font-serif">Audio</h1>
-            <Badge variant="outline">BlkCore</Badge>
+            <h1 className="text-2xl font-bold font-serif">Records</h1>
           </div>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            Publish a song mix, a verse mix, or a Logos Deck. {WEIXSOUND_LABEL}{" "}
-            is the license stamped on the disc. You stay the artist. The sleeve
-            works like a vinyl or a CD: artwork on the front, credits and the
-            track list on the back. A priced set is a numbered campus copy paid
-            in WeixBucks. The names on the sleeve are who gets paid. The yard
-            keeps 5 percent. Buying a Logos Deck turns that set on for the
-            buyer. It is not a chain NFT, and passing a copy pays the sleeve
-            again.
+            {WEIXSOUND_LABEL} distributes the disc on this yard. WeixNet carries
+            the disc. Anyone can play it. A price puts a numbered copy on the
+            yard market in WeixBucks. You stay the artist. The yard keeps 5
+            percent.
           </p>
-          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span>MySpace — one song on your page.</span>
-            <span>SoundCloud / YouTube — a list that plays in order.</span>
-            <span>Newgrounds — you own the file, the yard can list it.</span>
-          </div>
           <div className="flex flex-wrap gap-4">
             <Link href="/weixsound" className="text-sm underline">
-              {WEIXSOUND_LABEL} on WeixSound
+              Hear the shelf
             </Link>
             <Link href="/logosdecks" className="text-sm underline">
-              Play a set on LogosDecks
+              Play it on LogosDecks
             </Link>
           </div>
         </div>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Publish a set</CardTitle>
+            <CardTitle className="text-base">Release a disc</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <select
-              aria-label="Set kind"
-              value={setKind}
-              onChange={(event) => setSetKind(event.target.value as MixSetKind)}
-              className="h-9 rounded-md border bg-background px-2 text-sm"
-            >
-              <option value="songs">Song mix</option>
-              <option value="verses">Verse mix</option>
-              <option value="logos">Logos Deck</option>
-            </select>
-            <select
-              aria-label="Disc format"
-              value={format}
-              onChange={(event) => setFormat(event.target.value as DiscFormat)}
-              className="h-9 rounded-md border bg-background px-2 text-sm"
-            >
-              <option value="single">Single</option>
-              <option value="vinyl">Vinyl</option>
-              <option value="ep">EP</option>
-              <option value="mixtape">Mixtape</option>
-              <option value="album">Album / LP</option>
-              <option value="cd">CD</option>
-            </select>
             <Input
               placeholder="Title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-            />
-            <Textarea
-              placeholder="Who is this for, and do you own the recording?"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={2}
             />
             <div className="grid grid-cols-2 gap-2">
               <Input
@@ -344,65 +346,28 @@ export default function AudioPage() {
                 aria-label="Edition size"
               />
             </div>
-            <Textarea
-              placeholder="Credits for the back of the sleeve"
-              value={credits}
-              onChange={(e) => setCredits(e.target.value)}
-              rows={2}
-              aria-label="Credits"
-            />
-            <p className="text-xs text-muted-foreground">
-              Licensed {WEIXSOUND_LABEL}. The split below is the artist pay.
-            </p>
-            <Textarea
-              placeholder="Splits, one per line: handle percent. Empty gives you 95. The yard keeps 5."
-              value={splitsText}
-              onChange={(e) => setSplitsText(e.target.value)}
-              rows={2}
-              aria-label="Splits"
-            />
             <Input
-              placeholder="Master id, when a CD uses the same audio as an album"
-              value={masterId}
-              onChange={(e) => setMasterId(e.target.value)}
-              aria-label="Master id"
+              type="file"
+              accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.opus,.webm"
+              multiple
+              aria-label="Audio file"
+              disabled={busy}
+              onChange={(e) => {
+                void addFiles(e.target.files);
+                e.target.value = "";
+              }}
             />
-            {setKind === "songs" && (
-              <div className="space-y-2">
-                <select
-                  aria-label="Who can open this disc"
-                  value={visibility}
-                  onChange={(event) =>
-                    setVisibility(event.target.value as ReleaseVisibility)
-                  }
-                  className="h-9 rounded-md border bg-background px-2 text-sm"
-                >
-                  <option value="yard">Yard only</option>
-                  <option value="public">Public link</option>
-                </select>
-                <Input
-                  placeholder="https:// store link (Audius, SoundCloud, Bandcamp, Tidal)"
-                  value={storeUrl}
-                  onChange={(e) => setStoreUrl(e.target.value)}
-                  aria-label="Store link"
-                />
-                <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={rightsAttested}
-                    onChange={(event) =>
-                      setRightsAttested(event.target.checked)
-                    }
-                  />
-                  I hold the rights to this recording
-                </label>
-                <p className="text-[11px] text-muted-foreground">
-                  A vinyl, and any paid song copy, records a yard receipt. A
-                  Solana memo can be anchored later and does not mint. The buyer
-                  then streams the stems and the credits. A free play stays the
-                  master.
-                </p>
-              </div>
+            {busy ? (
+              <p className="text-xs text-muted-foreground">
+                Uploading the file…
+              </p>
+            ) : null}
+            {tracks.length > 0 && (
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                {tracks.map((track) => (
+                  <li key={track.id}>{track.title}</li>
+                ))}
+              </ul>
             )}
             {cover.startsWith("web_") ? (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -416,14 +381,7 @@ export default function AudioPage() {
                   Remove cover
                 </Button>
               </div>
-            ) : (
-              <Input
-                placeholder="https:// link to cover art"
-                value={cover}
-                onChange={(e) => setCover(e.target.value)}
-                aria-label="Cover art link"
-              />
-            )}
+            ) : null}
             <Input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
@@ -433,141 +391,219 @@ export default function AudioPage() {
                 e.target.value = "";
               }}
             />
-            <Input
-              type="file"
-              accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.webm"
-              multiple
-              onChange={(e) => {
-                void addFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
-            {setKind !== "songs" && (
-              <div className="grid sm:grid-cols-[1fr_auto] gap-2">
-                <Input
-                  placeholder="Verse, like Isaiah 53:5"
-                  value={verseRef}
-                  onChange={(event) => setVerseRef(event.target.value)}
-                  aria-label="Verse reference"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addVerse}
+            <Button
+              size="sm"
+              disabled={busy || !title.trim()}
+              onClick={() => void publish()}
+            >
+              Release
+            </Button>
+            <details className="rounded-md border px-3 py-2 text-sm">
+              <summary className="cursor-pointer text-muted-foreground">
+                Sleeve, format, and an outside link
+              </summary>
+              <div className="mt-3 space-y-2">
+                <select
+                  aria-label="Set kind"
+                  value={setKind}
+                  onChange={(event) =>
+                    setSetKind(event.target.value as MixSetKind)
+                  }
+                  className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                 >
-                  Add verse
-                </Button>
-              </div>
-            )}
-            <div className="grid sm:grid-cols-[1fr_1.4fr_auto] gap-2">
-              <Input
-                placeholder="Track name"
-                value={linkTitle}
-                onChange={(e) => setLinkTitle(e.target.value)}
-              />
-              <Input
-                placeholder="https:// link to an audio file"
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addLink}
-              >
-                Add link
-              </Button>
-            </div>
-            {tracks.length > 0 && (
-              <div className="space-y-2">
-                <ul className="text-xs text-muted-foreground space-y-1">
-                  {tracks.map((track) => (
-                    <li key={track.id}>
-                      {track.title}
-                      {track.stems?.length
-                        ? ` · ${track.stems.map((stem) => stem.lane).join(", ")}`
-                        : ""}
-                    </li>
-                  ))}
-                </ul>
-                <div className="grid sm:grid-cols-[auto_auto_1fr_auto] gap-2">
-                  <select
-                    aria-label="Stem track"
-                    value={stemFor}
-                    onChange={(event) => setStemFor(Number(event.target.value))}
-                    className="h-9 rounded-md border bg-background px-2 text-sm"
-                  >
-                    {tracks.map((track, index) => (
-                      <option key={track.id} value={index}>
-                        {track.title}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    aria-label="Stem lane"
-                    value={stemLane}
-                    onChange={(event) =>
-                      setStemLane(event.target.value as StemLane)
-                    }
-                    className="h-9 rounded-md border bg-background px-2 text-sm"
-                  >
-                    {STEM_LANES.map((lane) => (
-                      <option key={lane} value={lane}>
-                        {lane}
-                      </option>
-                    ))}
-                  </select>
+                  <option value="songs">Song</option>
+                  <option value="verses">Verse mix</option>
+                  <option value="logos">Logos Deck</option>
+                </select>
+                <select
+                  aria-label="Disc format"
+                  value={format}
+                  onChange={(event) =>
+                    setFormat(event.target.value as DiscFormat)
+                  }
+                  className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                >
+                  <option value="single">Single</option>
+                  <option value="vinyl">Vinyl</option>
+                  <option value="ep">EP</option>
+                  <option value="mixtape">Mixtape</option>
+                  <option value="album">Album / LP</option>
+                  <option value="cd">CD</option>
+                </select>
+                <Textarea
+                  placeholder="Note on the sleeve"
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={2}
+                />
+                <Textarea
+                  placeholder="Credits for the back of the sleeve"
+                  value={credits}
+                  onChange={(e) => setCredits(e.target.value)}
+                  rows={2}
+                  aria-label="Credits"
+                />
+                <Textarea
+                  placeholder="Splits, one per line: handle percent. Empty gives you 95. The yard keeps 5."
+                  value={splitsText}
+                  onChange={(e) => setSplitsText(e.target.value)}
+                  rows={2}
+                  aria-label="Splits"
+                />
+                <Input
+                  placeholder="Master id, when a CD uses the same audio as an album"
+                  value={masterId}
+                  onChange={(e) => setMasterId(e.target.value)}
+                  aria-label="Master id"
+                />
+                {setKind === "songs" && (
+                  <>
+                    <select
+                      aria-label="Who can open this disc"
+                      value={visibility}
+                      onChange={(event) =>
+                        setVisibility(event.target.value as ReleaseVisibility)
+                      }
+                      className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                    >
+                      <option value="yard">Yard only</option>
+                      <option value="public">Public link</option>
+                    </select>
+                    <Input
+                      placeholder="Optional https link on Audius, SoundCloud, Bandcamp, or Tidal"
+                      value={storeUrl}
+                      onChange={(e) => setStoreUrl(e.target.value)}
+                      aria-label="Store link"
+                    />
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={rightsAttested}
+                        onChange={(event) =>
+                          setRightsAttested(event.target.checked)
+                        }
+                      />
+                      I hold the rights to this recording
+                    </label>
+                  </>
+                )}
+                <Input
+                  placeholder="https:// link to cover art"
+                  value={cover.startsWith("web_") ? "" : cover}
+                  onChange={(e) => setCover(e.target.value)}
+                  aria-label="Cover art link"
+                />
+                {setKind !== "songs" && (
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <Input
+                      placeholder="Verse, like Isaiah 53:5"
+                      value={verseRef}
+                      onChange={(event) => setVerseRef(event.target.value)}
+                      aria-label="Verse reference"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addVerse}
+                    >
+                      Add verse
+                    </Button>
+                  </div>
+                )}
+                <div className="grid gap-2 sm:grid-cols-[1fr_1.4fr_auto]">
                   <Input
-                    placeholder="https:// stem file"
-                    value={stemUrl}
-                    onChange={(event) => setStemUrl(event.target.value)}
-                    aria-label="Stem link"
+                    placeholder="Track name"
+                    value={linkTitle}
+                    onChange={(e) => setLinkTitle(e.target.value)}
+                  />
+                  <Input
+                    placeholder="https:// link to an audio file"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
                   />
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      if (!trackSrcOk(stemUrl)) {
-                        toast.error("A stem needs an https audio file.");
-                        return;
-                      }
-                      setTracks((cur) =>
-                        cur.map((track, index) =>
-                          index === stemFor
-                            ? {
-                                ...track,
-                                stems: [
-                                  ...(track.stems || []).filter(
-                                    (stem) => stem.lane !== stemLane,
-                                  ),
-                                  {
-                                    id: `${stemLane}_${track.id}`,
-                                    lane: stemLane,
-                                    src: stemUrl.trim(),
-                                  },
-                                ].slice(0, 4),
-                              }
-                            : track,
-                        ),
-                      );
-                      setStemUrl("");
-                    }}
+                    onClick={addLink}
                   >
-                    Add stem
+                    Add link
                   </Button>
                 </div>
+                {tracks.length > 0 && (
+                  <div className="grid gap-2 sm:grid-cols-[auto_auto_1fr_auto]">
+                    <select
+                      aria-label="Stem track"
+                      value={stemFor}
+                      onChange={(event) =>
+                        setStemFor(Number(event.target.value))
+                      }
+                      className="h-9 rounded-md border bg-background px-2 text-sm"
+                    >
+                      {tracks.map((track, index) => (
+                        <option key={track.id} value={index}>
+                          {track.title}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Stem lane"
+                      value={stemLane}
+                      onChange={(event) =>
+                        setStemLane(event.target.value as StemLane)
+                      }
+                      className="h-9 rounded-md border bg-background px-2 text-sm"
+                    >
+                      {STEM_LANES.map((lane) => (
+                        <option key={lane} value={lane}>
+                          {lane}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      placeholder="https:// stem file"
+                      value={stemUrl}
+                      onChange={(event) => setStemUrl(event.target.value)}
+                      aria-label="Stem link"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (!trackSrcOk(stemUrl)) {
+                          toast.error("A stem needs an https audio file.");
+                          return;
+                        }
+                        setTracks((cur) =>
+                          cur.map((track, index) =>
+                            index === stemFor
+                              ? {
+                                  ...track,
+                                  stems: [
+                                    ...(track.stems || []).filter(
+                                      (stem) => stem.lane !== stemLane,
+                                    ),
+                                    {
+                                      id: `${stemLane}_${track.id}`,
+                                      lane: stemLane,
+                                      src: stemUrl.trim(),
+                                    },
+                                  ].slice(0, 4),
+                                }
+                              : track,
+                          ),
+                        );
+                        setStemUrl("");
+                      }}
+                    >
+                      Add stem
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-            <Button
-              size="sm"
-              disabled={busy || !title.trim()}
-              onClick={publish}
-            >
-              Publish to hub
-            </Button>
+            </details>
           </CardContent>
         </Card>
 
@@ -607,7 +643,10 @@ export default function AudioPage() {
                   {mixtape.splits
                     .map((row) => `${row.handle} ${row.percent}`)
                     .join(" · ")}{" "}
-                  · yard 5{mixtape.storeUrl ? ` · ${mixtape.storeUrl}` : ""}
+                  · yard 5
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {weixnetAudioLine(mixtape)}
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                   <AlbumSleeve mixtape={mixtape} />
@@ -616,18 +655,18 @@ export default function AudioPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Link href="/hub">
+                  <Link href="/weixsound">
                     <Button size="sm" variant="outline">
-                      Open hub
+                      On WeixSound
                     </Button>
                   </Link>
-                  {!mixtape.listingId && (
+                  {!mixtape.listingId && mixtape.priceWb > 0 && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => void listEdition(mixtape.id)}
                     >
-                      List on Yard Sale
+                      Sell the numbered copy
                     </Button>
                   )}
                 </div>

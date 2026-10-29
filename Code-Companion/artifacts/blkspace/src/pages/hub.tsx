@@ -23,25 +23,13 @@ import {
 } from "@/lib/content-hub";
 import { useGuestMode } from "@/lib/guest-mode";
 import { isSafeHttpUrl } from "@/lib/amalgamation-meta";
-import { BRAND } from "@/lib/brand";
-import {
-  Clapperboard,
-  ExternalLink,
-  Gamepad2,
-  GraduationCap,
-  Headphones,
-  Keyboard,
-  Layers,
-  Plus,
-  Radio,
-} from "lucide-react";
+import { ExternalLink, Gamepad2, Layers, Plus, Radio } from "lucide-react";
 import { toast } from "sonner";
 import { MixtapePlayer } from "@/components/media/MixtapePlayer";
 import { PinImage } from "@/components/yard/PinImage";
 import { getMixtape, parseMixtapeRef } from "@/lib/audio-mixtapes";
 import { loadUiPrefs } from "@/lib/ui-prefs";
 import {
-  disciplineUpliftLine,
   getDisciplineTrack,
   orderHubTopicsForTrack,
 } from "@/lib/discipline-track";
@@ -183,74 +171,17 @@ export default function HubPage() {
             <h1 className="text-2xl font-bold font-serif">Content Hub</h1>
             <Badge variant="secondary">Amalgamation</Badge>
           </div>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            One shelf for underrepresented-network culture — chess lessons, live
-            link-outs, fashion drops, study hours, pro portfolios. Same{" "}
-            {BRAND.name} identity and soft-earn story as the feed, yards, and
-            Connect. Topics reorder for your{" "}
-            <span className="text-foreground font-medium">
-              {discipline.label}
-            </span>{" "}
-            track.
+          <p className="text-sm text-muted-foreground">
+            One shelf. Topics follow your {discipline.label} track.
           </p>
-          <p className="text-xs text-primary/90 max-w-2xl">
-            {disciplineUpliftLine(discipline.id)}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/terms">
-              <Button size="sm" variant="outline">
-                Terms
-              </Button>
-            </Link>
-            <Link href="/blkshi">
-              <Button size="sm" variant="outline">
-                BLKSHI
-              </Button>
-            </Link>
-            <Link href="/wallet">
-              <Button size="sm" variant="outline" className="gap-1">
-                <GraduationCap className="w-3.5 h-3.5" />
-                Money literacy
-              </Button>
-            </Link>
-            <Link href="/arcade">
-              <Button size="sm" variant="default" className="gap-1">
-                <Gamepad2 className="w-3.5 h-3.5" />
-                Yard Arcade
-              </Button>
-            </Link>
-            <Link href="/audio">
-              <Button size="sm" variant="outline" className="gap-1">
-                <Headphones className="w-3.5 h-3.5" />
-                Audio
-              </Button>
-            </Link>
-            <Link href="/typeverse">
-              <Button size="sm" variant="outline" className="gap-1">
-                <Keyboard className="w-3.5 h-3.5" />
-                typeverse
-              </Button>
-            </Link>
-            <Link href="/create">
-              <Button size="sm" variant="outline" className="gap-1">
-                <Clapperboard className="w-3.5 h-3.5" />
-                Create post
-              </Button>
-            </Link>
-            <Link href="/settings">
-              <Button size="sm" variant="outline">
-                Change discipline
-              </Button>
-            </Link>
-            <Button
-              size="sm"
-              className="gap-1"
-              onClick={() => setShowPublish(!showPublish)}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Publish to Hub
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            className="gap-1"
+            onClick={() => setShowPublish(!showPublish)}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Publish to Hub
+          </Button>
         </div>
 
         {publicHubs.length > 0 && (

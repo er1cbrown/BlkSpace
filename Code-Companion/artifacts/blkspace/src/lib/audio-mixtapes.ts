@@ -30,6 +30,8 @@ import {
 export const MIXTAPE_STORE = "blkspace_audio_mixtapes_v1";
 /** Keep phone IndexedDB usable. Longer sets belong on an https host. */
 export const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
+/** Yard and R2 audio. The 8 MB cap is only the browser-local data URL path. */
+export const MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024;
 export const MAX_COVER_BYTES = 2 * 1024 * 1024;
 export const MAX_TRACKS = 12;
 export const MAX_CREDITS = 800;
@@ -45,11 +47,31 @@ const AUDIO_MIME = new Set([
   "audio/wave",
   "audio/x-wav",
   "audio/ogg",
+  "audio/opus",
   "audio/webm",
   "audio/mp4",
+  "audio/x-m4a",
   "audio/aac",
+  "audio/x-aac",
   "audio/flac",
+  "audio/x-flac",
 ]);
+
+const AUDIO_EXT = /\.(mp3|wav|ogg|oga|opus|webm|m4a|aac|flac)$/;
+
+function audioKindProblem(file: {
+  type: string;
+  name: string;
+  size: number;
+}): string | null {
+  const type = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+  const mimeOk = AUDIO_MIME.has(type) || AUDIO_EXT.test(name);
+  if (!mimeOk)
+    return "Use an audio file (mp3, wav, ogg, m4a, opus, webm, flac).";
+  if (file.size <= 0) return "That file is empty.";
+  return null;
+}
 
 export interface MixtapeTrack {
   id: string;
@@ -112,15 +134,23 @@ export function audioFileOk(file: {
   name: string;
   size: number;
 }): string | null {
-  const type = file.type.toLowerCase();
-  const name = file.name.toLowerCase();
-  const mimeOk =
-    AUDIO_MIME.has(type) || /\.(mp3|wav|ogg|oga|webm|m4a|aac|flac)$/.test(name);
-  if (!mimeOk) return "Use an audio file (mp3, wav, ogg, m4a, webm, flac).";
+  const kind = audioKindProblem(file);
+  if (kind) return kind;
   if (file.size > MAX_AUDIO_BYTES) {
     return "That file is over 8 MB. Host it at an https link and paste the URL.";
   }
-  if (file.size <= 0) return "That file is empty.";
+  return null;
+}
+
+/** A file the yard or R2 can take. Larger than the browser-local copy. */
+export function audioUploadOk(file: {
+  type: string;
+  name: string;
+  size: number;
+}): string | null {
+  const kind = audioKindProblem(file);
+  if (kind) return kind;
+  if (file.size > MAX_AUDIO_UPLOAD_BYTES) return "That file is over 25 MB.";
   return null;
 }
 

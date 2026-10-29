@@ -27,6 +27,7 @@ import {
   rememberVerifiedCopy,
   WEIXSOUND_LABEL,
 } from "@/lib/weixsound";
+import { publishAudioOnWeixNet, weixnetAudioLine } from "@/lib/weixnet-audio";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 
@@ -126,20 +127,26 @@ export default function WeixSoundPage() {
     }
   };
 
-  const passCopy = async (listingId: number, mixtapeId: string) => {
+  const passCopy = async (listingId: number, mixtape: AudioMixtape) => {
     if (listingId < 1) {
       toast.error("Buy the copy on this yard before passing it");
       return;
     }
-    const price = Number.parseInt(ask[mixtapeId] || "", 10);
+    const price = Number.parseInt(ask[mixtape.id] || "", 10);
     if (!Number.isInteger(price) || price < 1) {
       toast.error("Set a whole WeixBucks price of at least 1");
       return;
     }
-    setBuying(mixtapeId);
+    setBuying(mixtape.id);
     try {
       await offerCopyPass(listingId, price);
       toast.success("Offered. A sale pays the people on the sleeve, not you.");
+      const sent = await publishAudioOnWeixNet(mixtape, "pass", price);
+      if (sent.sent) {
+        toast.success(
+          "WeixNet has the offer. The market price is in WeixBucks.",
+        );
+      }
       await refresh();
     } catch (err) {
       toast.error(
@@ -174,16 +181,14 @@ export default function WeixSoundPage() {
         <div className="space-y-2">
           <h1 className="text-2xl font-bold font-serif">WeixSound</h1>
           <p className="text-sm text-muted-foreground">
-            {WEIXSOUND_LABEL} is the license on every disc. The artist is the
-            member who released it. Play a release free. A priced copy is a
-            numbered disc paid in WeixBucks. The names on the sleeve are paid,
-            and the yard keeps 5 percent. Passing a copy pays that sleeve again.
-            There is no price chart and no promise the next price is higher. A
-            public disc can link to Audius, SoundCloud, Bandcamp, or Tidal.
+            {WEIXSOUND_LABEL} is the distributor. WeixNet carries the disc. Play
+            any disc free. A priced copy is numbered and paid in WeixBucks on
+            the yard market. The sleeve gets paid. The yard keeps 5 percent.
+            Passing a copy pays that sleeve again.
           </p>
           <div className="flex flex-wrap gap-4">
             <Link href="/audio" className="text-sm underline">
-              Set the format and the split on Audio
+              Release a disc
             </Link>
             <Link href="/logosdecks" className="text-sm underline">
               Play a release on LogosDecks
@@ -216,6 +221,9 @@ export default function WeixSoundPage() {
                       .join(" · ")}{" "}
                     · yard 5
                   </p>
+                  <p className="text-xs text-muted-foreground">
+                    {weixnetAudioLine(mixtape)}
+                  </p>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                     <AlbumSleeve mixtape={mixtape} />
                     <div className="min-w-0 flex-1">
@@ -241,23 +249,23 @@ export default function WeixSoundPage() {
                         disabled={buying === mixtape.id}
                         onClick={() => void buyCopy(mixtape)}
                       >
-                        Buy one copy
+                        Buy copy · {mixtape.priceWb} WB
                       </Button>
-                    ) : (
+                    ) : mixtape.priceWb > 0 ? (
                       <Link href="/audio">
                         <Button size="sm" variant="outline">
-                          List the copy on Audio
+                          Sell the numbered copy
                         </Button>
                       </Link>
-                    )}
+                    ) : null}
                     {mixtape.storeUrl && (
                       <a
                         href={mixtape.storeUrl}
                         target="_blank"
                         rel="noreferrer"
                       >
-                        <Button size="sm" variant="outline">
-                          Store link
+                        <Button size="sm" variant="ghost">
+                          Also elsewhere
                         </Button>
                       </a>
                     )}
@@ -304,7 +312,7 @@ export default function WeixSoundPage() {
                               ?.listingId ||
                               mixtape.listingId ||
                               0,
-                            mixtape.id,
+                            mixtape,
                           )
                         }
                       >

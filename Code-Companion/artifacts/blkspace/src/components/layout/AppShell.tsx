@@ -55,29 +55,20 @@ interface AppShellProps {
   fullWidth?: boolean;
 }
 
-/** Student core — everyday destinations (Connect = ProjectConnect). */
+/** Everyday destinations. Everything else sits under More. */
 const PRIMARY_NAV = [
-  { href: "/feed", label: "Home", sub: "Your feed", icon: Home },
-  { href: "/communities", label: "Yards", sub: "Campuses", icon: Users },
-  {
-    href: "/connect",
-    label: "Connect",
-    sub: "ProjectConnect",
-    icon: Handshake,
-  },
-  { href: "/create", label: "Create", sub: "New post", icon: Clapperboard },
-  {
-    href: "/messages",
-    label: "Messages",
-    sub: "Your conversations",
-    icon: MessageCircle,
-  },
+  { href: "/feed", label: "Home", icon: Home },
+  { href: "/communities", label: "Yards", icon: Users },
+  { href: "/logosdecks", label: "Decks", icon: Disc3 },
+  { href: "/audio", label: "Records", icon: Headphones },
+  { href: "/create", label: "Create", icon: Clapperboard },
+  { href: "/messages", label: "Messages", icon: MessageCircle },
 ] as const;
 
 const MOBILE_NAV = [
   { href: "/feed", label: "Home", icon: Home },
   { href: "/communities", label: "Yards", icon: Users },
-  { href: "/connect", label: "Connect", icon: Handshake },
+  { href: "/logosdecks", label: "Decks", icon: Disc3 },
   { href: "/create", label: "Create", icon: Plus, accent: true },
   { href: "/profile", label: "You", icon: User, profile: true },
 ] as const;
@@ -85,13 +76,11 @@ const MOBILE_NAV = [
 function NavItem({
   href,
   label,
-  sub,
   icon: Icon,
   active,
 }: {
   href: string;
   label: string;
-  sub?: string;
   icon: typeof Home;
   active: boolean;
 }) {
@@ -99,28 +88,15 @@ function NavItem({
     <Link href={href}>
       <span
         className={cn(
-          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer",
+          "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           active
             ? "bg-primary/15 text-primary"
             : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
         )}
-        title={sub}
       >
         <Icon className="h-5 w-5 shrink-0" />
-        <span className="flex flex-col min-w-0">
-          <span>{label}</span>
-          {sub ? (
-            <span
-              className={cn(
-                "text-[10px] font-normal leading-tight truncate",
-                active ? "text-primary/70" : "text-muted-foreground/80",
-              )}
-            >
-              {sub}
-            </span>
-          ) : null}
-        </span>
+        <span className="truncate">{label}</span>
       </span>
     </Link>
   );
@@ -176,13 +152,11 @@ export function AppShell({
     ? PRIMARY_NAV.filter((item) => item.href !== "/create")
     : [...PRIMARY_NAV];
 
-  // Connect is primary nav; More holds secondary destinations
   const moreItems = [
-    { href: "/blkshi", label: "BLKSHI", icon: Share2, show: true },
-    { href: "/messages", label: "Messages", icon: MessageCircle, show: true },
+    { href: "/connect", label: "Connect", icon: Handshake, show: true },
+    { href: "/weixsound", label: "WeixSound", icon: Disc3, show: true },
     { href: "/hub", label: "Hub", icon: Layers, show: true },
-    { href: "/audio", label: "Audio", icon: Headphones, show: true },
-    { href: "/logosdecks", label: "LogosDecks", icon: Disc3, show: true },
+    { href: "/blkshi", label: "BLKSHI", icon: Share2, show: true },
     { href: "/ide", label: "Homework", icon: TerminalSquare, show: true },
     { href: "/arcade", label: "Arcade", icon: Joystick, show: true },
     { href: "/typeverse", label: "Typeverse", icon: Keyboard, show: true },
@@ -212,6 +186,12 @@ export function AppShell({
   const mobileNav = isGuest
     ? MOBILE_NAV.filter((item) => item.href !== "/create")
     : MOBILE_NAV;
+
+  const phoneMenu = [
+    { href: "/messages", label: "Messages", icon: MessageCircle },
+    { href: "/audio", label: "Records", icon: Headphones },
+    ...moreItems.map(({ href, label, icon }) => ({ href, label, icon })),
+  ];
 
   const moreActive = moreItems.some(
     (i) => location === i.href || location.startsWith(`${i.href}/`),
@@ -245,26 +225,16 @@ export function AppShell({
           <BrandMark size="sm" />
         </Link>
         <div className="flex items-center gap-1">
-          <Link href="/audio">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full"
-              aria-label="Audio"
-            >
-              <Headphones className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link href="/typeverse">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full"
-              aria-label="typeverse"
-            >
-              <Keyboard className="h-5 w-5" />
-            </Button>
-          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            aria-label="More"
+            aria-expanded={moreOpen}
+            onClick={() => setMoreOpen((open) => !open)}
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </Button>
           <Link href="/search">
             <Button variant="ghost" size="icon" className="rounded-full">
               <Search className="h-5 w-5" />
@@ -287,6 +257,23 @@ export function AppShell({
         </div>
       </header>
 
+      {moreOpen && (
+        <div className="md:hidden border-b bg-background px-3 py-2">
+          <div className="grid grid-cols-2 gap-1">
+            {phoneMenu.map((item) => (
+              <Link key={item.href} href={item.href}>
+                <span
+                  className="block rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  onClick={() => setMoreOpen(false)}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mx-auto flex max-w-[1280px] justify-center gap-0 lg:gap-6 px-0 md:px-4">
         <aside className="hidden md:flex w-[240px] shrink-0 flex-col py-4 pr-2">
           <Link href="/feed" className="mb-6 px-3">
@@ -308,33 +295,20 @@ export function AppShell({
             {primaryNav.map((item) => (
               <NavItem key={item.href} {...item} active={isActive(item.href)} />
             ))}
-            <NavItem
-              href={isGuest ? "/welcome" : profileHref}
-              label="You"
-              sub="Profile"
-              icon={User}
-              active={isActive("/profile")}
-            />
 
-            {/* More — secondary destinations (hide jargon until opened) */}
             <div className="pt-1">
               <button
                 type="button"
                 onClick={() => setMoreOpen((o) => !o)}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                   moreActive || moreOpen
                     ? "bg-muted/80 text-foreground"
                     : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                 )}
               >
                 <MoreHorizontal className="h-5 w-5 shrink-0" />
-                <span className="flex flex-col items-start min-w-0">
-                  <span>More</span>
-                  <span className="text-[10px] font-normal text-muted-foreground/80">
-                    Earnings, settings…
-                  </span>
-                </span>
+                <span>More</span>
               </button>
               {moreOpen && (
                 <div className="mt-1 ml-2 pl-2 border-l border-border/50 space-y-0.5">
@@ -352,33 +326,43 @@ export function AppShell({
             </div>
           </nav>
 
-          <div className="space-y-2 pt-4 border-t border-border/60">
+          <div className="flex items-center gap-1 border-t border-border/60 pt-3">
             <Link href="/search">
-              <span className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground cursor-pointer">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                aria-label="Search"
+              >
                 <Search className="h-5 w-5" />
-                Search
-              </span>
+              </Button>
             </Link>
             <Link href="/notifications">
-              <span className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground cursor-pointer">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative rounded-full"
+                aria-label="Notifications"
+              >
                 <Bell className="h-5 w-5" />
-                Notifications
                 {unreadNotifications > 0 && (
-                  <span className="ml-auto rounded-full bg-destructive px-1.5 py-0.5 text-[9px] font-bold text-destructive-foreground">
+                  <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
                     {unreadNotifications > 9 ? "9+" : unreadNotifications}
                   </span>
                 )}
-              </span>
+              </Button>
             </Link>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              aria-label="Theme"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
             >
               <Sun className="h-5 w-5 rotate-0 dark:hidden" />
-              <Moon className="h-5 w-5 hidden dark:block" />
-              Theme
-            </button>
+              <Moon className="hidden h-5 w-5 dark:block" />
+            </Button>
             {isTauriRuntime() && (
               <button
                 type="button"

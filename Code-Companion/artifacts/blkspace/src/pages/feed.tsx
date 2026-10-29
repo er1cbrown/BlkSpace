@@ -94,7 +94,6 @@ import { BETA_FEATURES } from "@/lib/beta-features";
 import { getHomeYardId, loadFocusPrefs } from "@/lib/focus-mode";
 import { HeartPulse, Briefcase } from "lucide-react";
 import { YardOrientationCard } from "@/components/social/YardOrientationCard";
-import { YourYardPathCard } from "@/components/social/YourYardPathCard";
 import { markFirstPostDone } from "@/lib/yard-orientation";
 import { getYardTheme } from "@/lib/yard-themes";
 import { rankBlogFypPosts, isHighRiskPost } from "@/lib/blog-fyp";
@@ -472,7 +471,6 @@ export default function FeedPage() {
   return (
     <AppShell>
       <YardOrientationCard />
-      <YourYardPathCard />
 
       <div className="mb-2 flex items-center justify-between gap-2">
         <h1 className="text-lg font-bold tracking-tight">

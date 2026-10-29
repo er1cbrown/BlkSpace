@@ -747,7 +747,7 @@ export function LogosDeckBoard({
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
           <label className="text-xs text-muted-foreground flex-1 min-w-[12rem]">
-            Crossfader. Left is Deck A. Right is Deck B.
+            Crossfader
             <input
               type="range"
               min={0}
@@ -780,19 +780,11 @@ export function LogosDeckBoard({
             Pause both
           </Button>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          Center plays both at the same level. Filter and echo run only on a
-          file stored on this device.
-        </p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="space-y-2">
           <h2 className="text-sm font-semibold">Records</h2>
-          <p className="text-[11px] text-muted-foreground">
-            A track streams the record, under Bermuda Boyz Records or the member
-            who released it.
-          </p>
           {mixes.length === 0 && (
             <p className="text-xs text-muted-foreground">
               Publish a set on Audio. It shows up here.
@@ -804,11 +796,6 @@ export function LogosDeckBoard({
         </section>
         <section className="space-y-2">
           <h2 className="text-sm font-semibold">Books</h2>
-          <p className="text-[11px] text-muted-foreground">
-            A book streams a reading the way a track streams a record. The Bible
-            shelf is one hosted set. Name a Quran, Buddhist, esoteric, or other
-            reading and put it on a deck. The deck does not write the words.
-          </p>
           <BookHost onA={setDeckA} onB={setDeckB} />
           {scripture.map((cue) => (
             <LoadRow
@@ -951,13 +938,6 @@ function FlowJudge({
             Run it back
           </Button>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          A hit while the showcase is live adds to the combo. The flow meter
-          rises with that chain, and a full meter doubles the hit. A name, a
-          silent track, or a gap longer than 4 seconds breaks the chain. In
-          front of the crossfader the hit counts as great. The higher score when
-          the set closes wins. Tradition does not change the score.
-        </p>
       </CardContent>
     </Card>
   );

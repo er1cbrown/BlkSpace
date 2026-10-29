@@ -49,7 +49,9 @@ export async function uploadHostedMedia(file: File): Promise<string | null> {
     import.meta.env.DEV &&
     res.status === 503 &&
     (body?.error === "stream not configured" ||
-      body?.error === "r2 not configured")
+      body?.error === "r2 not configured" ||
+      body?.error === "Cloud video uploads are not configured." ||
+      body?.error === "Cloud file uploads are not configured.")
   )
     return null;
   if (

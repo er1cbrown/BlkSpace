@@ -64,10 +64,12 @@ function webSecretStorage(): Storage {
 export function createHttpAuthHeader(
   url: string,
   method: string,
-  body: string,
+  body: string | Uint8Array,
 ): string {
   const secret = webSecretStorage().getItem(SECRET_KEY);
   if (!secret) throw new Error("Sign in again to save posts or upload media.");
+  const payload =
+    typeof body === "string" ? new TextEncoder().encode(body) : body;
   const event = finalizeEvent(
     {
       kind: 27235,
@@ -76,7 +78,7 @@ export function createHttpAuthHeader(
       tags: [
         ["u", new URL(url, window.location.origin).href],
         ["method", method],
-        ["payload", bytesToHex(sha256(new TextEncoder().encode(body)))],
+        ["payload", bytesToHex(sha256(payload))],
       ],
     },
     hexToBytes(secret),

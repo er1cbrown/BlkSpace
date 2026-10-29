@@ -94,20 +94,22 @@ describe("hosted video uploads", () => {
     );
   });
 
-  it.each(["stream not configured", "r2 not configured"])(
-    "allows local storage for %s",
-    async (error) => {
-      vi.stubGlobal(
-        "fetch",
-        vi
-          .fn()
-          .mockResolvedValue(
-            Response.json({ ok: false, error }, { status: 503 }),
-          ),
-      );
-      await expect(uploadHostedMedia(file)).resolves.toBeNull();
-    },
-  );
+  it.each([
+    "stream not configured",
+    "r2 not configured",
+    "Cloud video uploads are not configured.",
+    "Cloud file uploads are not configured.",
+  ])("allows local storage for %s", async (error) => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json({ ok: false, error }, { status: 503 }),
+        ),
+    );
+    await expect(uploadHostedMedia(file)).resolves.toBeNull();
+  });
 
   it("does not hide other service failures", async () => {
     vi.stubGlobal(
