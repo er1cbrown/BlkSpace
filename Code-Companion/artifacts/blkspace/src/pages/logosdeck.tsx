@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ export default function LogosDeckPage() {
   const [cursor, setCursor] = useState(0);
   const [audioUrl, setAudioUrl] = useState("");
   const [reflection, setReflection] = useState(false);
+  const [vizTheme, setVizTheme] = useState("calm");
   const [deckName, setDeckName] = useState("");
   const [savedDecks, setSavedDecks] = useState<Record<string, DeckItem[]>>(() => {
     try {
@@ -178,6 +179,46 @@ export default function LogosDeckPage() {
     setLoading(false);
   };
 
+  const canvasRef = (useRef as any)(null);
+  useEffect(() => {
+    if (!reflection) return;
+    const canvas = canvasRef.current as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let raf = 0;
+    const colors =
+      vizTheme === "night"
+        ? ["#0f172a", "#1e293b", "#334155"]
+        : vizTheme === "dawn"
+          ? ["#fde68a", "#fca5a5", "#f9a8d4"]
+          : ["#dbeafe", "#bfdbfe", "#93c5fd"];
+    const particles = Array.from({ length: 40 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: 1 + Math.random() * 3,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+    }));
+    const draw = () => {
+      ctx.fillStyle = colors[0];
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      for (const p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = colors[1 + (Math.floor(p.r) % 2)];
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, [reflection, vizTheme]);
+
   return (
     <AppShell>
       <div className="max-w-3xl mx-auto p-4 space-y-4">
@@ -269,8 +310,20 @@ export default function LogosDeckPage() {
         </div>
         {reflection && deck.length > 0 && (
           <div className="border-2 border-primary rounded p-6 text-center space-y-3">
+            <canvas ref={canvasRef} width={640} height={160} className="w-full rounded" />
             <div className="text-xs text-muted-foreground">
               {cursor + 1} / {deck.length}
+            </div>
+            <div className="flex justify-center gap-2 mb-2">
+              {["calm", "night", "dawn"].map((t) => (
+                <button
+                  key={t}
+                  className={`text-xs px-2 py-1 rounded border ${vizTheme === t ? "bg-primary text-primary-foreground" : ""}`}
+                  onClick={() => setVizTheme(t)}
+                >
+                  {t}
+                </button>
+              ))}
             </div>
             <div className="text-xl font-semibold">{deck[cursor].ref}</div>
             <div className="text-base whitespace-pre-wrap">{deck[cursor].text}</div>
