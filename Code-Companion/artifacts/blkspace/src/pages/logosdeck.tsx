@@ -23,6 +23,7 @@ export default function LogosDeckPage() {
   const [error, setError] = useState("");
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
+  const [audioUrl, setAudioUrl] = useState("");
   const [deckName, setDeckName] = useState("");
   const [savedDecks, setSavedDecks] = useState<Record<string, DeckItem[]>>(() => {
     try {
@@ -205,6 +206,15 @@ export default function LogosDeckPage() {
               <span className="text-xs text-muted-foreground">No saved decks yet.</span>
             )}
           </div>
+        </div>
+        <div className="border rounded p-3 space-y-2">
+          <div className="text-sm font-semibold">Beat / music (crossover)</div>
+          <Input
+            value={audioUrl}
+            onChange={(e) => setAudioUrl(e.target.value)}
+            placeholder="Audio URL (mp3/wav)"
+          />
+          {audioUrl && <audio controls src={audioUrl} className="w-full" />}
         </div>
         <div className="space-y-3">
           {deck.map((item, i) => (
