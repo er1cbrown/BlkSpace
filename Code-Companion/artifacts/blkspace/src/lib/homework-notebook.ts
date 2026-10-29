@@ -126,6 +126,42 @@ export function toQuarto(notebook: HomeworkNotebook): string {
 }
 
 /** VimTeX wants a real .tex file. */
+export function toIpynb(notebook: HomeworkNotebook): string {
+  const cells = notebook.cells.map((cell) => {
+    if (cell.lang === "markdown") {
+      return {
+        cell_type: "markdown",
+        metadata: {},
+        source: cell.source.split("\n").map((line) => line + "\n"),
+      };
+    }
+    if (cell.lang === "tex") {
+      return {
+        cell_type: "markdown",
+        metadata: {},
+        source: ["```tex\n", ...cell.source.split("\n").map((line) => line + "\n"), "```\n"],
+      };
+    }
+    return {
+      cell_type: "code",
+      execution_count: null,
+      metadata: {},
+      outputs: [],
+      source: cell.source.split("\n").map((line) => line + "\n"),
+    };
+  });
+  const nb = {
+    cells,
+    metadata: {
+      kernelspec: { display_name: "Python 3", language: "python", name: "python3" },
+      language_info: { name: "python", version: "3.x" },
+    },
+    nbformat: 4,
+    nbformat_minor: 5,
+  };
+  return JSON.stringify(nb, null, 2);
+}
+
 export function toTex(notebook: HomeworkNotebook): string {
   return notebook.cells
     .filter((cell) => cell.lang === "tex")

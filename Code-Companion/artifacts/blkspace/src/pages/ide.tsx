@@ -9,6 +9,8 @@ import {
   exportName,
   getNotebook,
   listNotebooks,
+  toIpynb,
+  fileStem,
   newCell,
   saveNotebook,
   type CellLang,
@@ -175,6 +177,9 @@ export default function IdePage() {
               />
               <Button variant="outline" onClick={() => void openNvim()}>
                 {desktop ? "Open in LazyVim" : "Download for LazyVim"}
+              </Button>
+              <Button variant="outline" onClick={() => download(`${fileStem(notebook.title)}.ipynb`, toIpynb(notebook))}>
+                Download .ipynb
               </Button>
             </div>
             {notebook.cells.map((cell, index) => (
