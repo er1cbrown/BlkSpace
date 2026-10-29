@@ -3,7 +3,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isTauri, tauriReadScripture } from "@/lib/tauri-api";
-import { Layers, Plus, Trash2 } from "lucide-react";
+import { Layers, Play, Pause, Plus, Trash2 } from "lucide-react";
 
 type DeckItem = { ref: string; text: string };
 
@@ -21,6 +21,8 @@ export default function LogosDeckPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [playing, setPlaying] = useState(false);
+  const [cursor, setCursor] = useState(0);
 
   useEffect(() => {
     try {
@@ -29,6 +31,14 @@ export default function LogosDeckPage() {
       /* ignore */
     }
   }, [deck]);
+
+  useEffect(() => {
+    if (!playing || deck.length === 0) return;
+    const id = window.setInterval(() => {
+      setCursor((c) => (c + 1) % deck.length);
+    }, 4000);
+    return () => window.clearInterval(id);
+  }, [playing, deck.length]);
 
   const addVerse = async () => {
     setLoading(true);
@@ -86,6 +96,24 @@ export default function LogosDeckPage() {
           </Button>
         </div>
         {error && <pre className="text-red-500 whitespace-pre-wrap">{error}</pre>}
+        <div className="flex gap-2">
+          <Button onClick={() => setPlaying((p) => !p)} disabled={deck.length === 0}>
+            {playing ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
+            {playing ? "Pause" : "Play Deck"}
+          </Button>
+          <Button variant="outline" onClick={() => { setDeck([]); setCursor(0); setPlaying(false); }} disabled={deck.length === 0}>
+            Clear
+          </Button>
+        </div>
+        {playing && deck.length > 0 && (
+          <div className="border-2 border-primary rounded p-4">
+            <div className="text-xs text-muted-foreground mb-1">
+              Now: {cursor + 1} / {deck.length}
+            </div>
+            <div className="font-semibold text-sm">{deck[cursor].ref}</div>
+            <div className="text-sm whitespace-pre-wrap">{deck[cursor].text}</div>
+          </div>
+        )}
         <div className="space-y-3">
           {deck.map((item, i) => (
             <div
