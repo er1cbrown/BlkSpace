@@ -56,13 +56,17 @@ export function audioExtension(name, mime) {
   return ext;
 }
 
-export async function readLimited(req, maxBytes) {
+export async function readLimited(
+  req,
+  maxBytes,
+  tooLarge = "That audio file is over 25 MB.",
+) {
   const chunks = [];
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
     if (size > maxBytes) {
-      throw new HttpError(413, "That audio file is over 25 MB.");
+      throw new HttpError(413, tooLarge);
     }
     chunks.push(chunk);
   }

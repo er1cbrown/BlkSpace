@@ -140,6 +140,7 @@ beforeAll(async () => {
       R2_PUBLIC_BASE_URL: "https://media.example.test",
       YARD_AUDIO_DIR: path.join(dir, "yard-audio"),
       YARD_IMAGE_DIR: path.join(dir, "yard-image"),
+      YARD_VIDEO_DIR: path.join(dir, "yard-video"),
     },
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -2089,6 +2090,78 @@ describe("yard image upload", () => {
     expect(loaded.status).toBe(200);
     expect(loaded.headers.get("content-type")).toContain("image/jpeg");
     expect(Buffer.from(await loaded.arrayBuffer()).equals(bytes)).toBe(true);
+  });
+});
+
+describe("yard video upload", () => {
+  test("a signed video plays back and a yard link can be posted", async () => {
+    const { isAllowedHostedMediaUrl } = await import("../media.mjs");
+    const clip =
+      "http://127.0.0.1:24442/api/yards/video/vid_0123456789abcdef.mp4";
+    expect(isAllowedHostedMediaUrl(clip)).toBe(true);
+    expect(
+      isAllowedHostedMediaUrl(
+        "https://evil.example/api/yards/video/vid_0123456789abcdef.mp4",
+      ),
+    ).toBe(false);
+    expect(
+      isAllowedHostedMediaUrl(
+        "https://bkspc.app/api/yards/video/vid_0123456789abcdef.mp4",
+        { PUBLIC_ORIGINS: "https://bkspc.app" },
+      ),
+    ).toBe(true);
+
+    const bytes = Buffer.from("mp4-yard-video");
+    const route = "/api/yards/video?name=clip.mp4";
+    const denied = await fetch(base + route, {
+      method: "POST",
+      headers: { "content-type": "video/mp4" },
+      body: bytes,
+    });
+    expect(denied.status).toBe(401);
+    const up = await fetch(base + route, {
+      method: "POST",
+      headers: {
+        "content-type": "video/mp4",
+        authorization: authorization(route, bytes),
+      },
+      body: bytes,
+    });
+    expect(up.status).toBe(200);
+    const saved = await up.json();
+    expect(saved.url).toMatch(/^\/api\/yards\/video\/vid_[a-f0-9]{16}\.mp4$/);
+    const played = await fetch(base + saved.url);
+    expect(played.status).toBe(200);
+    expect(played.headers.get("content-type")).toContain("video/mp4");
+    expect(played.headers.get("accept-ranges")).toBe("bytes");
+    expect(Buffer.from(await played.arrayBuffer()).equals(bytes)).toBe(true);
+    const ranged = await fetch(base + saved.url, {
+      headers: { range: "bytes=0-2" },
+    });
+    expect(ranged.status).toBe(206);
+    expect(Buffer.from(await ranged.arrayBuffer()).toString()).toBe("mp4");
+
+    const notes = await fetch(base + "/api/yards/video?name=notes.txt", {
+      method: "POST",
+      headers: {
+        "content-type": "text/plain",
+        authorization: authorization(
+          "/api/yards/video?name=notes.txt",
+          bytes,
+        ),
+      },
+      body: bytes,
+    });
+    expect(notes.status).toBe(400);
+
+    const posted = await post("/api/portfolio/post", {
+      id: 8842,
+      authorHandle: "alice",
+      content: "yard clip",
+      townTag: "tsu",
+      mediaBlobs: [`http://127.0.0.1:24442${saved.url}`],
+    });
+    expect(posted.status).toBe(200);
   });
 });
 

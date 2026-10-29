@@ -50,6 +50,7 @@ import {
 import { fitImageForUpload } from "@/lib/fit-image";
 import { uploadHostedMedia } from "@/lib/remote-media";
 import { uploadImageFile } from "@/lib/upload-image";
+import { uploadVideoFile } from "@/lib/upload-video";
 import { ImageZoom } from "@/components/ui/image-zoom";
 import { cn } from "@/lib/utils";
 
@@ -249,6 +250,16 @@ export function PostComposer({
           }
         } else if (kind === "image") {
           const hosted = await uploadImageFile(file);
+          setPending((prev) =>
+            prev.map((p) =>
+              p.previewUrl === previewUrl
+                ? { ...p, hash: hosted, status: "ready" as const }
+                : p,
+            ),
+          );
+          toast.success(`${file.name} uploaded`);
+        } else if (kind === "video") {
+          const hosted = await uploadVideoFile(file);
           setPending((prev) =>
             prev.map((p) =>
               p.previewUrl === previewUrl

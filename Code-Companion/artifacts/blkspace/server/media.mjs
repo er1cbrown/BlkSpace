@@ -200,7 +200,7 @@ function classifyMedia(mime, filename) {
 }
 
 const YARD_MEDIA_PATH =
-  /^\/api\/yards\/(?:image\/img_[a-f0-9]{16}\.(?:jpe?g|png|gif|webp)|audio\/aud_[a-f0-9]{16}\.(?:mp3|m4a|aac|ogg|oga|opus|wav|flac|webm))$/;
+  /^\/api\/yards\/(?:image\/img_[a-f0-9]{16}\.(?:jpe?g|png|gif|webp)|audio\/aud_[a-f0-9]{16}\.(?:mp3|m4a|aac|ogg|oga|opus|wav|flac|webm)|video\/vid_[a-f0-9]{16}\.(?:mp4|m4v|webm|mov|avi|mkv))$/;
 
 function yardMediaHostOk(url, env) {
   const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();

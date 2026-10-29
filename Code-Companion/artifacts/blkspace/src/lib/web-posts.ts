@@ -173,10 +173,28 @@ function parseHostedMedia(value: unknown): string[] {
   if (!Array.isArray(parsed)) return [];
   return parsed
     .filter(
-      (item): item is string =>
-        typeof item === "string" && /^https:\/\//i.test(item),
+      (item): item is string => typeof item === "string" && keptMedia(item),
     )
     .slice(0, 10);
+}
+
+const YARD_MEDIA_PATH =
+  /^\/api\/yards\/(?:image\/img_[a-f0-9]{16}\.(?:jpe?g|png|gif|webp)|audio\/aud_[a-f0-9]{16}\.(?:mp3|m4a|aac|ogg|oga|opus|wav|flac|webm)|video\/vid_[a-f0-9]{16}\.(?:mp4|m4v|webm|mov|avi|mkv))$/;
+
+function keptMedia(item: string): boolean {
+  if (/^https:\/\//i.test(item)) return true;
+  try {
+    const url = new URL(item);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      !url.username &&
+      !url.password &&
+      !url.hash &&
+      YARD_MEDIA_PATH.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** Pull posts saved on Turso into this browser. No-op until the database is configured. */

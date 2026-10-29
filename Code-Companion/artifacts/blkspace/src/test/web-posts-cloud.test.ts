@@ -137,4 +137,30 @@ describe("cloud post acknowledgement", () => {
       "https://media.example.test/photo.jpg",
     ]);
   });
+
+  it("keeps a yard video link and drops a random http link", async () => {
+    const clip =
+      "http://127.0.0.1:24442/api/yards/video/vid_0123456789abcdef.mp4";
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        rows: [
+          {
+            id: 78,
+            authorHandle: "bob",
+            content: "clip",
+            townTag: "tsu",
+            mediaBlobs: [clip, "http://evil.example/clip.mp4", "web_local"],
+            createdAt: "2026-10-28T00:00:00Z",
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await refreshPortfolioFromTurso();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(listWebUserPosts("tsu")[0].mediaBlobs).toEqual([clip]);
+  });
 });

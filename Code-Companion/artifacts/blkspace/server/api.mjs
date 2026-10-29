@@ -25,6 +25,11 @@ import {
   serveYardImage,
   YARD_IMAGE_MAX_BYTES,
 } from "./yard-image.mjs";
+import {
+  saveYardVideo,
+  serveYardVideo,
+  YARD_VIDEO_MAX_BYTES,
+} from "./yard-video.mjs";
 
 const interactionRoutes = new Map([
   // Canonical interaction routes.
@@ -525,6 +530,31 @@ export function createApiHandler(env, { origins, development = false } = {}) {
           res,
           200,
           await saveYardImage(env, {
+            name: url.searchParams.get("name") || "",
+            mime: req.headers["content-type"] || "",
+            bytes,
+          }),
+        );
+      }
+      const yardVideo = path.match(
+        /^\/api\/yards\/video\/(vid_[a-f0-9]{16}\.(?:mp4|m4v|webm|mov|avi|mkv))$/,
+      );
+      if (yardVideo && (req.method === "GET" || req.method === "HEAD")) {
+        await serveYardVideo(req, res, env, yardVideo[1]);
+        return;
+      }
+      if (req.method === "POST" && path === "/api/yards/video") {
+        const bytes = await readLimited(
+          req,
+          YARD_VIDEO_MAX_BYTES,
+          "That video is over 50 MB.",
+        );
+        const pubkey = authenticate(req, bytes, allowed);
+        limit(`video:${pubkey}`);
+        return json(
+          res,
+          200,
+          await saveYardVideo(env, {
             name: url.searchParams.get("name") || "",
             mime: req.headers["content-type"] || "",
             bytes,
