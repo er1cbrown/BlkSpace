@@ -40,6 +40,18 @@ describe("profile-music-web", () => {
     ]);
   });
 
+  it("keeps a yard url as the song instead of the file bytes", () => {
+    const src =
+      "http://127.0.0.1:24442/api/yards/audio/aud_0123456789abcdef.mp3";
+    const tape = appendWebProfileTrack("jimmy", {
+      trackName: "Lawn",
+      dataUrl: src,
+    });
+    expect(tape[0]?.dataUrl).toBe(src);
+    expect(tape[0]?.dataUrl.startsWith("data:")).toBe(false);
+    expect(loadWebProfileTape("jimmy")[0]?.trackName).toBe("Lawn");
+  });
+
   it("clears music for a handle", () => {
     saveWebProfileMusic("jimmy", {
       trackName: "x",

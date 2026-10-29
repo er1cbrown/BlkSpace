@@ -44,12 +44,15 @@ import {
   Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getCurrentHandle } from "@/lib/auth";
+import { audioUploadOk } from "@/lib/audio-mixtapes";
+import { getCurrentHandle, hasWebKey } from "@/lib/auth";
 import {
   MAX_WEB_TAPE,
   appendWebProfileTrack,
   clearWebProfileMusic,
+  loadWebProfileTape,
 } from "@/lib/profile-music-web";
+import { uploadAudioFile } from "@/lib/upload-audio";
 import { toast } from "sonner";
 import { MyYardLazyVimGuide } from "@/components/profile/MyYardLazyVimGuide";
 import { MyYardPimpStudio } from "@/components/profile/MyYardPimpStudio";
@@ -125,6 +128,7 @@ export function CustomizeStation({
     () => layout.modules || { logosDeck: false, bibleNlp: false },
   );
   const [section, setSection] = useState("look");
+  const [uploadingSong, setUploadingSong] = useState(false);
 
   const draftLayout: MyYardLayout = useMemo(
     () =>
@@ -146,6 +150,48 @@ export function CustomizeStation({
 
   const tape = normalizeTape(a.playlistHashes, music);
   const hasPlaylist = tapeIsPlaylist(tape);
+
+  const addProfileSong = async (file: File) => {
+    const problem = audioUploadOk(file);
+    if (problem) {
+      toast.error(problem);
+      return;
+    }
+    if (!hasWebKey()) {
+      toast.error("Sign in to upload a profile song.");
+      return;
+    }
+    if (tape.length >= MAX_WEB_TAPE) {
+      toast.error(`Web tape max ${MAX_WEB_TAPE} tracks`);
+      return;
+    }
+    setUploadingSong(true);
+    try {
+      const src = await uploadAudioFile(file);
+      const handle = getCurrentHandle();
+      const before = loadWebProfileTape(handle).length;
+      const next = appendWebProfileTrack(handle, {
+        trackName: file.name.replace(/\.[^.]+$/, "") || file.name,
+        dataUrl: src,
+      });
+      if (next.length === before) {
+        toast.error(`Web tape max ${MAX_WEB_TAPE} tracks`);
+        return;
+      }
+      setTape(next.map((track) => track.id));
+      toast.success(
+        next.length > 1
+          ? `Uploaded. The tape has ${next.length} tracks. Save MyYard.`
+          : "Uploaded. Save MyYard to keep this song on the page.",
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "That song did not upload.",
+      );
+    } finally {
+      setUploadingSong(false);
+    }
+  };
 
   const readFileAsDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
@@ -576,37 +622,23 @@ export function CustomizeStation({
               <Label>Upload audio (web preview)</Label>
               <Input
                 type="file"
-                accept="audio/*"
+                accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.opus,.webm"
+                aria-label="Profile song"
+                disabled={uploadingSong}
                 onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  if (f.size > 8 * 1024 * 1024) {
-                    toast.error("Keep audio under 8 MB for browser storage");
-                    return;
-                  }
-                  const handle = getCurrentHandle();
-                  if (tape.length >= MAX_WEB_TAPE) {
-                    toast.error(`Web tape max ${MAX_WEB_TAPE} tracks`);
-                    return;
-                  }
-                  void (async () => {
-                    const dataUrl = await readFileAsDataUrl(f);
-                    const next = appendWebProfileTrack(handle, {
-                      trackName: f.name,
-                      dataUrl,
-                    });
-                    setTape(next.map((t) => t.id));
-                    toast.success(
-                      next.length > 1
-                        ? `Tape: ${next.length} tracks — Save MyYard`
-                        : "Profile song ready — Save MyYard",
-                    );
-                  })();
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void addProfileSong(file);
                 }}
               />
+              {uploadingSong ? (
+                <p className="text-xs text-muted-foreground">
+                  Uploading the song…
+                </p>
+              ) : null}
               <p className="text-[11px] text-muted-foreground">
-                Browser storage only. Max {MAX_WEB_TAPE} tracks on web. Desktop
-                hashes can hold {MAX_PLAYLIST}.
+                The file is uploaded to this yard. Max {MAX_WEB_TAPE} tracks on
+                the page. Save MyYard after it uploads.
               </p>
             </div>
           )}
@@ -654,6 +686,9 @@ export function CustomizeStation({
                     </span>
                     <span className="flex-1 truncate">
                       {audioBlobs.find((b) => b.hash === id)?.filename ||
+                        loadWebProfileTape(getCurrentHandle()).find(
+                          (track) => track.id === id,
+                        )?.trackName ||
                         `${id.slice(0, 12)}…`}
                     </span>
                     {hasPlaylist && (

@@ -203,6 +203,12 @@ export default function ProfilePage() {
         return;
       }
       inflightTracks.current.add(id);
+      if (isSafeHttpUrl(id)) {
+        inflightTracks.current.delete(id);
+        srcByIdRef.current[id] = id;
+        setSrcById((p) => ({ ...p, [id]: id }));
+        return;
+      }
       if (!isTauri()) {
         void import("@/lib/profile-music-web").then(
           ({ loadWebProfileTape }) => {
