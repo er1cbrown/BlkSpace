@@ -223,6 +223,18 @@ export default function IdePage() {
                   >
                     Download .{cellExt(cell.lang)}
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      update({
+                        ...notebook,
+                        cells: notebook.cells.filter((row) => row.id !== cell.id),
+                      })
+                    }
+                  >
+                    Delete
+                  </Button>
                 </div>
                 <Textarea
                   aria-label={`Source for cell ${index + 1}`}
