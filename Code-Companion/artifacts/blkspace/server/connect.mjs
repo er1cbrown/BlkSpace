@@ -155,11 +155,15 @@ export function createConnect(env) {
   }
 
   async function seed() {
-    const now = "2026-08-01T12:00:00.000Z";
+    const now = "2026-10-28T12:00:00.000Z";
     const orgs = [
-      ["org_nsbe_tsu", "nsbe-tsu", "NSBE @ TSU", "professional", "tsu", "Career prep, hackathons, and peer mentorship.", "demo_user"],
-      ["org_meharry_research", "meharry-med-research", "Meharry Medical Research Network", "research", "meharry", "Faculty and student research for Meharry scholars. Async hours for people on rotations.", "demo_user"],
-      ["org_ieee_tsu", "ieee-tsu", "IEEE Student Branch @ TSU", "professional", "tsu", "Device and computing projects for students who build the yard.", "demo_user"],
+      ["org_nsbe_tsu", "nsbe-tsu", "NSBE @ TSU", "professional", "tsu", "National Society of Black Engineers, TSU chapter. Project nights, career prep, and peer mentorship.", "demo_user"],
+      ["org_ieee_tsu", "ieee-tsu", "IEEE Student Branch @ TSU", "professional", "tsu", "Student branch for the next beta. The open cards are the checks: a yard photo, a numbered WeixSound copy, and a LogosDecks round.", "demo_user"],
+      ["org_meharry_research", "meharry-med-research", "Meharry Medical Research Network", "research", "meharry", "Faculty and student research for Meharry scholars. Async hours for people on rotations. No patient records on the yard.", "demo_user"],
+      ["org_snma_meharry", "snma-meharry", "SNMA @ Meharry", "professional", "meharry", "Student National Medical Association chapter. Advocacy, pipeline, and mentorship.", "campus_king"],
+      ["org_fisk_finance", "fisk-investment-finance-club", "Fisk Investment & Finance Club", "professional", "fisk", "Markets literacy and career prep. Practice stays on WeixBucks. Real brokerage accounts stay with licensed firms. Educational only, not investment advice.", "demo_user"],
+      ["org_tsu_fashion_society", "tsu-fashion-society", "TSU Fashion Society", "club", "tsu", "Student brands, photoshoot crews, and merch. Portfolio on MyYard. Drops list on Yard Sale in WeixBucks.", "demo_user"],
+      ["org_service", "tiger-service", "Tiger Community Service Hub", "service", "tsu", "Volunteer projects with Nashville partners: tutoring, food drives, and campus clean-ups.", "jane_doe"],
     ];
     for (const row of orgs) {
       await query(
@@ -169,14 +173,24 @@ export function createConnect(env) {
         [...row, now],
       );
       await query(
+        `UPDATE connect_orgs SET slug = ?, name = ?, org_type = ?, yard_id = ?, description = ? WHERE id = ? AND created_by = ?`,
+        [row[1], row[2], row[3], row[4], row[5], row[0], row[6]],
+      );
+      await query(
         `INSERT OR IGNORE INTO connect_org_members (org_id, handle, role) VALUES (?, ?, 'owner')`,
         [row[0], row[6]],
       );
     }
     const opps = [
-      [11, "org_nsbe_tsu", "NSBE project night", "Bring a campus project and find a teammate.", "one evening", "demo_user"],
-      [12, "org_meharry_research", "Health disparities micro-lab", "Short async reading and a write-up. No patient records.", "2–4 hr/week", "demo_user"],
-      [13, "org_ieee_tsu", "Device B yard check", "Walk the student path on a Tier 0 laptop and write down what broke.", "one session", "demo_user"],
+      [11, "org_nsbe_tsu", "NSBE project night", "Bring a campus project and find a teammate for the evening.", "one evening", "demo_user"],
+      [12, "org_meharry_research", "Health disparities micro-lab", "Short async reading and a write-up. No patient records.", "2-4 hr/week", "demo_user"],
+      [13, "org_ieee_tsu", "Beta: post a yard photo", "Upload one picture on the wall. Open the post and confirm the photo loads from this yard.", "15 min", "demo_user"],
+      [14, "org_ieee_tsu", "Beta: release a numbered copy", "On Records, publish a track. The free listen stays open. Price the numbered copy in WeixBucks only. The label reads Bermuda Boyz Records.", "20 min", "demo_user"],
+      [15, "org_ieee_tsu", "Beta: close a LogosDecks round", "Load two showcases, tracks or a reading you host. Build the flow meter. The higher score when the set closes wins.", "20 min", "demo_user"],
+      [16, "org_snma_meharry", "Pipeline mentorship", "Mentor a premed with one async message thread each week.", "1 thread/week", "campus_king"],
+      [17, "org_fisk_finance", "Mock equity note (educational)", "Write a one-page note from public filings and news. Peer feedback in the club. Educational only. Not a stock recommendation or a brokerage service.", "2 weeks", "demo_user"],
+      [18, "org_tsu_fashion_society", "Lookbook shoot", "The campus brand needs models, a shooter assist, and styling hands for a TSU lookbook. List the drop on Yard Sale in WeixBucks.", "1 weekend", "demo_user"],
+      [19, "org_service", "Saturday STEM tutoring", "Tutor middle-school STEM in Nashville. Two-hour Saturday shifts. Service hours available.", "ongoing", "jane_doe"],
     ];
     for (const row of opps) {
       await query(
@@ -185,7 +199,19 @@ export function createConnect(env) {
          VALUES (?, ?, ?, ?, ?, '[]', 'open', ?, ?)`,
         [row[0], row[1], row[2], row[3], row[4], row[5], now],
       );
+      await query(
+        `UPDATE connect_opportunities SET org_id = ?, title = ?, description = ?, duration_text = ? WHERE id = ? AND created_by = ?`,
+        [row[1], row[2], row[3], row[4], row[0], row[5]],
+      );
     }
+    await query(
+      `DELETE FROM connect_interests WHERE opportunity_id IN (SELECT id FROM connect_opportunities WHERE org_id = 'org_opp_meharry')`,
+    );
+    await query(`DELETE FROM connect_opportunities WHERE org_id = 'org_opp_meharry'`);
+    await query(`DELETE FROM connect_org_members WHERE org_id = 'org_opp_meharry'`);
+    await query(
+      `DELETE FROM connect_orgs WHERE id = 'org_opp_meharry' OR slug = 'omega-psi-phi-meharry' OR name LIKE '%Omega Psi Phi%'`,
+    );
   }
 
   async function identity(pubkey) {

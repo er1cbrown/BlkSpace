@@ -100,7 +100,7 @@ Examples:
 
 | Persona | Large weights in \(\mathbf{w}\) |
 |---------|----------------------------------|
-| ΩΨΦ / fellowship | scholarship, service, professional org |
+| Campus org / fellowship | scholarship, service, professional org |
 | Fisk finance | finance, literacy, career |
 | Jimmy fashion | fashion, studio, marketplace |
 
@@ -181,7 +181,7 @@ Each use case is a **finite-state workflow** (regular structure), not arbitrary 
 
 ```text
 Jimmy:   Idle → Portfolio → List → Fulfill → Cred↑
-ΩΨΦ:     Idle → Org → Opp → Review → Complete → Cred↑
+Campus:  Idle → Org → Opp → Review → Complete → Cred↑
 Finance: Idle → Literacy → Opp → Apply → (no trade)
 ```
 

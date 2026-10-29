@@ -4,7 +4,7 @@
 **Goals:** Learn how brokerages work, practice money skills, find finance clubs/internships/research, talk markets with peers — **without** treating BlkSpace as a real brokerage or crypto exchange  
 **Product claim under test:** BlkSpace supports **finance education + professional opportunity matching** via soft credits, Yard Cred, and Markets 101 — settlement (BKSPC) stays gated and non-advisory  
 
-**Related:** [`four-pillar-economy.md`](four-pillar-economy.md) · [`wb-progression-v2.md`](wb-progression-v2.md) · [`use-case-omega-psi-phi-meharry-ieee.md`](use-case-omega-psi-phi-meharry-ieee.md) · wallet **Learn markets** tab
+**Related:** [`four-pillar-economy.md`](four-pillar-economy.md) · [`wb-progression-v2.md`](wb-progression-v2.md) · [`use-case-beta-yard.md`](use-case-beta-yard.md) · wallet **Learn markets** tab
 
 ---
 

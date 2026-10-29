@@ -112,7 +112,7 @@ function defaultStore(): DemoStore {
       {
         id: 1,
         communityId: "tsu",
-        title: "Tiger Service Day Â· First Campus Cleanup",
+        title: "Tiger Service Day - First Campus Cleanup",
         description:
           "Club exclusive first community service. Free pass + check-in code. Join Tiger Community Service Hub on ProjectConnect if required.",
         location: "Student Center Plaza",
@@ -518,7 +518,7 @@ export async function checkInEventGuest(
   );
   if (!g) throw new Error("Guest not found for this event");
   if (g.waitlisted || g.status === "waitlist") {
-    throw new Error("Guest is waitlisted â€” cannot check in");
+    throw new Error("Guest is waitlisted - cannot check in");
   }
   if (g.status !== "going") throw new Error(`Guest status is '${g.status}'`);
   if (g.checkedIn) {
@@ -536,7 +536,7 @@ const DEMO_OPEN: OpenToCandidate[] = [
     university: "Tennessee State University",
     town: "tsu",
     headline:
-      "CS junior Â· finished summer SWE internship Â· seeking research + lab roles",
+      "CS junior - finished summer SWE internship - seeking research + lab roles",
     major: "Computer Science",
     skills: ["Python", "Rust", "privacy", "MPC"],
     portfolioUrl: "https://github.com/example",
@@ -552,7 +552,7 @@ const DEMO_OPEN: OpenToCandidate[] = [
     displayName: "HBCU Student",
     university: "Howard University",
     town: "howard",
-    headline: "Fashion + design major Â· open to collabs and service clubs",
+    headline: "Fashion + design major - open to collabs and service clubs",
     major: "Fashion Design",
     skills: ["Adobe", "tech packs", "merch"],
     portfolioUrl: "",

@@ -78,7 +78,7 @@ type DemoStore = {
   escrows: EscrowTrade[];
   nextListingId: number;
   nextEscrowId: number;
-  /** handle â†’ WB balance delta from escrow activity (demo only) */
+  /** handle -> WB balance delta from escrow activity (demo only) */
   balances: Record<string, number>;
 };
 
@@ -127,7 +127,7 @@ function defaultStore(): DemoStore {
         itemType: "art",
         itemRef: "fashion:art:lookbook-01",
         price: 35,
-        title: "Lookbook Illustration â€” Night Market",
+        title: "Lookbook Illustration - Night Market",
         description: "Original digital art for collab lookbooks.",
         isNft: false,
         townTag: "howard",
@@ -163,7 +163,7 @@ function defaultStore(): DemoStore {
         price: 60,
         title: "Atelier SS Capsule Concept",
         description:
-          "Capsule concept board + fabric notes. Spelman Atelier Â· 12% club split.",
+          "Capsule concept board + fabric notes. Spelman Atelier - 12% club split.",
         isNft: false,
         townTag: "spelman",
         fulfillmentMode: "escrow",
@@ -246,7 +246,7 @@ function recordEscrowHistory(e: EscrowTrade, amount: number, actor: string) {
     id: `hist_escrow_${e.id}_${canonical}`,
     kind: "escrow",
     title: e.listingTitle,
-    description: `${ESCROW_STATUS_LABEL[canonical]} Â· @${actor}`,
+    description: `${ESCROW_STATUS_LABEL[canonical]} - @${actor}`,
     amount,
     fee: e.platformFee,
     status: canonical,
@@ -258,7 +258,7 @@ function recordEscrowHistory(e: EscrowTrade, amount: number, actor: string) {
   });
 }
 
-// â”€â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Public API ------------------------------------------
 
 function signedOut(err: unknown): boolean {
   return err instanceof Error && err.message.includes("Sign in again");

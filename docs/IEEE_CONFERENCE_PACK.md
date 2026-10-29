@@ -71,7 +71,7 @@ BlkSpace is a **hardware-aware federated campus social system** for HBCU yards t
 
 ### Draft abstract (≤150 words)
 
-Hardware-constrained students at HBCUs still depend on centralized social platforms that revoke accounts and extract attention. We present **BlkSpace**, a hybrid **local-first campus social system** combining cryptographic identity, yard-scoped federation (Nostr events; optional content-addressed media), and a **four-pillar practice economy**: soft credits (WeixBucks), non-purchasable **Yard Cred**, markets literacy, and **optional** on-chain settlement only after credibility gates. We evaluate student workflows with multi-persona scripts (finance literacy, NPHC fellowship, campus creator commerce) and a **Tier 0** install path for 4–8 GB devices. Results emphasize **honesty of decentralization claims** (Yard vs Full builds) and **Cred-before-finance** as an anti-scam product protocol. Optional AI assistance, if used, remains server-side and non-mandatory (SpaceXAI / xAI API); it is not the core contribution.
+Hardware-constrained students at HBCUs still depend on centralized social platforms that revoke accounts and extract attention. We present **BlkSpace**, a hybrid **local-first campus social system** combining cryptographic identity, yard-scoped federation (Nostr events; optional content-addressed media), and a **four-pillar practice economy**: soft credits (WeixBucks), non-purchasable **Yard Cred**, markets literacy, and **optional** on-chain settlement only after credibility gates. We evaluate student workflows with multi-persona scripts (finance literacy, the campus beta checks, campus creator commerce) and a **Tier 0** install path for 4–8 GB devices. Results emphasize **honesty of decentralization claims** (Yard vs Full builds) and **Cred-before-finance** as an anti-scam product protocol. Optional AI assistance, if used, remains server-side and non-mandatory (SpaceXAI / xAI API); it is not the core contribution.
 
 ### Explicit non-claims
 
@@ -87,7 +87,7 @@ Hardware-constrained students at HBCUs still depend on centralized social platfo
 | Persona | Sheet | P/W/F overall | Notes / screenshots |
 |---------|-------|---------------|---------------------|
 | Fisk finance | [`features/use-case-fisk-finance-ieee.md`](features/use-case-fisk-finance-ieee.md) | ☐ | |
-| ΩΨΦ Meharry | [`features/use-case-omega-psi-phi-meharry-ieee.md`](features/use-case-omega-psi-phi-meharry-ieee.md) | ☐ | |
+| Beta yard checks | [`features/use-case-beta-yard.md`](features/use-case-beta-yard.md) | ☐ | |
 | Jimmy TSU fashion | [`features/use-case-jimmy-tsu-fashion-ieee.md`](features/use-case-jimmy-tsu-fashion-ieee.md) | ☐ | |
 
 ### SpaceXAI role (optional, not the paper)

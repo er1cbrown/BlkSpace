@@ -68,7 +68,7 @@ export const USE_CASE_PALETTE = [
   "connect-cred",
   "arcade-newgrounds",
   "clinyard-focus",
-  "omega-org", // e.g. ΩΨΦ / NSBE — still a w vector, not an app
+  "omega-org", // campus org such as NSBE or SNMA. One palette entry, not its own app.
 ] as const;
 
 /** Ω(n): at least one unit of work per user. */

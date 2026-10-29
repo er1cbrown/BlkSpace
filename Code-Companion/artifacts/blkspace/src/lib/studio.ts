@@ -88,7 +88,7 @@ function defaultDemo(): Demo {
         id: 1,
         collectionId: 1,
         mediaRef: "portfolio:shot:01-golden-hour",
-        caption: "Golden hour senior â€” TSU yard",
+        caption: "Golden hour senior - TSU yard",
         kind: "photo",
         sortOrder: 1,
         createdAt: new Date().toISOString(),
@@ -116,10 +116,10 @@ function defaultDemo(): Demo {
       {
         id: 1,
         ownerHandle: "demo_user",
-        title: "Senior Session Â· Jane",
+        title: "Senior Session - Jane",
         description: "Selects + reel. Free grant to client.",
         clientHandle: "jane_doe",
-        clientLabel: "Jane D. Â· Class of 2027",
+        clientLabel: "Jane D. - Class of 2027",
         accessMode: "free",
         priceWb: 0,
         status: "delivered",
@@ -134,7 +134,7 @@ function defaultDemo(): Demo {
         id: 2,
         ownerHandle: "demo_user",
         title: "Org Event Coverage Pack",
-        description: "All-in-one paid unlock â€” 25 WB.",
+        description: "All-in-one paid unlock - 25 WB.",
         clientHandle: "",
         clientLabel: "NSBE media team",
         accessMode: "paid",
@@ -519,7 +519,7 @@ export async function purchaseShootAccess(shootId: number): Promise<{
     return { alreadyHadAccess: true };
   }
   if (s.accessMode !== "paid") {
-    throw new Error("This delivery is free â€” ask the studio for a grant");
+    throw new Error("This delivery is free - ask the studio for a grant");
   }
   const list = d.access[shootId] || [];
   list.push(me);
@@ -555,6 +555,6 @@ export async function exportShootManifest(
       caption: a.caption,
       kind: a.kind,
     })),
-    note: "All-in-one access package â€” download via mediaRef / blob APIs.",
+    note: "All-in-one access package - download via mediaRef / blob APIs.",
   };
 }

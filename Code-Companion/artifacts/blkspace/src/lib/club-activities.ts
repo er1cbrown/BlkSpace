@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "@/lib/tauri-api";
 import { getCurrentHandle, getSessionToken } from "@/lib/auth";
 import { createSharedYardChannels } from "@/lib/web-userspace";
+import { repairTemplateText } from "@/lib/demo-text";
 
 export interface ClubTemplate {
   id: string;
@@ -151,7 +152,7 @@ const TEMPLATES: ClubTemplate[] = [
     id: "creators",
     name: "Creators / Media Collective",
     description:
-      "Amalgamation media kit â€” drops, live link-outs, portfolio shares, collabs.",
+      "Amalgamation media kit - drops, live link-outs, portfolio shares, collabs.",
     channels: [
       "general",
       "drops",
@@ -166,7 +167,7 @@ const TEMPLATES: ClubTemplate[] = [
     id: "med",
     name: "Med / Meharry Focus",
     description:
-      "Rotations-aware: async study refresh, low-bandwidth research, wellness, SNMA energy â€” not a second LMS.",
+      "Rotations-aware: async study refresh, low-bandwidth research, wellness, SNMA energy - not a second LMS.",
     channels: [
       "general",
       "study-refresh",
@@ -181,7 +182,7 @@ const TEMPLATES: ClubTemplate[] = [
     id: "systems",
     name: "Systems / Retro / Playables",
     description:
-      "Rust OS demos, WASM play nights, Sendme-class drops â€” Slack-range lab, not a GitHub replacement.",
+      "Rust OS demos, WASM play nights, Sendme-class drops - Slack-range lab, not a GitHub replacement.",
     channels: [
       "general",
       "playable-drops",
@@ -205,7 +206,7 @@ function defaultDemo(): Demo {
         id: 1,
         communityId: "tsu",
         orgId: "org_club",
-        title: "Tiger Anime Club Â· Weekly Read",
+        title: "Tiger Anime Club - Weekly Read",
         mediaType: "manga",
         description: "Share chapter thoughts, publish fan pages, drop recs.",
         currentWork: "One Piece (re-read arcs)",
@@ -224,7 +225,7 @@ function defaultDemo(): Demo {
         displayName: "Campus King",
         entryType: "rec",
         title: "Why we're starting with Marineford",
-        body: "Peak stakes arc â€” discuss character writing this week.",
+        body: "Peak stakes arc - discuss character writing this week.",
         mediaRef: "",
         chapterLabel: "Ch. 550+",
         createdAt: new Date().toISOString(),
@@ -236,7 +237,7 @@ function defaultDemo(): Demo {
         displayName: "Demo User",
         entryType: "publish",
         title: "Fan panel: Luffy gear sketch",
-        body: "Original panel practice â€” feedback welcome.",
+        body: "Original panel practice - feedback welcome.",
         mediaRef: "art:luffy-sketch",
         chapterLabel: "OC page 1",
         createdAt: new Date().toISOString(),
@@ -252,7 +253,7 @@ function defaultDemo(): Demo {
           "Single-elim campus cup. Report scores in #match-reports. Prizes + merch on Yard Sale.\n[[live:https://www.twitch.tv/]]",
         status: "open",
         maxPlayers: 8,
-        prizeText: "1st: 50 WB + sticker pack Â· 2nd: 20 WB",
+        prizeText: "1st: 50 WB + sticker pack - 2nd: 20 WB",
         prizeWb: 50,
         createdBy: "demo_user",
         entrantCount: 4,
@@ -261,13 +262,13 @@ function defaultDemo(): Demo {
       {
         id: 2,
         communityId: "tsu",
-        title: "HBCU Chess Classic Â· R1",
+        title: "HBCU Chess Classic - R1",
         gameTitle: "Chess",
         description:
           "Campus cup. Play on Lichess or OTB; report scores here. Lessons on Content Hub.\n[[play:https://lichess.org/]]",
         status: "open",
         maxPlayers: 16,
-        prizeText: "1st: 80 WB Â· 2nd: 40 WB Â· coach shout-out",
+        prizeText: "1st: 80 WB - 2nd: 40 WB - coach shout-out",
         prizeWb: 80,
         createdBy: "campus_king",
         entrantCount: 3,
@@ -289,7 +290,12 @@ function defaultDemo(): Demo {
 function load(): Demo {
   try {
     const raw = localStorage.getItem(STORE);
-    if (raw) return JSON.parse(raw) as Demo;
+    if (raw) {
+      const repaired = repairTemplateText(raw);
+      const stored = JSON.parse(repaired) as Demo;
+      if (repaired !== raw) save(stored);
+      return stored;
+    }
   } catch {
     /* ignore */
   }
@@ -588,8 +594,8 @@ export async function generateTournamentBracket(
       status: a && b ? "pending" : "bye",
       channelNote:
         a && b
-          ? `1v1: @${a} vs @${b} â€” report score in #match-reports`
-          : `Bye â†’ @${a || b}`,
+          ? `1v1: @${a} vs @${b} - report score in #match-reports`
+          : `Bye -> @${a || b}`,
       updatedAt: new Date().toISOString(),
     };
     out.push(m);
@@ -629,7 +635,7 @@ export async function reportTournamentMatch(
   m.scoreB = scoreB;
   m.winner = scoreA > scoreB ? m.playerA : m.playerB;
   m.status = "complete";
-  m.channelNote = `Final ${scoreA}-${scoreB} Â· winner @${m.winner}`;
+  m.channelNote = `Final ${scoreA}-${scoreB} - winner @${m.winner}`;
   m.updatedAt = new Date().toISOString();
   save(d);
   return m;
