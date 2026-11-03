@@ -43,6 +43,28 @@ function extensionOf(name) {
   return index >= 0 ? base.slice(index + 1) : "";
 }
 
+function audioMimeOk(ext, type) {
+  if (!type || type === "application/octet-stream" || type.startsWith("audio/")) {
+    return true;
+  }
+  if (
+    type === "application/ogg" &&
+    (ext === "ogg" || ext === "oga" || ext === "opus")
+  ) {
+    return true;
+  }
+  // Windows labels an .m4a as video/mp4. A picture named .mp3 still fails.
+  if (
+    (type === "video/mp4" ||
+      type === "video/quicktime" ||
+      type === "application/mp4") &&
+    (ext === "m4a" || ext === "aac")
+  ) {
+    return true;
+  }
+  return ext === "webm" && type === "video/webm";
+}
+
 export function audioExtension(name, mime) {
   const ext = extensionOf(name);
   if (!Object.prototype.hasOwnProperty.call(EXT_MIME, ext)) return "";
@@ -50,10 +72,7 @@ export function audioExtension(name, mime) {
     .toLowerCase()
     .split(";", 1)[0]
     .trim();
-  if (type && type !== "application/octet-stream" && !type.startsWith("audio/")) {
-    return "";
-  }
-  return ext;
+  return audioMimeOk(ext, type) ? ext : "";
 }
 
 export async function readLimited(

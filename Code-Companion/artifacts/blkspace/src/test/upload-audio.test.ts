@@ -52,6 +52,31 @@ describe("audio upload", () => {
     );
   });
 
+  it("posts a Windows m4a to the yard when cloud storage refuses the type", async () => {
+    const m4a = new File(["abc"], "song.m4a", { type: "video/mp4" });
+    vi.mocked(uploadHostedMedia).mockRejectedValue(
+      new Error(
+        "Unsupported media type. Use a raster image, MP4/MOV/WebM video, common audio, PDF, or document.",
+      ),
+    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(Response.json({ ok: true, url: yardUrl }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(uploadAudioFile(m4a)).resolves.toBe(
+      `${window.location.origin}${yardUrl}`,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/yards/audio?name=song.m4a",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "content-type": "application/octet-stream",
+        }),
+      }),
+    );
+  });
+
   it("asks the member to sign in and does not store a local copy", async () => {
     vi.mocked(uploadHostedMedia).mockRejectedValue(
       new Error("Sign in again to save posts or upload media."),

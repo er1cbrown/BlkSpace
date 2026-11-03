@@ -2032,6 +2032,31 @@ describe("yard audio upload", () => {
     expect(played.headers.get("content-type")).toContain("audio/mpeg");
     expect(Buffer.from(await played.arrayBuffer()).equals(bytes)).toBe(true);
 
+    const m4aRoute = "/api/yards/audio?name=song.m4a";
+    const windows = await fetch(base + m4aRoute, {
+      method: "POST",
+      headers: {
+        "content-type": "video/mp4",
+        authorization: authorization(m4aRoute, bytes),
+      },
+      body: bytes,
+    });
+    expect(windows.status).toBe(200);
+    const windowsSaved = await windows.json();
+    expect(windowsSaved.url).toMatch(
+      /^\/api\/yards\/audio\/aud_[a-f0-9]{16}\.m4a$/,
+    );
+    expect(windowsSaved.mime).toBe("audio/mp4");
+    const picture = await fetch(base + "/api/yards/audio?name=song.mp3", {
+      method: "POST",
+      headers: {
+        "content-type": "image/jpeg",
+        authorization: authorization("/api/yards/audio?name=song.mp3", bytes),
+      },
+      body: bytes,
+    });
+    expect(picture.status).toBe(400);
+
     const ranged = await fetch(base + saved.url, {
       headers: { range: "bytes=0-2" },
     });

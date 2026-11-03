@@ -42,6 +42,7 @@ const AUDIO_EXTENSIONS = new Set([
   "m4a",
   "aac",
   "ogg",
+  "oga",
   "opus",
   "wav",
   "flac",
@@ -111,6 +112,7 @@ const MIME_BY_EXTENSION = {
   m4a: "audio/mp4",
   aac: "audio/mp4",
   ogg: "audio/ogg",
+  oga: "audio/ogg",
   opus: "audio/opus",
   wav: "audio/wav",
   flac: "audio/flac",
@@ -199,15 +201,32 @@ function classifyMedia(mime, filename) {
       ? { kind: "image", mime: effectiveMime, limit: MEDIA_LIMITS.image }
       : null;
   }
+  if (extension === "webm" && effectiveMime.startsWith("audio/")) {
+    return { kind: "audio", mime: "audio/webm", limit: MEDIA_LIMITS.audio };
+  }
   if (VIDEO_EXTENSIONS.has(extension)) {
     return VIDEO_MIME_TYPES.has(effectiveMime)
       ? { kind: "video", mime: effectiveMime, limit: MEDIA_LIMITS.video }
       : null;
   }
   if (AUDIO_EXTENSIONS.has(extension)) {
-    return AUDIO_MIME_TYPES.has(effectiveMime)
-      ? { kind: "audio", mime: effectiveMime, limit: MEDIA_LIMITS.audio }
-      : null;
+    const windowsContainer =
+      (extension === "m4a" || extension === "aac") &&
+      (effectiveMime === "video/mp4" ||
+        effectiveMime === "video/quicktime" ||
+        effectiveMime === "application/mp4");
+    const audioMime =
+      AUDIO_MIME_TYPES.has(effectiveMime) ||
+      effectiveMime.startsWith("audio/") ||
+      windowsContainer;
+    if (!audioMime) return null;
+    return {
+      kind: "audio",
+      mime: AUDIO_MIME_TYPES.has(effectiveMime)
+        ? effectiveMime
+        : MIME_BY_EXTENSION[extension],
+      limit: MEDIA_LIMITS.audio,
+    };
   }
   if (PDF_EXTENSIONS.has(extension)) {
     return PDF_MIME_TYPES.has(effectiveMime)

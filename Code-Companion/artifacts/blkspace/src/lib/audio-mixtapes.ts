@@ -64,11 +64,24 @@ function audioKindProblem(file: {
   name: string;
   size: number;
 }): string | null {
-  const type = file.type.toLowerCase();
+  const type = file.type.toLowerCase().split(";", 1)[0].trim();
   const name = file.name.toLowerCase();
-  const mimeOk = AUDIO_MIME.has(type) || AUDIO_EXT.test(name);
-  if (!mimeOk)
+  const namedAudio = AUDIO_EXT.test(name);
+  const mimeAudio =
+    AUDIO_MIME.has(type) ||
+    type.startsWith("audio/") ||
+    type === "application/ogg";
+  // Windows labels an .m4a as video/mp4. A picture named .mp3 is still refused.
+  const containerAudio =
+    (type === "video/mp4" ||
+      type === "video/quicktime" ||
+      type === "application/mp4") &&
+    /\.(m4a|aac)$/.test(name);
+  const webmAudio = type === "video/webm" && name.endsWith(".webm");
+  const blank = !type || type === "application/octet-stream";
+  if (!(mimeAudio || containerAudio || webmAudio || (blank && namedAudio))) {
     return "Use an audio file (mp3, wav, ogg, m4a, opus, webm, flac).";
+  }
   if (file.size <= 0) return "That file is empty.";
   return null;
 }

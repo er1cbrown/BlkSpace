@@ -61,6 +61,15 @@ describe("audio mixtapes", () => {
       audioUploadOk({ type: "audio/opus", name: "set.opus", size: 1000 }),
     ).toBe(null);
     expect(
+      audioUploadOk({ type: "video/mp4", name: "song.m4a", size: 1000 }),
+    ).toBe(null);
+    expect(audioUploadOk({ type: "", name: "song.mp3", size: 1000 })).toBe(
+      null,
+    );
+    expect(
+      audioUploadOk({ type: "image/jpeg", name: "song.mp3", size: 1000 }),
+    ).toMatch(/audio file/);
+    expect(
       coverFileOk({ type: "image/png", name: "front.png", size: 1000 }),
     ).toBe(null);
     expect(coverSrcOk("https://media.example.test/front.jpg")).toBe(true);

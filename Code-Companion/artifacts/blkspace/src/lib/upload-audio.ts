@@ -29,13 +29,6 @@ function uploadName(file: File): string {
   return ext ? `${base.replace(/\.$/, "")}.${ext}` : base;
 }
 
-function unconfigured(message: string): boolean {
-  return (
-    message === "Cloud file uploads are not configured." ||
-    message === "r2 not configured"
-  );
-}
-
 async function postYardAudio(file: File): Promise<string> {
   const name = uploadName(file);
   const route = `/api/yards/audio?name=${encodeURIComponent(name)}`;
@@ -75,7 +68,6 @@ export async function uploadAudioFile(file: File): Promise<string> {
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
     if (message.startsWith("Sign in")) throw err;
-    if (!unconfigured(message)) throw err;
   }
   return postYardAudio(file);
 }
