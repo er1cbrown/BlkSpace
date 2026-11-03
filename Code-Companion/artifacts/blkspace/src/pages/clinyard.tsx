@@ -16,6 +16,7 @@ import {
   type DrillMode,
 } from "@/lib/clinyard/tasks";
 import { HeartPulse } from "lucide-react";
+import { DrScreenProgram } from "@/components/clinyard/DrScreenProgram";
 
 /**
  * Offline study desk. Four short drills a browser can score.
@@ -189,6 +190,8 @@ export default function ClinyardPage() {
             </CardContent>
           </Card>
         )}
+
+        <DrScreenProgram />
       </div>
     </AppShell>
   );

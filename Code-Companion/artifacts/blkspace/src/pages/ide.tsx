@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearch } from "wouter";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,12 @@ import {
   tauriRunHomeworkCell,
 } from "@/lib/tauri-api";
 import { toast } from "sonner";
+import {
+  DR_NOTEBOOK_ID,
+  DR_PY_NAME,
+  ensureDrProgramNotebook,
+  toPercentPy,
+} from "@/lib/clinyard/dr-program";
 
 const LANGS: { id: CellLang; label: string }[] = [
   { id: "python", label: "Python" },
@@ -53,6 +60,7 @@ function cellExt(lang: CellLang): string {
  */
 export default function IdePage() {
   const desktop = isTauri();
+  const search = useSearch();
   const [tick, setTick] = useState(0);
   const notebooks = useMemo(() => {
     void tick;
@@ -61,6 +69,13 @@ export default function IdePage() {
   const [activeId, setActiveId] = useState<string | null>(
     notebooks[0]?.id ?? null,
   );
+  useEffect(() => {
+    const program = new URLSearchParams(search).get("program");
+    if (program !== "dr") return;
+    const row = ensureDrProgramNotebook();
+    setActiveId(row.id);
+    setTick((n) => n + 1);
+  }, [search]);
   const notebook = (activeId && getNotebook(activeId)) || notebooks[0] || null;
   const [outputs, setOutputs] = useState<Record<string, string>>({});
   const [running, setRunning] = useState<string | null>(null);
@@ -121,16 +136,25 @@ export default function IdePage() {
 
   const openNvim = async () => {
     if (!notebook) return;
-    const name = exportName(notebook);
-    const body = exportBody(notebook);
+    const localPy = notebook.id === DR_NOTEBOOK_ID;
+    const name = localPy ? DR_PY_NAME : exportName(notebook);
+    const body = localPy ? toPercentPy(notebook) : exportBody(notebook);
     if (!desktop) {
       download(name, body);
-      toast("Downloaded. Open that file in LazyVim.");
+      toast(
+        localPy
+          ? "Downloaded the local .py. In LazyVim, Space pc writes the .ipynb."
+          : "Downloaded. Open that file in LazyVim.",
+      );
       return;
     }
     try {
       const path = await tauriOpenNotebookInLazyVim(notebook.title, name, body);
-      toast.success(`Opened ${path}`);
+      toast.success(
+        localPy && !path.endsWith(".ipynb")
+          ? `Opened ${path}. Press Space pc to write the .ipynb.`
+          : `Opened ${path}`,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     }
@@ -142,11 +166,18 @@ export default function IdePage() {
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Homework</h1>
           <p className="text-sm text-muted-foreground">
-            Same stack as github.com/er1cbrown/lazyvim. Python uses the
-            miniconda kernel. R uses the ir kernel. TeX is for VimTeX. This page
-            edits the cells. The Full app runs Python and R, and opens the file
-            in Neovim.
+            Same stack as github.com/er1cbrown/lazyvim. Python runs in the
+            cell-morph env when that env is installed. R uses the ir kernel. TeX
+            is for VimTeX. This page edits the cells. The Full app runs Python
+            and R, and opens the file in Neovim.
           </p>
+          {notebook?.id === DR_NOTEBOOK_ID && (
+            <p className="text-sm text-muted-foreground">
+              ClinYard DR program. Open in LazyVim writes a local percent .py.
+              Space pc runs jupytext --to ipynb, which is the built-in convert.
+              The .ipynb opens as markdown on the miniconda kernel.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2">

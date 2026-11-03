@@ -4670,7 +4670,7 @@ fn open_myyard_css(handle: String, css: String, prefer_lazyvim: bool) -> Result<
 }
 
 /// Run one Python or R cell with the homework toolchain from er1cbrown/lazyvim.
-/// Python prefers ~/miniconda3. R uses Rscript. No shell. Stops after 8 seconds.
+/// Python prefers the cell-morph course env, then ~/miniconda3. R uses Rscript. No shell. Stops after 8 seconds.
 #[tauri::command]
 fn run_homework_cell(lang: String, source: String) -> Result<String, String> {
   let lang = lang.trim().to_ascii_lowercase();
@@ -4698,7 +4698,9 @@ fn run_homework_cell(lang: String, source: String) -> Result<String, String> {
   result
 }
 
-/// Write a Quarto or TeX notebook and open it in Neovim (LazyVim config).
+/// Write a notebook and open it in Neovim (LazyVim config).
+/// A `.py` file is percent format. The same jupytext binary as Space pc
+/// (`jupytext --to ipynb` from ~/miniconda3) writes the `.ipynb` beside it.
 #[tauri::command]
 fn open_notebook_in_lazyvim(title: String, filename: String, body: String) -> Result<String, String> {
   if body.len() > 200_000 {
@@ -4707,8 +4709,13 @@ fn open_notebook_in_lazyvim(title: String, filename: String, body: String) -> Re
   let name = safe_notebook_filename(&filename, &title);
   let dir = std::env::temp_dir().join("blkspace-ide");
   std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-  let path = dir.join(&name);
-  std::fs::write(&path, body).map_err(|e| e.to_string())?;
+  let written = dir.join(&name);
+  std::fs::write(&written, body).map_err(|e| e.to_string())?;
+  let path = if name.ends_with(".py") {
+    jupytext_to_ipynb(&written).unwrap_or(written)
+  } else {
+    written
+  };
   if spawn_lazyvim(&path) {
     return Ok(path.to_string_lossy().to_string());
   }
@@ -4816,6 +4823,48 @@ fn run_args_bounded(program: &std::path::Path, args: &[String]) -> Result<String
   }
 }
 
+/// Same converter as lua/config/keymaps.lua Space pc.
+fn homework_jupytext() -> Option<std::path::PathBuf> {
+  for key in ["USERPROFILE", "HOME"] {
+    if let Ok(home) = std::env::var(key) {
+      for rel in ["miniconda3/Scripts/jupytext.exe", "miniconda3/bin/jupytext"] {
+        let path = std::path::PathBuf::from(&home).join(rel);
+        if path.exists() {
+          return Some(path);
+        }
+      }
+    }
+  }
+  None
+}
+
+fn jupytext_to_ipynb(py_path: &std::path::Path) -> Result<std::path::PathBuf, String> {
+  let bin = homework_jupytext().ok_or_else(|| {
+    "jupytext was not found under miniconda3. In LazyVim, Space pc runs that convert.".to_string()
+  })?;
+  let output = std::process::Command::new(&bin)
+    .arg("--to")
+    .arg("ipynb")
+    .arg(py_path)
+    .output()
+    .map_err(|e| format!("Could not start jupytext: {e}"))?;
+  if !output.status.success() {
+    let err = String::from_utf8_lossy(&output.stderr);
+    let out = String::from_utf8_lossy(&output.stdout);
+    let text = if err.trim().is_empty() { out } else { err };
+    return Err(if text.trim().is_empty() {
+      format!("jupytext exited {}", output.status.code().unwrap_or(1))
+    } else {
+      text.to_string()
+    });
+  }
+  let ipynb = py_path.with_extension("ipynb");
+  if !ipynb.exists() {
+    return Err("jupytext did not write the .ipynb beside the .py".into());
+  }
+  Ok(ipynb)
+}
+
 fn safe_notebook_filename(filename: &str, title: &str) -> String {
   let raw = filename.trim();
   let (stem_raw, ext) = if let Some(stem) = raw.strip_suffix(".tex") {
@@ -4848,7 +4897,12 @@ fn safe_notebook_filename(filename: &str, title: &str) -> String {
 fn homework_python() -> std::path::PathBuf {
   for key in ["HOME", "USERPROFILE"] {
     if let Ok(home) = std::env::var(key) {
-      for rel in ["miniconda3/bin/python", "miniconda3/python.exe"] {
+      for rel in [
+        "miniconda3/envs/cell-morph/python.exe",
+        "miniconda3/envs/cell-morph/bin/python",
+        "miniconda3/python.exe",
+        "miniconda3/bin/python",
+      ] {
         let path = std::path::PathBuf::from(&home).join(rel);
         if path.exists() {
           return path;
