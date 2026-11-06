@@ -46,6 +46,9 @@ pub struct BlobSharePayload {
   pub signature: Option<String>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub p2p_ticket: Option<String>,
+  /// Short note carried with the drop. Absent on older tickets, so their signatures stay valid.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub note: Option<String>,
 }
 
 pub fn sha256_hex(bytes: &[u8]) -> String {
@@ -64,6 +67,8 @@ struct BlobShareSigningMaterial<'a> {
   issued_at: i64,
   expires_at: i64,
   p2p_ticket: Option<&'a str>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  note: Option<&'a str>,
 }
 
 fn signing_message(payload: &BlobSharePayload) -> Result<Message, String> {
@@ -78,6 +83,7 @@ fn signing_message(payload: &BlobSharePayload) -> Result<Message, String> {
     issued_at: payload.issued_at,
     expires_at: payload.expires_at,
     p2p_ticket: payload.p2p_ticket.as_deref(),
+    note: payload.note.as_deref(),
   };
   let encoded =
     serde_json::to_vec(&material).map_err(|e| format!("ticket signing material: {e}"))?;
@@ -168,6 +174,8 @@ pub struct ReceiveShareResult {
   pub file_size: i64,
   pub source: String,
   pub message: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub note: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -314,6 +322,7 @@ mod tests {
       issuer: None,
       signature: None,
       p2p_ticket: None,
+      note: None,
     };
     let t = p.encode_ticket().unwrap();
     assert!(t.starts_with(TICKET_PREFIX));
@@ -346,7 +355,21 @@ mod tests {
       issuer: None,
       signature: None,
       p2p_ticket: None,
+      note: None,
     }
+  }
+
+  #[test]
+  fn note_is_covered_by_the_signature() {
+    let keys = Keys::generate();
+    let mut payload = sample_payload();
+    payload.note = Some("meet at the yard".into());
+    let signed = sign_payload(payload, &keys, 3600).unwrap();
+    assert_eq!(signed.note.as_deref(), Some("meet at the yard"));
+    assert!(verify_payload(&signed).is_ok());
+    let mut tampered = signed.clone();
+    tampered.note = Some("meet somewhere else".into());
+    assert!(verify_payload(&tampered).is_err());
   }
 
   #[test]

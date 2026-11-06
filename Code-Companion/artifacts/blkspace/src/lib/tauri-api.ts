@@ -1170,6 +1170,7 @@ export interface TauriReceiveShareResult {
   fileSize: number;
   source: string;
   message: string;
+  note?: string | null;
 }
 
 export interface TauriSendmeCliInfo {
@@ -1185,8 +1186,13 @@ export interface TauriSendmeCliInfo {
 export function tauriCreateBlobShareTicket(
   sessionToken: string,
   hash: string,
+  note?: string,
 ): Promise<TauriBlobShareTicket> {
-  return invoke("create_blob_share_ticket", { sessionToken, hash });
+  return invoke("create_blob_share_ticket", {
+    sessionToken,
+    hash,
+    note: note?.trim() ? note.trim() : null,
+  });
 }
 
 export function tauriReceiveBlobShareTicket(

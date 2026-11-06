@@ -4419,6 +4419,7 @@ fn mime_from_filename(filename: &str) -> String {
     "mkv" => "video/x-matroska".into(),
     "mp3" => "audio/mpeg".into(),
     "m4a" | "aac" => "audio/mp4".into(),
+    "aiff" | "aif" => "audio/aiff".into(),
     "ogg" | "opus" => "audio/ogg".into(),
     "wav" => "audio/wav".into(),
     "flac" => "audio/flac".into(),
@@ -4440,7 +4441,7 @@ fn is_allowed_upload_ext(filename: &str) -> bool {
     ext.as_str(),
     "jpg" | "jpeg" | "png" | "gif" | "webp" | "heic" | "heif" | "avif" | "bmp"
       | "mp4" | "m4v" | "webm" | "mov" | "avi" | "mkv"
-      | "mp3" | "m4a" | "aac" | "ogg" | "opus" | "wav" | "flac"
+      | "mp3" | "m4a" | "aac" | "ogg" | "opus" | "wav" | "flac" | "aiff" | "aif"
       | "pdf" | "doc" | "docx" | "txt" | "md" | "csv" | "json" | "zip" | "rtf"
   )
 }
@@ -5022,6 +5023,7 @@ fn create_blob_share_ticket(
   state: State<AppState>,
   session_token: String,
   hash: String,
+  note: Option<String>,
 ) -> Result<sendme_share::BlobShareTicket, String> {
   let handle = check_session_rate_limit(&state, &session_token)?;
   validate_blob_hash(&hash)?;
@@ -5032,6 +5034,17 @@ fn create_blob_share_ticket(
     .ok_or_else(|| "Blob not found — upload first, then share".to_string())?;
   if rec.uploader_handle != handle {
     return Err("Only the uploader can create a share ticket".to_string());
+  }
+  let note = note.and_then(|text| {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+      None
+    } else {
+      Some(trimmed.to_string())
+    }
+  });
+  if note.as_ref().is_some_and(|text| text.chars().count() > 2000) {
+    return Err("Message is too long (max 2000 characters)".to_string());
   }
 
   let payload = sendme_share::BlobSharePayload {
@@ -5047,6 +5060,7 @@ fn create_blob_share_ticket(
     issuer: None,
     signature: None,
     p2p_ticket: None,
+    note,
   };
   let keys = load_user_nostr_keys(&state, &handle)?;
   #[cfg(feature = "iroh-net")]
@@ -5117,6 +5131,7 @@ fn receive_blob_share_ticket(
               file_size: record.file_size,
               source: "iroh-p2p".to_string(),
               message: "Materialized from sendme/iroh BlobTicket (in-app hole-punch)".to_string(),
+              note: None,
             });
           }
           Err(e) => {
@@ -5174,6 +5189,7 @@ fn receive_blob_share_ticket(
       file_size: record.file_size,
       source: "local".to_string(),
       message: "Materialized from local blob store".to_string(),
+      note: payload.note.clone(),
     });
   }
 
@@ -5207,6 +5223,7 @@ fn receive_blob_share_ticket(
             file_size: record.file_size,
             source: "iroh-p2p".to_string(),
             message: "Materialized from in-app Iroh P2P".to_string(),
+            note: payload.note.clone(),
           });
         }
         Err(e) => log::warn!("in-app Iroh P2P download failed: {e}"),
@@ -5257,6 +5274,7 @@ fn receive_blob_share_ticket(
             file_size: record.file_size,
             source: "iroh".to_string(),
             message: "Materialized from Iroh content store".to_string(),
+            note: payload.note.clone(),
           });
         }
         Ok(None) => {}

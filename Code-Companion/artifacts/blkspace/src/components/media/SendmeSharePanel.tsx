@@ -12,9 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import {
   isTauri,
   tauriCreateBlobShareTicket,
+  tauriGetBlobBytes,
   tauriGetSendmeCliInfo,
   tauriListUserBlobs,
   tauriReceiveBlobShareTicket,
+  tauriUploadBlob,
   type TauriBlobInfo,
   type TauriBlobShareTicket,
   type TauriSendmeCliInfo,
@@ -37,6 +39,32 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+const MAX_SHARE_BYTES = 50 * 1024 * 1024;
+
+function fileToBase64(file: File): Promise<string> {
+  return file.arrayBuffer().then((buffer) => {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  });
+}
+
+function saveBase64File(filename: string, mime: string, data: string) {
+  const binary = atob(data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime || "application/octet-stream" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename || "sendme-drop";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 /**
  * P2P-style file drop UI inspired by n0 sendme.
  * Yard: content tickets + local/Iroh materialize.
@@ -47,6 +75,8 @@ export function SendmeSharePanel({ compact = false }: { compact?: boolean }) {
   const [selected, setSelected] = useState<string>("");
   const [share, setShare] = useState<TauriBlobShareTicket | null>(null);
   const [ticketIn, setTicketIn] = useState("");
+  const [noteText, setNoteText] = useState("");
+  const [receivedNote, setReceivedNote] = useState("");
   const [cli, setCli] = useState<TauriSendmeCliInfo | null>(null);
   const [busy, setBusy] = useState<"share" | "recv" | "load" | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -84,13 +114,86 @@ export function SendmeSharePanel({ compact = false }: { compact?: boolean }) {
     setBusy("share");
     setMsg(null);
     try {
-      const t = await tauriCreateBlobShareTicket(token, selected);
+      const t = await tauriCreateBlobShareTicket(token, selected, noteText);
       setShare(t);
       toast.success("Share ticket ready");
     } catch (e) {
       const err = String(e);
       setMsg(err);
       toast.error(err);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onSendMessage = async () => {
+    const token = getSessionToken();
+    const text = noteText.trim();
+    if (!token) {
+      toast.error("Sign in to send a message");
+      return;
+    }
+    if (!text) {
+      toast.error("Write a message first");
+      return;
+    }
+    if (text.length > 2000) {
+      toast.error("Message is over 2000 characters");
+      return;
+    }
+    setBusy("share");
+    setMsg(null);
+    try {
+      const file = new File([text], "message.txt", { type: "text/plain" });
+      const uploaded = await tauriUploadBlob(token, await fileToBase64(file), file.name);
+      const ticket = await tauriCreateBlobShareTicket(token, uploaded.hash, text);
+      setShare(ticket);
+      setSelected(uploaded.hash);
+      toast.success("Message ticket ready. Leave BKSPC open until it is received.");
+    } catch (e) {
+      const err = String(e);
+      setMsg(err);
+      toast.error(err.length > 120 ? err.slice(0, 120) + "…" : err);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onPickFile = async (file: File | undefined) => {
+    const token = getSessionToken();
+    if (!token) {
+      toast.error("Sign in to share a file");
+      return;
+    }
+    if (!file) return;
+    if (!file.name.includes(".")) {
+      toast.error("The file needs an extension, such as .pdf or .png");
+      return;
+    }
+    if (file.size > MAX_SHARE_BYTES) {
+      toast.error("File is over 50 MB");
+      return;
+    }
+    setBusy("share");
+    setMsg(null);
+    try {
+      const uploaded = await tauriUploadBlob(token, await fileToBase64(file), file.name);
+      setSelected(uploaded.hash);
+      const ticket = await tauriCreateBlobShareTicket(
+        token,
+        uploaded.hash,
+        noteText,
+      );
+      setShare(ticket);
+      setBlobs((current) => {
+        const next = current.filter((blob) => blob.hash !== uploaded.hash);
+        return [uploaded, ...next];
+      });
+      toast.success("Ticket ready. Leave BKSPC open until the other Mac receives it.");
+    } catch (e) {
+      const err = String(e);
+      setMsg(err);
+      toast.error(err.length > 120 ? err.slice(0, 120) + "…" : err);
     } finally {
       setBusy(null);
     }
@@ -116,8 +219,15 @@ export function SendmeSharePanel({ compact = false }: { compact?: boolean }) {
     setMsg(null);
     try {
       const r = await tauriReceiveBlobShareTicket(token, t);
+      const bytes = await tauriGetBlobBytes(token, r.hash);
+      if (bytes) saveBase64File(r.filename, r.mimeType, bytes);
+      setReceivedNote(r.note?.trim() || "");
       setMsg(`${r.message} — ${r.filename} (${r.source})`);
-      toast.success(`Received ${r.filename}`);
+      toast.success(
+        bytes
+          ? `Received ${r.filename}. Your browser download folder has the file.`
+          : `Received ${r.filename}`,
+      );
       await load();
     } catch (e) {
       const err = String(e);
@@ -181,9 +291,10 @@ export function SendmeSharePanel({ compact = false }: { compact?: boolean }) {
               </Badge>
             </CardTitle>
             <CardDescription className="mt-1">
-              Share a file you uploaded as a portable ticket. New v2 tickets
-              authenticate the sender; legacy v1 metadata is not authenticated.
-              Peers materialize from local/Iroh store — or use{" "}
+              Pick a file on this Mac. BKSPC stores it locally, makes a ticket,
+              and serves the bytes over Iroh while this window stays open.
+              The other BKSPC pastes the ticket and saves the file. New v2
+              tickets authenticate the sender. Or use{" "}
               <a
                 href={SENDME_DOCS}
                 className="text-primary hover:underline"
@@ -215,9 +326,52 @@ export function SendmeSharePanel({ compact = false }: { compact?: boolean }) {
           <p className="text-xs font-medium flex items-center gap-1.5">
             <FileUp className="h-3.5 w-3.5" /> Share (send)
           </p>
+          <Textarea
+            value={noteText}
+            onChange={(event) => setNoteText(event.target.value)}
+            placeholder="Message to send with the ticket"
+            maxLength={2000}
+            className="min-h-[72px] text-sm"
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => void onSendMessage()}
+            disabled={busy === "share" || noteText.trim().length === 0}
+          >
+            Send message
+          </Button>
+          <label className="inline-flex">
+            <input
+              type="file"
+              accept="audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus,.aiff,.aif,.zip"
+              className="sr-only"
+              disabled={busy === "share"}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                void onPickFile(file);
+              }}
+            />
+            <span className="inline-flex h-8 cursor-pointer items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground">
+              {busy === "share" ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <FileUp className="mr-1 h-4 w-4" />
+              )}
+              Choose music or a file
+            </span>
+          </label>
+          <p className="text-xs text-muted-foreground">
+            Music works: mp3, m4a, aac, wav, flac, ogg, and opus, up to 50 MB.
+            A zip of several songs works too. Leave BKSPC open until the other
+            side receives the ticket.
+          </p>
           {blobs.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              No uploads yet — attach a file on Create, then share it here.
+              No shared files yet. Files already uploaded can be shared again
+              below.
             </p>
           ) : (
             <select
@@ -329,6 +483,11 @@ export function SendmeSharePanel({ compact = false }: { compact?: boolean }) {
           <p className="pt-1">{cli?.note}</p>
         </div>
 
+        {receivedNote && (
+          <p className="rounded-md border bg-muted/40 p-2 text-sm whitespace-pre-wrap">
+            {receivedNote}
+          </p>
+        )}
         {msg && (
           <p className="text-xs whitespace-pre-wrap break-words text-muted-foreground border-t pt-2">
             {msg}
