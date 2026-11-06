@@ -100,9 +100,9 @@ struct PendingChallenge {
   created_at: Instant,
 }
 
-/// Yard boot uses one relay. A Full release binary, or `BLKSPACE_FULL_MESH=1`,
-/// connects every relay and starts Iroh on a background thread. `BLKSPACE_FULL_MESH=0`
-/// or `BLKSPACE_YARD_BOOT=1` keeps the yard path even on a Full binary.
+/// The desktop build connects every Nostr relay and starts Iroh off the UI thread.
+/// Yard CI uses `--no-default-features`, so it does not get `full-release`.
+/// `BLKSPACE_FULL_MESH=0` or `BLKSPACE_YARD_BOOT=1` keeps the one-relay yard path.
 fn full_mesh_startup() -> bool {
   match std::env::var("BLKSPACE_FULL_MESH").as_deref() {
     Ok("1") => return true,

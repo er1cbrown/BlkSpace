@@ -118,7 +118,7 @@ objc2-foundation = { version = "0.3.2", default-features = false, features = ["s
 objc2-web-kit = { version = "0.3.2", default-features = false, features = ["std", "WKWebView", "WKPreferences"] }
 
 [features]
-default = ["iroh", "iroh-net", "rns-t3"]
+default = ["iroh", "iroh-net", "rns-t3", "full-release"]
 iroh = ["dep:iroh-blobs", "dep:iroh"]
 # Shipped Full installer. Same mesh as BLKSPACE_FULL_MESH=1, still off the UI thread.
 # Yard CI keeps `--no-default-features` and does not enable this.
