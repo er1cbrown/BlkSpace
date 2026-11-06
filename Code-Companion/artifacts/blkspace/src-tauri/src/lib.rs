@@ -22,6 +22,9 @@ mod rns_courier;
 mod instance_profile;
 mod tier0_benchmark;
 
+#[cfg(target_os = "macos")]
+mod media_capture;
+
 #[cfg(feature = "iroh")]
 mod iroh_node;
 
@@ -6177,6 +6180,9 @@ pub fn run() {
       portfolio_sync_lock: Mutex::new(()),
     })
     .setup(move |app| {
+      #[cfg(target_os = "macos")]
+      media_capture::enable(app);
+
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()
