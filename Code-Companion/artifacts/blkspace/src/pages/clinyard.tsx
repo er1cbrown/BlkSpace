@@ -17,6 +17,12 @@ import {
 } from "@/lib/clinyard/tasks";
 import { HeartPulse } from "lucide-react";
 import { DrScreenProgram } from "@/components/clinyard/DrScreenProgram";
+import { EyeExam } from "@/components/clinyard/EyeExam";
+import { OpticsPath } from "@/components/clinyard/OpticsPath";
+import { NavarroEye } from "@/components/clinyard/NavarroEye";
+import { EyeStudies } from "@/components/clinyard/EyeStudies";
+import { PaperDesk } from "@/components/clinyard/PaperDesk";
+import { VisionLab } from "@/components/clinyard/VisionLab";
 
 /**
  * Offline study desk. Four short drills a browser can score.
@@ -76,9 +82,9 @@ export default function ClinyardPage() {
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          Four practice drills for pre-med, med, and nursing study. They run in
-          this browser. ClinFusion, the open medical model these formats come
-          from, is not loaded here.
+          Clinic drills run in this browser. Study drills, marked with the
+          Uppsala seal, are one question from each of the seven papers.
+          Weights are not loaded.
         </p>
         <Card className="border-amber-500/30">
           <CardContent className="pt-4 text-sm">
@@ -191,6 +197,12 @@ export default function ClinyardPage() {
           </Card>
         )}
 
+        <PaperDesk />
+        <EyeExam />
+        <OpticsPath />
+        <NavarroEye />
+        <EyeStudies />
+        <VisionLab />
         <DrScreenProgram />
       </div>
     </AppShell>

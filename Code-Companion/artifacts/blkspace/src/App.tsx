@@ -42,6 +42,7 @@ const ConnectPage = React.lazy(() => import("@/pages/connect"));
 const HubPage = React.lazy(() => import("@/pages/hub"));
 const FocusPage = React.lazy(() => import("@/pages/focus"));
 const ClinyardPage = React.lazy(() => import("@/pages/clinyard"));
+const EyeExamPage = React.lazy(() => import("@/pages/eye-exam"));
 const FacultyPage = React.lazy(() => import("@/pages/faculty"));
 const MessagesPage = React.lazy(() => import("@/pages/messages"));
 const PlayPage = React.lazy(() => import("@/pages/play"));
@@ -247,6 +248,8 @@ function Router() {
         {/* Aliases — people search "yard clinic" / medtech drills */}
         <Route path="/yardclinic" component={ClinyardPage} />
         <Route path="/yard-clinic" component={ClinyardPage} />
+        <Route path="/eye-exam" component={EyeExamPage} />
+        <Route path="/eyeexam" component={EyeExamPage} />
         <Route path="/faculty" component={FacultyPage} />
         <Route
           path="/messages"

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { isTauri, tauriOpenNotebookInLazyVim } from "@/lib/tauri-api";
+import { REFERRAL_NOTE } from "@/lib/clinyard/reading-notes";
 import {
   DR_GRADES,
   DR_HOMEWORK_HREF,
@@ -132,6 +133,7 @@ export function DrScreenProgram() {
           picture to the GPU host you paste. Hostinger does not run the model.
           The score is not a diagnosis, and the picture is not saved here.
         </p>
+        <p className="text-sm text-muted-foreground">{REFERRAL_NOTE}</p>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2">

@@ -29,6 +29,7 @@ describe("DR screening panel", () => {
     expect((score as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/not a diagnosis/i)).toBeTruthy();
     expect(screen.getByText(/Hostinger does not run the model/i)).toBeTruthy();
+    expect(screen.getByText(/Kizor-Akaraiwe et al\. \(2016\)/)).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("GPU host URL"), {
       target: { value: "https://bkspc.app/api" },

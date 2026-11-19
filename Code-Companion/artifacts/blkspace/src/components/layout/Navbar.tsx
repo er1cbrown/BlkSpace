@@ -25,6 +25,7 @@ export function Navbar() {
     { href: "/messages", label: "Messages" },
     { href: "/connect", label: "Connect" },
     { href: "/arcade", label: "Arcade" },
+    { href: "/eye-exam", label: "Eye exam" },
     { href: "/typeverse", label: "Typeverse" },
     { href: "/hub", label: "Hub" },
     { href: "/ide", label: "Homework" },

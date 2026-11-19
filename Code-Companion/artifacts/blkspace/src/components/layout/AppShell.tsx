@@ -32,6 +32,7 @@ import {
   Headphones,
   Disc3,
   TerminalSquare,
+  Eye,
 } from "lucide-react";
 import { getCurrentHandle } from "@/lib/auth";
 import { useAppGetUser, useTauriGetNotifications } from "@/hooks/use-app-data";
@@ -159,6 +160,7 @@ export function AppShell({
     { href: "/blkshi", label: "BLKSHI", icon: Share2, show: true },
     { href: "/ide", label: "Homework", icon: TerminalSquare, show: true },
     { href: "/arcade", label: "Arcade", icon: Joystick, show: true },
+    { href: "/eye-exam", label: "Eye exam", icon: Eye, show: true },
     { href: "/typeverse", label: "Typeverse", icon: Keyboard, show: true },
     {
       href: "/focus",
