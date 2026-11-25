@@ -39,6 +39,8 @@ export function Navbar() {
           { href: "/relays", label: "Network" },
           { href: "/mesh-test", label: "Sync Test" },
           { href: "/architecture", label: "Stack" },
+          { href: "/cyberdeck", label: "Offline deck" },
+          { href: "/maps", label: "Maps" },
         ]
       : []),
   ];

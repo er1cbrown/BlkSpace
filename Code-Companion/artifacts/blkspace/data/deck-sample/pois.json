@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Georgia Plaza Park",
+    "lat": 33.7497125,
+    "lon": -84.3899626,
+    "kind": "place"
+  },
+  {
+    "name": "Fulton County Courthouse",
+    "lat": 33.7499951,
+    "lon": -84.3907337,
+    "kind": "place"
+  },
+  {
+    "name": "Center for Civic Innovation",
+    "lat": 33.7518544,
+    "lon": -84.3914427,
+    "kind": "place"
+  },
+  {
+    "name": "Creative Loafing",
+    "lat": 33.7518231,
+    "lon": -84.3913542,
+    "kind": "place"
+  },
+  {
+    "name": "CEI Barber School",
+    "lat": 33.7521967,
+    "lon": -84.3918102,
+    "kind": "place"
+  },
+  {
+    "name": "City Nails",
+    "lat": 33.752949,
+    "lon": -84.3916542,
+    "kind": "place"
+  },
+  {
+    "name": "Rainbow",
+    "lat": 33.7527973,
+    "lon": -84.3914048,
+    "kind": "place"
+  },
+  {
+    "name": "Jamrock",
+    "lat": 33.751784,
+    "lon": -84.3913012,
+    "kind": "place"
+  },
+  {
+    "name": "The Masquerade",
+    "lat": 33.7517171,
+    "lon": -84.3897952,
+    "kind": "place"
+  },
+  {
+    "name": "Miss Freedom",
+    "lat": 33.7490549,
+    "lon": -84.3881333,
+    "kind": "place"
+  },
+  {
+    "name": "Herman Talmadge",
+    "lat": 33.7492376,
+    "lon": -84.3893728,
+    "kind": "place"
+  },
+  {
+    "name": "The Georgia Building Authority",
+    "lat": 33.749723,
+    "lon": -84.3874821,
+    "kind": "place"
+  },
+  {
+    "name": "Fulton County Sherrif's Office",
+    "lat": 33.7513792,
+    "lon": -84.3913533,
+    "kind": "place"
+  },
+  {
+    "name": "Thomas E. Watson",
+    "lat": 33.7493336,
+    "lon": -84.3895603,
+    "kind": "place"
+  },
+  {
+    "name": "American Deli",
+    "lat": 33.7496543,
+    "lon": -84.3909296,
+    "kind": "place"
+  },
+  {
+    "name": "City of Atlanta Wellness Center",
+    "lat": 33.7492166,
+    "lon": -84.3911791,
+    "kind": "place"
+  },
+  {
+    "name": "Danaoln Crepe",
+    "lat": 33.7523462,
+    "lon": -84.3900655,
+    "kind": "place"
+  },
+  {
+    "name": "183 Pryor St SW Parking - Entrance",
+    "lat": 33.7499579,
+    "lon": -84.392242,
+    "kind": "place"
+  },
+  {
+    "name": "Fulton County",
+    "lat": 33.7512321,
+    "lon": -84.3909366,
+    "kind": "place"
+  },
+  {
+    "name": "Tiny Door - Underground Atlanta",
+    "lat": 33.7529784,
+    "lon": -84.3906015,
+    "kind": "place"
+  }
+]

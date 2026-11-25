@@ -51,6 +51,8 @@ const TypeversePage = React.lazy(() => import("@/pages/typeverse"));
 const ScripturePage = React.lazy(() => import("@/pages/scripture"));
 const LogosDeckPage = React.lazy(() => import("@/pages/logosdeck"));
 const CrossoverDeckPage = React.lazy(() => import("@/pages/crossoverdeck"));
+const CyberdeckPage = React.lazy(() => import("@/pages/cyberdeck"));
+const MapsPage = React.lazy(() => import("@/pages/maps"));
 const AudioPage = React.lazy(() => import("@/pages/audio"));
 const WeixSoundPage = React.lazy(() => import("@/pages/weixsound"));
 const LogosDecksPage = React.lazy(() => import("@/pages/logosdecks"));
@@ -234,6 +236,8 @@ function Router() {
         <Route path="/scripture" component={ScripturePage} />
         <Route path="/logosdeck" component={LogosDeckPage} />
         <Route path="/crossoverdeck" component={CrossoverDeckPage} />
+        <Route path="/cyberdeck" component={CyberdeckPage} />
+        <Route path="/maps" component={MapsPage} />
         <Route path="/audio" component={AudioPage} />
         <Route path="/weixsound" component={WeixSoundPage} />
         <Route path="/logosdecks" component={LogosDecksPage} />

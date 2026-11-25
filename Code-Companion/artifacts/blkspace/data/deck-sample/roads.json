@@ -1,0 +1,2216 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Martin Luther King Jr Drive Southeast",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3869429,
+            33.7491063
+          ],
+          [
+            -84.387169,
+            33.7492807
+          ],
+          [
+            -84.387283,
+            33.7493633
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Washington Street Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3875232,
+            33.7513218
+          ],
+          [
+            -84.3880506,
+            33.7505882
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Piedmont Avenue Southeast",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.387283,
+            33.7493633
+          ],
+          [
+            -84.3872185,
+            33.7494812
+          ],
+          [
+            -84.3871101,
+            33.7496674
+          ],
+          [
+            -84.3869076,
+            33.7499612
+          ],
+          [
+            -84.3869032,
+            33.7499664
+          ],
+          [
+            -84.3866689,
+            33.7502411
+          ],
+          [
+            -84.3865111,
+            33.7503958
+          ],
+          [
+            -84.3864114,
+            33.7504936
+          ],
+          [
+            -84.3862026,
+            33.7507057
+          ],
+          [
+            -84.3859627,
+            33.7509378
+          ],
+          [
+            -84.3858469,
+            33.7510439
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3874313,
+            33.7490393
+          ],
+          [
+            -84.3873461,
+            33.7490875
+          ],
+          [
+            -84.3872952,
+            33.7491038
+          ],
+          [
+            -84.3872817,
+            33.7491081
+          ],
+          [
+            -84.3872169,
+            33.7491171
+          ],
+          [
+            -84.3871678,
+            33.7491182
+          ],
+          [
+            -84.3869429,
+            33.7491063
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Shirley Clarke Franklin Boulevard Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3889631,
+            33.7519795
+          ],
+          [
+            -84.3888794,
+            33.7520698
+          ],
+          [
+            -84.3887968,
+            33.7521591
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Shirley Clarke Franklin Boulevard Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3883734,
+            33.7525534
+          ],
+          [
+            -84.3882965,
+            33.7526227
+          ],
+          [
+            -84.3882638,
+            33.7526522
+          ],
+          [
+            -84.388071,
+            33.752869
+          ],
+          [
+            -84.38795,
+            33.752945
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Courtland Street Southeast",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3857582,
+            33.7530459
+          ],
+          [
+            -84.3858634,
+            33.7529454
+          ],
+          [
+            -84.3859457,
+            33.7528675
+          ],
+          [
+            -84.387118,
+            33.751758
+          ],
+          [
+            -84.387386,
+            33.751488
+          ],
+          [
+            -84.3875232,
+            33.7513218
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Wall Street Southeast"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3891441,
+            33.753076
+          ],
+          [
+            -84.389051,
+            33.753014
+          ],
+          [
+            -84.3886246,
+            33.7527241
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Pryor Street",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3897685,
+            33.7529282
+          ],
+          [
+            -84.3899679,
+            33.7526924
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3887363,
+            33.7504856
+          ],
+          [
+            -84.3888316,
+            33.7503603
+          ],
+          [
+            -84.3888955,
+            33.7502762
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3887128,
+            33.7509813
+          ],
+          [
+            -84.3882823,
+            33.7507415
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3886122,
+            33.7511151
+          ],
+          [
+            -84.3881757,
+            33.7508826
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3885773,
+            33.7506886
+          ],
+          [
+            -84.3887363,
+            33.7504856
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3883943,
+            33.7505966
+          ],
+          [
+            -84.3885773,
+            33.7506886
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3886122,
+            33.7511151
+          ],
+          [
+            -84.3887128,
+            33.7509813
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3884929,
+            33.7512561
+          ],
+          [
+            -84.3886122,
+            33.7511151
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3880684,
+            33.7510253
+          ],
+          [
+            -84.3884929,
+            33.7512561
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3881757,
+            33.7508826
+          ],
+          [
+            -84.3880684,
+            33.7510253
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3882823,
+            33.7507415
+          ],
+          [
+            -84.3881757,
+            33.7508826
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3883943,
+            33.7505966
+          ],
+          [
+            -84.3882823,
+            33.7507415
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3885371,
+            33.750407
+          ],
+          [
+            -84.3883943,
+            33.7505966
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3886545,
+            33.7504661
+          ],
+          [
+            -84.3885371,
+            33.750407
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3888314,
+            33.7502427
+          ],
+          [
+            -84.3887668,
+            33.7503243
+          ],
+          [
+            -84.3886545,
+            33.7504661
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.387611,
+            33.7505592
+          ],
+          [
+            -84.3874977,
+            33.7506995
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3870983,
+            33.7503866
+          ],
+          [
+            -84.3874977,
+            33.7506995
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3870154,
+            33.7504677
+          ],
+          [
+            -84.3870983,
+            33.7503866
+          ],
+          [
+            -84.3872324,
+            33.7502514
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3877519,
+            33.7506696
+          ],
+          [
+            -84.3875755,
+            33.750882
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3865111,
+            33.7503958
+          ],
+          [
+            -84.3865898,
+            33.750458
+          ],
+          [
+            -84.3867347,
+            33.7505726
+          ],
+          [
+            -84.3872664,
+            33.7509216
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.387746,
+            33.7496478
+          ],
+          [
+            -84.3876689,
+            33.7497281
+          ],
+          [
+            -84.387647,
+            33.7497509
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3876191,
+            33.7500424
+          ],
+          [
+            -84.3876205,
+            33.7500959
+          ],
+          [
+            -84.3878031,
+            33.7502085
+          ],
+          [
+            -84.3878867,
+            33.7501052
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.387647,
+            33.7497509
+          ],
+          [
+            -84.3874676,
+            33.7499325
+          ],
+          [
+            -84.3876191,
+            33.7500424
+          ],
+          [
+            -84.3878136,
+            33.7498378
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3872664,
+            33.7509216
+          ],
+          [
+            -84.3874186,
+            33.75078
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3872324,
+            33.7502514
+          ],
+          [
+            -84.387611,
+            33.7505592
+          ],
+          [
+            -84.387721,
+            33.7506454
+          ],
+          [
+            -84.3877519,
+            33.7506696
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3874186,
+            33.75078
+          ],
+          [
+            -84.3870154,
+            33.7504677
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3875755,
+            33.750882
+          ],
+          [
+            -84.3874186,
+            33.75078
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3874977,
+            33.7506995
+          ],
+          [
+            -84.3874186,
+            33.75078
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3883734,
+            33.7525534
+          ],
+          [
+            -84.3883235,
+            33.7525059
+          ],
+          [
+            -84.3881495,
+            33.75234
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3881053,
+            33.7523868
+          ],
+          [
+            -84.3883135,
+            33.7525162
+          ],
+          [
+            -84.3883734,
+            33.7525534
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3881495,
+            33.75234
+          ],
+          [
+            -84.3881764,
+            33.752321
+          ],
+          [
+            -84.387927,
+            33.7521462
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3880583,
+            33.7524281
+          ],
+          [
+            -84.3879309,
+            33.7523455
+          ],
+          [
+            -84.3878074,
+            33.75226
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3881053,
+            33.7523868
+          ],
+          [
+            -84.3881241,
+            33.7523667
+          ],
+          [
+            -84.3881495,
+            33.75234
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3909709,
+            33.7524245
+          ],
+          [
+            -84.3904911,
+            33.752167
+          ],
+          [
+            -84.3904217,
+            33.7521289
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3881053,
+            33.7523868
+          ],
+          [
+            -84.3880583,
+            33.7524281
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.389496,
+            33.7528685
+          ],
+          [
+            -84.3894625,
+            33.7529092
+          ],
+          [
+            -84.3888315,
+            33.7524653
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3896958,
+            33.753009
+          ],
+          [
+            -84.3896402,
+            33.7529684
+          ],
+          [
+            -84.3895681,
+            33.7529181
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3888328,
+            33.752389
+          ],
+          [
+            -84.3887465,
+            33.7523233
+          ],
+          [
+            -84.3886779,
+            33.7522721
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3896355,
+            33.7528551
+          ],
+          [
+            -84.3895171,
+            33.7527747
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3888315,
+            33.7524653
+          ],
+          [
+            -84.3888793,
+            33.7524225
+          ],
+          [
+            -84.3889609,
+            33.7523539
+          ],
+          [
+            -84.3895171,
+            33.7527747
+          ],
+          [
+            -84.389496,
+            33.7528685
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3888315,
+            33.7524653
+          ],
+          [
+            -84.3887926,
+            33.7524403
+          ],
+          [
+            -84.3887812,
+            33.7524398
+          ],
+          [
+            -84.3887725,
+            33.7524436
+          ],
+          [
+            -84.3886967,
+            33.7525206
+          ],
+          [
+            -84.3886913,
+            33.7525273
+          ],
+          [
+            -84.388694,
+            33.7525362
+          ],
+          [
+            -84.3894219,
+            33.7530461
+          ],
+          [
+            -84.3894289,
+            33.7530472
+          ],
+          [
+            -84.3894363,
+            33.753045
+          ],
+          [
+            -84.3895108,
+            33.7529683
+          ],
+          [
+            -84.3895168,
+            33.7529583
+          ],
+          [
+            -84.3895128,
+            33.7529483
+          ],
+          [
+            -84.3894625,
+            33.7529092
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Martin Luther King Jr Drive Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.387283,
+            33.7493633
+          ],
+          [
+            -84.387413,
+            33.7494447
+          ],
+          [
+            -84.387746,
+            33.7496478
+          ],
+          [
+            -84.3884005,
+            33.7500073
+          ],
+          [
+            -84.388458,
+            33.750039
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Mitchell Street Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3918551,
+            33.7502984
+          ],
+          [
+            -84.3917786,
+            33.7502567
+          ],
+          [
+            -84.390743,
+            33.749691
+          ],
+          [
+            -84.3906628,
+            33.7496472
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Shirley Clarke Franklin Boulevard Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3898561,
+            33.7507996
+          ],
+          [
+            -84.3897878,
+            33.7508897
+          ],
+          [
+            -84.389667,
+            33.751049
+          ],
+          [
+            -84.389063,
+            33.7518468
+          ],
+          [
+            -84.3890163,
+            33.7519093
+          ],
+          [
+            -84.3889631,
+            33.7519795
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Shirley Clarke Franklin Boulevard Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3906628,
+            33.7496472
+          ],
+          [
+            -84.3906047,
+            33.7497206
+          ],
+          [
+            -84.3900432,
+            33.7504296
+          ],
+          [
+            -84.3898976,
+            33.7507132
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Pryor Street Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3899679,
+            33.7526924
+          ],
+          [
+            -84.3900574,
+            33.7525848
+          ],
+          [
+            -84.3901106,
+            33.7525167
+          ],
+          [
+            -84.390158,
+            33.7524555
+          ],
+          [
+            -84.3904217,
+            33.7521289
+          ],
+          [
+            -84.3909103,
+            33.7515037
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Pryor Street",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3894781,
+            33.753285
+          ],
+          [
+            -84.3895255,
+            33.7532191
+          ],
+          [
+            -84.3896958,
+            33.753009
+          ],
+          [
+            -84.3897685,
+            33.7529282
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Washington Street Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3880506,
+            33.7505882
+          ],
+          [
+            -84.388172,
+            33.750411
+          ],
+          [
+            -84.3883195,
+            33.7502328
+          ],
+          [
+            -84.3884023,
+            33.7501214
+          ],
+          [
+            -84.3884284,
+            33.7500868
+          ],
+          [
+            -84.388458,
+            33.750039
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Shirley Clarke Franklin Boulevard Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3887968,
+            33.7521591
+          ],
+          [
+            -84.3887677,
+            33.7521863
+          ],
+          [
+            -84.3886779,
+            33.7522721
+          ],
+          [
+            -84.3885194,
+            33.7524176
+          ],
+          [
+            -84.388457,
+            33.7524757
+          ],
+          [
+            -84.3883734,
+            33.7525534
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Martin Luther King Jr Drive Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3898561,
+            33.7507996
+          ],
+          [
+            -84.3899512,
+            33.7508525
+          ],
+          [
+            -84.3909067,
+            33.7513658
+          ],
+          [
+            -84.3909892,
+            33.7514101
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Mitchell Street Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3906628,
+            33.7496472
+          ],
+          [
+            -84.3905768,
+            33.7496
+          ],
+          [
+            -84.389916,
+            33.7492372
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Martin Luther King Jr Drive Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.388458,
+            33.750039
+          ],
+          [
+            -84.3885379,
+            33.7500826
+          ],
+          [
+            -84.3888314,
+            33.7502427
+          ],
+          [
+            -84.3888955,
+            33.7502762
+          ],
+          [
+            -84.3897508,
+            33.7507422
+          ],
+          [
+            -84.3898561,
+            33.7507996
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Washington Street Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.388458,
+            33.750039
+          ],
+          [
+            -84.3884969,
+            33.7499908
+          ],
+          [
+            -84.3885204,
+            33.7499618
+          ],
+          [
+            -84.3889067,
+            33.7494813
+          ],
+          [
+            -84.3889341,
+            33.7494472
+          ],
+          [
+            -84.3892885,
+            33.7489903
+          ],
+          [
+            -84.3893423,
+            33.7489226
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Mitchell Street Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.389916,
+            33.7492372
+          ],
+          [
+            -84.3894321,
+            33.748972
+          ],
+          [
+            -84.3893423,
+            33.7489226
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3888794,
+            33.7520698
+          ],
+          [
+            -84.3888071,
+            33.7520305
+          ],
+          [
+            -84.3887179,
+            33.7519786
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3886399,
+            33.7520844
+          ],
+          [
+            -84.3887096,
+            33.7521258
+          ],
+          [
+            -84.3887677,
+            33.7521863
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Collins Street Southeast"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3858415,
+            33.7529891
+          ],
+          [
+            -84.3859935,
+            33.7528483
+          ],
+          [
+            -84.3865125,
+            33.7523623
+          ],
+          [
+            -84.3865521,
+            33.7523252
+          ],
+          [
+            -84.3865993,
+            33.752281
+          ],
+          [
+            -84.3873632,
+            33.7515658
+          ],
+          [
+            -84.3873838,
+            33.7515568
+          ],
+          [
+            -84.3874125,
+            33.7515601
+          ],
+          [
+            -84.3874576,
+            33.7515879
+          ],
+          [
+            -84.3874832,
+            33.7516082
+          ],
+          [
+            -84.387521,
+            33.751639
+          ],
+          [
+            -84.3875699,
+            33.7516715
+          ],
+          [
+            -84.3875793,
+            33.7516795
+          ],
+          [
+            -84.3875864,
+            33.7516879
+          ],
+          [
+            -84.3875895,
+            33.7516993
+          ],
+          [
+            -84.387586,
+            33.7517086
+          ],
+          [
+            -84.3875812,
+            33.7517131
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Capitol Avenue Southeast",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3875763,
+            33.7486988
+          ],
+          [
+            -84.3875622,
+            33.7487319
+          ],
+          [
+            -84.3874313,
+            33.7490393
+          ],
+          [
+            -84.3873298,
+            33.7492703
+          ],
+          [
+            -84.387283,
+            33.7493633
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Pryor Street Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3918013,
+            33.7503645
+          ],
+          [
+            -84.3918551,
+            33.7502984
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Mitchell Street Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3930381,
+            33.7509475
+          ],
+          [
+            -84.3929684,
+            33.750907
+          ],
+          [
+            -84.3923887,
+            33.7505892
+          ],
+          [
+            -84.3919296,
+            33.7503387
+          ],
+          [
+            -84.3918551,
+            33.7502984
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Shirley Clarke Franklin Boulevard Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.38795,
+            33.752945
+          ],
+          [
+            -84.3878523,
+            33.7529919
+          ],
+          [
+            -84.3877016,
+            33.7530636
+          ],
+          [
+            -84.387694,
+            33.753068
+          ],
+          [
+            -84.387635,
+            33.753117
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Shirley Clarke Franklin Boulevard Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3898976,
+            33.7507132
+          ],
+          [
+            -84.3898821,
+            33.7507455
+          ],
+          [
+            -84.3898561,
+            33.7507996
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3918869,
+            33.749297
+          ],
+          [
+            -84.3918299,
+            33.7493342
+          ],
+          [
+            -84.3917892,
+            33.7493843
+          ],
+          [
+            -84.3917494,
+            33.7494354
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Pryor Street Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3918551,
+            33.7502984
+          ],
+          [
+            -84.391898,
+            33.7502408
+          ],
+          [
+            -84.3921595,
+            33.7499043
+          ],
+          [
+            -84.3922465,
+            33.7497936
+          ],
+          [
+            -84.3923341,
+            33.7496826
+          ],
+          [
+            -84.3924141,
+            33.7495803
+          ],
+          [
+            -84.3924541,
+            33.7495291
+          ],
+          [
+            -84.39258,
+            33.7493717
+          ],
+          [
+            -84.3926665,
+            33.7492628
+          ],
+          [
+            -84.3927116,
+            33.7491995
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3917885,
+            33.7494559
+          ],
+          [
+            -84.391858,
+            33.7493669
+          ],
+          [
+            -84.3918675,
+            33.7493544
+          ],
+          [
+            -84.3918869,
+            33.749297
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Shirley Clarke Franklin Boulevard Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3907187,
+            33.7495795
+          ],
+          [
+            -84.3906628,
+            33.7496472
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Shirley Clarke Franklin Boulevard Southwest",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.39148,
+            33.748613
+          ],
+          [
+            -84.3907187,
+            33.7495795
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Wall Street Southeast"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3886246,
+            33.7527241
+          ],
+          [
+            -84.3884675,
+            33.7526174
+          ],
+          [
+            -84.3883734,
+            33.7525534
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3895681,
+            33.7529181
+          ],
+          [
+            -84.389496,
+            33.7528685
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3888793,
+            33.7524225
+          ],
+          [
+            -84.3888328,
+            33.752389
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3889187,
+            33.7523171
+          ],
+          [
+            -84.3889609,
+            33.7523539
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road",
+        "oneway": "yes"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3887677,
+            33.7521863
+          ],
+          [
+            -84.3888332,
+            33.7522401
+          ],
+          [
+            -84.3889187,
+            33.7523171
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3918013,
+            33.7503645
+          ],
+          [
+            -84.3910401,
+            33.7513446
+          ],
+          [
+            -84.3910196,
+            33.751371
+          ],
+          [
+            -84.3909892,
+            33.7514101
+          ],
+          [
+            -84.3909103,
+            33.7515037
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3909892,
+            33.7514101
+          ],
+          [
+            -84.391063,
+            33.7514567
+          ],
+          [
+            -84.3920771,
+            33.7520324
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "road"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -84.3918869,
+            33.749297
+          ],
+          [
+            -84.3921609,
+            33.7489707
+          ],
+          [
+            -84.3921986,
+            33.7489221
+          ]
+        ]
+      }
+    }
+  ]
+}

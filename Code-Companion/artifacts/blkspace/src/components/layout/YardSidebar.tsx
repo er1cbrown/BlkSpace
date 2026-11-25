@@ -95,6 +95,20 @@ export function YardSidebar() {
                 <Code2 className="h-3.5 w-3.5" />
                 Sync test
               </Link>
+              <Link
+                href="/cyberdeck"
+                className="flex items-center gap-2 hover:text-foreground"
+              >
+                <Code2 className="h-3.5 w-3.5" />
+                Offline deck
+              </Link>
+              <Link
+                href="/maps"
+                className="flex items-center gap-2 hover:text-foreground"
+              >
+                <Code2 className="h-3.5 w-3.5" />
+                Maps
+              </Link>
             </div>
           )}
         </CardContent>
